@@ -1,0 +1,89 @@
+package dev.tcgshop.ptcg;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import dev.tcgshop.TcgShop;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
+import net.minecraft.resource.Resource;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.Nullable;
+
+import java.io.Reader;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+/**
+ * Equivalencias entre las cartas de cobbletcg y las del motor real (data/tcgshop/tcgshop_ptcg/cards.json, generado por
+ * tools/gen_ptcg_map.py) y datos básicos de las cartas del motor (tipo, fase, PS...) para montar y validar mazos.
+ */
+public final class PtcgCards {
+    private static Map<String, String> toEngine = new HashMap<>();
+    private static Map<String, String> toItem = new HashMap<>();
+    private static final Map<String, JsonObject> BRIEF = new ConcurrentHashMap<>();
+    public static final List<JsonObject> ENERGIES = new CopyOnWriteArrayList<>();
+    private static volatile boolean briefLoaded;
+
+    private PtcgCards() {}
+
+    @Nullable
+    public static String engineName(String cobbletcgId) { return toEngine.get(cobbletcgId); }
+
+    @Nullable
+    public static String itemId(String fullName) { return toItem.get(fullName); }
+
+    public static int mapped() { return toEngine.size(); }
+
+    @Nullable
+    public static JsonObject brief(String fullName) { return BRIEF.get(fullName); }
+
+    public static boolean isBasicEnergy(String fullName) {
+        for (JsonObject e : ENERGIES) if (e.get("f").getAsString().equals(fullName)) return true;
+        return false;
+    }
+
+    /** Pide al motor los datos de todas sus cartas (una vez, en su hilo). */
+    public static void loadBrief() {
+        if (briefLoaded) return;
+        PtcgEngine.call(api -> {
+            JsonArray all = JsonParser.parseString(PtcgEngine.str(api, "cardsJson")).getAsJsonArray();
+            for (JsonElement e : all) BRIEF.put(e.getAsJsonObject().get("f").getAsString(), e.getAsJsonObject());
+            ENERGIES.clear();
+            for (JsonElement e : JsonParser.parseString(PtcgEngine.str(api, "energiesJson")).getAsJsonArray()) ENERGIES.add(e.getAsJsonObject());
+            briefLoaded = true;
+            return true;
+        });
+    }
+
+    public static boolean briefReady() { return briefLoaded; }
+
+    public static class ReloadListener implements SimpleSynchronousResourceReloadListener {
+        @Override
+        public Identifier getFabricId() { return Identifier.of(TcgShop.MOD_ID, "ptcg_cards"); }
+
+        @Override
+        public void reload(ResourceManager manager) {
+            Map<String, String> te = new HashMap<>(), ti = new LinkedHashMap<>();
+            for (Map.Entry<Identifier, Resource> e : manager.findResources("tcgshop_ptcg", p -> p.getPath().endsWith(".json")).entrySet()) {
+                try (Reader r = e.getValue().getReader()) {
+                    JsonObject o = JsonParser.parseReader(r).getAsJsonObject();
+                    for (Map.Entry<String, JsonElement> kv : o.entrySet()) {
+                        String f = kv.getValue().getAsString();
+                        te.put(kv.getKey(), f);
+                        ti.putIfAbsent(f, kv.getKey());
+                    }
+                } catch (Exception ex) {
+                    TcgShop.LOGGER.error("Mapa de cartas del TCG inválido: {}", e.getKey(), ex);
+                }
+            }
+            toEngine = te;
+            toItem = ti;
+        }
+    }
+}

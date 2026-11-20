@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+"""Textos de la "tienda viva v2": muebles grandes, cajas animadas, clientes (reseñas, habituales, trueques),
+ladrones y Scalpers con combate Pokémon, y el teléfono nuevo. Fusiona las claves en es_es / en_us.
+Las frases de NPC están en npc_lines_living.py (las añade gen_npc_lines.py)."""
+import json
+from pathlib import Path
+
+LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
+
+ES = {
+    "block.tcgshop.card_wall": "Muro de cartas gradadas",
+    "tcgshop.shop.no_room": "No hay sitio: este mueble ocupa %s×%s×%s bloques",
+    "tcgshop.slab.grade": "NOTA %s",
+    "tcgshop.box.not_yours": "Esa caja de sobres no es tuya.",
+    "tcgshop.box.opening": "Abriendo caja",
+    "tcgshop.box.done_title": "¡%s sobres!",
+    "tcgshop.box.click_close": "Haz clic para continuar",
+    "tcgshop.battle.busy": "Ya está en mitad de un combate.",
+    "tcgshop.battle.already": "Ya estás en un combate.",
+    "tcgshop.battle.cant": "No se puede combatir ahora (¿tienes algún Pokémon sano en el equipo?).",
+    "tcgshop.scalper.brawl": "¡%s y %s se están peleando por el territorio!",
+    "tcgshop.scalper.brawl_won": "%s ha ganado la pelea y se pavonea por el barrio.",
+    "tcgshop.scalper.battle_start": "¿Un combate Pokémon? ¡Hecho! Si gano, me llevo algo tuyo.",
+    "tcgshop.scalper.battle_lost": "¡No puede ser...! Me... rindo...",
+    "tcgshop.scalper.battle_won": "¡Ja! He ganado. Esto me lo quedo como premio.",
+    "tcgshop.role.trader": "Coleccionista (trueque)",
+    "tcgshop.role.regular_back": "Cliente habitual",
+    "tcgshop.thief.loot_back": "lo robado",
+    "tcgshop.thief.recovered": "Has atrapado a %s y has recuperado lo que robó.",
+    "tcgshop.thief.chase_hint": "¡Persíguelo! Si lo atrapas a golpes recuperas el producto. Con un guardia esto no pasaría.",
+    "tcgshop.thief.chase_hint_battle": "¡Persíguelo! Golpéalo o haz clic derecho para retarlo a un combate Pokémon y recuperar el producto.",
+    "tcgshop.deal.waiting": "%s quiere hablar contigo (busca el «!» sobre su cabeza)",
+    "tcgshop.deal.trade_title": "Propuesta de intercambio",
+    "tcgshop.deal.you_get": "Te da",
+    "tcgshop.deal.you_give": "Quiere",
+    "tcgshop.review.left": "%s se va: %s «%s»",
+    "tcgshop.review.browse": "Solo miraba",
+    "tcgshop.review.bargain": "¡Qué precios tan buenos!",
+    "tcgshop.review.fair": "Precio justo, volveré",
+    "tcgshop.review.pricey": "Algo caro, pero lo quería",
+    "tcgshop.review.expensive": "Todo carísimo",
+    "tcgshop.review.no_cashier": "No había nadie en la caja",
+    "tcgshop.review.ignored": "Me ignoraron",
+    "tcgshop.review.deal_no": "Rechazaron mi oferta",
+    "tcgshop.review.deal_yes": "¡Trato cerrado, genial!",
+    "tcgshop.review.hit": "¡El dueño me pegó!",
+    "tcgshop.phone.time.night": "Noche",
+    "tcgshop.phone.time.morning": "Mañana",
+    "tcgshop.phone.time.afternoon": "Tarde",
+    "tcgshop.phone.time.evening": "Anochecer",
+    "tcgshop.phone.w_register": "En caja",
+    "tcgshop.phone.w_rep": "Reputación",
+    "tcgshop.phone.w_collection": "Colección %s / %s",
+    "tcgshop.phone.no_results": "Sin resultados",
+    "tcgshop.phone.owned": "En tu colección: %s",
+    "tcgshop.phone.s_rating": "Valoración",
+    "tcgshop.phone.s_regulars": "Clientes habituales",
+    "tcgshop.phone.hire_cost": "Contratar: %s",
+    "tcgshop.phone.wage_cost": "Sueldo diario: %s",
+    "tcgshop.phone.security_guard_on": "Tu guardia detiene a todos los ladrones y devuelve lo robado a su expositor.",
+    "tcgshop.phone.security_guard_off": "Sin guardia: si te roban, el ladrón huye como un Scalper. Persíguelo (o rétalo a un combate) para recuperar el producto.",
+    "tcgshop.phone.tab.reviews": "Reseñas",
+    "tcgshop.phone.reviews_head": "%s de media · %s reseñas · %s habituales",
+    "tcgshop.phone.no_reviews": "Aún no hay reseñas: los clientes las dejan al salir de la tienda.",
+    "tcgshop.phone.today": "hoy",
+    "tcgshop.phone.days_ago": "hace %s d",
+    "tcgshop.scalper.robbed_you": "¡%s te ha robado %s! Persíguelo para recuperarlo.",
+}
+
+EN = {
+    "block.tcgshop.card_wall": "Graded Card Wall",
+    "tcgshop.shop.no_room": "Not enough room: this furniture needs %s×%s×%s blocks",
+    "tcgshop.slab.grade": "GRADE %s",
+    "tcgshop.box.not_yours": "That booster box isn't yours.",
+    "tcgshop.box.opening": "Opening box",
+    "tcgshop.box.done_title": "%s packs!",
+    "tcgshop.box.click_close": "Click to continue",
+    "tcgshop.battle.busy": "Already in the middle of a battle.",
+    "tcgshop.battle.already": "You are already battling.",
+    "tcgshop.battle.cant": "You can't battle right now (do you have a healthy Pokémon in your party?).",
+    "tcgshop.scalper.brawl": "%s and %s are fighting over turf!",
+    "tcgshop.scalper.brawl_won": "%s won the fight and is strutting around.",
+    "tcgshop.scalper.battle_start": "A Pokémon battle? Deal! If I win, I take something of yours.",
+    "tcgshop.scalper.battle_lost": "No way...! I... give up...",
+    "tcgshop.scalper.battle_won": "Ha! I won. I'm keeping this as my prize.",
+    "tcgshop.role.trader": "Collector (trade)",
+    "tcgshop.role.regular_back": "Regular customer",
+    "tcgshop.thief.loot_back": "the stolen goods",
+    "tcgshop.thief.recovered": "You caught %s and got back what they stole.",
+    "tcgshop.thief.chase_hint": "Chase them! Beat them up to get the product back. A guard would have stopped this.",
+    "tcgshop.thief.chase_hint_battle": "Chase them! Hit them or right-click to challenge them to a Pokémon battle and get the product back.",
+    "tcgshop.deal.waiting": "%s wants to talk to you (look for the \"!\" above their head)",
+    "tcgshop.deal.trade_title": "Trade proposal",
+    "tcgshop.deal.you_get": "You get",
+    "tcgshop.deal.you_give": "They want",
+    "tcgshop.review.left": "%s leaves: %s \"%s\"",
+    "tcgshop.review.browse": "Just browsing",
+    "tcgshop.review.bargain": "Amazing prices!",
+    "tcgshop.review.fair": "Fair price, will be back",
+    "tcgshop.review.pricey": "A bit pricey, but I wanted it",
+    "tcgshop.review.expensive": "Everything is overpriced",
+    "tcgshop.review.no_cashier": "Nobody at the register",
+    "tcgshop.review.ignored": "They ignored me",
+    "tcgshop.review.deal_no": "They turned down my offer",
+    "tcgshop.review.deal_yes": "Deal done, great!",
+    "tcgshop.review.hit": "The owner hit me!",
+    "tcgshop.phone.time.night": "Night",
+    "tcgshop.phone.time.morning": "Morning",
+    "tcgshop.phone.time.afternoon": "Afternoon",
+    "tcgshop.phone.time.evening": "Evening",
+    "tcgshop.phone.w_register": "In register",
+    "tcgshop.phone.w_rep": "Reputation",
+    "tcgshop.phone.w_collection": "Collection %s / %s",
+    "tcgshop.phone.no_results": "No results",
+    "tcgshop.phone.owned": "In your collection: %s",
+    "tcgshop.phone.s_rating": "Rating",
+    "tcgshop.phone.s_regulars": "Regular customers",
+    "tcgshop.phone.hire_cost": "Hire: %s",
+    "tcgshop.phone.wage_cost": "Daily wage: %s",
+    "tcgshop.phone.security_guard_on": "Your guard detains every thief and returns the goods to their display.",
+    "tcgshop.phone.security_guard_off": "No guard: if you get robbed, the thief runs off like a Scalper. Chase them (or battle them) to get it back.",
+    "tcgshop.phone.tab.reviews": "Reviews",
+    "tcgshop.phone.reviews_head": "%s average · %s reviews · %s regulars",
+    "tcgshop.phone.no_reviews": "No reviews yet: customers leave them on their way out.",
+    "tcgshop.phone.today": "today",
+    "tcgshop.phone.days_ago": "%s d ago",
+    "tcgshop.scalper.robbed_you": "%s stole %s from you! Chase them to get it back.",
+}
+
+
+def main():
+    assert set(ES) == set(EN), set(ES) ^ set(EN)
+    for name, add in (("es_es.json", ES), ("en_us.json", EN)):
+        p = LANG / name
+        d = json.loads(p.read_text(encoding="utf-8"))
+        d.update(add)
+        p.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
+    print("textos tienda viva v2:", len(ES))
+
+
+if __name__ == "__main__":
+    main()

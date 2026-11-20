@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "cobbletcg:mew151/riped3_mew151"
+    },
+    "title": {
+      "translate": "advancement.tcgshop.semigod_pack.title"
+    },
+    "description": {
+      "translate": "advancement.tcgshop.semigod_pack.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "tcgshop:packs_10"
+}

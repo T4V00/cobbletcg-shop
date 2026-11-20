@@ -1,0 +1,34 @@
+{
+ "variants": {
+  "facing=north,alarm=false": {
+   "model": "tcgshop:block/theft_detector"
+  },
+  "facing=east,alarm=false": {
+   "model": "tcgshop:block/theft_detector",
+   "y": 90
+  },
+  "facing=south,alarm=false": {
+   "model": "tcgshop:block/theft_detector",
+   "y": 180
+  },
+  "facing=west,alarm=false": {
+   "model": "tcgshop:block/theft_detector",
+   "y": 270
+  },
+  "facing=north,alarm=true": {
+   "model": "tcgshop:block/theft_detector_on"
+  },
+  "facing=east,alarm=true": {
+   "model": "tcgshop:block/theft_detector_on",
+   "y": 90
+  },
+  "facing=south,alarm=true": {
+   "model": "tcgshop:block/theft_detector_on",
+   "y": 180
+  },
+  "facing=west,alarm=true": {
+   "model": "tcgshop:block/theft_detector_on",
+   "y": 270
+  }
+ }
+}

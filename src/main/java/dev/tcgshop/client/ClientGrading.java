@@ -1,0 +1,52 @@
+package dev.tcgshop.client;
+
+import dev.tcgshop.network.GradePayloads;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.Text;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/** Pedidos de CobbleGrade en el cliente (para la app del teléfono). */
+public final class ClientGrading {
+    public static List<GradePayloads.Order> orders = new ArrayList<>();
+    private static long serverNow, localAtSync;
+
+    private ClientGrading() {}
+
+    public static void apply(GradePayloads.Sync s) {
+        orders = new ArrayList<>(s.orders());
+        serverNow = s.now();
+        localAtSync = localTime();
+    }
+
+    private static long localTime() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        return mc.world == null ? 0 : mc.world.getTime();
+    }
+
+    /** Hora del servidor estimada (la del último sync + lo que ha pasado desde entonces). */
+    public static long now() { return serverNow + Math.max(0, localTime() - localAtSync); }
+
+    public static int readyCount() {
+        int n = 0;
+        long now = now();
+        for (GradePayloads.Order o : orders) if (now >= o.ready()) n++;
+        return n;
+    }
+
+    public static void request() {
+        if (ClientPlayNetworking.canSend(GradePayloads.Action.ID)) ClientPlayNetworking.send(new GradePayloads.Action(GradePayloads.SYNC, 0, List.of(), 0));
+    }
+
+    /** Ticks de Minecraft a "1 d 4 h" / "3 h 20 min" (1000 ticks = 1 hora del juego). */
+    public static Text duration(long ticks) {
+        long min = Math.max(0, ticks) * 60 / 1000;
+        long d = min / (24 * 60), h = (min / 60) % 24, m = min % 60;
+        if (d > 0) return Text.translatable("tcgshop.grade.time_dh", d, h);
+        if (h > 0) return Text.translatable("tcgshop.grade.time_hm", h, m);
+        return Text.literal(String.format(Locale.ROOT, "%d min", Math.max(1, m)));
+    }
+}

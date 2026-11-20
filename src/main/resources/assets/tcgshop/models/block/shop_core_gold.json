@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "side": "tcgshop:block/shop_core_gold_side",
+    "top": "tcgshop:block/shop_core_gold_top",
+    "bottom": "tcgshop:block/shop_core_gold_top"
+  }
+}

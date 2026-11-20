@@ -1,0 +1,81 @@
+package dev.tcgshop.shop;
+
+import dev.tcgshop.TcgSounds;
+import dev.tcgshop.card.CardInfo;
+import dev.tcgshop.card.Rarity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.tooltip.TooltipType;
+import net.minecraft.registry.Registries;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Hand;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.World;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Mystery Box: producto sorpresa. Quien la abre recibe sobres o una carta rara al azar.
+ * Al venderla en tu tienda cobras su precio multiplicado por la suerte (de x0,3 a x1,9): puedes ganar o perder.
+ */
+public class MysteryBoxItem extends Item {
+    public MysteryBoxItem(Settings settings) {
+        super(settings);
+    }
+
+    /** Lo que cobra el dueño de la tienda al vender una Mystery Box de precio `price`. */
+    public static long ownerEarning(long price, Random r) {
+        return Math.round(price * (0.3 + r.nextDouble() * 1.6));
+    }
+
+    public static List<ItemStack> reward(Random r) {
+        List<ItemStack> out = new ArrayList<>();
+        List<Item> sealed = new ArrayList<>();
+        List<Item> rares = new ArrayList<>(), hypers = new ArrayList<>();
+        for (Identifier id : Registries.ITEM.getIds()) {
+            if (!CardInfo.NS.equals(id.getNamespace())) continue;
+            Item it = Registries.ITEM.get(id);
+            if (id.getPath().contains("/sealed_")) { if (!PackLock.locked(id)) sealed.add(it); }
+            else if (CardInfo.isCard(id)) {
+                Rarity rar = Rarity.of(new ItemStack(it));
+                if (rar == Rarity.HYPER_RARE || rar == Rarity.SPECIAL_ILLUSTRATION_RARE) hypers.add(it);
+                else if (rar == Rarity.ULTRA_RARE || rar == Rarity.ILLUSTRATION_RARE) rares.add(it);
+            }
+        }
+        float f = r.nextFloat();
+        if (f < 0.05f && !hypers.isEmpty()) out.add(new ItemStack(hypers.get(r.nextInt(hypers.size()))));
+        else if (f < 0.35f && !rares.isEmpty()) out.add(new ItemStack(rares.get(r.nextInt(rares.size()))));
+        else if (!sealed.isEmpty()) {
+            int n = f < 0.85f ? 2 : 3;
+            for (int i = 0; i < n; i++) out.add(new ItemStack(sealed.get(r.nextInt(sealed.size()))));
+        }
+        return out;
+    }
+
+    @Override
+    public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
+        ItemStack stack = user.getStackInHand(hand);
+        if (!world.isClient) {
+            List<ItemStack> got = reward(world.random);
+            for (ItemStack st : got) {
+                user.getInventory().offerOrDrop(st);
+                user.sendMessage(Text.translatable("tcgshop.mystery.got", st.toHoverableText()).formatted(Formatting.LIGHT_PURPLE), false);
+            }
+            world.playSound(null, user.getBlockPos(), TcgSounds.CARD_RARE, SoundCategory.PLAYERS, 1f, 0.8f);
+            stack.decrementUnlessCreative(1, user);
+        }
+        return TypedActionResult.success(stack, world.isClient);
+    }
+
+    @Override
+    public void appendTooltip(ItemStack stack, TooltipContext context, List<Text> tooltip, TooltipType type) {
+        tooltip.add(Text.translatable("item.tcgshop.mystery_box.tip1").formatted(Formatting.GRAY));
+        tooltip.add(Text.translatable("item.tcgshop.mystery_box.tip2").formatted(Formatting.DARK_GRAY));
+    }
+}

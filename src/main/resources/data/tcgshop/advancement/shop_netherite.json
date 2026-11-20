@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "tcgshop:shop_core_netherite"
+    },
+    "title": {
+      "translate": "advancement.tcgshop.shop_netherite.title"
+    },
+    "description": {
+      "translate": "advancement.tcgshop.shop_netherite.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "tcgshop:open_shop"
+}

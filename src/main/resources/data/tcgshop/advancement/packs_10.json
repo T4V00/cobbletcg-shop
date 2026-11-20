@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "cobbletcg:mew151/sealed_mew151"
+    },
+    "title": {
+      "translate": "advancement.tcgshop.packs_10.title"
+    },
+    "description": {
+      "translate": "advancement.tcgshop.packs_10.desc"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "tcgshop:root"
+}

@@ -1,0 +1,154 @@
+{
+ "parent": "minecraft:block/block",
+ "textures": {
+  "frame": "minecraft:block/stripped_dark_oak_log",
+  "panel": "minecraft:block/black_wool",
+  "gold": "minecraft:block/gold_block",
+  "head": "tcgshop:block/header",
+  "particle": "minecraft:block/dark_oak_planks"
+ },
+ "elements": [
+  {
+   "from": [
+    0,
+    1.5,
+    12
+   ],
+   "to": [
+    16,
+    16,
+    16
+   ],
+   "faces": {
+    "north": {
+     "texture": "#panel",
+     "uv": [
+      0,
+      0,
+      16,
+      14.5
+     ]
+    },
+    "south": {
+     "texture": "#panel",
+     "uv": [
+      0,
+      0,
+      16,
+      14.5
+     ]
+    },
+    "down": {
+     "texture": "#panel",
+     "uv": [
+      0,
+      0,
+      16,
+      4
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    0,
+    0,
+    11
+   ],
+   "to": [
+    16,
+    1.5,
+    16
+   ],
+   "faces": {
+    "north": {
+     "texture": "#frame",
+     "uv": [
+      0,
+      14.5,
+      16,
+      16
+     ]
+    },
+    "south": {
+     "texture": "#frame",
+     "uv": [
+      0,
+      14.5,
+      16,
+      16
+     ]
+    },
+    "up": {
+     "texture": "#frame",
+     "uv": [
+      0,
+      11,
+      16,
+      16
+     ]
+    },
+    "down": {
+     "texture": "#frame",
+     "uv": [
+      0,
+      0,
+      16,
+      5
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    0,
+    1.9,
+    9.5
+   ],
+   "to": [
+    16,
+    2.5,
+    12
+   ],
+   "faces": {
+    "north": {
+     "texture": "#gold",
+     "uv": [
+      0,
+      13.5,
+      16,
+      14.1
+     ]
+    },
+    "south": {
+     "texture": "#gold",
+     "uv": [
+      0,
+      13.5,
+      16,
+      14.1
+     ]
+    },
+    "up": {
+     "texture": "#gold",
+     "uv": [
+      0,
+      9.5,
+      16,
+      12
+     ]
+    },
+    "down": {
+     "texture": "#gold",
+     "uv": [
+      0,
+      4,
+      16,
+      6.5
+     ]
+    }
+   }
+  }
+ ],
+ "ambientocclusion": false
+}

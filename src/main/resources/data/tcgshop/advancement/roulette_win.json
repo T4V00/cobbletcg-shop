@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "tcgshop:roulette"
+    },
+    "title": {
+      "translate": "advancement.tcgshop.roulette_win.title"
+    },
+    "description": {
+      "translate": "advancement.tcgshop.roulette_win.desc"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "tcgshop:root"
+}

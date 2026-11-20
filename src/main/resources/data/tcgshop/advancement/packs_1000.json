@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "cobbletcg:bundle_prismaticevolution"
+    },
+    "title": {
+      "translate": "advancement.tcgshop.packs_1000.title"
+    },
+    "description": {
+      "translate": "advancement.tcgshop.packs_1000.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "tcgshop:packs_250"
+}

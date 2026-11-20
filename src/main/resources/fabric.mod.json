@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "tcgshop",
+  "version": "${version}",
+  "name": "CobbleTCG Shop",
+  "description": "A shop-simulator add-on for CobbleTCG: run your own Pokemon TCG card shop, open packs with animations, trade with NPCs and players, grade cards, play the real TCG and climb the league. Prices in CobbleDollars.",
+  "authors": [
+    "destr"
+  ],
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "dev.tcgshop.TcgShop"
+    ],
+    "client": [
+      "dev.tcgshop.client.TcgShopClient"
+    ]
+  },
+  "mixins": [
+    "tcgshop.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*",
+    "cobbletcg": ">=1.6.0"
+  },
+  "recommends": {
+    "cobbledollars": "*",
+    "cobblemon": "*",
+    "pokeblocks": "*"
+  }
+}

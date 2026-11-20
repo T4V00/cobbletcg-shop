@@ -1,0 +1,19 @@
+{
+ "variants": {
+  "facing=north": {
+   "model": "tcgshop:block/poster"
+  },
+  "facing=east": {
+   "model": "tcgshop:block/poster",
+   "y": 90
+  },
+  "facing=south": {
+   "model": "tcgshop:block/poster",
+   "y": 180
+  },
+  "facing=west": {
+   "model": "tcgshop:block/poster",
+   "y": 270
+  }
+ }
+}

@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "cobbletcg:ascended/cards/asc022"
+    },
+    "title": {
+      "translate": "advancement.tcgshop.species_charizard_demented.title"
+    },
+    "description": {
+      "translate": "advancement.tcgshop.species_charizard_demented.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "tcgshop:species_charizard_obsessed"
+}

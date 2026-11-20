@@ -1,0 +1,68 @@
+plugins {
+    id 'fabric-loom' version "${loom_version}"
+    id 'java'
+}
+
+version = project.mod_version
+group = project.maven_group
+base { archivesName = project.archives_base_name }
+
+repositories { mavenCentral() }
+
+// Ruta a la instancia de CurseForge (para copiar el jar al terminar el build)
+def instanceDir = file('../..')
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    // cobbletcg y CobbleDollars NO se compilan contra el cÃ³digo: se usan por IDs/tags y reflexiÃ³n.
+    // Para probar en el entorno de desarrollo (runClient) se cargan desde la carpeta mods de la instancia.
+    // cobbletcg: se compila contra él sólo para el rework de sus álbumes (pantalla Panini). No se incluye en el jar.
+    modCompileOnly files("${instanceDir}/mods/cobbletcg-1.6.0.jar")
+    modLocalRuntime files("${instanceDir}/mods/cobbletcg-1.6.0.jar")
+
+    // Motor real de Pokemon TCG (twinleaf.gg, MIT) ejecutado con GraalJS dentro del mod (jar-in-jar)
+    for (String m : ['org.graalvm.polyglot:polyglot', 'org.graalvm.sdk:collections', 'org.graalvm.sdk:nativeimage', 'org.graalvm.sdk:word',
+                     'org.graalvm.sdk:jniutils', 'org.graalvm.truffle:truffle-api', 'org.graalvm.truffle:truffle-runtime',
+                     'org.graalvm.truffle:truffle-compiler', 'org.graalvm.js:js-language', 'org.graalvm.regex:regex', 'org.graalvm.shadowed:icu4j']) {
+        implementation("${m}:24.1.1") { transitive = false }
+        include("${m}:24.1.1")
+    }
+}
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') { expand 'version': project.version }
+    // public build (./gradlew build -Prelease): leaves out the fixed cobbletcg advancements (another author's files)
+    if (project.hasProperty('release')) exclude 'data/cobbletcg/**'
+}
+
+tasks.withType(JavaCompile).configureEach { it.options.release = 21 }
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+// ./gradlew installToInstance  -> compila y copia el jar a la carpeta mods de la instancia
+tasks.register('installToInstance', Copy) {
+    dependsOn remapJar
+    from remapJar.archiveFile
+    into "${instanceDir}/mods"
+}
+
+// --- banco de pruebas del motor TCG en GraalJS (no forma parte del mod)
+sourceSets { bench { java { srcDir 'src/bench/java' } } }
+dependencies {
+    benchImplementation "org.graalvm.polyglot:polyglot:24.1.1"
+    benchImplementation "org.graalvm.polyglot:js-community:24.1.1"
+}
+tasks.register('ptcgBench', JavaExec) {
+    classpath = sourceSets.bench.runtimeClasspath
+    mainClass = 'PtcgBench'
+    args file('src/main/resources/assets/tcgshop/ptcg/engine.js').absolutePath, (project.findProperty('steps') ?: '40')
+    jvmArgs '-Xmx3G'
+}
+tasks.register('ptcgDeps') { doLast { sourceSets.bench.runtimeClasspath.files.findAll { it.name.endsWith('.jar') && !it.path.contains('minecraft') && !it.path.contains('fabric') }.each { println "${it.name} ${(it.length() / 1024 / 1024).round(1)}MB" } } }

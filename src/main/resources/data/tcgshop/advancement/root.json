@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "tcgshop:general_binder"
+    },
+    "title": {
+      "translate": "advancement.tcgshop.root.title"
+    },
+    "description": {
+      "translate": "advancement.tcgshop.root.desc"
+    },
+    "frame": "task",
+    "show_toast": false,
+    "announce_to_chat": false,
+    "hidden": false,
+    "background": "minecraft:textures/block/blue_concrete.png"
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:tick"
+    }
+  }
+}

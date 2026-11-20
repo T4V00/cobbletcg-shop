@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "cobbletcg:album_mew_151"
+    },
+    "title": {
+      "translate": "advancement.tcgshop.set_complete.title"
+    },
+    "description": {
+      "translate": "advancement.tcgshop.set_complete.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "tcgshop:unique_100"
+}

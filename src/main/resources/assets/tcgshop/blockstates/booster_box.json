@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "tcgshop:block/booster_box"
+    },
+    "facing=east": {
+      "model": "tcgshop:block/booster_box",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "tcgshop:block/booster_box",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "tcgshop:block/booster_box",
+      "y": 270
+    }
+  }
+}

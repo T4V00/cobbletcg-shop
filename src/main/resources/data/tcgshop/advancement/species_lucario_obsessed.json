@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "cobbletcg:aradiance/cards/asr078"
+    },
+    "title": {
+      "translate": "advancement.tcgshop.species_lucario_obsessed.title"
+    },
+    "description": {
+      "translate": "advancement.tcgshop.species_lucario_obsessed.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "tcgshop:species_lucario_enthusiast"
+}

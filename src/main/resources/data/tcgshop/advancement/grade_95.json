@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "minecraft:glow_item_frame"
+    },
+    "title": {
+      "translate": "advancement.tcgshop.grade_95.title"
+    },
+    "description": {
+      "translate": "advancement.tcgshop.grade_95.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "tcgshop:grade_send"
+}

@@ -1,0 +1,355 @@
+{
+ "parent": "minecraft:block/block",
+ "textures": {
+  "q": "minecraft:block/quartz_block_side",
+  "qt": "minecraft:block/quartz_block_top",
+  "pillar": "minecraft:block/quartz_pillar",
+  "gold": "minecraft:block/gold_block",
+  "velvet": "minecraft:block/red_wool",
+  "glass": "minecraft:block/glass",
+  "particle": "minecraft:block/quartz_block_side"
+ },
+ "elements": [
+  {
+   "from": [
+    2,
+    0,
+    2
+   ],
+   "to": [
+    14,
+    2,
+    14
+   ],
+   "faces": {
+    "north": {
+     "texture": "#q",
+     "uv": [
+      2,
+      14,
+      14,
+      16
+     ]
+    },
+    "south": {
+     "texture": "#q",
+     "uv": [
+      2,
+      14,
+      14,
+      16
+     ]
+    },
+    "east": {
+     "texture": "#q",
+     "uv": [
+      2,
+      14,
+      14,
+      16
+     ]
+    },
+    "west": {
+     "texture": "#q",
+     "uv": [
+      2,
+      14,
+      14,
+      16
+     ]
+    },
+    "up": {
+     "texture": "#qt",
+     "uv": [
+      2,
+      2,
+      14,
+      14
+     ]
+    },
+    "down": {
+     "texture": "#qt",
+     "uv": [
+      2,
+      2,
+      14,
+      14
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    2.5,
+    2,
+    2.5
+   ],
+   "to": [
+    13.5,
+    2.6,
+    13.5
+   ],
+   "faces": {
+    "north": {
+     "texture": "#gold",
+     "uv": [
+      2.5,
+      13.4,
+      13.5,
+      14
+     ]
+    },
+    "south": {
+     "texture": "#gold",
+     "uv": [
+      2.5,
+      13.4,
+      13.5,
+      14
+     ]
+    },
+    "east": {
+     "texture": "#gold",
+     "uv": [
+      2.5,
+      13.4,
+      13.5,
+      14
+     ]
+    },
+    "west": {
+     "texture": "#gold",
+     "uv": [
+      2.5,
+      13.4,
+      13.5,
+      14
+     ]
+    },
+    "up": {
+     "texture": "#gold",
+     "uv": [
+      2.5,
+      2.5,
+      13.5,
+      13.5
+     ]
+    },
+    "down": {
+     "texture": "#gold",
+     "uv": [
+      2.5,
+      2.5,
+      13.5,
+      13.5
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    4,
+    2.6,
+    4
+   ],
+   "to": [
+    12,
+    13,
+    12
+   ],
+   "faces": {
+    "north": {
+     "texture": "#pillar",
+     "uv": [
+      4,
+      3,
+      12,
+      13.4
+     ]
+    },
+    "south": {
+     "texture": "#pillar",
+     "uv": [
+      4,
+      3,
+      12,
+      13.4
+     ]
+    },
+    "east": {
+     "texture": "#pillar",
+     "uv": [
+      4,
+      3,
+      12,
+      13.4
+     ]
+    },
+    "west": {
+     "texture": "#pillar",
+     "uv": [
+      4,
+      3,
+      12,
+      13.4
+     ]
+    },
+    "up": {
+     "texture": "#qt",
+     "uv": [
+      4,
+      4,
+      12,
+      12
+     ]
+    },
+    "down": {
+     "texture": "#qt",
+     "uv": [
+      4,
+      4,
+      12,
+      12
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    3,
+    13,
+    3
+   ],
+   "to": [
+    13,
+    13.6,
+    13
+   ],
+   "faces": {
+    "north": {
+     "texture": "#gold",
+     "uv": [
+      3,
+      2.4,
+      13,
+      3
+     ]
+    },
+    "south": {
+     "texture": "#gold",
+     "uv": [
+      3,
+      2.4,
+      13,
+      3
+     ]
+    },
+    "east": {
+     "texture": "#gold",
+     "uv": [
+      3,
+      2.4,
+      13,
+      3
+     ]
+    },
+    "west": {
+     "texture": "#gold",
+     "uv": [
+      3,
+      2.4,
+      13,
+      3
+     ]
+    },
+    "up": {
+     "texture": "#gold",
+     "uv": [
+      3,
+      3,
+      13,
+      13
+     ]
+    },
+    "down": {
+     "texture": "#gold",
+     "uv": [
+      3,
+      3,
+      13,
+      13
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    1,
+    13.6,
+    1
+   ],
+   "to": [
+    15,
+    16,
+    15
+   ],
+   "faces": {
+    "north": {
+     "texture": "#q",
+     "uv": [
+      1,
+      0,
+      15,
+      2.4
+     ]
+    },
+    "south": {
+     "texture": "#q",
+     "uv": [
+      1,
+      0,
+      15,
+      2.4
+     ]
+    },
+    "east": {
+     "texture": "#q",
+     "uv": [
+      1,
+      0,
+      15,
+      2.4
+     ]
+    },
+    "west": {
+     "texture": "#q",
+     "uv": [
+      1,
+      0,
+      15,
+      2.4
+     ]
+    },
+    "up": {
+     "texture": "#qt",
+     "uv": [
+      1,
+      1,
+      15,
+      15
+     ]
+    },
+    "down": {
+     "texture": "#qt",
+     "uv": [
+      1,
+      1,
+      15,
+      15
+     ]
+    }
+   }
+  }
+ ],
+ "ambientocclusion": false
+}

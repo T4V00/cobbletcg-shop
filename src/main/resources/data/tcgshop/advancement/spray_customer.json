@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "tcgshop:deodorant_spray"
+    },
+    "title": {
+      "translate": "advancement.tcgshop.spray_customer.title"
+    },
+    "description": {
+      "translate": "advancement.tcgshop.spray_customer.desc"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "tcgshop:first_sale"
+}

@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "minecraft:glow_item_frame"
+    },
+    "title": {
+      "translate": "advancement.tcgshop.pull_special_illustration.title"
+    },
+    "description": {
+      "translate": "advancement.tcgshop.pull_special_illustration.desc"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "tcgshop:pull_illustration_rare"
+}

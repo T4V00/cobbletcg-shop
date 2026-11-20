@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "cobbletcg:ascended/cards/asc055"
+    },
+    "title": {
+      "translate": "advancement.tcgshop.species_pikachu_fan.title"
+    },
+    "description": {
+      "translate": "advancement.tcgshop.species_pikachu_fan.desc"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "tcgshop:title_fan"
+}

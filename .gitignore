@@ -1,0 +1,18 @@
+# compilación y pruebas
+build/
+.gradle/
+run/
+out/
+*.class
+release/*.jar
+
+# dependencias del motor (se instalan con npm)
+engine/node_modules/
+
+# logros corregidos de CobbleTCG: son archivos de otro autor, no se publican
+src/main/resources/data/cobbletcg/
+
+# IDE
+.idea/
+*.iml
+.vscode/

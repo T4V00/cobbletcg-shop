@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["LIL", "PBP", "LDL"],
+  "key": {
+    "L": { "item": "minecraft:leather" },
+    "I": { "item": "minecraft:iron_nugget" },
+    "P": { "item": "minecraft:paper" },
+    "B": { "item": "minecraft:book" },
+    "D": { "item": "minecraft:blue_dye" }
+  },
+  "result": { "id": "tcgshop:personal_binder", "count": 1 }
+}

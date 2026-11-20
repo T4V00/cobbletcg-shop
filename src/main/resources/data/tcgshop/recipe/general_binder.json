@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["LGL", "PBP", "LRL"],
+  "key": {
+    "L": { "item": "minecraft:leather" },
+    "G": { "item": "minecraft:gold_ingot" },
+    "P": { "item": "minecraft:paper" },
+    "B": { "item": "minecraft:book" },
+    "R": { "item": "minecraft:red_dye" }
+  },
+  "result": { "id": "tcgshop:general_binder", "count": 1 }
+}

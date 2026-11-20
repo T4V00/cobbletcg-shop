@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "cobbletcg:ascended/cards/asc125"
+    },
+    "title": {
+      "translate": "advancement.tcgshop.species_gengar_obsessed.title"
+    },
+    "description": {
+      "translate": "advancement.tcgshop.species_gengar_obsessed.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "tcgshop:species_gengar_enthusiast"
+}

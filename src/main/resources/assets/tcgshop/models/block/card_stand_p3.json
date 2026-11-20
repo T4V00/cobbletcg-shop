@@ -1,0 +1,232 @@
+{
+ "parent": "minecraft:block/block",
+ "textures": {
+  "base": "minecraft:block/stripped_dark_oak_log",
+  "wood": "minecraft:block/dark_oak_planks",
+  "gold": "minecraft:block/gold_block",
+  "velvet": "minecraft:block/red_wool",
+  "head": "tcgshop:block/header",
+  "particle": "minecraft:block/dark_oak_planks"
+ },
+ "elements": [
+  {
+   "from": [
+    0,
+    0,
+    10.6
+   ],
+   "to": [
+    14.5,
+    13,
+    11.6
+   ],
+   "faces": {
+    "north": {
+     "texture": "#velvet",
+     "uv": [
+      1.5,
+      3,
+      16,
+      16
+     ]
+    },
+    "south": {
+     "texture": "#velvet",
+     "uv": [
+      0,
+      3,
+      14.5,
+      16
+     ]
+    },
+    "east": {
+     "texture": "#velvet",
+     "uv": [
+      4.4,
+      3,
+      5.4,
+      16
+     ]
+    },
+    "up": {
+     "texture": "#velvet",
+     "uv": [
+      0,
+      10.6,
+      14.5,
+      11.6
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    14.5,
+    0,
+    10
+   ],
+   "to": [
+    15.5,
+    15,
+    12.2
+   ],
+   "faces": {
+    "north": {
+     "texture": "#base",
+     "uv": [
+      0.5,
+      1,
+      1.5,
+      16
+     ]
+    },
+    "south": {
+     "texture": "#base",
+     "uv": [
+      14.5,
+      1,
+      15.5,
+      16
+     ]
+    },
+    "east": {
+     "texture": "#base",
+     "uv": [
+      3.8,
+      1,
+      6,
+      16
+     ]
+    },
+    "west": {
+     "texture": "#base",
+     "uv": [
+      10,
+      1,
+      12.2,
+      16
+     ]
+    },
+    "up": {
+     "texture": "#base",
+     "uv": [
+      14.5,
+      10,
+      15.5,
+      12.2
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    0,
+    0,
+    10.2
+   ],
+   "to": [
+    0.5,
+    13,
+    11.2
+   ],
+   "faces": {
+    "north": {
+     "texture": "#gold",
+     "uv": [
+      15.5,
+      3,
+      16,
+      16
+     ]
+    },
+    "south": {
+     "texture": "#gold",
+     "uv": [
+      0,
+      3,
+      0.5,
+      16
+     ]
+    },
+    "east": {
+     "texture": "#gold",
+     "uv": [
+      4.8,
+      3,
+      5.8,
+      16
+     ]
+    },
+    "up": {
+     "texture": "#gold",
+     "uv": [
+      0,
+      10.2,
+      0.5,
+      11.2
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    0,
+    13,
+    10
+   ],
+   "to": [
+    15.5,
+    15.5,
+    12.2
+   ],
+   "faces": {
+    "north": {
+     "texture": "#head",
+     "uv": [
+      0.5,
+      0.5,
+      16,
+      3
+     ]
+    },
+    "south": {
+     "texture": "#base",
+     "uv": [
+      0,
+      0.5,
+      15.5,
+      3
+     ]
+    },
+    "east": {
+     "texture": "#base",
+     "uv": [
+      3.8,
+      0.5,
+      6,
+      3
+     ]
+    },
+    "up": {
+     "texture": "#base",
+     "uv": [
+      0,
+      10,
+      15.5,
+      12.2
+     ]
+    },
+    "down": {
+     "texture": "#base",
+     "uv": [
+      0,
+      3.8,
+      15.5,
+      6
+     ]
+    }
+   }
+  }
+ ],
+ "ambientocclusion": false
+}

@@ -1,0 +1,95 @@
+{
+ "parent": "minecraft:block/block",
+ "textures": {
+  "frame": "minecraft:block/stripped_dark_oak_log",
+  "panel": "minecraft:block/black_wool",
+  "gold": "minecraft:block/gold_block",
+  "head": "tcgshop:block/header",
+  "particle": "minecraft:block/dark_oak_planks"
+ },
+ "elements": [
+  {
+   "from": [
+    0,
+    0,
+    12
+   ],
+   "to": [
+    16,
+    16,
+    16
+   ],
+   "faces": {
+    "north": {
+     "texture": "#panel",
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ]
+    },
+    "south": {
+     "texture": "#panel",
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    0,
+    1.1,
+    9.5
+   ],
+   "to": [
+    16,
+    1.7,
+    12
+   ],
+   "faces": {
+    "north": {
+     "texture": "#gold",
+     "uv": [
+      0,
+      14.3,
+      16,
+      14.9
+     ]
+    },
+    "south": {
+     "texture": "#gold",
+     "uv": [
+      0,
+      14.3,
+      16,
+      14.9
+     ]
+    },
+    "up": {
+     "texture": "#gold",
+     "uv": [
+      0,
+      9.5,
+      16,
+      12
+     ]
+    },
+    "down": {
+     "texture": "#gold",
+     "uv": [
+      0,
+      4,
+      16,
+      6.5
+     ]
+    }
+   }
+  }
+ ],
+ "ambientocclusion": false
+}
