@@ -2840,5 +2840,8 @@
   "tcgshop.npc.queue_leave.2": "Ya volveré cuando haya menos gente.",
   "tcgshop.npc.queue_leave.3": "¿No hay nadie cobrando? Paso.",
   "tcgshop.npc.queue_leave.4": "Demasiada espera para un sobre.",
-  "tcgshop.review.queue_slow": "Esperé demasiado en la caja"
+  "tcgshop.review.queue_slow": "Esperé demasiado en la caja",
+  "tcgshop.phone.collect_all": "Retirar %s",
+  "tcgshop.phone.collect_keep": "Retirar dejando 3 días de sueldos",
+  "tcgshop.shop.nothing_to_collect": "No hay nada que retirar (o sólo lo justo para los sueldos)."
 }

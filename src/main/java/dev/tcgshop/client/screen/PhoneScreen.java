@@ -1038,11 +1038,11 @@ public class PhoneScreen extends Screen {
             case "security" -> securityTab(ctx, z, px, py, pw);
             case "reputation" -> repTab(ctx, z, px, py, pw, ph);
             case "reviews" -> reviewsTab(ctx, z, px, py, pw, ph);
-            default -> summaryTab(ctx, z, px, py, pw);
+            default -> summaryTab(ctx, z, px, py, pw, ph, mouseX, mouseY);
         }
     }
 
-    private void summaryTab(DrawContext ctx, ShopClient.ZoneInfo z, int px, int py, int pw) {
+    private void summaryTab(DrawContext ctx, ShopClient.ZoneInfo z, int px, int py, int pw, int ph, int mouseX, int mouseY) {
         long profit = ShopClient.myRevenue - ShopClient.myCosts;
         Object[][] tiles = {
                 {"tcgshop.phone.s_balance", PriceService.format(z.balance()), Ui.GOLD},
@@ -1062,6 +1062,22 @@ public class PhoneScreen extends Screen {
             int x = px + (i % cols) * (tw + gap), y = py + (i / cols) * (th + gap);
             tile(ctx, x, y, tw, th, (String) tiles[i][0], (String) tiles[i][1], (int) tiles[i][2]);
         }
+        // retirar el dinero de la caja a tu cuenta, desde cualquier sitio
+        int rows = (tiles.length + cols - 1) / cols, by = Math.min(py + ph - 20, py + rows * (th + gap) + 4), bw = (pw - gap) / 2;
+        boolean has = z.balance() > 0;
+        Ui.button(ctx, px, by, bw, 18, Text.translatable("tcgshop.phone.collect_all", PriceService.format(z.balance())), mouseX, mouseY, has, 0xFF2E8A4A);
+        Ui.button(ctx, px + bw + gap, by, bw, 18, Text.translatable("tcgshop.phone.collect_keep"), mouseX, mouseY, has, 0xFF3A6FD8);
+        if (has) {
+            areas.add(new Area(px, by, bw, 18, () -> collectFrom(z, false)));
+            areas.add(new Area(px + bw + gap, by, bw, 18, () -> collectFrom(z, true)));
+        }
+    }
+
+    private static void collectFrom(ShopClient.ZoneInfo z, boolean keepWages) {
+        net.minecraft.nbt.NbtCompound d = new net.minecraft.nbt.NbtCompound();
+        d.putUuid("zone", z.id());
+        d.putBoolean("keep", keepWages);
+        dev.tcgshop.client.ClientSocial.act("shop_collect", d);
     }
 
     private void staffTab(DrawContext ctx, ShopClient.ZoneInfo z, int px, int py, int pw, int mouseX, int mouseY) {

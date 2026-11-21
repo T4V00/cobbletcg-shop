@@ -513,12 +513,27 @@ public final class ShopServer {
             describe(player, z);
             return;
         }
-        long amount = z.balance;
+        collect(player, z, 0);
+    }
+
+    /** Sueldos de un día de toda la plantilla (para "retirar dejando sueldos"). */
+    public static long dailyWages(ShopZones.Zone z) {
+        return (z.cashier ? CASHIER_WAGE : 0) + (z.cashier2 ? CASHIER_WAGE : 0) + (z.guard ? GUARD_WAGE : 0);
+    }
+
+    /** Retira el dinero de la caja a tu cuenta de CobbleDollars; keep = lo que se deja dentro (p. ej. para sueldos). */
+    public static void collect(ServerPlayerEntity player, ShopZones.Zone z, long keep) {
+        if (!z.owner.equals(player.getUuid())) return;
+        long amount = z.balance - Math.max(0, keep);
+        if (amount <= 0) {
+            player.sendMessage(Text.translatable("tcgshop.shop.nothing_to_collect").formatted(Formatting.GRAY), true);
+            return;
+        }
         if (!CobbleDollarsBridge.add(player, amount)) {
             player.sendMessage(Text.translatable("tcgshop.shop.no_cobbledollars").formatted(Formatting.RED), false);
             return;
         }
-        z.balance = 0;
+        z.balance -= amount;
         ShopZones.get(player.getServerWorld()).markDirty();
         player.sendMessage(Text.translatable("tcgshop.shop.collected", Text.literal(PriceService.format(amount)).formatted(Formatting.GOLD)), false);
         player.getWorld().playSound(null, player.getBlockPos(), SoundEvents.BLOCK_CHAIN_PLACE, SoundCategory.BLOCKS, 1f, 1.6f);

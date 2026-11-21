@@ -189,6 +189,14 @@ public class EmployeeEntity extends PathAwareEntity implements TcgNpc {
 
     @Override
     protected ActionResult interactMob(PlayerEntity player, Hand hand) {
+        if (player instanceof ServerPlayerEntity sp && !isGuard()) {
+            // al dueño, el cajero le entrega el dinero de la caja (con la fila delante a veces no se llega a la caja)
+            ShopZones.Zone z = zoneId == null ? null : ShopZones.get(sp.getServerWorld()).byId(zoneId);
+            if (z != null && z.owner.equals(sp.getUuid())) {
+                dev.tcgshop.shop.ShopServer.useRegister(sp, z);
+                return ActionResult.SUCCESS;
+            }
+        }
         if (player instanceof ServerPlayerEntity sp && talkCooldown <= 0) {
             talkCooldown = 60;
             NpcLines.say(this, sp, isGuard() ? "guard" : "cashier");

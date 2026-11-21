@@ -2842,5 +2842,8 @@
   "tcgshop.npc.queue_leave.2": "I'll come back when it's less busy.",
   "tcgshop.npc.queue_leave.3": "Is nobody at the till? Forget it.",
   "tcgshop.npc.queue_leave.4": "Too long a wait for one pack.",
-  "tcgshop.review.queue_slow": "I waited too long at the till"
+  "tcgshop.review.queue_slow": "I waited too long at the till",
+  "tcgshop.phone.collect_all": "Withdraw %s",
+  "tcgshop.phone.collect_keep": "Withdraw, keep 3 days of wages",
+  "tcgshop.shop.nothing_to_collect": "Nothing to withdraw (or only enough for wages)."
 }

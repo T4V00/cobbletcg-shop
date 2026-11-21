@@ -85,6 +85,17 @@ public class TcgShop implements ModInitializer {
             switch (p.kind()) {
                 case "slot" -> dev.tcgshop.shop.ShopServer.slotAction(pl, p.data());
                 case "binder_open" -> dev.tcgshop.shop.SocialServer.openBinderMarket(pl, false);
+                case "shop_collect" -> {
+                    if (!p.data().containsUuid("zone")) break;
+                    java.util.UUID zid = p.data().getUuid("zone");
+                    for (var w : pl.getServer().getWorlds()) {
+                        var z = dev.tcgshop.shop.ShopZones.get(w).byId(zid);
+                        if (z != null && z.owner.equals(pl.getUuid())) {
+                            dev.tcgshop.shop.ShopServer.collect(pl, z, p.data().getBoolean("keep") ? dev.tcgshop.shop.ShopServer.dailyWages(z) * 3 : 0);
+                            break;
+                        }
+                    }
+                }
                 case "binder" -> dev.tcgshop.shop.SocialServer.binderAction(pl, p.data());
                 case "friends" -> dev.tcgshop.shop.SocialServer.friendsAction(pl, p.data());
                 case "displays" -> {
