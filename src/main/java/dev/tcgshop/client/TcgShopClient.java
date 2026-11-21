@@ -37,6 +37,7 @@ public class TcgShopClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        dev.tcgshop.client.ClientSettings.load();
         EntityRendererRegistry.register(TcgEntities.SCALPER, dev.tcgshop.client.render.TcgNpcRenderer::new);
         dev.tcgshop.client.ShopClient.init();
         ClientPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.TradePayloads.Open.ID, (p, ctx) -> ctx.client().execute(() ->

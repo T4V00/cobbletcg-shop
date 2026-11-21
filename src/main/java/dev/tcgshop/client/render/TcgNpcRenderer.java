@@ -120,6 +120,8 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
      * letra (los pitidos de "hablar" los pone ClientSpeech) y se desvanece al terminar.
      */
     private void speechBubble(T entity, dev.tcgshop.client.ClientSpeech.Speech sp, float tickDelta, MatrixStack matrices, VertexConsumerProvider consumers) {
+        var cfg = dev.tcgshop.client.ClientSettings.INSTANCE;
+        if (!cfg.bubbles) return;
         float now = entity.getWorld().getTime() + tickDelta;
         float alpha = sp.alpha(now);
         if (alpha <= 0.02f) return;
@@ -129,36 +131,46 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
         int lineH = 10, padX = 5, padY = 4;
         int bw = w + padX * 2, bh = sp.lines.size() * lineH + padY * 2 - 1;
         float pop = Math.min(1, (now - sp.start) / 4f);
-        float scale = 0.021f * (0.7f + 0.3f * (float) Math.sin(pop * Math.PI / 2));
+        float scale = 0.021f * cfg.size() * (0.7f + 0.3f * (float) Math.sin(pop * Math.PI / 2));
         matrices.push();
-        matrices.translate(0, entity.getHeight() + 1.08f, 0);
+        matrices.translate(0, entity.getHeight() + 1.08f + (cfg.size() - 1f) * 0.25f, 0);
         matrices.multiply(dispatcher.getRotation());
         matrices.scale(scale, -scale, scale);
-        Matrix4f m = matrices.peek().getPositionMatrix();
-        bubbleEntry = matrices.peek();
-        int a = Math.round(alpha * 245);
-        int bgCol = (a << 24) | 0xFFFFFF;
-        int textCol = (Math.max(8, Math.round(alpha * 255)) << 24) | 0x1E1E28;
         float x0 = -bw / 2f, y0 = -6 - bh;
-        // El fondo blanco lo pinta el propio TextRenderer (como el fondo de los nombres vanilla): fondo y letras salen de
-        // la misma llamada y en la misma capa, así se ven bien en cualquier ángulo, con Fabulous y con shaders (Iris).
-        // Cada línea se rellena con espacios hasta el ancho de la burbuja para que el fondo quede como un bloque.
+        int bg = cfg.bgColor();
+        int bgCol = bg == 0 ? 0 : (Math.round(((bg >>> 24) / 255f) * alpha * 255) << 24) | (bg & 0xFFFFFF);
+        int tc = cfg.textColor();
+        int textCol = (Math.max(8, Math.round(alpha * 255)) << 24) | (tc & 0xFFFFFF);
         int visible = sp.visibleChars(now), used = 0;
         int target = w + padX * 2;
         boolean typing = visible < sp.plain.length();
+        // Minecraft pinta el fondo de una línea de texto un poco POR DELANTE del texto. Por eso van en dos pasadas:
+        // 1) el fondo solo (líneas de espacios con color de fondo)
+        if (bgCol != 0) {
+            Matrix4f mb = matrices.peek().getPositionMatrix();
+            for (int i = 0; i < sp.lines.size(); i++) {
+                StringBuilder pad = new StringBuilder(" ");
+                while (tr.getWidth(pad.toString()) < target - 2) pad.append(' ');
+                tr.draw(pad.toString(), x0, y0 + padY + i * lineH, 0x01000000, false, mb, consumers, TextRenderer.TextLayerType.NORMAL, bgCol, 0xF000F0);
+            }
+            String tail = "▼";
+            tr.draw(tail, -tr.getWidth(tail) / 2f, y0 + padY + sp.lines.size() * lineH - 2, (Math.max(8, Math.round(alpha * 255)) << 24) | (bg & 0xFFFFFF),
+                    false, mb, consumers, TextRenderer.TextLayerType.NORMAL, 0, 0xF000F0);
+        }
+        // 2) el texto, adelantado hacia la cámara y con desplazamiento de profundidad: siempre queda delante del fondo
+        matrices.push();
+        matrices.translate(0, 0, 1.5f);
+        Matrix4f mt = matrices.peek().getPositionMatrix();
+        boolean shadow = bgCol == 0; // sin fondo: con sombra para leerse sobre cualquier cosa
         for (int i = 0; i < sp.lines.size(); i++) {
             String l = sp.lines.get(i);
             int show = Math.max(0, Math.min(l.length(), visible - used));
             used += l.length() + 1;
-            StringBuilder line = new StringBuilder(" ").append(l, 0, show);
-            if (typing && show > 0 && show < l.length()) line.append('_');
-            while (tr.getWidth(line.toString()) < target - 2) line.append(' ');
-            tr.draw(line.toString(), x0, y0 + padY + i * lineH, textCol, false, m, consumers, TextRenderer.TextLayerType.NORMAL, bgCol, 0xF000F0);
+            if (show <= 0) continue;
+            String txt = " " + l.substring(0, show) + (typing && show < l.length() ? "_" : "");
+            tr.draw(txt, x0, y0 + padY + i * lineH, textCol, shadow, mt, consumers, TextRenderer.TextLayerType.POLYGON_OFFSET, 0, 0xF000F0);
         }
-        // piquito hacia el NPC
-        String tail = "▼";
-        tr.draw(tail, -tr.getWidth(tail) / 2f, y0 + padY + sp.lines.size() * lineH - 2, (Math.max(8, Math.round(alpha * 255)) << 24) | 0xFFFFFF, false, m, consumers,
-                TextRenderer.TextLayerType.NORMAL, 0, 0xF000F0);
+        matrices.pop();
         matrices.pop();
     }
 
@@ -167,6 +179,7 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
      * vanilla con cualquier configuración gráfica. width en unidades del texto; f de 0 a 1.
      */
     private static void textBar(TextRenderer tr, MatrixStack matrices, VertexConsumerProvider consumers, float cx, float y, float width, float f, int col) {
+        if (!dev.tcgshop.client.ClientSettings.INSTANCE.patienceBars) return;
         int cells = 24;
         matrices.push();
         float sx = width / (cells * 4f); // un espacio mide 4 unidades
@@ -177,7 +190,7 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
         tr.draw(bg, 0, 0, 0x01000000, false, m, consumers, TextRenderer.TextLayerType.NORMAL, 0xCC101018, 0xF000F0);
         int fill = Math.round(Math.max(0, Math.min(1, f)) * cells);
         if (fill > 0) {
-            matrices.translate(0, 0, -0.01f);
+            matrices.translate(0, 0, 0.6f); // delante del fondo de la barra
             tr.draw(" ".repeat(fill), 0, 0, 0x01000000, false, matrices.peek().getPositionMatrix(), consumers, TextRenderer.TextLayerType.NORMAL, col, 0xF000F0);
         }
         matrices.pop();

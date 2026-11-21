@@ -45,7 +45,7 @@ import static dev.tcgshop.client.screen.Draw.withAlpha;
  *  · Colección (Binder General) · Títulos · Logros.
  */
 public class PhoneScreen extends Screen {
-    private enum App { HOME, MARKET, PRICES, SHOP, TITLES, GRADE, LEAGUE, SELL, FRIENDS, DISPLAYS }
+    private enum App { HOME, MARKET, PRICES, SHOP, TITLES, GRADE, LEAGUE, SELL, FRIENDS, DISPLAYS, SETTINGS }
 
     private record Area(int x, int y, int w, int h, Runnable action) {}
 
@@ -105,6 +105,7 @@ public class PhoneScreen extends Screen {
         apps.add(new AppDef("sell", 0xFFD9472B, () -> new ItemStack(Items.GOLD_INGOT)));
         apps.add(new AppDef("displays", 0xFF5C6BC0, () -> new ItemStack(TcgBlocks.DISPLAY_CASE_ITEM)));
         apps.add(new AppDef("friends", 0xFF26A69A, () -> new ItemStack(Items.PLAYER_HEAD)));
+        apps.add(new AppDef("settings", 0xFF607D8B, () -> new ItemStack(Items.COMPARATOR)));
         quickSell.price = st -> dev.tcgshop.shop.CardSales.offer(st, dev.tcgshop.shop.CardSales.PHONE_RATE);
     }
 
@@ -224,6 +225,7 @@ public class PhoneScreen extends Screen {
             case SELL -> sellApp(ctx, mouseX, mouseY, t);
             case FRIENDS -> friendsApp(ctx, mouseX, mouseY);
             case DISPLAYS -> displaysApp(ctx, mouseX, mouseY);
+            case SETTINGS -> settingsApp(ctx, mouseX, mouseY);
         }
         ctx.disableScissor();
         if (fade < 1) ctx.fill(sx, sy + 13, sx + sw, sy + sh - 8, withAlpha(0xFF0B0D16, 1 - fade));
@@ -527,6 +529,7 @@ public class PhoneScreen extends Screen {
                 close();
                 dev.tcgshop.client.ClientSocial.act("binder_open", "open");
             }
+            case "settings" -> open(App.SETTINGS);
             case "friends" -> {
                 dev.tcgshop.client.ClientSocial.act("friends", "refresh");
                 listScroll = 0;
@@ -729,6 +732,77 @@ public class PhoneScreen extends Screen {
             }
         }
         ctx.disableScissor();
+    }
+
+    // ------------------------------------------------------------------ ajustes
+
+    /** Ajustes del jugador: cómo se ven los bocadillos de los NPC (color, fondo, tamaño), barras y apertura de sobres. */
+    private void settingsApp(DrawContext ctx, int mouseX, int mouseY) {
+        AppDef a = def("settings");
+        topBar(ctx, a, mouseX, mouseY);
+        var cs = dev.tcgshop.client.ClientSettings.INSTANCE;
+        var gc = dev.tcgshop.TcgShopConfig.INSTANCE;
+        int px = sx + 8, py = sy + 41, pw = sw - 16, ph = sh - 52;
+        int lw = Math.min(pw - 120, Math.max(150, pw / 2)), rowH = 20, y = py;
+        String[] onoff = {"tcgshop.settings.off", "tcgshop.settings.on"};
+        y = settingRow(ctx, px, y, lw, "tcgshop.settings.bubbles", onoff[cs.bubbles ? 1 : 0], mouseX, mouseY, () -> cs.bubbles = !cs.bubbles);
+        y = settingRow(ctx, px, y, lw, "tcgshop.settings.text_color", "tcgshop.settings.tc." + cs.bubbleTextColor, mouseX, mouseY,
+                () -> cs.bubbleTextColor = (cs.bubbleTextColor + 1) % dev.tcgshop.client.ClientSettings.TEXT_COLORS.length);
+        y = settingRow(ctx, px, y, lw, "tcgshop.settings.background", "tcgshop.settings.bg." + cs.bubbleBackground, mouseX, mouseY,
+                () -> cs.bubbleBackground = (cs.bubbleBackground + 1) % dev.tcgshop.client.ClientSettings.BG_COLORS.length);
+        y = settingRow(ctx, px, y, lw, "tcgshop.settings.size", "tcgshop.settings.sz." + cs.bubbleSize, mouseX, mouseY,
+                () -> cs.bubbleSize = (cs.bubbleSize + 1) % dev.tcgshop.client.ClientSettings.SIZES.length);
+        y = settingRow(ctx, px, y, lw, "tcgshop.settings.bars", onoff[cs.patienceBars ? 1 : 0], mouseX, mouseY, () -> cs.patienceBars = !cs.patienceBars);
+        y = settingRow(ctx, px, y, lw, "tcgshop.settings.pack_anim", onoff[gc.packOpeningAnimation ? 1 : 0], mouseX, mouseY, () -> {
+            gc.packOpeningAnimation = !gc.packOpeningAnimation;
+            dev.tcgshop.TcgShopConfig.save();
+        });
+        y = settingRow(ctx, px, y, lw, "tcgshop.settings.tooltip_price", onoff[gc.showPriceInTooltip ? 1 : 0], mouseX, mouseY, () -> {
+            gc.showPriceInTooltip = !gc.showPriceInTooltip;
+            dev.tcgshop.TcgShopConfig.save();
+        });
+        // vista previa del bocadillo con los ajustes actuales
+        int vx = px + lw + 10, vw = pw - lw - 10, vy = py;
+        Ui.roundGradient(ctx, vx, vy, vw, ph, 0xFF3A6A3A, 0xFF1E3A24); // "hierba" de fondo
+        ctx.drawText(textRenderer, Text.translatable("tcgshop.settings.preview").formatted(Formatting.BOLD), vx + 6, vy + 5, 0xFFFFFFFF, true);
+        if (cs.bubbles) {
+            Text sample = Text.translatable("tcgshop.settings.sample");
+            var lines = textRenderer.wrapLines(sample, Math.max(40, vw - 30));
+            float sc = Math.min(1.25f, cs.size());
+            int tw2 = 0;
+            for (var l : lines) tw2 = Math.max(tw2, textRenderer.getWidth(l));
+            int bw2 = tw2 + 10, bh2 = lines.size() * 10 + 7;
+            var m = ctx.getMatrices();
+            m.push();
+            m.translate(vx + vw / 2f, vy + 26, 0);
+            m.scale(sc, sc, 1);
+            int bx2 = -bw2 / 2, by2 = 0, bg = cs.bgColor();
+            if (bg != 0) {
+                ctx.fill(bx2 - 1, by2 - 1, bx2 + bw2 + 1, by2 + bh2 + 1, 0xFF26232E);
+                ctx.fill(bx2, by2, bx2 + bw2, by2 + bh2, bg);
+            }
+            for (int i = 0; i < lines.size(); i++)
+                ctx.drawText(textRenderer, lines.get(i), bx2 + 5, by2 + 4 + i * 10, cs.textColor(), bg == 0);
+            m.pop();
+        }
+        if (cs.patienceBars) {
+            int bx3 = vx + vw / 2 - 20, by3 = vy + ph - 16;
+            ctx.fill(bx3, by3, bx3 + 40, by3 + 4, 0xCC101018);
+            ctx.fill(bx3 + 1, by3 + 1, bx3 + 26, by3 + 3, 0xFF5BD46B);
+        }
+    }
+
+    private int settingRow(DrawContext ctx, int x, int y, int w, String labelKey, String valueKey, int mouseX, int mouseY, Runnable change) {
+        Ui.roundGradient(ctx, x, y, w, 18, SURF2, SURF);
+        ctx.drawText(textRenderer, Ui.ellipsis(Text.translatable(labelKey).getString(), w - 80), x + 6, y + 5, 0xFFDDE3F0, false);
+        Text v = Text.translatable(valueKey);
+        int bw = Math.max(64, textRenderer.getWidth(v) + 12);
+        Ui.button(ctx, x + w - bw - 3, y + 2, bw, 14, v, mouseX, mouseY, true, 0xFF39415E);
+        areas.add(new Area(x + w - bw - 3, y + 2, bw, 14, () -> {
+            change.run();
+            dev.tcgshop.client.ClientSettings.save();
+        }));
+        return y + 21;
     }
 
     private AppDef def(String key) {
