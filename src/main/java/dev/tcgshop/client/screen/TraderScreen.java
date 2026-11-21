@@ -182,4 +182,16 @@ public class TraderScreen extends Screen {
         mine.scroll(v);
         return true;
     }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+        if (button == 0 && true && mine.drag(mouseX, mouseY)) return true;
+        return super.mouseDragged(mouseX, mouseY, button, dx, dy);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        mine.release();
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
 }

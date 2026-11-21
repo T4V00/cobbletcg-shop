@@ -155,7 +155,10 @@ public final class CardPickGrid {
         return hovered;
     }
 
-    /** Clic: elige / quita una carta. Devuelve true si tocó una. */
+    /** Al arrastrar tras un clic: true = va marcando, false = va desmarcando, null = no se está arrastrando. */
+    private Boolean dragAdd;
+
+    /** Clic: elige / quita una carta. Devuelve true si tocó una. Si luego arrastras, se aplica lo mismo a las demás. */
     public boolean click(double mx, double my) {
         for (int[] r : rects) {
             if (!Ui.in(mx, my, r[0], r[1], r[2], r[3])) continue;
@@ -164,10 +167,26 @@ public final class CardPickGrid {
                 if (!multi) sel.clear();
                 if (sel.size() < 64) sel.add(slot);
             }
+            dragAdd = multi ? sel.contains(slot) : null;
             return true;
         }
+        dragAdd = null;
         return false;
     }
+
+    /** Selección rápida: mantener pulsado y pasar el ratón por encima de varias cartas. */
+    public boolean drag(double mx, double my) {
+        if (dragAdd == null) return false;
+        for (int[] r : rects) {
+            if (!Ui.in(mx, my, r[0], r[1], r[2], r[3])) continue;
+            if (dragAdd) { if (sel.size() < 64) sel.add(r[4]); }
+            else sel.remove(r[4]);
+            return true;
+        }
+        return true;
+    }
+
+    public void release() { dragAdd = null; }
 
     public boolean isEmpty() {
         return slots(MinecraftClient.getInstance().player).isEmpty();

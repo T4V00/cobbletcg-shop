@@ -82,7 +82,7 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
                 int col = f > 0.5f ? 0xFF5BD46B : f > 0.25f ? 0xFFFFC233 : 0xFFFF5050;
                 if (f <= 0.25f && ((int) (t / 4)) % 2 == 0) col = 0xFFFFFFFF;
                 bubbleEntry = matrices.peek();
-                VertexConsumer bar = consumers.getBuffer(RenderLayer.getEntityTranslucentEmissive(BUBBLE_TEX));
+                VertexConsumer bar = consumers.getBuffer(RenderLayer.getTextBackground());
                 rect(bar, mm, -9.5f, 6.5f, 9.5f, 9.5f, 0.02f, 0xCC101018);
                 rect(bar, mm, -9f, 7f, -9f + 18f * f, 9f, 0.01f, col);
             }
@@ -129,11 +129,13 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
         int a = Math.round(alpha * 245);
         int white = (a << 24) | 0xFFFFFF, border = (Math.round(alpha * 255) << 24) | 0x26232E;
         float x0 = -bw / 2f, x1 = bw / 2f, y1 = -6, y0 = y1 - bh;
-        VertexConsumer bg = consumers.getBuffer(RenderLayer.getEntityTranslucentEmissive(BUBBLE_TEX));
-        rect(bg, m, x0 - 1, y0 - 1, x1 + 1, y1 + 1, 0.03f, border);
-        tail(bg, m, -5.5f, y1 + 1, 5.5f, 1.4f, 0.03f, border);
-        rect(bg, m, x0, y0, x1, y1, 0.02f, white);
-        tail(bg, m, -4, y1, 4, 0, 0.02f, white);
+        // fondo en la misma capa que el fondo de los nombres vanilla (se ordena siempre bien con el texto, en cualquier
+        // ángulo y con gráficos Fabulous/shaders); antes usaba una capa translúcida de entidad que a veces tapaba el texto
+        VertexConsumer bg = consumers.getBuffer(RenderLayer.getTextBackground());
+        rect(bg, m, x0 - 1, y0 - 1, x1 + 1, y1 + 1, 0.02f, border);
+        tail(bg, m, -5.5f, y1 + 1, 5.5f, 1.4f, 0.02f, border);
+        rect(bg, m, x0, y0, x1, y1, 0.01f, white);
+        tail(bg, m, -4, y1, 4, 0, 0.01f, white);
         int visible = sp.visibleChars(now), used = 0;
         int textCol = (Math.round(alpha * 255) << 24) | 0x1E1E28;
         for (int i = 0; i < sp.lines.size(); i++) {
@@ -141,14 +143,15 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
             int show = Math.max(0, Math.min(l.length(), visible - used));
             used += l.length() + 1;
             if (show <= 0) break;
-            tr.draw(l.substring(0, show), x0 + padX, y0 + padY + i * lineH, textCol, false, m, consumers, TextRenderer.TextLayerType.NORMAL, 0, 0xF000F0);
+            // POLYGON_OFFSET: el texto siempre queda delante de su fondo aunque estén casi en el mismo plano
+            tr.draw(l.substring(0, show), x0 + padX, y0 + padY + i * lineH, textCol, false, m, consumers, TextRenderer.TextLayerType.POLYGON_OFFSET, 0, 0xF000F0);
         }
         // puntos suspensivos mientras escribe
         if (visible < sp.plain.length()) {
             float t = now * 0.3f;
             for (int k = 0; k < 3; k++) {
                 int da = Math.round(alpha * (130 + 120 * (float) Math.max(0, Math.sin(t - k * 0.8f))));
-                rect(consumers.getBuffer(RenderLayer.getEntityTranslucentEmissive(BUBBLE_TEX)), m, x1 - 12 + k * 3.5f, y1 - 3.5f, x1 - 10.5f + k * 3.5f, y1 - 2, 0.01f, (da << 24) | 0x6A6A80);
+                rect(consumers.getBuffer(RenderLayer.getTextBackground()), m, x1 - 12 + k * 3.5f, y1 - 3.5f, x1 - 10.5f + k * 3.5f, y1 - 2, 0.005f, (da << 24) | 0x6A6A80);
             }
         }
         matrices.pop();
@@ -158,7 +161,7 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
     private static MatrixStack.Entry bubbleEntry;
 
     private static void v(VertexConsumer vc, Matrix4f m, float x, float y, float z, int argb, float u, float vv) {
-        vc.vertex(m, x, y, z).color(argb).texture(u, vv).overlay(OverlayTexture.DEFAULT_UV).light(0xF000F0).normal(bubbleEntry, 0, 0, -1);
+        vc.vertex(m, x, y, z).color(argb).light(0xF000F0); // formato del fondo de texto: posición, color y luz
     }
 
     private static void quad(VertexConsumer vc, Matrix4f m, float ax, float ay, float bx, float by, float cx, float cy, float dx, float dy, float z, int argb) {

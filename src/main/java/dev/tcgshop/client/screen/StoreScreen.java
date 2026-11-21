@@ -154,4 +154,16 @@ public class StoreScreen extends Screen {
         if (search.isFocused() && keyCode != GLFW.GLFW_KEY_ESCAPE) return search.keyPressed(keyCode, scanCode, modifiers) || true;
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+        if (button == 0 && selling && sellGrid.drag(mouseX, mouseY)) return true;
+        return super.mouseDragged(mouseX, mouseY, button, dx, dy);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        sellGrid.release();
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
 }

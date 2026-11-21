@@ -1859,4 +1859,17 @@ public class PhoneScreen extends Screen {
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
+
+    /** Venta rápida: mantener pulsado y arrastrar por encima de varias cartas para elegirlas (o quitarlas) de golpe. */
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+        if (button == 0 && app == App.SELL && quickSell.drag(mouseX, mouseY)) return true;
+        return super.mouseDragged(mouseX, mouseY, button, dx, dy);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        quickSell.release();
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
 }

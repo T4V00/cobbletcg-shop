@@ -40,6 +40,9 @@ public class BinderMarketScreen extends Screen {
     private final Set<String> sel = new HashSet<>();
     private final List<int[]> rects = new ArrayList<>();
     private final List<Runnable> acts = new ArrayList<>();
+    /** Filas visibles (para la selección arrastrando) y si el arrastre marca o desmarca. */
+    private final List<Object[]> rowHits = new ArrayList<>();
+    private Boolean dragAdd;
     private TextFieldWidget search;
     private boolean history, keepOne = true, confirm, offering, onlyFav;
     private int setIdx = -1, rarityIdx = -1, valueBand, qtyBand, sort;
@@ -120,6 +123,7 @@ public class BinderMarketScreen extends Screen {
     public void render(DrawContext ctx, int mx, int my, float delta) {
         rects.clear();
         acts.clear();
+        rowHits.clear();
         ctx.fillGradient(0, 0, width, height, 0xE0101420, 0xF0080A10);
         int x = 14, w = width - 28;
         Draw.scaledCentered(ctx, Text.translatable("tcgshop.bm2.title").formatted(Formatting.BOLD), width / 2f, 8, 1.3f, 0xFFFFFFFF);
@@ -174,7 +178,9 @@ public class BinderMarketScreen extends Screen {
             ctx.drawText(textRenderer, isFav ? "★" : "☆", x + 18, y + 4, isFav ? 0xFFFFD34D : 0xFF6A7090, false);
             if (Ui.in(mx, my, x, ly, w, lh)) {
                 rects.add(new int[]{x, Math.max(y, ly), w, rowH});
-                acts.add(() -> { if (!sel.remove(key)) sel.add(key); confirm = false; });
+                acts.add(() -> { if (!sel.remove(key)) sel.add(key); confirm = false; dragAdd = sel.contains(key); });
+                int hy = Math.max(y, ly);
+                rowHits.add(new Object[]{x, hy, w, Math.min(y + rowH, ly + lh) - hy, key});
                 rects.add(new int[]{x + 16, Math.max(y, ly), 12, rowH}); // la estrella va encima de la fila
                 acts.add(() -> { NbtCompound d = new NbtCompound(); d.putString("a", "fav"); d.putString("id", key); act(d); if (!fav.remove(key)) fav.add(key); });
             }
@@ -367,6 +373,7 @@ public class BinderMarketScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (search != null && search.mouseClicked(mouseX, mouseY, button)) { setFocused(search); return true; }
         if (search != null) search.setFocused(false);
+        dragAdd = null;
         // de arriba abajo: los últimos añadidos (botones de la barra/oferta) tienen prioridad
         for (int i = rects.size() - 1; i >= 0; i--) {
             int[] r = rects.get(i);
@@ -377,6 +384,28 @@ public class BinderMarketScreen extends Screen {
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    /** Selección rápida: mantener pulsado sobre una carta y arrastrar por encima de otras las marca (o desmarca) todas. */
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+        if (button == 0 && dragAdd != null && !history) {
+            for (Object[] r : rowHits) {
+                if (!Ui.in(mouseX, mouseY, (int) r[0], (int) r[1], (int) r[2], (int) r[3])) continue;
+                String key = (String) r[4];
+                if (dragAdd) sel.add(key); else sel.remove(key);
+                confirm = false;
+                break;
+            }
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, dx, dy);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        dragAdd = null;
+        return super.mouseReleased(mouseX, mouseY, button);
     }
 
     @Override
