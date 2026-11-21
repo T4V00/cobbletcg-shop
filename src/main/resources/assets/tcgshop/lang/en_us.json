@@ -2117,7 +2117,7 @@
   "tcgshop.trader.traded": "You trade %s for %s.",
   "tcgshop.wholesaler.tip_emeralds": "Short on CobbleDollars? Bring me emeralds: I pay %s each (Sell tab). I buy cards too.",
   "tcgshop.starter.packs": "Welcome! You get %s random packs to start your collection.",
-  "tcgshop.phone.sell": "Quick sell",
+  "tcgshop.phone.sell": "Sell",
   "tcgshop.sell.no_bank": "CobbleDollars is needed to sell.",
   "tcgshop.sell.done": "You sell %s items for %s.",
   "tcgshop.sell.no_emeralds": "You have no emeralds.",
@@ -2828,5 +2828,13 @@
   "tcgshop.displays.summary": "%s products on display · value at your prices: %s",
   "tcgshop.displays.no_shop": "You have no shop in this dimension.",
   "tcgshop.displays.empty": "Your displays are empty (or outside loaded chunks).",
-  "tcgshop.displays.all_set": "All shop prices set to %s%% of market."
+  "tcgshop.displays.all_set": "All shop prices set to %s%% of market.",
+  "tcgshop.sell.tab_inv": "Inventory",
+  "tcgshop.sell.tab_binder": "Binder",
+  "tcgshop.sell.binder_title": "Sell from your Binder",
+  "tcgshop.sell.b_cards": "Cards",
+  "tcgshop.sell.b_dupes": "Duplicates",
+  "tcgshop.sell.b_value": "Value",
+  "tcgshop.sell.binder_hint": "Sell many cards at once without taking them out of your Binder: filter by set, rarity or value, drag to pick several, protect your favourites and offer cards to other players.",
+  "tcgshop.sell.open_binder_market": "Open the Binder Market"
 }

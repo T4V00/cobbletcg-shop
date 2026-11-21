@@ -64,6 +64,8 @@ public class PhoneScreen extends Screen {
     private final java.util.Set<Integer> gradeSel = new java.util.LinkedHashSet<>();
     private int gradeService = 1;
     private String leagueTab = "play";
+    /** Submenú de Venta rápida: cartas del inventario o del Binder. */
+    private String sellTab = "inv";
     private final CosmeticsPanel cosPanel = new CosmeticsPanel();
     private int aiLevel = 1;
     private double lastLeagueSync;
@@ -101,7 +103,6 @@ public class PhoneScreen extends Screen {
         apps.add(new AppDef("league", 0xFFC62828, () -> new ItemStack(TcgBlocks.PLAY_TABLE_ITEM)));
         apps.add(new AppDef("advancements", 0xFFE07A1F, () -> new ItemStack(Items.NETHER_STAR)));
         apps.add(new AppDef("sell", 0xFFD9472B, () -> new ItemStack(Items.GOLD_INGOT)));
-        apps.add(new AppDef("binder_market", 0xFF8E44AD, () -> new ItemStack(Items.WRITABLE_BOOK)));
         apps.add(new AppDef("displays", 0xFF5C6BC0, () -> new ItemStack(TcgBlocks.DISPLAY_CASE_ITEM)));
         apps.add(new AppDef("friends", 0xFF26A69A, () -> new ItemStack(Items.PLAYER_HEAD)));
         quickSell.price = st -> dev.tcgshop.shop.CardSales.offer(st, dev.tcgshop.shop.CardSales.PHONE_RATE);
@@ -913,7 +914,12 @@ public class PhoneScreen extends Screen {
         topBar(ctx, a, mouseX, mouseY);
         Text slogan = Text.translatable("tcgshop.sell.phone_slogan");
         ctx.drawText(textRenderer, slogan, sx + sw - 10 - textRenderer.getWidth(slogan), sy + 20, 0xCCFFFFFF, false);
-        int px = sx + 8, py = sy + 41, pw = sw - 16, ph = sh - 52;
+        // submenú: vender lo del inventario o lo del Binder (antes eran dos apps separadas)
+        int invCount = client == null || client.player == null ? 0 : CardPickGrid.cardSlots(client.player).size();
+        int rw = rail(ctx, new String[]{"inv", "binder"}, new String[]{Text.translatable("tcgshop.sell.tab_inv").getString(),
+                Text.translatable("tcgshop.sell.tab_binder").getString()}, new int[]{invCount, -1}, sellTab, a.color, mouseX, mouseY, k -> sellTab = k);
+        int px = sx + rw, py = sy + 41, pw = sw - rw - 8, ph = sh - 52;
+        if (sellTab.equals("binder")) { sellBinderTab(ctx, a, px, py, pw, ph, mouseX, mouseY); return; }
         int sideW = Math.min(140, pw / 3), gw = pw - sideW - 8;
         Ui.roundGradient(ctx, px, py, gw, ph, SURF2, SURF);
         Ui.outline(ctx, px, py, gw, ph, LINE);
@@ -957,6 +963,34 @@ public class PhoneScreen extends Screen {
             ctx.drawTooltip(textRenderer, List.of(hov.getName(), Text.translatable("tcgshop.sell.market", PriceService.format(v)).formatted(Formatting.GRAY),
                     Text.translatable("tcgshop.sell.you_get", PriceService.format(quickSell.price.applyAsLong(hov))).formatted(Formatting.GOLD)), mouseX, mouseY);
         }
+    }
+
+    /** Pestaña Binder de la venta: resumen de tu colección y acceso al Mercado del Binder (venta en bloque, favoritas, ofertas). */
+    private void sellBinderTab(DrawContext ctx, AppDef a, int px, int py, int pw, int ph, int mouseX, int mouseY) {
+        Ui.roundGradient(ctx, px, py, pw, ph, SURF2, SURF);
+        Ui.outline(ctx, px, py, pw, ph, LINE);
+        ctx.fill(px + 1, py + 1, px + pw - 1, py + 3, a.color);
+        long value = 0;
+        int cards = 0, dupes = 0;
+        for (var e : ClientCollection.counts.entrySet()) {
+            var c = dev.tcgshop.client.binder.Catalog.card(e.getKey());
+            if (c == null || e.getValue() <= 0) continue;
+            value += PriceService.priceCd(c.stack()) * e.getValue();
+            cards += e.getValue();
+            if (e.getValue() > 1) dupes += e.getValue() - 1;
+        }
+        ctx.drawText(textRenderer, Text.translatable("tcgshop.sell.binder_title").formatted(Formatting.BOLD), px + 8, py + 9, 0xFFFFFFFF, false);
+        int cw = (pw - 24) / 3, ty = py + 24;
+        tile(ctx, px + 8, ty, cw, 34, "tcgshop.sell.b_cards", String.valueOf(cards), 0xFFFFFFFF);
+        tile(ctx, px + 12 + cw, ty, cw, 34, "tcgshop.sell.b_dupes", String.valueOf(dupes), 0xFF8BE08B);
+        tile(ctx, px + 16 + cw * 2, ty, cw, 34, "tcgshop.sell.b_value", compact(value), Ui.GOLD);
+        int y = paragraph(ctx, Text.translatable("tcgshop.sell.binder_hint"), px + 8, ty + 42, pw - 16, 0xFFB8BED6);
+        int bw = Math.min(220, pw - 16), bx = px + (pw - bw) / 2, by = Math.min(py + ph - 30, y + 8);
+        Ui.button(ctx, bx, by, bw, 22, Text.translatable("tcgshop.sell.open_binder_market"), mouseX, mouseY, true, a.color);
+        areas.add(new Area(bx, by, bw, 22, () -> {
+            close();
+            dev.tcgshop.client.ClientSocial.act("binder_open", "open");
+        }));
     }
 
     @Override
@@ -1837,7 +1871,7 @@ public class PhoneScreen extends Screen {
             }
         }
         if (app == App.MARKET && market.click(mouseX, mouseY)) return true;
-        if (app == App.SELL && quickSell.click(mouseX, mouseY)) return true;
+        if (app == App.SELL && sellTab.equals("inv") && quickSell.click(mouseX, mouseY)) return true;
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
@@ -1863,7 +1897,7 @@ public class PhoneScreen extends Screen {
     /** Venta rápida: mantener pulsado y arrastrar por encima de varias cartas para elegirlas (o quitarlas) de golpe. */
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
-        if (button == 0 && app == App.SELL && quickSell.drag(mouseX, mouseY)) return true;
+        if (button == 0 && app == App.SELL && sellTab.equals("inv") && quickSell.drag(mouseX, mouseY)) return true;
         return super.mouseDragged(mouseX, mouseY, button, dx, dy);
     }
 

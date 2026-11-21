@@ -31,6 +31,7 @@ public final class Draw {
      * (cx, cy): se pinta fila a fila con el ancho de la cuerda, así queda redondo sin máscaras.
      */
     public static void circleTexture(DrawContext ctx, Identifier tex, int cx, int cy, int r, float uc, float vc, float ur, float vr) {
+        ctx.draw();
         final int TW = 1000, TH = 1000;
         for (int dy = -r; dy < r; dy++) {
             double yy = dy + 0.5;
@@ -44,7 +45,11 @@ public final class Draw {
 
     /** Dibuja una textura completa estirada al rectángulo (cualquier tamaño de imagen). */
     public static void texture(DrawContext ctx, Identifier tex, float x, float y, float w, float h, float alpha) {
+        // los rectángulos y fondos de DrawContext se acumulan y se pintan al final; la textura se pinta al momento.
+        // Sin vaciarlos antes, un panel dibujado ANTES de la carta acababa encima (venta rápida del teléfono sin arte).
+        ctx.draw();
         RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
         RenderSystem.setShaderColor(1f, 1f, 1f, alpha);
         ctx.drawTexture(tex, Math.round(x), Math.round(y), Math.round(w), Math.round(h), 0f, 0f, 1, 1, 1, 1);
         RenderSystem.setShaderColor(1f, 1f, 1f, 1f);

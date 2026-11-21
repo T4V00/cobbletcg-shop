@@ -2115,7 +2115,7 @@
   "tcgshop.trader.traded": "Cambias %s por %s.",
   "tcgshop.wholesaler.tip_emeralds": "¿Te faltan CobbleDollars? Tráeme esmeraldas: pago %s por cada una (pestaña Vender). También compro cartas.",
   "tcgshop.starter.packs": "¡Bienvenido! Recibes %s sobres al azar para empezar tu colección.",
-  "tcgshop.phone.sell": "Venta rápida",
+  "tcgshop.phone.sell": "Vender",
   "tcgshop.sell.no_bank": "Hace falta CobbleDollars para vender.",
   "tcgshop.sell.done": "Vendes %s objetos por %s.",
   "tcgshop.sell.no_emeralds": "No llevas esmeraldas.",
@@ -2826,5 +2826,13 @@
   "tcgshop.displays.summary": "%s productos expuestos · valor a tu precio: %s",
   "tcgshop.displays.no_shop": "No tienes ninguna tienda en esta dimensión.",
   "tcgshop.displays.empty": "Tus expositores están vacíos (o fuera de los chunks cargados).",
-  "tcgshop.displays.all_set": "Precios de toda la tienda al %s%% del mercado."
+  "tcgshop.displays.all_set": "Precios de toda la tienda al %s%% del mercado.",
+  "tcgshop.sell.tab_inv": "Inventario",
+  "tcgshop.sell.tab_binder": "Binder",
+  "tcgshop.sell.binder_title": "Vender desde tu Binder",
+  "tcgshop.sell.b_cards": "Cartas",
+  "tcgshop.sell.b_dupes": "Repetidas",
+  "tcgshop.sell.b_value": "Valor",
+  "tcgshop.sell.binder_hint": "Vende muchas cartas de golpe sin sacarlas del Binder: filtra por expansión, rareza o valor, arrastra para elegir varias, protege tus favoritas y ofrece cartas a otros jugadores.",
+  "tcgshop.sell.open_binder_market": "Abrir el Mercado del Binder"
 }

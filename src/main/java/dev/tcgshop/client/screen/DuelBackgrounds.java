@@ -76,6 +76,7 @@ public final class DuelBackgrounds {
         Identifier tex = texture(id);
         if (tex == null) return false;
         float u = (float) ((t * 4) % tile), v = (float) ((t * 2.5) % tile);
+        ctx.draw(); // que lo dibujado antes (fondos, degradados) no acabe encima de la textura
         com.mojang.blaze3d.systems.RenderSystem.enableBlend();
         ctx.setShaderColor(1, 1, 1, alpha);
         ctx.drawTexture(tex, x, y, u, v, w, h, tile, tile);
