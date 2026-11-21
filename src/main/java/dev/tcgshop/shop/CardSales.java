@@ -67,7 +67,20 @@ public final class CardSales {
         double sum = 0;
         int cards = 0;
         boolean wholesaler = p.source() != -1;
-        for (int slot : new LinkedHashSet<>(p.slots())) {
+        boolean fromBinder = false;
+        // de mayor a menor casilla: sacar una carta del Binder no cambia el índice de las que quedan por procesar
+        java.util.List<Integer> order = new java.util.ArrayList<>(new LinkedHashSet<>(p.slots()));
+        order.sort((x, y) -> Integer.compare(y, x));
+        for (int slot : order) {
+            if (dev.tcgshop.collection.BinderSlots.isBinder(slot)) { // cartas del Binder (no se vacían otras)
+                ItemStack view = dev.tcgshop.collection.BinderSlots.peek(player, slot);
+                if (!CardInfo.isCard(view)) continue;
+                ItemStack got = dev.tcgshop.collection.BinderSlots.take(player, slot, view.getCount());
+                sum += offer(got, rate) * (double) got.getCount();
+                cards += got.getCount();
+                fromBinder = true;
+                continue;
+            }
             if (slot < 0 || slot >= 36) continue;
             ItemStack st = player.getInventory().getStack(slot);
             if (CardInfo.isCard(st)) sum += offer(st, rate) * (double) st.getCount();
@@ -76,6 +89,7 @@ public final class CardSales {
             cards += st.getCount();
             player.getInventory().setStack(slot, ItemStack.EMPTY);
         }
+        if (fromBinder) dev.tcgshop.collection.BinderSlots.sync(player);
         if (cards == 0) return;
         long total = (long) Math.floor(sum);
         CobbleDollarsBridge.add(player, total);

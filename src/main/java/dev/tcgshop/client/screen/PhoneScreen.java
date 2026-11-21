@@ -1271,6 +1271,7 @@ public class PhoneScreen extends Screen {
             ItemStack st = client.player.getInventory().getStack(i);
             if (dev.tcgshop.card.CardInfo.isCard(st) && !dev.tcgshop.grading.Grading.isGraded(st)) out.add(i);
         }
+        out.addAll(dev.tcgshop.client.binder.ClientBinderSlots.slots()); // y las del Binder
         return out;
     }
 
@@ -1289,12 +1290,16 @@ public class PhoneScreen extends Screen {
         ctx.enableScissor(px + 1, py + 1, px + gw - 1, py + ph - 1);
         for (int k = 0; k < slots.size(); k++) {
             int slot = slots.get(k);
-            ItemStack st = client.player.getInventory().getStack(slot);
+            ItemStack st = CardPickGrid.stackAt(client.player, slot);
             int x = ox + (k % cols) * (cw + gap), y = py + 4 + (k / cols) * (chh + gap) - (int) listScroll;
             if (y + chh < py || y > py + ph) continue;
             boolean sel = gradeSel.contains(slot), hover = Ui.in(mouseX, mouseY, x, y, cw, chh) && Ui.in(mouseX, mouseY, px, py, gw, ph);
             Draw.cardFace(ctx, dev.tcgshop.card.CardInfo.texture(dev.tcgshop.card.CardInfo.id(st)), st, x, y, cw, chh, sel || hover ? 1f : 0.75f);
             if (st.getCount() > 1) ctx.drawText(textRenderer, "x" + st.getCount(), x + 2, y + chh - 9, 0xFFFFFFFF, true);
+            if (dev.tcgshop.collection.BinderSlots.isBinder(slot)) {
+                Ui.round(ctx, x + 1, y + 1, 9, 9, 0xEE3A6FD8);
+                ctx.drawText(textRenderer, "B", x + 3, y + 2, 0xFFFFFFFF, false);
+            }
             if (sel) {
                 Ui.outline(ctx, x - 1, y - 1, cw + 2, chh + 2, Ui.GOLD);
                 Ui.outline(ctx, x - 2, y - 2, cw + 4, chh + 4, withAlpha(Ui.GOLD, 0.5f));
@@ -1328,7 +1333,7 @@ public class PhoneScreen extends Screen {
             areas.add(new Area(x + 4, by, sideW - 8, 27, () -> gradeService = fi));
         }
         dev.tcgshop.grading.Grading.Service cur = dev.tcgshop.grading.Grading.Service.of(gradeService);
-        for (int slot : gradeSel) total += cur.fee(ShopServer.priceOf(client.player.getInventory().getStack(slot).copyWithCount(1), 1.0));
+        for (int slot : gradeSel) total += cur.fee(ShopServer.priceOf(CardPickGrid.stackAt(client.player, slot).copyWithCount(1), 1.0));
         int ty = y + 17 + svc.length * 30 + 4;
         ctx.drawText(textRenderer, Text.translatable("tcgshop.grade.selected", gradeSel.size(), dev.tcgshop.grading.Grading.MAX_PER_ORDER), x + 6, ty, 0xFFDDDDDD, false);
         ctx.drawText(textRenderer, Text.translatable("tcgshop.grade.total", PriceService.format(total)).formatted(Formatting.BOLD), x + 6, ty + 11, Ui.GOLD, false);

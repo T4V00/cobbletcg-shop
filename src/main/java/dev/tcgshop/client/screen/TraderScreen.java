@@ -39,6 +39,7 @@ public class TraderScreen extends Screen {
         super(Text.translatable("entity.tcgshop.trader"));
         this.data = data;
         mine.multi = false;
+        mine.includeBinder = true; // puedes cambiar o vender cartas de tu Binder
         mine.price = CardSales::unitValue;
         mine.highlight = data.wishSlot();
     }
@@ -115,7 +116,7 @@ public class TraderScreen extends Screen {
         int by = y + h - 46;
         ItemStack his = pick >= 0 && pick < n ? data.stock().get(pick) : ItemStack.EMPTY;
         int mySlot = mine.sel.isEmpty() ? -1 : mine.sel.iterator().next();
-        ItemStack my = mySlot >= 0 && client != null && client.player != null ? client.player.getInventory().getStack(mySlot) : ItemStack.EMPTY;
+        ItemStack my = mySlot >= 0 && client != null && client.player != null ? CardPickGrid.stackAt(client.player, mySlot) : ItemStack.EMPTY;
         long hv = his.isEmpty() ? 0 : data.prices().get(pick), mv = my.isEmpty() ? 0 : CardSales.unitValue(my);
         Ui.round(ctx, x + 8, by, w - 16, 38, 0xAA0B1512);
         String a = his.isEmpty() ? Text.translatable("tcgshop.trader.pick_his").getString() : Ui.ellipsis(his.getName().getString(), w / 3 - 20);
@@ -143,7 +144,7 @@ public class TraderScreen extends Screen {
 
         // ---- la carta que le interesa
         if (data.wishSlot() >= 0 && client != null && client.player != null) {
-            ItemStack ws = client.player.getInventory().getStack(data.wishSlot());
+            ItemStack ws = CardPickGrid.stackAt(client.player, data.wishSlot());
             if (CardInfo.isCard(ws)) {
                 String msg = Text.translatable("tcgshop.trader.wish", ws.getName().getString(), PriceService.format(data.wishPrice())).getString();
                 int ww = Math.min(w - 140, textRenderer.getWidth(msg) + 12), wx = x + w - 10 - ww - 80, wy = y + 18;

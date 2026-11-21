@@ -132,6 +132,8 @@ public class TradeScreen extends Screen {
         List<Integer> slots = new ArrayList<>();
         if (client != null && client.player != null)
             for (int i = 0; i < 36; i++) if (TradeManager.tradeable(client.player.getInventory().getStack(i))) slots.add(i);
+            for (int bsl : dev.tcgshop.client.binder.ClientBinderSlots.slots())
+                if (TradeManager.tradeable(CardPickGrid.stackAt(client.player, bsl))) slots.add(bsl); // y las del Binder
         int th = Math.min(52, gh - 16), tw = Math.round(th * Draw.CARD_RATIO), gap = 4;
         int cols = Math.max(1, (w - 24 + gap) / (tw + gap));
         int rows = (slots.size() + cols - 1) / cols;
@@ -139,7 +141,7 @@ public class TradeScreen extends Screen {
         ctx.enableScissor(x + 8, gy + 13, x + w - 8, gy + gh);
         for (int k = 0; k < slots.size(); k++) {
             int s = slots.get(k);
-            ItemStack st = client.player.getInventory().getStack(s);
+            ItemStack st = CardPickGrid.stackAt(client.player, s);
             int tx = x + 12 + (k % cols) * (tw + gap), ty = gy + 14 + (k / cols) * (th + gap) - (int) scroll;
             if (ty + th < gy + 13 || ty > gy + gh) continue;
             boolean hover = Ui.in(mouseX, mouseY, tx, ty, tw, th) && mouseY >= gy + 13 && mouseY <= gy + gh;

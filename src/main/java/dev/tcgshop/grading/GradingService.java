@@ -69,8 +69,8 @@ public final class GradingService extends PersistentState {
         List<Integer> valid = new ArrayList<>();
         long fee = 0;
         for (int slot : unique) {
-            if (slot < 0 || slot >= 36) continue;
-            ItemStack st = p.getInventory().getStack(slot);
+            if (slot < 0 || (slot >= 36 && !dev.tcgshop.collection.BinderSlots.isBinder(slot))) continue;
+            ItemStack st = dev.tcgshop.collection.BinderSlots.peek(p, slot);
             if (!CardInfo.isCard(st) || Grading.isGraded(st)) continue;
             valid.add(slot);
             fee += service.fee(ShopServer.priceOf(st.copyWithCount(1), 1.0));
@@ -90,7 +90,15 @@ public final class GradingService extends PersistentState {
         o.service = service.ordinal();
         o.submitted = now(p.getServer());
         o.ready = o.submitted + service.ticks;
-        for (int slot : valid) o.cards.add(p.getInventory().getStack(slot).split(1)); // una carta de cada hueco
+        // una carta de cada hueco (del inventario o del Binder); primero las del Binder de mayor a menor casilla
+        // para que sacar una no mueva el índice de las demás
+        List<Integer> order = new ArrayList<>(valid);
+        order.sort((x, y) -> Integer.compare(y, x));
+        for (int slot : order) {
+            ItemStack one = dev.tcgshop.collection.BinderSlots.take(p, slot, 1);
+            if (!one.isEmpty()) o.cards.add(one);
+        }
+        dev.tcgshop.collection.BinderSlots.sync(p);
         s.orders.computeIfAbsent(p.getUuid(), k -> new ArrayList<>()).add(o);
         s.markDirty();
         p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.ITEM_BOOK_PUT, SoundCategory.PLAYERS, 1f, 1.2f);

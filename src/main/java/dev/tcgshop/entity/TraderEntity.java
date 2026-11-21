@@ -120,15 +120,23 @@ public class TraderEntity extends PathAwareEntity implements TcgNpc {
         var inv = player.getInventory();
         if (want != null) {
             for (int i = 0; i < 36; i++) if (CardInfo.isCard(inv.getStack(i)) && CardInfo.id(inv.getStack(i)).toString().equals(want)) return i;
+            int b = dev.tcgshop.collection.BinderSlots.findInBinder(player, dev.tcgshop.collection.BinderSlots.stackFor(want, 1));
+            if (b >= 0) return b;
         }
-        // elige una nueva: prefiere las de más valor, con algo de azar
+        // elige una nueva entre inventario y Binder: prefiere las de más valor, con algo de azar
         List<Integer> cards = new ArrayList<>();
         for (int i = 0; i < 36; i++) if (CardInfo.isCard(inv.getStack(i))) cards.add(i);
+        var bd = dev.tcgshop.collection.CollectionService.ownedBinder(player);
+        if (bd != null) {
+            int n = dev.tcgshop.collection.BinderSlots.ids(bd.counts).size();
+            for (int i = 0; i < n; i++) cards.add(dev.tcgshop.collection.BinderSlots.BASE + i);
+        }
         if (cards.isEmpty()) return -1;
-        cards.sort((a, b) -> Long.compare(CardSales.unitValue(inv.getStack(b)), CardSales.unitValue(inv.getStack(a))));
-        int top = Math.max(1, (cards.size() + 1) / 2);
+        cards.sort((a, b) -> Long.compare(CardSales.unitValue(dev.tcgshop.collection.BinderSlots.peek(player, b)),
+                CardSales.unitValue(dev.tcgshop.collection.BinderSlots.peek(player, a))));
+        int top = Math.max(1, Math.min(12, (cards.size() + 1) / 2));
         int slot = cards.get(random.nextInt(top));
-        wishes.put(player.getUuid(), CardInfo.id(inv.getStack(slot)).toString());
+        wishes.put(player.getUuid(), CardInfo.id(dev.tcgshop.collection.BinderSlots.peek(player, slot)).toString());
         return slot;
     }
 
@@ -137,7 +145,7 @@ public class TraderEntity extends PathAwareEntity implements TcgNpc {
         List<Long> prices = new ArrayList<>();
         for (ItemStack st : stock) prices.add(CardSales.unitValue(st));
         int ws = tradesLeft > 0 ? wishSlot(player) : -1;
-        long wp = ws < 0 ? 0 : Math.round(CardSales.unitValue(player.getInventory().getStack(ws)) * WISH_BONUS);
+        long wp = ws < 0 ? 0 : Math.round(CardSales.unitValue(dev.tcgshop.collection.BinderSlots.peek(player, ws)) * WISH_BONUS);
         var p = new MarketPayloads.TraderOpen(getId(), List.copyOf(stock), prices, ws, wp, tradesLeft);
         if (ServerPlayNetworking.canSend(player, p.getId())) ServerPlayNetworking.send(player, p);
     }
@@ -159,8 +167,8 @@ public class TraderEntity extends PathAwareEntity implements TcgNpc {
             return;
         }
         var inv = player.getInventory();
-        if (a.slot() < 0 || a.slot() >= 36) return;
-        ItemStack mine = inv.getStack(a.slot());
+        if (a.slot() < 0 || (a.slot() >= 36 && !dev.tcgshop.collection.BinderSlots.isBinder(a.slot()))) return;
+        ItemStack mine = dev.tcgshop.collection.BinderSlots.peek(player, a.slot());
         if (!CardInfo.isCard(mine)) return;
         if (a.action() == MarketPayloads.SELL_WISH) {
             if (a.slot() != wishSlot(player)) return;
@@ -170,7 +178,8 @@ public class TraderEntity extends PathAwareEntity implements TcgNpc {
             }
             long price = Math.round(CardSales.unitValue(mine) * WISH_BONUS);
             Text name = mine.getName();
-            mine.decrement(1);
+            if (dev.tcgshop.collection.BinderSlots.take(player, a.slot(), 1).isEmpty()) return;
+            dev.tcgshop.collection.BinderSlots.sync(player);
             CobbleDollarsBridge.add(player, price);
             wishes.put(player.getUuid(), "");
             tradesLeft--;
@@ -185,8 +194,9 @@ public class TraderEntity extends PathAwareEntity implements TcgNpc {
                 playSound(SoundEvents.ENTITY_VILLAGER_NO, 1f, 1f);
                 return;
             }
-            ItemStack given = mine.copyWithCount(1);
-            mine.decrement(1);
+            ItemStack given = dev.tcgshop.collection.BinderSlots.take(player, a.slot(), 1);
+            if (given.isEmpty()) return;
+            dev.tcgshop.collection.BinderSlots.sync(player);
             inv.offerOrDrop(his.copy());
             stock.set(a.index(), given);
             tradesLeft--;

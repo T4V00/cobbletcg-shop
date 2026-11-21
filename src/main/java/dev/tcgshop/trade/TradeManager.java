@@ -126,8 +126,8 @@ public final class TradeManager {
 
     public static void select(ServerPlayerEntity p, int slot) {
         Session s = SESSIONS.get(p.getUuid());
-        if (s == null || slot < 0 || slot >= 36) return;
-        ItemStack st = p.getInventory().getStack(slot);
+        if (s == null || slot < 0 || (slot >= 36 && !dev.tcgshop.collection.BinderSlots.isBinder(slot))) return;
+        ItemStack st = dev.tcgshop.collection.BinderSlots.peek(p, slot);
         if (!tradeable(st)) { sendState(p, s, "tcgshop.trade.not_tradeable"); return; }
         ItemStack one = st.copyWithCount(1);
         if (s.isA(p.getUuid())) { s.offerA = one; s.slotA = slot; } else { s.offerB = one; s.slotB = slot; }
@@ -150,7 +150,7 @@ public final class TradeManager {
         var inv = p.getInventory();
         if (hint >= 0 && hint < 36 && ItemStack.areItemsAndComponentsEqual(inv.getStack(hint), want)) return hint;
         for (int i = 0; i < 36; i++) if (ItemStack.areItemsAndComponentsEqual(inv.getStack(i), want)) return i;
-        return -1;
+        return dev.tcgshop.collection.BinderSlots.findInBinder(p, want); // también desde el Binder
     }
 
     private static void execute(MinecraftServer server, Session s) {
@@ -165,8 +165,10 @@ public final class TradeManager {
             return;
         }
         // quitar primero las dos cartas y luego entregar: todo en el mismo tick del servidor
-        ItemStack fromA = a.getInventory().removeStack(ia, 1);
-        ItemStack fromB = b.getInventory().removeStack(ib, 1);
+        ItemStack fromA = dev.tcgshop.collection.BinderSlots.isBinder(ia) ? dev.tcgshop.collection.BinderSlots.take(a, ia, 1) : a.getInventory().removeStack(ia, 1);
+        ItemStack fromB = dev.tcgshop.collection.BinderSlots.isBinder(ib) ? dev.tcgshop.collection.BinderSlots.take(b, ib, 1) : b.getInventory().removeStack(ib, 1);
+        if (dev.tcgshop.collection.BinderSlots.isBinder(ia)) dev.tcgshop.collection.BinderSlots.sync(a);
+        if (dev.tcgshop.collection.BinderSlots.isBinder(ib)) dev.tcgshop.collection.BinderSlots.sync(b);
         give(a, fromB.copy());
         give(b, fromA.copy());
         SESSIONS.remove(s.a);

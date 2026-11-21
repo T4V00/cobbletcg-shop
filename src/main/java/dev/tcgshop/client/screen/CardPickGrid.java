@@ -33,6 +33,13 @@ public final class CardPickGrid {
     public java.util.function.Predicate<ItemStack> accept = CardInfo::isCard;
     /** Precio por unidad con decimales para lo que no es carta (objetos vanilla del Mayorista). */
     public java.util.function.ToDoubleFunction<ItemStack> extra = null;
+    /** Mostrar también las cartas del Binder General (casillas 1000+), con una marca "B". */
+    public boolean includeBinder = false;
+
+    /** Lo que hay en una casilla (inventario o Binder). */
+    public static ItemStack stackAt(PlayerEntity p, int slot) {
+        return dev.tcgshop.client.binder.ClientBinderSlots.stack(p, slot);
+    }
     private double scroll;
     private final List<int[]> rects = new ArrayList<>();
     private double appearAt = System.nanoTime() / 1e9;
@@ -51,6 +58,7 @@ public final class CardPickGrid {
             ItemStack st = p.getInventory().getStack(i);
             if (!st.isEmpty() && accept.test(st)) out.add(i);
         }
+        if (includeBinder) for (int s : dev.tcgshop.client.binder.ClientBinderSlots.slots()) if (accept.test(stackAt(p, s))) out.add(s);
         return out;
     }
 
@@ -72,7 +80,7 @@ public final class CardPickGrid {
     public long total(PlayerEntity p) {
         double t = 0;
         for (int s : sel) {
-            ItemStack st = p.getInventory().getStack(s);
+            ItemStack st = stackAt(p, s);
             if (!st.isEmpty() && accept.test(st)) t += unit(st) * st.getCount();
         }
         return (long) Math.floor(t);
@@ -95,7 +103,7 @@ public final class CardPickGrid {
         ctx.enableScissor(x, y, x + w, y + h);
         for (int k = 0; k < slots.size(); k++) {
             int slot = slots.get(k);
-            ItemStack st = p.getInventory().getStack(slot);
+            ItemStack st = stackAt(p, slot);
             int cx = ox + (k % cols) * (cw + gap), cy = y + 4 + (k / cols) * rowH - (int) scroll;
             if (cy + rowH < y || cy > y + h) continue;
             float ap = (float) MathHelper.clamp((t - appearAt - Math.min(k, 24) * 0.02) / 0.25, 0, 1);
@@ -135,6 +143,10 @@ public final class CardPickGrid {
                 Ui.round(ctx, cx + cw - 11, cy + 2 + lift, 10, 9, 0xFFE0457E);
                 ctx.drawText(tr, "♥", cx + cw - 9, cy + 3 + lift, 0xFFFFFFFF, false);
             } else if (hover) Ui.outline(ctx, cx - 1, cy - 3, cw + 2, ch + 2, 0xFFFFFFFF);
+            if (dev.tcgshop.collection.BinderSlots.isBinder(slot)) {
+                Ui.round(ctx, cx + 1, cy + 1 + lift, 9, 9, 0xEE3A6FD8);
+                ctx.drawText(tr, "B", cx + 3, cy + 2 + lift, 0xFFFFFFFF, false);
+            }
             String pr = card ? PriceService.format(price.applyAsLong(st)) : money(unit(st) * st.getCount());
             float s = Math.min(1f, (cw + 4f) / Math.max(1, tr.getWidth(pr)));
             var m = ctx.getMatrices();

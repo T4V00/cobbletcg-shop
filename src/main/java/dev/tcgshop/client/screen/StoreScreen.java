@@ -29,6 +29,7 @@ public class StoreScreen extends Screen {
         sellGrid.price = st -> dev.tcgshop.shop.CardSales.offer(st, dev.tcgshop.shop.CardSales.WHOLESALER_RATE);
         sellGrid.accept = st -> dev.tcgshop.card.CardInfo.isCard(st) || dev.tcgshop.shop.VanillaPrices.sellable(st);
         sellGrid.extra = dev.tcgshop.shop.VanillaPrices::price;
+        sellGrid.includeBinder = true; // también las cartas del Binder
     }
 
     private int emeralds() {
