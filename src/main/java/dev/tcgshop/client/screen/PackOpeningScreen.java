@@ -907,7 +907,13 @@ public class PackOpeningScreen extends Screen {
     // ------------------------------------------------------------------ util
 
     private void play(SoundEvent sound, float pitch, float volume) {
-        if (client != null) client.getSoundManager().play(PositionedSoundInstance.master(sound, pitch, volume));
+        if (client == null) return;
+        // los avisos de carta rara (ding, nivel, logro, monedas) se oían casi nada: siempre a tope y por partida doble
+        boolean cue = sound == TcgSounds.CARD_RARE || sound == TcgSounds.CARD_EPIC || sound == TcgSounds.CARD_LEGENDARY
+                || sound == TcgSounds.CARD_ANTICIPATE || sound == TcgSounds.UI_COINS;
+        float v = cue ? 1f : Math.min(1f, volume * 1.3f);
+        client.getSoundManager().play(PositionedSoundInstance.master(sound, pitch, v));
+        if (cue) client.getSoundManager().play(PositionedSoundInstance.master(sound, pitch, v));
     }
 
     private static double now() {
