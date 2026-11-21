@@ -89,6 +89,23 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
             matrices.pop();
             return;
         }
+        int waitQ = entity.waitPermille();
+        if (waitQ >= 0) {
+            // en la fila de la caja: su barra de paciencia sobre la cabeza
+            float tq = entity.age + tickDelta, f = waitQ / 1000f;
+            matrices.push();
+            matrices.translate(0, entity.getHeight() + 0.62f, 0);
+            matrices.multiply(dispatcher.getRotation());
+            matrices.scale(0.025f, -0.025f, 0.025f);
+            bubbleEntry = matrices.peek();
+            Matrix4f qm = matrices.peek().getPositionMatrix();
+            int col = f > 0.5f ? 0xFF5BD46B : f > 0.25f ? 0xFFFFC233 : 0xFFFF5050;
+            if (f <= 0.25f && ((int) (tq / 4)) % 2 == 0) col = 0xFFFFFFFF;
+            VertexConsumer qb = consumers.getBuffer(RenderLayer.getTextBackground());
+            rect(qb, qm, -11.5f, -2.5f, 11.5f, 1.5f, 0.02f, 0xCC101018);
+            rect(qb, qm, -11f, -2f, -11f + 22f * f, 1f, 0.01f, col);
+            matrices.pop();
+        }
         int emote = entity.emote();
         if (emote <= 0 || emote >= BUBBLES.length) return;
         matrices.push();

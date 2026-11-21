@@ -2836,5 +2836,11 @@
   "tcgshop.sell.b_dupes": "Duplicates",
   "tcgshop.sell.b_value": "Value",
   "tcgshop.sell.binder_hint": "Sell many cards at once without taking them out of your Binder: filter by set, rarity or value, drag to pick several, protect your favourites and offer cards to other players.",
-  "tcgshop.sell.open_binder_market": "Open the Binder Market"
+  "tcgshop.sell.open_binder_market": "Open the Binder Market",
+  "tcgshop.npc.queue_leave.0": "This line isn't moving. I'll put it back.",
+  "tcgshop.npc.queue_leave.1": "I've been waiting forever... I'm off.",
+  "tcgshop.npc.queue_leave.2": "I'll come back when it's less busy.",
+  "tcgshop.npc.queue_leave.3": "Is nobody at the till? Forget it.",
+  "tcgshop.npc.queue_leave.4": "Too long a wait for one pack.",
+  "tcgshop.review.queue_slow": "I waited too long at the till"
 }

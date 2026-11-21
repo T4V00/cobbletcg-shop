@@ -2834,5 +2834,11 @@
   "tcgshop.sell.b_dupes": "Repetidas",
   "tcgshop.sell.b_value": "Valor",
   "tcgshop.sell.binder_hint": "Vende muchas cartas de golpe sin sacarlas del Binder: filtra por expansión, rareza o valor, arrastra para elegir varias, protege tus favoritas y ofrece cartas a otros jugadores.",
-  "tcgshop.sell.open_binder_market": "Abrir el Mercado del Binder"
+  "tcgshop.sell.open_binder_market": "Abrir el Mercado del Binder",
+  "tcgshop.npc.queue_leave.0": "Esta cola no avanza. Lo dejo en su sitio.",
+  "tcgshop.npc.queue_leave.1": "Llevo siglos esperando... me voy.",
+  "tcgshop.npc.queue_leave.2": "Ya volveré cuando haya menos gente.",
+  "tcgshop.npc.queue_leave.3": "¿No hay nadie cobrando? Paso.",
+  "tcgshop.npc.queue_leave.4": "Demasiada espera para un sobre.",
+  "tcgshop.review.queue_slow": "Esperé demasiado en la caja"
 }

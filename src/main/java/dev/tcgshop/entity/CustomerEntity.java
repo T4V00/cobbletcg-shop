@@ -130,11 +130,25 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
 
     public CustomerEntity(EntityType<? extends PathAwareEntity> type, World world) {
         super(type, world);
+        if (getNavigation() instanceof net.minecraft.entity.ai.pathing.MobNavigation nav) {
+            nav.setCanPathThroughDoors(true); // abren las puertas de madera de la tienda
+            nav.setCanEnterOpenDoors(true);
+        }
     }
+
+    /** Turnos de la fila de la caja (quien llegó antes, paga antes). */
+    private static final java.util.concurrent.atomic.AtomicLong QUEUE_TICKETS = new java.util.concurrent.atomic.AtomicLong();
+    private long queueTicket;
+    private int serviceTicks;
+    /** Puerta por la que entra (y por la que sale); null si la tienda no tiene puertas. */
+    @Nullable
+    private BlockPos entryDoor;
+    @Nullable
+    private Vec3d entryOutside;
 
     public static DefaultAttributeContainer.Builder createAttributes() {
         return MobEntity.createMobAttributes().add(EntityAttributes.GENERIC_MAX_HEALTH, 16.0).add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.27)
-                .add(EntityAttributes.GENERIC_FOLLOW_RANGE, 48.0);
+                .add(EntityAttributes.GENERIC_FOLLOW_RANGE, 96.0);
     }
 
     @Override
@@ -152,6 +166,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     @Override
     protected void initGoals() {
         goalSelector.add(0, new SwimGoal(this));
+        goalSelector.add(1, new net.minecraft.entity.ai.goal.LongDoorInteractGoal(this, true)); // abre y cierra la puerta al pasar
         goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 6f));
         goalSelector.add(8, new LookAroundGoal(this));
     }
@@ -183,9 +198,16 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     // ------------------------------------------------------------------ aparición
 
     public static CustomerEntity spawn(ServerWorld world, ShopZones.Zone z, Type type, Vec3d pos, Vec3d exit, @Nullable ShopZones.Regular regular) {
+        return spawn(world, z, type, pos, exit, regular, null, null);
+    }
+
+    public static CustomerEntity spawn(ServerWorld world, ShopZones.Zone z, Type type, Vec3d pos, Vec3d exit, @Nullable ShopZones.Regular regular,
+                                       @Nullable BlockPos door, @Nullable Vec3d doorOutside) {
         CustomerEntity c = TcgEntities.CUSTOMER.create(world);
         if (c == null) return null;
         c.zoneId = z.id;
+        c.entryDoor = door;
+        c.entryOutside = doorOutside;
         c.dataTracker.set(TYPE, type.ordinal());
         if (regular != null) {
             c.returning = true;
@@ -325,6 +347,12 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         }
         switch (state) {
             case ENTER -> {
+                if (!entered && entryOutside != null && squaredDistanceTo(entryOutside) > 2.2 * 2.2) {
+                    // camina desde lejos hasta la puerta de la tienda (la navegación la abre al pasar)
+                    if (getNavigation().isIdle() || age % 40 == 0) getNavigation().startMovingTo(entryOutside.x, entryOutside.y, entryOutside.z, 0.85);
+                    if (timer < -20 * 90) { entryOutside = null; } // atascado: que entre como pueda
+                    return;
+                }
                 if (type() == Type.SELLER) { goDeal(world, z, "seller_hello"); return; }
                 if (type() == Type.TRADER) {
                     if (prepareTrade(world, z)) { goDeal(world, z, "trader_hello"); return; }
@@ -349,18 +377,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                 lookAtTarget(world);
                 if (timer <= 0) decide(world, z);
             }
-            case CHECKOUT -> {
-                if (register == null || !world.getBlockState(register).isOf(TcgBlocks.CASH_REGISTER)) { pay(world, z); return; }
-                BlockState rs = world.getBlockState(register);
-                Direction f = rs.get(Properties.HORIZONTAL_FACING);
-                Vec3d front = register.offset(f).toCenterPos();
-                if (squaredDistanceTo(front) < 1.5 * 1.5 || squaredDistanceTo(register.toCenterPos()) < 2.2 * 2.2) {
-                    getNavigation().stop();
-                    getLookControl().lookAt(register.toCenterPos());
-                    pay(world, z);
-                } else if (getNavigation().isIdle()) getNavigation().startMovingTo(front.x, register.getY(), front.z, 0.85);
-                if (timer <= 0) pay(world, z);
-            }
+            case CHECKOUT -> checkoutTick(world, z);
             case WAIT_DEAL -> {
                 ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
                 if (owner != null && owner.getServerWorld() == world) {
@@ -519,7 +536,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             playSound(SoundEvents.ENTITY_VILLAGER_YES, 0.8f, 1.1f);
             register = nearestRegister(world, z);
             if (register == null) pay(world, z);
-            else { state = State.CHECKOUT; timer = 600; }
+            else joinQueue();
             return;
         }
         emote(ratio > 1.15 ? EMOTE_ANGRY : EMOTE_THINK);
@@ -531,6 +548,106 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         } else if (random.nextFloat() < 0.4f) NpcLines.sayNear(this, "nobuy");
         ShopZones.get(world).markDirty();
         state = State.ENTER;
+    }
+
+    // ------------------------------------------------------------------ fila de la caja
+
+    /** Se pone a la cola de la caja: coge turno y empieza a contar su paciencia. */
+    private void joinQueue() {
+        state = State.CHECKOUT;
+        queueTicket = QUEUE_TICKETS.incrementAndGet();
+        serviceTicks = 0;
+        timer = waitMax = 20 * EconomyConfig.INSTANCE.customerWaitSeconds;
+        dataTracker.set(WAIT, 1000);
+    }
+
+    /** Cuántos van delante en la misma caja. */
+    private int queueIndex(ServerWorld world, ShopZones.Zone z) {
+        final BlockPos reg = register;
+        return world.getEntitiesByClass(CustomerEntity.class, z.box().expand(8),
+                c -> c != this && c.isAlive() && c.state == State.CHECKOUT && reg.equals(c.register) && c.queueTicket < queueTicket).size();
+    }
+
+    private static boolean standable(ServerWorld world, BlockPos p) {
+        return !world.getBlockState(p).blocksMovement() && !world.getBlockState(p.up()).blocksMovement()
+                && world.getBlockState(p.down()).isSolidBlock(world, p.down());
+    }
+
+    /**
+     * Sitio número k de la fila: el primero delante del mostrador y los demás uno detrás de otro, alejándose de la caja;
+     * si hay una pared o un mueble, la fila dobla hacia un lado.
+     */
+    private static BlockPos queueSpot(ServerWorld world, BlockPos front, Direction f, int k) {
+        java.util.List<BlockPos> line = new java.util.ArrayList<>();
+        line.add(front);
+        BlockPos cur = front;
+        Direction[] prefs = {f, f.rotateYClockwise(), f.rotateYCounterclockwise()};
+        while (line.size() <= k && line.size() < 12) {
+            BlockPos next = null;
+            for (Direction d : prefs) {
+                BlockPos n = cur.offset(d);
+                if (!line.contains(n) && standable(world, n)) { next = n; break; }
+            }
+            if (next == null) break;
+            line.add(next);
+            cur = next;
+        }
+        return line.get(Math.min(k, line.size() - 1));
+    }
+
+    /**
+     * En la cola: va a su sitio (detrás del de delante), espera mirando a la caja y, cuando es su turno y está en el
+     * mostrador, le cobran (más rápido con cajero). Todos tienen su barra de paciencia: si se acaba, deja el producto
+     * en su sitio y se va sin comprar.
+     */
+    private void checkoutTick(ServerWorld world, ShopZones.Zone z) {
+        if (register == null || !world.getBlockState(register).isOf(TcgBlocks.CASH_REGISTER)) { pay(world, z); return; }
+        Direction f = world.getBlockState(register).get(Properties.HORIZONTAL_FACING);
+        BlockPos front = register.offset(f);
+        int idx = queueIndex(world, z);
+        BlockPos spotPos = queueSpot(world, front, f, idx);
+        double dx = spotPos.getX() + 0.5 - getX(), dz = spotPos.getZ() + 0.5 - getZ();
+        boolean there = dx * dx + dz * dz < 0.7 * 0.7;
+        if (!there) {
+            if (getNavigation().isIdle() || age % 20 == 0) getNavigation().startMovingTo(spotPos.getX() + 0.5, spotPos.getY(), spotPos.getZ() + 0.5, 0.75);
+        } else {
+            getNavigation().stop();
+            getLookControl().lookAt(register.toCenterPos());
+        }
+        if (idx == 0 && dx * dx + dz * dz < 1.3 * 1.3) {
+            serviceTicks += 5;
+            int need = ShopServer.cashierOnDuty(world, z) ? 40 : 70;
+            if (serviceTicks >= need) { pay(world, z); return; }
+        } else serviceTicks = 0;
+        dataTracker.set(WAIT, (int) Math.max(0, Math.min(1000, timer * 1000L / Math.max(1, waitMax))));
+        if (timer <= 0) leaveQueue(world, z);
+    }
+
+    /** Se cansa de esperar: devuelve el producto y se va. */
+    private void leaveQueue(ServerWorld world, ShopZones.Zone z) {
+        returnBought(world);
+        NpcLines.sayNear(this, "queue_leave");
+        mood -= 2;
+        reviewKey = "queue_slow";
+        z.unattended++;
+        ShopZones.get(world).markDirty();
+        register = null;
+        leave(world, z, null);
+    }
+
+    /** Deja el producto que iba a comprar en su casilla (o en otra libre del mismo mueble; si no hay, en el suelo). */
+    private void returnBought(ServerWorld world) {
+        if (bought.isEmpty()) return;
+        ShopDisplayBlockEntity be = targetDisplay(world);
+        boolean placed = false;
+        if (be != null) {
+            if (be.getStack(targetSlot).isEmpty()) { be.setStack(targetSlot, bought); placed = true; }
+            else for (int i = 0; i < be.size() && !placed; i++)
+                if (be.getStack(i).isEmpty()) { be.setStack(i, bought); placed = true; }
+        }
+        if (!placed) dropStack(bought);
+        bought = ItemStack.EMPTY;
+        equipStack(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
     }
 
     @Nullable
@@ -1043,7 +1160,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         reviewed = true;
         // al recargar: el ladrón sigue huyendo con su botín; quien iba a pagar paga; el resto se marcha
         if (!loot.isEmpty()) { state = State.FLEE; fleePhaseTicks = 40; }
-        else if (!bought.isEmpty()) state = State.CHECKOUT;
+        else if (!bought.isEmpty()) { joinQueue(); register = null; } // sin caja: pagará al recalcular (pay)
         else state = State.LEAVE;
     }
 }

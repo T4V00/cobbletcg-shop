@@ -241,16 +241,24 @@ public final class ShopLife {
         double chance = (0.2 + z.reputation / 180.0 + Math.min(0.15, recs * 0.03)) * DEMAND;
         if (world.random.nextDouble() > chance) return;
         CustomerEntity.Type type = rollType(world, z);
-        // llegan andando desde fuera de la tienda y se marchan por el mismo sitio
-        Vec3d pos = edgeSpot(world, z, 4);
-        if (pos == null) pos = edgeSpot(world, z, 0);
+        // llegan andando desde lejos (no aparecen pegados a la tienda), entran por una puerta y se van por donde vinieron
+        BlockPos door = null;
+        Vec3d doorOutside = null, pos = null;
+        java.util.List<BlockPos> doors = shopDoors(world, z);
+        if (!doors.isEmpty()) {
+            door = doors.get(world.random.nextInt(doors.size()));
+            net.minecraft.util.math.Direction out = outward(world, z, door);
+            doorOutside = Vec3d.ofBottomCenter(door.offset(out, 2));
+            pos = farSpot(world, z, door, out);
+        }
+        if (pos == null) pos = edgeSpot(world, z, 16 + world.random.nextInt(10));
+        if (pos == null) pos = edgeSpot(world, z, 6);
         if (pos == null) return;
-        Vec3d away = pos.subtract(z.core.toCenterPos()).multiply(1, 0, 1);
-        Vec3d exit = away.lengthSquared() < 1e-3 ? pos : pos.add(away.normalize().multiply(10));
+        Vec3d exit = pos;
         ShopZones.Regular regular = null;
         if (type != CustomerEntity.Type.THIEF && !z.regulars.isEmpty() && world.random.nextFloat() < 0.25f)
             regular = z.regulars.get(world.random.nextInt(z.regulars.size()));
-        CustomerEntity.spawn(world, z, type, pos, exit, regular);
+        CustomerEntity.spawn(world, z, type, pos, exit, regular, door, doorOutside);
     }
 
     private static CustomerEntity.Type rollType(ServerWorld world, ShopZones.Zone z) {
@@ -267,6 +275,46 @@ public final class ShopLife {
     }
 
     /** Un punto caminable en el borde de la zona, a la altura del suelo de la tienda. */
+    /** Puertas de madera de la tienda (la mitad de abajo), dentro de la zona y a la altura del suelo. */
+    static java.util.List<BlockPos> shopDoors(ServerWorld world, ShopZones.Zone z) {
+        java.util.List<BlockPos> out = new java.util.ArrayList<>();
+        int half = z.tierInfo().size / 2;
+        for (BlockPos p : BlockPos.iterate(z.core.getX() - half, z.core.getY() - 2, z.core.getZ() - half, z.core.getX() + half, z.core.getY() + 3, z.core.getZ() + half)) {
+            BlockState s = world.getBlockState(p);
+            if (s.isIn(net.minecraft.registry.tag.BlockTags.WOODEN_DOORS) && s.get(net.minecraft.block.DoorBlock.HALF) == net.minecraft.block.enums.DoubleBlockHalf.LOWER)
+                out.add(p.toImmutable());
+            if (out.size() >= 8) break;
+        }
+        return out;
+    }
+
+    /** Lado de fuera de una puerta: el que da al cielo (o, si no se sabe, el más alejado del centro de la tienda). */
+    static net.minecraft.util.math.Direction outward(ServerWorld world, ShopZones.Zone z, BlockPos door) {
+        net.minecraft.util.math.Direction f = world.getBlockState(door).get(net.minecraft.block.DoorBlock.FACING);
+        boolean a = world.isSkyVisible(door.offset(f).up()), b = world.isSkyVisible(door.offset(f.getOpposite()).up());
+        if (a != b) return a ? f : f.getOpposite();
+        double da = door.offset(f).getSquaredDistance(z.core), db = door.offset(f.getOpposite()).getSquaredDistance(z.core);
+        return da >= db ? f : f.getOpposite();
+    }
+
+    /** Sitio lejano (18-28 bloques) por el lado de fuera de la puerta, en suelo firme. */
+    @org.jetbrains.annotations.Nullable
+    private static Vec3d farSpot(ServerWorld world, ShopZones.Zone z, BlockPos door, net.minecraft.util.math.Direction out) {
+        net.minecraft.util.math.Direction side = out.rotateYClockwise();
+        for (int i = 0; i < 10; i++) {
+            int d = 18 + world.random.nextInt(11), lat = world.random.nextInt(13) - 6;
+            BlockPos c = door.offset(out, d).offset(side, lat);
+            if (z.contains(c)) continue;
+            if (!world.isChunkLoaded(c)) continue;
+            int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, c.getX(), c.getZ());
+            if (Math.abs(y - door.getY()) > 6) continue;
+            BlockPos g = new BlockPos(c.getX(), y, c.getZ());
+            if (world.getBlockState(g.down()).isSolidBlock(world, g.down()) && world.isAir(g) && world.isAir(g.up()) && world.getFluidState(g.down()).isEmpty())
+                return new Vec3d(g.getX() + 0.5, g.getY(), g.getZ() + 0.5);
+        }
+        return null;
+    }
+
     private static Vec3d edgeSpot(ServerWorld world, ShopZones.Zone z, int outside) {
         int half = z.tierInfo().size / 2 - 1 + outside;
         for (int i = 0; i < 12; i++) {

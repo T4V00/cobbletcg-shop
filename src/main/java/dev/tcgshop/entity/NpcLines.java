@@ -47,7 +47,7 @@ public final class NpcLines {
             Map.entry("comment_hostile", 5), Map.entry("comment_farm_animals", 4), Map.entry("comment_pets", 4), Map.entry("comment_pokemon", 5),
             Map.entry("comment_cozy", 5), Map.entry("comment_cheap", 4), Map.entry("comment_pricey", 4), Map.entry("comment_empty", 4),
             Map.entry("comment_infamy", 5), Map.entry("murder_witness", 6),
-            Map.entry("cashier_bye", 5), Map.entry("beg_hello", 8), Map.entry("beg_ambient", 8), Map.entry("beg_thanks", 8),
+            Map.entry("cashier_bye", 5), Map.entry("queue_leave", 5), Map.entry("beg_hello", 8), Map.entry("beg_ambient", 8), Map.entry("beg_thanks", 8),
             Map.entry("beg_thanks_big", 5), Map.entry("beg_card_love", 5), Map.entry("beg_polite_no", 5), Map.entry("beg_rude", 5),
             Map.entry("beg_gift", 4), Map.entry("bm_hello", 6), Map.entry("bm_ambient", 5), Map.entry("bm_deal", 5), Map.entry("bm_no", 4),
             Map.entry("bm_leave", 4));
