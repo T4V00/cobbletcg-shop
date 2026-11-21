@@ -81,10 +81,7 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
                 float f = wait / 1000f;
                 int col = f > 0.5f ? 0xFF5BD46B : f > 0.25f ? 0xFFFFC233 : 0xFFFF5050;
                 if (f <= 0.25f && ((int) (t / 4)) % 2 == 0) col = 0xFFFFFFFF;
-                bubbleEntry = matrices.peek();
-                VertexConsumer bar = consumers.getBuffer(RenderLayer.getTextBackground());
-                rect(bar, mm, -9.5f, 6.5f, 9.5f, 9.5f, 0.02f, 0xCC101018);
-                rect(bar, mm, -9f, 7f, -9f + 18f * f, 9f, 0.01f, col);
+                textBar(tr, matrices, consumers, 0, 6.5f, 18f, f, col);
             }
             matrices.pop();
             return;
@@ -93,17 +90,13 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
         if (waitQ >= 0) {
             // en la fila de la caja: su barra de paciencia sobre la cabeza
             float tq = entity.age + tickDelta, f = waitQ / 1000f;
+            int col = f > 0.5f ? 0xFF5BD46B : f > 0.25f ? 0xFFFFC233 : 0xFFFF5050;
+            if (f <= 0.25f && ((int) (tq / 4)) % 2 == 0) col = 0xFFFFFFFF;
             matrices.push();
             matrices.translate(0, entity.getHeight() + 0.62f, 0);
             matrices.multiply(dispatcher.getRotation());
             matrices.scale(0.025f, -0.025f, 0.025f);
-            bubbleEntry = matrices.peek();
-            Matrix4f qm = matrices.peek().getPositionMatrix();
-            int col = f > 0.5f ? 0xFF5BD46B : f > 0.25f ? 0xFFFFC233 : 0xFFFF5050;
-            if (f <= 0.25f && ((int) (tq / 4)) % 2 == 0) col = 0xFFFFFFFF;
-            VertexConsumer qb = consumers.getBuffer(RenderLayer.getTextBackground());
-            rect(qb, qm, -11.5f, -2.5f, 11.5f, 1.5f, 0.02f, 0xCC101018);
-            rect(qb, qm, -11f, -2f, -11f + 22f * f, 1f, 0.01f, col);
+            textBar(getTextRenderer(), matrices, consumers, 0, -2.5f, 22f, f, col);
             matrices.pop();
         }
         int emote = entity.emote();
@@ -144,32 +137,48 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
         Matrix4f m = matrices.peek().getPositionMatrix();
         bubbleEntry = matrices.peek();
         int a = Math.round(alpha * 245);
-        int white = (a << 24) | 0xFFFFFF, border = (Math.round(alpha * 255) << 24) | 0x26232E;
-        float x0 = -bw / 2f, x1 = bw / 2f, y1 = -6, y0 = y1 - bh;
-        // fondo en la misma capa que el fondo de los nombres vanilla (se ordena siempre bien con el texto, en cualquier
-        // ángulo y con gráficos Fabulous/shaders); antes usaba una capa translúcida de entidad que a veces tapaba el texto
-        VertexConsumer bg = consumers.getBuffer(RenderLayer.getTextBackground());
-        rect(bg, m, x0 - 1, y0 - 1, x1 + 1, y1 + 1, 0.02f, border);
-        tail(bg, m, -5.5f, y1 + 1, 5.5f, 1.4f, 0.02f, border);
-        rect(bg, m, x0, y0, x1, y1, 0.01f, white);
-        tail(bg, m, -4, y1, 4, 0, 0.01f, white);
+        int bgCol = (a << 24) | 0xFFFFFF;
+        int textCol = (Math.max(8, Math.round(alpha * 255)) << 24) | 0x1E1E28;
+        float x0 = -bw / 2f, y0 = -6 - bh;
+        // El fondo blanco lo pinta el propio TextRenderer (como el fondo de los nombres vanilla): fondo y letras salen de
+        // la misma llamada y en la misma capa, así se ven bien en cualquier ángulo, con Fabulous y con shaders (Iris).
+        // Cada línea se rellena con espacios hasta el ancho de la burbuja para que el fondo quede como un bloque.
         int visible = sp.visibleChars(now), used = 0;
-        int textCol = (Math.round(alpha * 255) << 24) | 0x1E1E28;
+        int target = w + padX * 2;
+        boolean typing = visible < sp.plain.length();
         for (int i = 0; i < sp.lines.size(); i++) {
             String l = sp.lines.get(i);
             int show = Math.max(0, Math.min(l.length(), visible - used));
             used += l.length() + 1;
-            if (show <= 0) break;
-            // POLYGON_OFFSET: el texto siempre queda delante de su fondo aunque estén casi en el mismo plano
-            tr.draw(l.substring(0, show), x0 + padX, y0 + padY + i * lineH, textCol, false, m, consumers, TextRenderer.TextLayerType.POLYGON_OFFSET, 0, 0xF000F0);
+            StringBuilder line = new StringBuilder(" ").append(l, 0, show);
+            if (typing && show > 0 && show < l.length()) line.append('_');
+            while (tr.getWidth(line.toString()) < target - 2) line.append(' ');
+            tr.draw(line.toString(), x0, y0 + padY + i * lineH, textCol, false, m, consumers, TextRenderer.TextLayerType.NORMAL, bgCol, 0xF000F0);
         }
-        // puntos suspensivos mientras escribe
-        if (visible < sp.plain.length()) {
-            float t = now * 0.3f;
-            for (int k = 0; k < 3; k++) {
-                int da = Math.round(alpha * (130 + 120 * (float) Math.max(0, Math.sin(t - k * 0.8f))));
-                rect(consumers.getBuffer(RenderLayer.getTextBackground()), m, x1 - 12 + k * 3.5f, y1 - 3.5f, x1 - 10.5f + k * 3.5f, y1 - 2, 0.005f, (da << 24) | 0x6A6A80);
-            }
+        // piquito hacia el NPC
+        String tail = "▼";
+        tr.draw(tail, -tr.getWidth(tail) / 2f, y0 + padY + sp.lines.size() * lineH - 2, (Math.max(8, Math.round(alpha * 255)) << 24) | 0xFFFFFF, false, m, consumers,
+                TextRenderer.TextLayerType.NORMAL, 0, 0xF000F0);
+        matrices.pop();
+    }
+
+    /**
+     * Barra hecha con el fondo del TextRenderer (espacios con color de fondo): se ve igual de bien que los nombres
+     * vanilla con cualquier configuración gráfica. width en unidades del texto; f de 0 a 1.
+     */
+    private static void textBar(TextRenderer tr, MatrixStack matrices, VertexConsumerProvider consumers, float cx, float y, float width, float f, int col) {
+        int cells = 24;
+        matrices.push();
+        float sx = width / (cells * 4f); // un espacio mide 4 unidades
+        matrices.translate(cx - width / 2f, y, 0);
+        matrices.scale(sx, 1, 1);
+        Matrix4f m = matrices.peek().getPositionMatrix();
+        String bg = " ".repeat(cells);
+        tr.draw(bg, 0, 0, 0x01000000, false, m, consumers, TextRenderer.TextLayerType.NORMAL, 0xCC101018, 0xF000F0);
+        int fill = Math.round(Math.max(0, Math.min(1, f)) * cells);
+        if (fill > 0) {
+            matrices.translate(0, 0, -0.01f);
+            tr.draw(" ".repeat(fill), 0, 0, 0x01000000, false, matrices.peek().getPositionMatrix(), consumers, TextRenderer.TextLayerType.NORMAL, col, 0xF000F0);
         }
         matrices.pop();
     }
