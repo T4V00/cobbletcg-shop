@@ -6,6 +6,8 @@
 
 **MasterBall Traders Co.** is a Pokémon TCG shop simulator for Cobblemon worlds. Its cards come from **MasterBall Traders API** (11,700+ physical cards from 68 sets). It turns that card collection into a full trading-card economy: real market prices, a living shop full of NPC customers, pack openings that feel like the real thing, binders, grading, a phone with apps, and real Pokémon TCG matches with a ranked league.
 
+> ✅ **Compatible with COBBLEVERSE 1.8.0** (Cobblemon 1.8.4, Fabric, Minecraft 1.21.1). Just drop MasterBall Traders Co. and MasterBall Traders API into the modpack's `mods` folder.
+
 ---
 
 ## What's new in 0.9
@@ -91,6 +93,7 @@
 | **Required** | Fabric Loader 0.18.4+ · Minecraft 1.21.1 · Java 21 | |
 | **Incompatible** | ScalperTCG | Replaced by the API. Remove it: its cards in existing worlds are converted automatically. |
 | Recommended | [Cobblemon](https://www.curseforge.com/minecraft/mc-mods/cobblemon) | Pokémon battles, event Pokémon, mansion residents, the black-market dealer. |
+| Recommended | ScalperTCG resource packs ("CobbleTCG ResourcePack 1, 2, 3...") | Card art. The API reads them from your `resourcepacks` folder automatically; you don't need to enable them. Without them, cards show a card back. |
 | Optional | CobbleFurnies, Lucky's Cozyhome | Customers sit on their chairs and sofas; the mansion is furnished with CobbleFurnies. |
 | Optional | Pokeblocks | Pokédolls as shop decoration and stock. |
 
@@ -100,7 +103,7 @@
 
 1. Install Minecraft **1.21.1** with **Fabric Loader** (0.18.4 or newer). The CurseForge app does this for you with a Fabric profile.
 2. Add **Fabric API**, **MasterBall Traders API**, **CobbleDollars** and **MasterBall Traders Co.** to your `mods` folder. Cobblemon is strongly recommended.
-3. Launch the game once: the card images download on the title screen.
+3. For card art, put the ScalperTCG resource packs in your `resourcepacks` folder (they are read automatically).
 4. Create or open a world. On your first join you get a few sealed packs to start your collection.
 5. Buy a **TCG Phone** from the Mysterious Wholesaler, a travelling merchant who shows up near players every now and then. The phone is your hub for the market, your shop and everything else.
 
@@ -120,10 +123,10 @@
 
 This mod was made with the help of **Claude** (Anthropic). AI was heavily involved in the development process, including code, procedurally generated textures, texts and balancing. The project was directed, play-tested and curated by a human.
 
-## Disclaimer
-
-This is a fan-made project and is not affiliated with, endorsed by or connected to Nintendo, The Pokémon Company, Game Freak, Creatures Inc., TCGplayer or the developers of TCG Card Shop Simulator. Pokémon and all related names are trademarks of their respective owners. No official art is included in this mod.
+**Bugs, suggestions or balance feedback?** Leave a comment or open an issue on the GitHub page. Server owners: every setting is documented there.
 
 ---
 
-**Bugs, suggestions or balance feedback?** Leave a comment or open an issue on the GitHub page. Server owners: every setting is documented there.
+## Disclaimer
+
+<sub>Fan-made project, not affiliated with or endorsed by Nintendo, The Pokémon Company, Game Freak, Creatures, TCGplayer or the TCG Card Shop Simulator developers. Pokémon names are trademarks of their owners. No official art is included in this mod. Prices are for in-game use only.</sub>
