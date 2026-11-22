@@ -1,0 +1,60 @@
+{
+  "_comment": "#31 Visita de Pikachu: los clientes se animan y llegan algo mas (y de mejor humor). Bosques y llanuras, de dia.",
+  "category": "positive",
+  "tier": "uncommon",
+  "template": "pikachu",
+  "duration": {
+    "ticks": [
+      6000,
+      9000
+    ]
+  },
+  "conditions": {
+    "biomes": [
+      "#minecraft:is_forest",
+      "minecraft:plains",
+      "minecraft:sunflower_plains",
+      "minecraft:meadow",
+      "minecraft:flower_forest",
+      "minecraft:cherry_grove"
+    ],
+    "time": [
+      1000,
+      12000
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "pikachu",
+      "level": [
+        5,
+        15
+      ],
+      "behaviour": "wander",
+      "pet": true,
+      "feed": true,
+      "particles": "spark",
+      "reward": {
+        "onFeed": {
+          "charity": 1
+        }
+      }
+    },
+    {
+      "type": "modifier",
+      "spawnMult": 1.15,
+      "moodStart": 1
+    }
+  ],
+  "review": {
+    "tag": "pkmn_cute",
+    "chance": 0.4,
+    "mood": 1
+  },
+  "notify": {
+    "lines": "act_cute",
+    "count": 6,
+    "chance": 0.35
+  }
+}

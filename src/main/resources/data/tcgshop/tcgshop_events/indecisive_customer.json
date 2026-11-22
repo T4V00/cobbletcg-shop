@@ -1,0 +1,25 @@
+{
+  "_comment": "#71 (+78 vuelve a mirar precios) cliente indeciso",
+  "category": "neutral",
+  "tier": "common",
+  "template": "indecisive",
+  "duration": {
+    "ticks": [
+      5000,
+      7000
+    ]
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "REGULAR",
+      "browses": 5,
+      "buyMult": 0.5,
+      "lines": "indecisive",
+      "linesCount": 6
+    }
+  ],
+  "notify": {
+    "toast": false
+  }
+}

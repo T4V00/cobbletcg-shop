@@ -1,0 +1,44 @@
+{
+  "_comment": "#28 ola de robos: más ladrones durante unas horas; se arregla con guardia o 2 detectores",
+  "category": "negative",
+  "tier": "uncommon",
+  "template": "robbery",
+  "duration": {
+    "ticks": [
+      3000,
+      4000
+    ]
+  },
+  "conditions": {
+    "requires": [
+      "unguarded"
+    ]
+  },
+  "effects": [
+    {
+      "type": "modifier",
+      "typeW": {
+        "thief": 3.0
+      }
+    },
+    {
+      "type": "metric",
+      "metric": "guarded",
+      "count": 1
+    },
+    {
+      "type": "notify",
+      "particles": "angry"
+    }
+  ],
+  "review": {
+    "tag": "theft",
+    "chance": 0.35,
+    "mood": -1
+  },
+  "notify": {
+    "lines": "theft",
+    "count": 6,
+    "chance": 0.3
+  }
+}

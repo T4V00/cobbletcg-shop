@@ -23,7 +23,7 @@ import java.util.List;
 
 /**
  * Spray desodorante: una nube de ambientador delante de ti. Dentro de tu tienda baja el mal olor y, si rocías a un
- * cliente que huele mal, deja de oler (y se lo agradece... más o menos).
+ * cliente que huele mal, deja de oler (y se lo agradece... más o menos). Trae 72 usos.
  */
 public class DeodorantSprayItem extends Item {
     public static final int SMELL_REMOVED = 20;
@@ -63,5 +63,8 @@ public class DeodorantSprayItem extends Item {
     @Override
     public void appendTooltip(ItemStack stack, TooltipContext context, List<Text> tooltip, TooltipType type) {
         tooltip.add(Text.translatable("item.tcgshop.deodorant_spray.tip").formatted(Formatting.GRAY));
+        // usos restantes (72 de serie: el triple que antes)
+        int max = stack.getMaxDamage();
+        if (max > 0) tooltip.add(Text.translatable("item.tcgshop.deodorant_spray.uses", max - stack.getDamage(), max).formatted(Formatting.DARK_AQUA));
     }
 }

@@ -1,7 +1,7 @@
 package dev.tcgshop.client.screen;
 
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.client.binder.Ui;
 import dev.tcgshop.network.TradePayloads;
 import dev.tcgshop.pricing.PriceService;
@@ -109,7 +109,7 @@ public class TradeScreen extends Screen {
         slot(ctx, theirs, rx, cy, cw, ch, t, mouseX, theirOk);
         // indicador central
         boolean both = !mine.isEmpty() && !theirs.isEmpty();
-        boolean same = both && Rarity.of(mine) == Rarity.of(theirs);
+        boolean same = both && Rarity.of(mine).family == Rarity.of(theirs).family;
         int mx = width / 2;
         float pulse = (float) (0.6 + 0.4 * Math.sin(t * 4));
         Draw.scaledCentered(ctx, Text.literal("⇄").formatted(Formatting.BOLD), mx, cy + ch / 2f - 10, 2.4f,

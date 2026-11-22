@@ -1,0 +1,49 @@
+{
+  "_comment": "#116 cliente legendario (extraordinario): compra varias cosas; con 5★ deja buena fama",
+  "category": "positive",
+  "tier": "extraordinary",
+  "template": "legendary",
+  "duration": {
+    "ticks": [
+      8000,
+      10000
+    ]
+  },
+  "conditions": {
+    "rep": [
+      60,
+      100
+    ]
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "WHALE",
+      "moodStart": 2,
+      "browses": 6,
+      "purchases": [
+        2,
+        3
+      ],
+      "buyMult": 1.3,
+      "title": "tcgshop.role.ev_legendary",
+      "lines": "legendary",
+      "linesCount": 6,
+      "outcome": {
+        "grade": "stars",
+        "goodAt": 5,
+        "badAt": 1,
+        "good": {
+          "charity": 3
+        }
+      }
+    },
+    {
+      "type": "notify",
+      "particles": "glow"
+    }
+  ],
+  "notify": {
+    "toast": false
+  }
+}

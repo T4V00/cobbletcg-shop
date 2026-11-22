@@ -47,6 +47,10 @@ public final class TcgEntities {
             Identifier.of(TcgShop.MOD_ID, "black_market"),
             EntityType.Builder.create(BlackMarketEntity::new, SpawnGroup.MISC).dimensions(0.6f, 1.8f).eyeHeight(1.62f).maxTrackingRange(10)
                     .build("black_market"));
+    public static final EntityType<FurnitureSellerEntity> FURNITURE_SELLER = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(TcgShop.MOD_ID, "furniture_seller"),
+            EntityType.Builder.create(FurnitureSellerEntity::new, SpawnGroup.MISC).dimensions(0.6f, 1.8f).eyeHeight(1.62f).maxTrackingRange(10)
+                    .build("furniture_seller"));
 
     private TcgEntities() {}
 
@@ -61,6 +65,9 @@ public final class TcgEntities {
         FabricDefaultAttributeRegistry.register(EMPLOYEE, EmployeeEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(BEGGAR, BeggarEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(BLACK_MARKET, BlackMarketEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(FURNITURE_SELLER, FurnitureSellerEntity.createAttributes());
+        // Vendedor de muebles: visita a los jugadores con tienda (fase 10500 de cada medio día)
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_WORLD_TICK.register(FurnitureSellerEntity::spawner);
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_WORLD_TICK.register(TcgEntities::wholesalerSpawner);
         // los monstruos normales de Minecraft también van a por los Scalpers (y ellos se defienden)
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {

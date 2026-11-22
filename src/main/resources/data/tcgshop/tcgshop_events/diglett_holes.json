@@ -1,0 +1,59 @@
+{
+  "_comment": "#10 Diglett excavador: montones de tierra por el suelo de la tienda.",
+  "category": "negative",
+  "tier": "common",
+  "template": "diglett",
+  "duration": {
+    "ticks": [
+      5000,
+      8000
+    ]
+  },
+  "conditions": {
+    "notBiomes": [
+      "minecraft:desert",
+      "#minecraft:is_ocean",
+      "#minecraft:is_beach",
+      "#minecraft:is_river"
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "diglett",
+      "level": [
+        5,
+        15
+      ],
+      "behaviour": "wander",
+      "resolve": [
+        "shoo",
+        "feed",
+        "battle"
+      ],
+      "shooHits": 2,
+      "particles": "dust",
+      "reviewTag": "pkmn_diglett"
+    },
+    {
+      "type": "incident",
+      "kind": "dirt",
+      "count": [
+        3,
+        5
+      ],
+      "near": "floor"
+    }
+  ],
+  "review": {
+    "tag": "dirt",
+    "chance": 0.5,
+    "mood": -1,
+    "fixedChance": 0.25
+  },
+  "notify": {
+    "lines": "act_diglett",
+    "count": 6,
+    "chance": 0.3
+  }
+}

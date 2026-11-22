@@ -1,0 +1,14 @@
+{
+  "_comment": "#14-lite retraso del proveedor: el Mercado del teléfono un 10% más caro hoy",
+  "category": "neutral",
+  "tier": "uncommon",
+  "template": "supplier",
+  "duration": "day",
+  "effects": [
+    {
+      "type": "supplier",
+      "perk": "phone_markup",
+      "factor": 1.1
+    }
+  ]
+}

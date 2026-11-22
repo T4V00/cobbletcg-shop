@@ -1,0 +1,59 @@
+{
+  "_comment": "#2 Charmander descontrolado (solo Charmander, nunca Charizard): marcas de quemado junto a 1-2 expositores, inutilizados hasta limpiarlas. Nunca fuego de verdad.",
+  "category": "negative",
+  "tier": "rare",
+  "template": "fire",
+  "duration": {
+    "ticks": [
+      6000,
+      9000
+    ]
+  },
+  "conditions": {
+    "weather": [
+      "clear"
+    ],
+    "minDisplays": 3,
+    "exclusiveGroup": "fire"
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "charmander",
+      "level": [
+        5,
+        15
+      ],
+      "behaviour": "wander",
+      "resolve": [
+        "shoo",
+        "feed",
+        "battle"
+      ],
+      "shooHits": 3,
+      "particles": "smoke",
+      "reviewTag": "pkmn_charmander"
+    },
+    {
+      "type": "incident",
+      "kind": "scorch",
+      "count": [
+        1,
+        2
+      ],
+      "near": "display",
+      "disable": "display"
+    }
+  ],
+  "review": {
+    "tag": "fire",
+    "chance": 0.6,
+    "mood": -2,
+    "fixedChance": 0.3
+  },
+  "notify": {
+    "lines": "act_charmander",
+    "count": 6,
+    "chance": 0.35
+  }
+}

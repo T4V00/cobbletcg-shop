@@ -1,0 +1,55 @@
+{
+  "_comment": "#36 Togepi adorable: un Togepi atrae a una familia que viene a verlo (gastan poco, prefieren sobres).",
+  "category": "positive",
+  "tier": "uncommon",
+  "template": "family",
+  "duration": {
+    "ticks": [
+      6000,
+      9000
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "togepi",
+      "level": [
+        1,
+        10
+      ],
+      "behaviour": "wander",
+      "pet": true,
+      "feed": true,
+      "particles": "heart",
+      "endWhenGone": false
+    },
+    {
+      "type": "visitor",
+      "customer": "REGULAR",
+      "count": 3,
+      "delay": [
+        200,
+        600
+      ],
+      "gap": [
+        10,
+        40
+      ],
+      "buyMult": 0.6,
+      "filter": "packs",
+      "moodStart": 1,
+      "lines": "family",
+      "linesCount": 6
+    }
+  ],
+  "review": {
+    "tag": "fun_event",
+    "chance": 0.25,
+    "mood": 1
+  },
+  "notify": {
+    "lines": "act_cute",
+    "count": 6,
+    "chance": 0.3
+  }
+}

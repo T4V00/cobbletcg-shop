@@ -66,6 +66,6 @@ public final class CardCollection {
             Codec.unboundedMap(Codec.STRING, Codec.INT).optionalFieldOf("species", Map.of()).forGetter(c -> c.species),
             Codec.STRING.optionalFieldOf("title", "").forGetter(c -> c.title)
     ).apply(i, (counts, fresh, credited, facts, total, opened, ruined, god, scalpers, wish, species, title) -> new CardCollection(
-            counts, new HashSet<>(fresh), new HashSet<>(credited), new HashSet<>(facts), total, opened, ruined, god, scalpers,
-            new HashSet<>(wish), species, title)));
+            BinderData.migrateCounts(counts), BinderData.migrateIds(fresh), BinderData.migrateIds(credited), new HashSet<>(facts),
+            total, opened, ruined, god, scalpers, BinderData.migrateIds(wish), species, title)));
 }

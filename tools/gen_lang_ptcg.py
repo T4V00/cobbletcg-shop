@@ -15,7 +15,7 @@ I18N = ROOT.parent / "vendor/twinleafgg/ptcg-play/src/assets/i18n"
 LANG = ROOT / "src/main/resources/assets/tcgshop/lang"
 PTCG = ROOT / "src/main/resources/assets/tcgshop/ptcg"
 
-LICENSE = """CobbleTCG Shop incluye el motor de juego de Pokémon TCG de twinleaf.gg (https://github.com/twinleafgg/twinleafgg),
+LICENSE = """MasterBall Traders Co. incluye el motor de juego de Pokémon TCG de twinleaf.gg (https://github.com/twinleafgg/twinleafgg),
 basado en ryuu-play (https://github.com/keeshii/ryuu-play), ambos publicados bajo licencia MIT, y textos de su cliente.
 
 The MIT License (MIT)

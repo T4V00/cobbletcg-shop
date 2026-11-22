@@ -40,6 +40,27 @@ public class EconomyConfig {
     public double wholesalerBuyFactor = 0.6, phoneBuyFactor = 0.8;
     /** Venta rápida de cartas: % del valor que pagan el teléfono y el Mayorista. */
     public double phoneSellRate = 0.5, wholesalerSellRate = 0.4;
+    // ---- 0.3: muebles (CobbleFurnies / peluches) y reputación
+    public double furniturePriceMultiplier = 1.0, furnitureSellerFactor = 0.9, furnitureWholesalerFactor = 1.0, furniturePhoneFactor = 1.15;
+    public double furnitureSellerBuyback = 0.5, furnitureOtherBuyback = 0.35;
+    public double furnitureSellerChance = 0.35;
+    /** Reputación: por encima de repSoftCap hay rendimientos decrecientes (repTopExponent mayor = más difícil llegar a 100). */
+    public int repSoftCap = 60;
+    public double repTopExponent = 1.7;
+    /** Velocidad de la reputación hacia su objetivo cada recálculo (1 min): fracción de la diferencia al subir (con tope) y al bajar. */
+    public double repRiseRate = 0.06, repMaxRisePerUpdate = 1.0, repFallRate = 0.3;
+    /** Ventas necesarias para poder llegar a reputación 100 (techo = repSoftCap + resto*sqrt(ventas/esto)). 0 = sin techo. */
+    public int repSalesForMax = 400;
+    /** Sobreprecio aceptado por reputación: 0 hasta repPremiumStart, luego hasta repPremiumMax (+30%) a 100 con la curva repPremiumCurve. */
+    public int repPremiumStart = 40;
+    public double repPremiumMax = 0.30, repPremiumCurve = 1.5;
+    /** Multiplicador del sobreprecio para sobres, cajas y Mystery Box. */
+    public double repPremiumSealedBonus = 1.5;
+    /** Por debajo de esta reputación los clientes quieren precios bajo mercado (hasta -repPenaltyMax a reputación 0). */
+    public int repPenaltyBelow = 25;
+    public double repPenaltyMax = 0.10;
+    /** Ánimo necesario para que un cliente deje 5 estrellas (empieza en 3). */
+    public int fiveStarMood = 6;
     /** Precio mínimo de mercado. */
     public long minPackPrice = 100, minBoxPrice = 1_000, minCardPrice = 10;
 
@@ -112,6 +133,13 @@ public class EconomyConfig {
         _help.put("infamyPerKill/infamyDecayPerDay", "Reputación que pierdes por matar a un NPC de la tienda y cuánta recuperas cada día.");
         _help.put("beggarChance/blackMarketChance", "Probabilidad cada medio día de Minecraft de que aparezca el mendigo de cartas / el mercader negro (rarísimo).");
         _help.put("gradingBaseFees/gradingValuePct", "Coste del gradeo por carta: fijo + % del valor (económico, estándar, exprés).");
+        _help.put("repSoftCap/repTopExponent", "Por encima de repSoftCap la reputación tiene rendimientos decrecientes (exponente mayor = cuesta más llegar a 100).");
+        _help.put("repRiseRate/repMaxRisePerUpdate/repFallRate", "Velocidad a la que la reputación se acerca a su objetivo cada minuto: fracción de la diferencia al subir (con tope de puntos) y al bajar.");
+        _help.put("repSalesForMax", "Ventas necesarias para poder llegar a reputación 100 (antes hay un techo más bajo). 0 = sin techo por ventas.");
+        _help.put("repPremiumStart/repPremiumMax/repPremiumCurve", "Sobreprecio que aceptan los clientes según la reputación: nada hasta repPremiumStart y luego hasta repPremiumMax (0.3 = +30%) a reputación 100, con esa curva.");
+        _help.put("repPremiumSealedBonus", "Multiplicador del sobreprecio aceptado para sobres, cajas y Mystery Box.");
+        _help.put("repPenaltyBelow/repPenaltyMax", "Por debajo de esa reputación los clientes quieren precios bajo mercado (hasta -repPenaltyMax a reputación 0).");
+        _help.put("fiveStarMood", "Ánimo que necesita un cliente para dejar 5 estrellas (empieza en 3; una buena compra suma 2-3).");
     }
 
     // ------------------------------------------------------------------ carga
@@ -166,6 +194,19 @@ public class EconomyConfig {
         beggarChance = clamp(beggarChance, 0, 1);
         blackMarketChance = clamp(blackMarketChance, 0, 1);
         blackMarketLockedChance = clamp(blackMarketLockedChance, 0, 1);
+        repSoftCap = Math.max(0, Math.min(100, repSoftCap));
+        repTopExponent = clamp(repTopExponent, 1, 5);
+        repRiseRate = clamp(repRiseRate, 0.001, 1);
+        repMaxRisePerUpdate = clamp(repMaxRisePerUpdate, 0.05, 100);
+        repFallRate = clamp(repFallRate, 0.01, 1);
+        repSalesForMax = Math.max(0, repSalesForMax);
+        repPremiumStart = Math.max(0, Math.min(99, repPremiumStart));
+        repPremiumMax = clamp(repPremiumMax, 0, 5);
+        repPremiumCurve = clamp(repPremiumCurve, 0.1, 5);
+        repPremiumSealedBonus = clamp(repPremiumSealedBonus, 0, 5);
+        repPenaltyBelow = Math.max(0, Math.min(100, repPenaltyBelow));
+        repPenaltyMax = clamp(repPenaltyMax, 0, 0.9);
+        fiveStarMood = Math.max(5, Math.min(12, fiveStarMood));
         if (_help == null) _help = new LinkedHashMap<>();
     }
 
@@ -192,6 +233,13 @@ public class EconomyConfig {
         ShopServer.applyEconomy(c);
         CardSales.PHONE_RATE = c.phoneSellRate;
         CardSales.WHOLESALER_RATE = c.wholesalerSellRate;
+        dev.tcgshop.shop.FurnitureShop.PRICE_MULT = Math.max(0.01, c.furniturePriceMultiplier);
+        dev.tcgshop.shop.FurnitureShop.SELLER_FACTOR = Math.max(0.01, c.furnitureSellerFactor);
+        dev.tcgshop.shop.FurnitureShop.WHOLESALER_FACTOR = Math.max(0.01, c.furnitureWholesalerFactor);
+        dev.tcgshop.shop.FurnitureShop.PHONE_FACTOR = Math.max(0.01, c.furniturePhoneFactor);
+        dev.tcgshop.shop.FurnitureShop.SELLER_BUYBACK = Math.max(0, c.furnitureSellerBuyback);
+        dev.tcgshop.shop.FurnitureShop.OTHER_BUYBACK = Math.max(0, c.furnitureOtherBuyback);
+        dev.tcgshop.shop.FurnitureShop.SELLER_CHANCE = Math.max(0, Math.min(1, c.furnitureSellerChance));
         PtcgDuels.LEVEL_REWARD = c.houseDuelRewards.clone();
         PtcgDuels.LEVEL_PENALTY = c.houseDuelPenalties.clone();
         PtcgDuels.PVP_PENALTY = c.pvpPenalty;

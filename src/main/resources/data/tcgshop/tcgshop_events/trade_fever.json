@@ -1,0 +1,44 @@
+{
+  "_comment": "#73 (+102 día de intercambios) intercambios espontáneos: más coleccionistas que cambian cartas",
+  "category": "neutral",
+  "tier": "common",
+  "template": "trade",
+  "duration": {
+    "ticks": [
+      6000,
+      10000
+    ]
+  },
+  "effects": [
+    {
+      "type": "modifier",
+      "typeW": {
+        "trader": 2.0
+      }
+    }
+  ],
+  "variants": [
+    {
+      "key": "fever",
+      "weight": 4
+    },
+    {
+      "key": "trade_day",
+      "weight": 1,
+      "effects": [
+        {
+          "type": "modifier",
+          "typeW": {
+            "trader": 1.5,
+            "seller": 1.5
+          }
+        }
+      ]
+    }
+  ],
+  "notify": {
+    "lines": "trade",
+    "count": 6,
+    "chance": 0.3
+  }
+}

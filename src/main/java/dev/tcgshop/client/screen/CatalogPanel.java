@@ -1,6 +1,6 @@
 package dev.tcgshop.client.screen;
 
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import dev.tcgshop.client.binder.Ui;
 import dev.tcgshop.client.render.ShopRenderers;
 import dev.tcgshop.network.StoreBuyPayload;
@@ -24,6 +24,8 @@ public class CatalogPanel {
     private final int source;
     private final List<ItemStack> goods;
     private final List<Long> prices;
+    /** Nivel de teléfono necesario de cada producto (0.9, lo manda el servidor justo antes del catálogo). */
+    private final int[] req;
     private final List<Runnable> clicks = new ArrayList<>();
     private final List<int[]> rects = new ArrayList<>();
     private double scroll;
@@ -69,6 +71,33 @@ public class CatalogPanel {
         this.source = source;
         this.goods = goods;
         this.prices = prices;
+        this.req = dev.tcgshop.client.phone.PhoneClient.locksFor(source, goods.size());
+    }
+
+    /** ¿Hace falta un teléfono mejor para comprar este producto? */
+    public boolean locked(int i) {
+        return i >= 0 && i < req.length && req[i] > dev.tcgshop.client.phone.PhoneClient.tier && dev.tcgshop.client.phone.PhoneClient.enabled;
+    }
+
+    /** Conserva búsqueda, categoría, orden y scroll al refrescar el catálogo (p. ej. tras mejorar el teléfono). */
+    public void copyStateFrom(CatalogPanel o) {
+        filter = o.filter;
+        category = o.category;
+        sort = o.sort;
+        scroll = o.scroll;
+    }
+
+    private static net.minecraft.text.MutableText requires(int tier) {
+        return Text.translatable("tcgshop.phoneup.requires", dev.tcgshop.client.phone.PhoneClient.tierName(tier));
+    }
+
+    /** Tooltip diferido (se dibuja fuera del recorte del teléfono). */
+    private static void tooltip(List<Text> lines) {
+        var screen = MinecraftClient.getInstance().currentScreen;
+        if (screen == null) return;
+        List<net.minecraft.text.OrderedText> ord = new ArrayList<>();
+        for (Text t : lines) ord.add(t.asOrderedText());
+        screen.setTooltip(ord, net.minecraft.client.gui.tooltip.HoveredTooltipPositioner.INSTANCE, true);
     }
 
     private List<Integer> visible() {
@@ -120,13 +149,24 @@ public class CatalogPanel {
             if (ty + tileH < y || ty > y + gridH) continue;
             ItemStack st = goods.get(i);
             boolean hover = Ui.in(mouseX, mouseY, tx, ty, tileW, tileH) && Ui.in(mouseX, mouseY, x, y, w, gridH);
-            boolean sel = i == selected;
+            boolean sel = i == selected, lock = locked(i);
             Ui.roundGradient(ctx, tx, ty, tileW, tileH, sel ? 0xFF2B4A7A : hover ? 0xFF2E3348 : 0xFF1E2232, sel ? 0xFF1A2E50 : 0xFF161925);
             Ui.outline(ctx, tx, ty, tileW, tileH, sel ? Ui.GOLD : hover ? 0xFFFFFFFF : 0xFF2B3045);
             drawProduct(ctx, st, tx + 6, ty + 4, tileW - 12, tileH - 30);
-            Ui.text(ctx, st.getName(), tx + 2, ty + tileH - 24, tileW - 4, 10, Ui.TEXT, false);
-            Ui.text(ctx, Text.literal(PriceService.format(prices.get(i))), tx + 2, ty + tileH - 12, tileW - 4, 10, Ui.GOLD, true);
-            if (hover) ctx.drawTooltip(tr, List.of(st.getName(), Text.literal(PriceService.format(prices.get(i)))), mouseX, mouseY);
+            if (lock) { // producto de un nivel de teléfono superior: atenuado y con candado
+                ctx.fill(tx + 1, ty + 1, tx + tileW - 1, ty + tileH - 1, 0x99101218);
+                int tc = dev.tcgshop.phone.PhoneTier.of(req[i]).color;
+                dev.tcgshop.client.phone.LockIcon.badge(ctx, tx + tileW / 2, ty + (tileH - 30) / 2 + 4, 12, tc);
+            }
+            Ui.text(ctx, st.getName(), tx + 2, ty + tileH - 24, tileW - 4, 10, lock ? Ui.MUTED : Ui.TEXT, false);
+            if (lock) Ui.text(ctx, dev.tcgshop.client.phone.PhoneClient.tierName(req[i]), tx + 2, ty + tileH - 12, tileW - 4, 10,
+                    dev.tcgshop.phone.PhoneTier.of(req[i]).color, true);
+            else Ui.text(ctx, Text.literal(PriceService.format(prices.get(i))), tx + 2, ty + tileH - 12, tileW - 4, 10, Ui.GOLD, true);
+            if (hover) {
+                List<Text> tip = new ArrayList<>(List.of(st.getName(), Text.literal(PriceService.format(prices.get(i))).formatted(Formatting.GOLD)));
+                if (lock) tip.add(requires(req[i]).formatted(Formatting.RED));
+                tooltip(tip);
+            }
             final int idx = i;
             if (ty >= y - tileH) { rects.add(new int[]{tx, Math.max(ty, y), tileW, Math.min(tileH, y + gridH - Math.max(ty, y))}); clicks.add(() -> { selected = idx; qty = 1; }); }
         }
@@ -139,16 +179,18 @@ public class CatalogPanel {
             ItemStack st = goods.get(selected);
             long total = prices.get(selected) * qty;
             ctx.drawTextWithShadow(tr, Ui.ellipsis(st.getName().getString(), w - 150), x + 6, dy + 5, Ui.TEXT);
-            ctx.drawTextWithShadow(tr, Text.translatable("tcgshop.store.total", PriceService.format(total)), x + 6, dy + 18, Ui.GOLD);
+            boolean lockSel = locked(selected);
+            if (lockSel) ctx.drawTextWithShadow(tr, requires(req[selected]).formatted(Formatting.RED), x + 6, dy + 18, 0xFFFF7070);
+            else ctx.drawTextWithShadow(tr, Text.translatable("tcgshop.store.total", PriceService.format(total)), x + 6, dy + 18, Ui.GOLD);
             int bx = x + w - 140;
             Ui.button(ctx, bx, dy + 8, 16, 16, Text.literal("-"), mouseX, mouseY, qty > 1, 0xFF444A60);
             rects.add(new int[]{bx, dy + 8, 16, 16}); clicks.add(() -> qty = Math.max(1, qty - (net.minecraft.client.gui.screen.Screen.hasShiftDown() ? 10 : 1)));
             Ui.text(ctx, Text.literal("x" + qty), bx + 17, dy + 8, 24, 16, 0xFFFFFFFF, true);
             Ui.button(ctx, bx + 42, dy + 8, 16, 16, Text.literal("+"), mouseX, mouseY, qty < 64, 0xFF444A60);
             rects.add(new int[]{bx + 42, dy + 8, 16, 16}); clicks.add(() -> qty = Math.min(64, qty + (net.minecraft.client.gui.screen.Screen.hasShiftDown() ? 10 : 1)));
-            Ui.button(ctx, bx + 64, dy + 6, 72, 20, Text.translatable("tcgshop.store.buy"), mouseX, mouseY, true, 0xFFD39B1A);
+            Ui.button(ctx, bx + 64, dy + 6, 72, 20, Text.translatable(lockSel ? "tcgshop.phoneup.locked_btn" : "tcgshop.store.buy"), mouseX, mouseY, !lockSel, 0xFFD39B1A);
             int sel = selected, q = qty;
-            rects.add(new int[]{bx + 64, dy + 6, 72, 20}); clicks.add(() -> ClientPlayNetworking.send(new StoreBuyPayload(source, sel, q)));
+            if (!lockSel) { rects.add(new int[]{bx + 64, dy + 6, 72, 20}); clicks.add(() -> ClientPlayNetworking.send(new StoreBuyPayload(source, sel, q))); }
         }
     }
 

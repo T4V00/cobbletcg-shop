@@ -1,8 +1,8 @@
 package dev.tcgshop;
 
 import com.mojang.brigadier.CommandDispatcher;
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.advancement.CardAdvancements;
 import dev.tcgshop.binder.BinderServer;
 import dev.tcgshop.collection.CollectionService;
@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 
 public class TcgShop implements ModInitializer {
     public static final String MOD_ID = "tcgshop";
-    public static final Logger LOGGER = LoggerFactory.getLogger("CobbleTCG Shop");
+    public static final Logger LOGGER = LoggerFactory.getLogger("MasterBall Traders Co.");
 
     @Override
     public void onInitialize() {
@@ -43,6 +43,7 @@ public class TcgShop implements ModInitializer {
         TcgItems.init();
         TcgEntities.init();
         dev.tcgshop.shop.TcgBlocks.init();
+        dev.tcgshop.luxury.LuxuryBlocks.register();
         dev.tcgshop.shop.ShopServer.init();
         dev.tcgshop.shop.VanillaPrices.load();
         EconomyConfig.load();
@@ -68,8 +69,11 @@ public class TcgShop implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(DealOpenPayload.ID, DealOpenPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(BoxOpenPayload.ID, BoxOpenPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(NpcSpeechPayload.ID, NpcSpeechPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(dev.tcgshop.network.TutorialPayload.ID, dev.tcgshop.network.TutorialPayload.CODEC);
+        dev.tcgshop.onboarding.MeowthTalk.register();
         // CobbleGrade
         dev.tcgshop.grading.Grading.init();
+        dev.masterball.api.card.PrintVariant.init();
         PayloadTypeRegistry.playC2S().register(GradePayloads.Action.ID, GradePayloads.Action.CODEC);
         PayloadTypeRegistry.playS2C().register(GradePayloads.Sync.ID, GradePayloads.Sync.CODEC);
         PayloadTypeRegistry.playS2C().register(GradePayloads.Reveal.ID, GradePayloads.Reveal.CODEC);
@@ -99,6 +103,8 @@ public class TcgShop implements ModInitializer {
                 case "binder" -> dev.tcgshop.shop.SocialServer.binderAction(pl, p.data());
                 case "friends" -> dev.tcgshop.shop.SocialServer.friendsAction(pl, p.data());
                 case "displays" -> {
+                    // 0.9: gestión remota de vitrinas = app Vitrinas del teléfono (con nivel mínimo)
+                    if (!dev.tcgshop.phone.PhoneUpgrades.requireApp(pl, "displays")) break;
                     if (p.data().getString("a").equals("list")) dev.tcgshop.shop.SocialServer.sendDisplays(pl);
                     else dev.tcgshop.shop.SocialServer.displaysAction(pl, p.data());
                 }
@@ -133,8 +139,11 @@ public class TcgShop implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(PtcgPayloads.LeagueAction.ID, PtcgPayloads.LeagueAction.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(PtcgPayloads.Action.ID, (p, ctx) -> ctx.server().execute(() ->
                 dev.tcgshop.ptcg.PtcgDuels.action(ctx.player(), p.json())));
-        ServerPlayNetworking.registerGlobalReceiver(PtcgPayloads.LeagueAction.ID, (p, ctx) -> ctx.server().execute(() ->
-                dev.tcgshop.ptcg.PtcgDuels.league(ctx.player(), p.json())));
+        ServerPlayNetworking.registerGlobalReceiver(PtcgPayloads.LeagueAction.ID, (p, ctx) -> ctx.server().execute(() -> {
+            // 0.9: lo exclusivo de la app Liga (clasificatoria, cola, IA alta) exige su nivel de teléfono
+            if (dev.tcgshop.phone.PhoneUpgrades.leagueActionAllowed(ctx.player(), p.json()))
+                dev.tcgshop.ptcg.PtcgDuels.league(ctx.player(), p.json());
+        }));
         // intercambio de cartas entre jugadores
         PayloadTypeRegistry.playC2S().register(dev.tcgshop.network.TradePayloads.Request.ID, dev.tcgshop.network.TradePayloads.Request.CODEC);
         PayloadTypeRegistry.playC2S().register(dev.tcgshop.network.TradePayloads.Select.ID, dev.tcgshop.network.TradePayloads.Select.CODEC);
@@ -151,6 +160,19 @@ public class TcgShop implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(dev.tcgshop.trade.TradeManager::tick);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> dev.tcgshop.trade.TradeManager.disconnect(handler.getPlayer()));
         PayloadTypeRegistry.playC2S().register(StoreBuyPayload.ID, StoreBuyPayload.CODEC);
+        // tienda de muebles (CobbleFurnies / peluches): Vendedor de muebles, Mayorista y teléfono
+        PayloadTypeRegistry.playC2S().register(dev.tcgshop.network.FurniturePayloads.Request.ID, dev.tcgshop.network.FurniturePayloads.Request.CODEC);
+        PayloadTypeRegistry.playC2S().register(dev.tcgshop.network.FurniturePayloads.Trade.ID, dev.tcgshop.network.FurniturePayloads.Trade.CODEC);
+        PayloadTypeRegistry.playS2C().register(dev.tcgshop.network.FurniturePayloads.Open.ID, dev.tcgshop.network.FurniturePayloads.Open.CODEC);
+        // 0.9: source -1 = app Muebles del teléfono (con nivel mínimo); el Vendedor y el Mayorista no se bloquean
+        ServerPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.FurniturePayloads.Request.ID, (p, ctx) -> ctx.server().execute(() -> {
+            if (p.source() == -1 && !dev.tcgshop.phone.PhoneUpgrades.requireApp(ctx.player(), "furniture")) return;
+            dev.tcgshop.shop.FurnitureShop.handleRequest(ctx.player(), p);
+        }));
+        ServerPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.FurniturePayloads.Trade.ID, (p, ctx) -> ctx.server().execute(() -> {
+            if (p.source() == -1 && !dev.tcgshop.phone.PhoneUpgrades.requireApp(ctx.player(), "furniture")) return;
+            dev.tcgshop.shop.FurnitureShop.handleTrade(ctx.player(), p);
+        }));
         // venta rápida de cartas / esmeraldas y Coleccionista ambulante
         PayloadTypeRegistry.playC2S().register(dev.tcgshop.network.MarketPayloads.Sell.ID, dev.tcgshop.network.MarketPayloads.Sell.CODEC);
         PayloadTypeRegistry.playC2S().register(dev.tcgshop.network.MarketPayloads.TraderAction.ID, dev.tcgshop.network.MarketPayloads.TraderAction.CODEC);
@@ -164,7 +186,7 @@ public class TcgShop implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(StoreBuyPayload.ID, (p, ctx) -> ctx.server().execute(() -> {
             ServerPlayerEntity pl = ctx.player();
             if (p.source() == -1) {
-                if (pl.getInventory().contains(new ItemStack(dev.tcgshop.item.TcgItems.TCG_PHONE)))
+                if (pl.getInventory().contains(st -> st.isOf(dev.tcgshop.item.TcgItems.TCG_PHONE)))
                     dev.tcgshop.shop.ShopServer.buy(p, pl, dev.tcgshop.shop.ShopServer.phoneCatalog(), dev.tcgshop.shop.ShopServer.PHONE_FACTOR);
             } else if (pl.getWorld().getEntityById(p.source()) instanceof dev.tcgshop.entity.WholesalerEntity w && w.squaredDistanceTo(pl) < 10 * 10) {
                 dev.tcgshop.shop.ShopServer.buy(p, pl, w.goods(), dev.tcgshop.shop.ShopServer.WHOLESALE_FACTOR);
@@ -187,19 +209,26 @@ public class TcgShop implements ModInitializer {
         }));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> PackOpener.onDisconnect(handler.getPlayer()));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> dev.tcgshop.shop.SocialServer.snapshot(handler.getPlayer()));
+        dev.tcgshop.phone.PhoneUpgrades.register(); // 0.9: mejoras del teléfono (red, migración al entrar, config/tcgshop-phone.json)
+        // 0.9: eventos aleatorios (núcleo + módulos de incidentes y actores; los módulos registran sus tipos de efecto aquí)
+        dev.tcgshop.events.EventsConfig.load();
+        dev.tcgshop.events.EventManager.register();
+        dev.tcgshop.events.incident.IncidentModule.init();
+        dev.tcgshop.events.actor.ActorModule.init();
 
         ResourceManagerHelper.get(ResourceType.SERVER_DATA).registerReloadListener(new PriceService.ReloadListener());
         ResourceManagerHelper.get(ResourceType.SERVER_DATA).registerReloadListener(new dev.tcgshop.collection.Titles.ReloadListener());
         ResourceManagerHelper.get(ResourceType.SERVER_DATA).registerReloadListener(new dev.tcgshop.ptcg.PtcgCards.ReloadListener());
+        ResourceManagerHelper.get(ResourceType.SERVER_DATA).registerReloadListener(new dev.tcgshop.events.EventRegistry());
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             syncPrices(handler.getPlayer());
             server.execute(() -> {
                 dev.tcgshop.collection.Titles.broadcast(server);
                 dev.tcgshop.shop.ShopServer.syncZones(handler.getPlayer());
-                dev.tcgshop.shop.CardSales.starterKit(handler.getPlayer());
+                dev.tcgshop.onboarding.Onboarding.onJoin(handler.getPlayer());
                 if (TcgShopConfig.lastError != null && handler.getPlayer().hasPermissionLevel(2))
-                    handler.getPlayer().sendMessage(Text.literal("[CobbleTCG Shop] config/tcgshop.json tiene un error y se están usando los valores de fábrica: " + TcgShopConfig.lastError).formatted(Formatting.RED), false);
+                    handler.getPlayer().sendMessage(Text.literal("[MasterBall Traders Co.] config/tcgshop.json tiene un error y se están usando los valores de fábrica: " + TcgShopConfig.lastError).formatted(Formatting.RED), false);
             });
         });
         ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, rm, ok) -> {
@@ -213,13 +242,13 @@ public class TcgShop implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(TcgShop::tickMarket);
 
         CommandRegistrationCallback.EVENT.register((dispatcher, access, env) -> registerCommands(dispatcher));
-        LOGGER.info("CobbleTCG Shop cargado");
+        LOGGER.info("MasterBall Traders Co. cargado");
     }
 
     public static void syncPrices(ServerPlayerEntity player) {
         if (ServerPlayNetworking.canSend(player, PriceSyncPayload.ID)) {
             ServerPlayNetworking.send(player, new PriceSyncPayload(
-                    PriceService.cardUsdView(), PriceService.sealedUsdView(), PriceService.rarityMedianView(),
+                    PriceService.cardUsdView(), PriceService.sealedUsdView(), PriceService.rarityMedianView(), PriceService.gradedUsdView(),
                     new PriceSyncPayload.Market(PriceService.cdPerUsd(), PriceService.marketSeed(),
                             PriceService.marketVolatility(), PriceService.marketDay()), EconomyConfig.toJson()));
         }
@@ -263,6 +292,9 @@ public class TcgShop implements ModInitializer {
                         .executes(ctx -> { dev.tcgshop.trade.TradeManager.request(ctx.getSource().getPlayerOrThrow(),
                                 net.minecraft.command.argument.EntityArgumentType.getPlayer(ctx, "target").getUuid()); return 1; })));
         d.register(CommandManager.literal("tcgshop")
+                .then(CommandManager.literal("tutorial").executes(ctx -> dev.tcgshop.onboarding.Onboarding.replay(ctx.getSource().getPlayerOrThrow())))
+                .then(dev.tcgshop.command.CardCommands.node())
+                .then(dev.tcgshop.events.EventCommands.node())
                 .then(CommandManager.literal("offer")
                         .then(CommandManager.literal("accept").then(CommandManager.argument("id", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0))
                                 .executes(ctx -> { dev.tcgshop.shop.SocialServer.answerOffer(ctx.getSource().getPlayerOrThrow(),
@@ -282,7 +314,12 @@ public class TcgShop implements ModInitializer {
                     PriceService.setMarketDay(currentMarketDay(server));
                     dev.tcgshop.shop.VanillaPrices.load();
                     EconomyConfig.load();
+                    dev.tcgshop.luxury.LuxuryConfig.load();
                     syncAll(server);
+                    dev.tcgshop.phone.PhoneConfig.load();
+                    for (ServerPlayerEntity pl : server.getPlayerManager().getPlayerList()) dev.tcgshop.phone.PhoneUpgrades.sync(pl, null, null);
+                    dev.tcgshop.events.EventsConfig.load(); // 0.9: config/tcgshop-events.json
+                    dev.tcgshop.events.actor.ActorConfig.load();
                     ctx.getSource().sendFeedback(() -> Text.translatable("tcgshop.cmd.reloaded").formatted(Formatting.GREEN), true);
                     return 1;
                 }))
@@ -335,6 +372,7 @@ public class TcgShop implements ModInitializer {
                             } catch (Exception ex) { LOGGER.error("[phasebtest] NPC FALLO", ex); }
                             return 1;
                         }))
+                        .then(CommandManager.literal("eventtest").executes(ctx -> dev.tcgshop.events.EventSelfTest.run(ctx.getSource())))
                         .then(CommandManager.literal("econtest").executes(ctx -> {
                             // tabla vanilla, sets bloqueados y botín rarísimo de cofres (forzando la probabilidad)
                             var world = ctx.getSource().getServer().getOverworld();
@@ -370,11 +408,12 @@ public class TcgShop implements ModInitializer {
                             LOGGER.info("[econtest] con {}: {} sobres bloqueados en 5000 cofres {}", old2, real, real <= 2 ? "OK" : "FALLO");
                             return 1;
                         }))
+                        .then(dev.tcgshop.luxury.house.MansionService.debugNode()) // 0.9.5: /tcgshop debug mansion [force|dry]
                         .then(CommandManager.literal("selftest").executes(ctx -> {
                             // crea entidades y bloques de la tienda en el Overworld y registra cualquier error
                             var world = ctx.getSource().getServer().getOverworld();
                             var base = world.getSpawnPos().up(2);
-                            String[] steps = {"scalper", "wholesaler", "trader", "display_case", "booster_box", "multiblock", "customer", "scalper_brawl", "grading", "duel", "chest_loot", "home_display", "shop_core_wood"};
+                            String[] steps = {"scalper", "wholesaler", "trader", "display_case", "booster_box", "multiblock", "customer", "scalper_brawl", "grading", "rarity", "masterball_api", "duel", "chest_loot", "home_display", "mansion", "shop_core_wood"};
                             for (String step : steps) {
                                 try {
                                     switch (step) {
@@ -452,15 +491,162 @@ public class TcgShop implements ModInitializer {
                                                 ItemStack raw = new ItemStack(cardItem);
                                                 ItemStack g10 = dev.tcgshop.grading.Grading.apply(raw, 100, 1), g10b = dev.tcgshop.grading.Grading.apply(raw, 10, 2);
                                                 long pr = PriceService.priceCd(raw), p10 = PriceService.priceCd(g10), p1 = PriceService.priceCd(g10b);
-                                                LOGGER.info("[selftest] grading: {} raw={} CG10={} CG1.0={} hist10={}% 9.5+={}%", raw.getName().getString(), pr, p10, p1,
+                                                LOGGER.info("[selftest] grading: {} raw={} Grado10={} Grado1={} hist10={}% 9.5+={}%", raw.getName().getString(), pr, p10, p1,
                                                         hist[100] / 1000.0, java.util.Arrays.stream(hist, 95, 101).sum() / 1000.0);
-                                                if (pr > 0 && !(p10 > pr && p1 < pr)) throw new IllegalStateException("el valor no depende de la nota");
+                                                if (pr > 0 && !(p10 >= pr && p1 < pr)) throw new IllegalStateException("Grado 1 debe valer menos que el precio base y Grado 10 al menos eso");
+                                                if (dev.tcgshop.pricing.GradeModel.dataSize() < 7000) throw new IllegalStateException("faltan datos de Grado");
+                                                if (Math.abs(dev.tcgshop.pricing.GradeModel.popularity(1) - 1.0) > 1e-9 || dev.tcgshop.pricing.GradeModel.popularity(1025) != 0
+                                                        || dev.tcgshop.pricing.GradeModel.popularity(300) < 0.65 || dev.tcgshop.pricing.GradeModel.popularity(301) >= 0.65)
+                                                    throw new IllegalStateException("curva de popularidad incorrecta");
+                                                if (Math.abs(dev.tcgshop.pricing.GradeModel.mult(50, 100) - 50) > 1e-9 || Math.abs(dev.tcgshop.pricing.GradeModel.mult(50, 10) - 0.40) > 1e-9 || dev.tcgshop.pricing.GradeModel.mult(50, 49) >= 1 || dev.tcgshop.pricing.GradeModel.mult(50, 50) < 1)
+                                                    throw new IllegalStateException("Mg incorrecto");
+                                                var zard = net.minecraft.util.Identifier.of(dev.masterball.api.card.CardInfo.NS, "baseset/cards/bs004");
+                                                LOGGER.info("[selftest] grado: {} datos · Base Set #4 = {} rank {} · M10 x{} · P(10) {}%",
+                                                        dev.tcgshop.pricing.GradeModel.dataSize(), dev.tcgshop.pricing.GradeModel.infoOf(zard).cat(), dev.tcgshop.pricing.GradeModel.infoOf(zard).rank(),
+                                                        String.format("%.2f", PriceService.gradeM10(zard, dev.masterball.api.card.Rarity.UNKNOWN)), String.format("%.1f", 100 * dev.tcgshop.pricing.GradeModel.prob10(zard)));
                                                 if (dev.tcgshop.trade.TradeManager.tradeable(g10)) throw new IllegalStateException("una gradeada no debe intercambiarse");
+                                                double pg = 0;
+                                                var cid = CardInfo.id(raw); var crr = dev.masterball.api.card.Rarity.of(raw);
+                                                for (int g = 10; g <= 100; g++) {
+                                                    double u = PriceService.gradedUsd(cid, crr, g);
+                                                    if (u + 1e-9 < pg) throw new IllegalStateException("precio gradeado no creciente en " + g);
+                                                    pg = u;
+                                                }
+                                                LOGGER.info("[selftest] graded prices: {} reales, Grado 10 de prueba ${}", PriceService.gradedUsdView().size(), String.format("%.2f", pg));
                                             }
+                                        }
+                                        case "rarity" -> {
+                                            // rarezas oficiales, foil por era y variantes de impresión con su precio
+                                            var R = dev.masterball.api.card.Rarity.class;
+                                            if (dev.masterball.api.card.RarityData.size() < 7700) throw new IllegalStateException("faltan datos de rareza");
+                                            var zard = net.minecraft.util.Identifier.of(dev.masterball.api.card.CardInfo.NS, "baseset/cards/bs004");
+                                            var sir = net.minecraft.util.Identifier.of(dev.masterball.api.card.CardInfo.NS, "sviolet/cards/svi245");
+                                            if (dev.masterball.api.card.Rarity.of(zard) != dev.masterball.api.card.Rarity.HOLO_RARE) throw new IllegalStateException("Charizard Base Set debe ser Holo Rare");
+                                            if (dev.masterball.api.card.RarityData.holoPattern(zard) != dev.masterball.api.card.FoilPattern.STARLIGHT) throw new IllegalStateException("Base Set debe tener foil Starlight");
+                                            if (dev.masterball.api.card.Rarity.of(sir) != dev.masterball.api.card.Rarity.SPECIAL_ILLUSTRATION_RARE || !dev.masterball.api.card.RarityData.card(sir).secret())
+                                                throw new IllegalStateException("SVI 245 debe ser SIR y Secret Rare numérica");
+                                            java.util.Map<dev.masterball.api.card.Rarity, Integer> cnt = new java.util.EnumMap<>(dev.masterball.api.card.Rarity.class);
+                                            int unknown = 0;
+                                            for (var id : net.minecraft.registry.Registries.ITEM.getIds()) {
+                                                if (!CardInfo.isCard(id)) continue;
+                                                var r = dev.masterball.api.card.Rarity.of(id);
+                                                cnt.merge(r, 1, Integer::sum);
+                                                if (r == dev.masterball.api.card.Rarity.UNKNOWN) unknown++;
+                                            }
+                                            LOGGER.info("[selftest] rarity: {} rarezas en uso, {} cartas sin rareza: {}", cnt.size(), unknown, cnt);
+                                            if (unknown > 400) throw new IllegalStateException("demasiadas cartas sin rareza: " + unknown);
+                                            // variantes: la 1ª edición vale más que la estándar y la reverse del Exeggcute de Prismatic tiene precio real
+                                            ItemStack z = new ItemStack(net.minecraft.registry.Registries.ITEM.get(zard));
+                                            long std = PriceService.priceCd(z);
+                                            long first = PriceService.priceCd(dev.masterball.api.card.PrintVariant.apply(z.copy(), dev.masterball.api.card.PrintVariant.FIRST_EDITION));
+                                            var pre = net.minecraft.util.Identifier.of(dev.masterball.api.card.CardInfo.NS, "prismaticevolutions/cards/pre001");
+                                            ItemStack e = new ItemStack(net.minecraft.registry.Registries.ITEM.get(pre));
+                                            long es = PriceService.priceCd(e), em = PriceService.priceCd(dev.masterball.api.card.PrintVariant.apply(e.copy(), dev.masterball.api.card.PrintVariant.MASTER_BALL));
+                                            LOGGER.info("[selftest] variantes: Charizard estándar={} 1ª ed={} · Exeggcute estándar={} Master Ball={}", std, first, es, em);
+                                            if (first <= std * 2 || em <= es * 3) throw new IllegalStateException("las variantes premium deben valer bastante más");
+                                            // sorteo: en 20.000 cartas comunes de Prismatic sale alguna Master Ball y la mayoría son estándar
+                                            var rnd = net.minecraft.util.math.random.Random.create(7);
+                                            int mb = 0, stdc = 0;
+                                            for (int k = 0; k < 20_000; k++) {
+                                                var v = dev.masterball.api.card.PrintVariant.roll(rnd, pre);
+                                                if (v == dev.masterball.api.card.PrintVariant.MASTER_BALL) mb++;
+                                                if (v == dev.masterball.api.card.PrintVariant.STANDARD) stdc++;
+                                            }
+                                            LOGGER.info("[selftest] sorteo Prismatic: Master Ball {} / estándar {} de 20000", mb, stdc);
+                                            if (mb < 100 || mb > 350 || stdc < 13_000) throw new IllegalStateException("probabilidades de variante fuera de rango");
+                                            if (dev.masterball.api.card.PrintVariant.roll(rnd, sir) != dev.masterball.api.card.PrintVariant.STANDARD) throw new IllegalStateException("una SIR no tiene reverse");
+                                        }
+                                        case "masterball_api" -> {
+                                            // MasterBall Traders API: catálogo, conversión de ids de ScalperTCG, rescate de álbumes y contenido de sobres
+                                            var NS = dev.masterball.api.card.CardInfo.NS;
+                                            int cat = dev.masterball.api.card.CardCatalog.cardCount();
+                                            if (cat < 11_000 || dev.masterball.api.item.CardItems.cardCount() != cat)
+                                                throw new IllegalStateException("catálogo " + cat + " vs ítems " + dev.masterball.api.item.CardItems.cardCount());
+                                            var zardItem = net.minecraft.registry.Registries.ITEM.get(net.minecraft.util.Identifier.of(NS, "baseset/cards/bs004"));
+                                            if (net.minecraft.registry.Registries.ITEM.get(net.minecraft.util.Identifier.of("cobbletcg", "baseset/cards/bs004")) != zardItem
+                                                    || !net.minecraft.registry.Registries.ITEM.containsId(net.minecraft.util.Identifier.of("cobbletcg", "mew151/sealed_mew151")))
+                                                throw new IllegalStateException("el registro no convierte ids cobbletcg:");
+                                            var regs = world.getRegistryManager();
+                                            var old = new net.minecraft.nbt.NbtCompound();
+                                            old.putString("id", "cobbletcg:baseset/cards/bs004");
+                                            old.putInt("count", 3);
+                                            ItemStack conv = ItemStack.fromNbt(regs, old).orElse(ItemStack.EMPTY);
+                                            if (conv.getItem() != zardItem || conv.getCount() != 3) throw new IllegalStateException("ItemStack guardado con id cobbletcg no se convierte: " + conv);
+                                            if (!dev.masterball.api.card.CardInfo.migrate("cobbletcg:mew151/cards/mew006").equals(NS + ":mew151/cards/mew006"))
+                                                throw new IllegalStateException("migrate(String)");
+                                            // 0.9: TCG Pocket fuera (sólo cartas físicas); lo guardado con esos ids se descarta sin error y sin perder el contenedor
+                                            for (var psi : dev.masterball.api.card.CardCatalog.sets())
+                                                if (psi.pocket() || dev.masterball.api.card.CardCatalog.REMOVED_SETS.contains(psi.id())) throw new IllegalStateException("set de TCG Pocket cargado: " + psi.id());
+                                            if (net.minecraft.registry.Registries.ITEM.containsId(net.minecraft.util.Identifier.of(NS, "gapex/sealed_gapex")))
+                                                throw new IllegalStateException("sigue registrado un sobre de TCG Pocket");
+                                            if (ItemStack.fromNbt(regs, net.minecraft.nbt.StringNbtReader.parse("{id:\"masterball:gapex/cards/a1-001\",count:2}")).isPresent())
+                                                throw new IllegalStateException("una carta de TCG Pocket guardada no se descarta");
+                                            var pocketShulker = ItemStack.fromNbt(regs, net.minecraft.nbt.StringNbtReader.parse("{id:\"minecraft:shulker_box\",count:1,components:{\"minecraft:container\":[{slot:0,item:{id:\"cobbletcg:misland/sealed_misland\",count:1}},{slot:1,item:{id:\"masterball:baseset/cards/bs004\",count:1}}]}}")).orElse(ItemStack.EMPTY);
+                                            var pocketCont = pocketShulker.get(net.minecraft.component.DataComponentTypes.CONTAINER);
+                                            if (pocketShulker.isEmpty() || pocketCont == null || pocketCont.streamNonEmpty().count() != 1)
+                                                throw new IllegalStateException("caja con un sobre de TCG Pocket: " + pocketShulker);
+                                            var bd = dev.tcgshop.collection.BinderData.CODEC.parse(net.minecraft.nbt.NbtOps.INSTANCE, net.minecraft.nbt.StringNbtReader.parse(
+                                                    "{owner:[I;1,2,3,4],counts:{\"cobbletcg:mew151/cards/mew006\":2,\"masterball:mew151/cards/mew006\":1},fresh:[\"cobbletcg:mew151/cards/mew006\"]}"))
+                                                    .getOrThrow();
+                                            if (bd.count(NS + ":mew151/cards/mew006") != 3 || !bd.fresh.contains(NS + ":mew151/cards/mew006"))
+                                                throw new IllegalStateException("el Binder no convierte ids cobbletcg: " + bd.counts);
+                                            // álbum de ScalperTCG (estructura desconocida): todo objeto dentro se rescata en barriles
+                                            var album = net.minecraft.nbt.StringNbtReader.parse("{id:\"cobbletcg:album_block_entity\",AlbumId:\"mew151\",CustomInventory:[{SlotFullIndex:5,"
+                                                    + "itemStack:{id:\"cobbletcg:mew151/cards/mew006\",count:1}}],Items:[{Slot:0b,id:\"cobbletcg:mew151/sealed_mew151\",count:2}]}");
+                                            var rescued = dev.masterball.api.migrate.LegacyRescue.scan(album, regs);
+                                            if (rescued.size() != 2) throw new IllegalStateException("rescate de álbum: " + rescued);
+                                            var at = base.add(-8, 0, -8);
+                                            for (int k = 0; k < 3; k++) world.setBlockState(at.up(k), net.minecraft.block.Blocks.AIR.getDefaultState());
+                                            dev.masterball.api.migrate.LegacyRescue.place(world, at, rescued);
+                                            if (!(world.getBlockEntity(at) instanceof net.minecraft.block.entity.BarrelBlockEntity barrel) || barrel.getStack(0).isEmpty())
+                                                throw new IllegalStateException("el rescate no dejó un barril con las cartas");
+                                            // sobres: siempre 5 cartas del set; el sobre dios sin comunes; sellado -> 96/3/1
+                                            var rnd = net.minecraft.util.math.random.Random.create(11);
+                                            int sets = 0;
+                                            for (var si : dev.masterball.api.card.CardCatalog.sets()) {
+                                                sets++;
+                                                for (int k = 0; k < 40; k++) {
+                                                    for (int tier = 1; tier <= 3; tier++) {
+                                                        var got = dev.masterball.api.pack.PackContents.open(si.id(), tier, rnd);
+                                                        if (got.size() != 5) throw new IllegalStateException(si.id() + " tipo " + tier + ": " + got.size() + " cartas");
+                                                        for (ItemStack c : got) {
+                                                            if (!CardInfo.setId(CardInfo.id(c)).equals(si.id())) throw new IllegalStateException(si.id() + ": carta de otro set " + CardInfo.id(c));
+                                                            if (tier == 3 && dev.masterball.api.card.Rarity.of(c).family == dev.masterball.api.card.Rarity.Family.COMMON
+                                                                    && si.cards().size() > 60 && !si.pocket()) throw new IllegalStateException(si.id() + ": común en sobre dios " + CardInfo.id(c));
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            int[] tiers = new int[4];
+                                            for (int k = 0; k < 100_000; k++) tiers[dev.masterball.api.pack.PackContents.rollTier(rnd)]++;
+                                            if (Math.abs(tiers[1] - 96_000) > 800 || Math.abs(tiers[2] - 3_000) > 400 || Math.abs(tiers[3] - 1_000) > 250)
+                                                throw new IllegalStateException("reparto de sobres " + java.util.Arrays.toString(tiers));
+                                            // un set antiguo sin Doble Raras no regala Secretas: Skyridge normal casi nunca da hiper; el sobre vale al menos el 85 % de lo que trae
+                                            int hyper = 0;
+                                            for (int k = 0; k < 2000; k++)
+                                                for (ItemStack c : dev.masterball.api.pack.PackContents.open("sridge", 1, rnd))
+                                                    if (dev.masterball.api.card.Rarity.of(c).family == dev.masterball.api.card.Rarity.Family.HYPER_RARE) hyper++;
+                                            double ev = PriceService.packExpectedUsd("sridge"), pack = PriceService.sealedUsd("sridge", PriceService.Sealed.PACK);
+                                            if (hyper > 60 || pack < ev * 0.84) throw new IllegalStateException("Skyridge: " + hyper + " hiper en 2000 sobres, sobre $" + pack + " vs media $" + ev);
+                                            // cartas antiguas (hasta 2017): ~30 % de las tiradas en 4.9 / 5.0 / 5.1
+                                            var oldCard = net.minecraft.util.Identifier.of(NS, "baseset/cards/bs004");
+                                            int near5 = 0, above = 0;
+                                            for (int k = 0; k < 20_000; k++) {
+                                                int g = dev.tcgshop.grading.Grading.roll(rnd, oldCard);
+                                                if (g >= 49 && g <= 51) near5++;
+                                                if (g > 51) above++;
+                                            }
+                                            LOGGER.info("[selftest] gradeo antiguo: {}% en 4.9-5.1, {}% por encima", near5 / 200.0, above / 200.0);
+                                            if (near5 < 5000 || near5 > 7000) throw new IllegalStateException("reparto 4.9-5.1 de cartas antiguas: " + near5);
+                                            LOGGER.info("[selftest] sobres: Skyridge {} hiper/2000 · sobre ${} (media ${}) · Jungle ${} · 30th ${}", hyper,
+                                                    String.format("%.2f", pack), String.format("%.2f", ev), String.format("%.2f", PriceService.sealedUsd("jungle", PriceService.Sealed.PACK)),
+                                                    String.format("%.2f", PriceService.sealedUsd("ani30", PriceService.Sealed.PACK)));
+                                            LOGGER.info("[selftest] masterball_api: {} cartas, {} sobres, {} sets · sobres normal/semi/dios {}/{}/{} · álbum rescatado ({} objetos)",
+                                                    cat, dev.masterball.api.item.CardItems.packCount(), sets, tiers[1], tiers[2], tiers[3], rescued.size());
                                         }
                                         case "duel" -> {
                                             int mapped = dev.tcgshop.ptcg.PtcgCards.mapped();
-                                            LOGGER.info("[selftest] duel: {} cartas de cobbletcg jugables en el TCG real", mapped);
+                                            LOGGER.info("[selftest] duel: {} cartas jugables en el TCG real", mapped);
                                             if (mapped < 3000) throw new IllegalStateException("pocas cartas emparejadas: " + mapped);
                                         }
                                         case "chest_loot" -> {
@@ -476,6 +662,7 @@ public class TcgShop implements ModInitializer {
                                             LOGGER.info("[selftest] chest_loot: {} sobres en 3000 cofres ({}%)", packs, packs / 30.0);
                                             if (packs < 8 || packs > 70) throw new IllegalStateException("probabilidad de sobre fuera de rango: " + packs);
                                         }
+                                        case "mansion" -> dev.tcgshop.luxury.house.MansionService.selfTest(); // prueba en seco del generador
                                         case "home_display" -> {
                                             var b = dev.tcgshop.shop.TcgBlocks.HOME_FRAME;
                                             if (b.shopOnly() || !dev.tcgshop.shop.TcgBlocks.CARD_FRAME.shopOnly()) throw new IllegalStateException("shopOnly mal");
@@ -560,7 +747,7 @@ public class TcgShop implements ModInitializer {
                                     }
                                 }
                                 String view = dev.tcgshop.ptcg.PtcgEngine.str(api, "view", "t", 1);
-                                api.getMember("dispose").execute("t");
+                                api.run("dispose", "t");
                                 r.append("pasos=").append(steps).append(" auto=").append(autos).append(" turnosHumano=").append(passes).append(" errores=").append(errors).append(" sugerencias=").append(suggested).append(" sugFallidas=").append(suggestErr)
                                         .append(" ganador=").append(v == null ? "?" : v.get("winner").getAsString()).append(" vista=").append(view.length());
                                 return r.toString();
@@ -568,17 +755,17 @@ public class TcgShop implements ModInitializer {
                             return 1;
                         }))
                         .then(CommandManager.literal("dumpitems").executes(ctx -> {
-                            // Lista de ítems registrados por cobbletcg (para tools/fix_cobbletcg_advancements.py)
+                            // Lista de cartas y sobres registrados por MasterBall Traders API
                             java.util.List<String> ids = new java.util.ArrayList<>();
                             for (var id : net.minecraft.registry.Registries.ITEM.getIds())
-                                if (id.getNamespace().equals("cobbletcg")) ids.add(id.toString());
+                                if (id.getNamespace().equals(dev.masterball.api.card.CardInfo.NS)) ids.add(id.toString());
                             java.util.Collections.sort(ids);
                             try {
-                                java.nio.file.Files.write(net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("cobbletcg_items.txt"), ids);
+                                java.nio.file.Files.write(net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("masterball_items.txt"), ids);
                             } catch (Exception e) {
                                 LOGGER.error("dumpitems", e);
                             }
-                            ctx.getSource().sendFeedback(() -> Text.literal(ids.size() + " ítems de cobbletcg volcados"), false);
+                            ctx.getSource().sendFeedback(() -> Text.literal(ids.size() + " cartas y sobres volcados"), false);
                             return 1;
                         }))
                         .then(CommandManager.literal("rarities").executes(ctx -> {
@@ -608,7 +795,9 @@ public class TcgShop implements ModInitializer {
                     var id = CardInfo.id(st);
                     long day = PriceService.marketDay();
                     long now = PriceService.priceCd(st);
-                    long weekAgo = PriceService.priceCdOnDay(id, r, Math.max(0, day - 7));
+                    long std = PriceService.priceCd(id, r);
+                    // misma copia (variante y Grado) hace 7 días: se escala el precio estándar de entonces
+                    long weekAgo = std <= 0 ? 0 : Math.round(PriceService.priceCdOnDay(id, r, Math.max(0, day - 7)) * (double) now / std);
                     double change = weekAgo == 0 ? 0 : (now - weekAgo) * 100.0 / weekAgo;
                     Text trend = Text.literal(String.format(java.util.Locale.ROOT, "%+.1f%%", change))
                             .formatted(change >= 0 ? Formatting.GREEN : Formatting.RED);

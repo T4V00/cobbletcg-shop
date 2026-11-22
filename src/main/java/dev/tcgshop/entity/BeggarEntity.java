@@ -1,7 +1,7 @@
 package dev.tcgshop.entity;
 
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.collection.CollectionService;
 import dev.tcgshop.economy.CobbleDollarsBridge;
 import dev.tcgshop.pricing.PriceService;

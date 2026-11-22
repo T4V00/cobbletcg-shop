@@ -1,7 +1,7 @@
 package dev.tcgshop.client.screen;
 
 import dev.tcgshop.TcgSounds;
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import dev.tcgshop.client.binder.Ui;
 import dev.tcgshop.pricing.PriceService;
 import net.minecraft.client.MinecraftClient;
@@ -202,7 +202,7 @@ public class PackSelectScreen extends Screen {
             ctx.drawCenteredTextWithShadow(textRenderer, line, Math.round(cx), ty, Ui.TEXT);
             ty += 10;
         }
-        ctx.drawCenteredTextWithShadow(textRenderer, Text.translatable("tcgshop.set." + CardInfo.setId(e.id)), Math.round(cx), ty, Ui.MUTED);
+        ctx.drawCenteredTextWithShadow(textRenderer, Text.translatable("masterball.set." + CardInfo.setId(e.id)), Math.round(cx), ty, Ui.MUTED);
         ty += 11;
         Text state = Text.translatable(e.tier == 0 ? "tcgshop.select.state_sealed" : e.tier == 3 ? "tcgshop.tier.god" : e.tier == 2 ? "tcgshop.tier.semigod" : "tcgshop.select.state_opened");
         ctx.drawCenteredTextWithShadow(textRenderer, state, Math.round(cx), ty, aura);
@@ -249,7 +249,7 @@ public class PackSelectScreen extends Screen {
             float ph = tileH - 26, pw = ph * PACK_RATIO;
             if (sel) glow(ctx, tx + tileW / 2f, ty - lift + 4 + ph / 2, pw, ph, accent, 0.25f);
             pack(ctx, CardInfo.packTexture(e.id), e.stack, tx + (tileW - pw) / 2, ty - lift + 4, pw, ph, sel || hover ? 1f : 0.75f);
-            String name = Ui.ellipsis(Text.translatable("tcgshop.set." + CardInfo.setId(e.id)).getString(), tileW - 6);
+            String name = Ui.ellipsis(Text.translatable("masterball.set." + CardInfo.setId(e.id)).getString(), tileW - 6);
             ctx.drawText(textRenderer, name, tx + (tileW - textRenderer.getWidth(name)) / 2, Math.round(ty - lift + tileH - 20), Ui.TEXT, false);
             String own = (e.tier == 0 ? "" : "✂ ") + "x" + e.owned;
             ctx.drawText(textRenderer, own, tx + (tileW - textRenderer.getWidth(own)) / 2, Math.round(ty - lift + tileH - 10), Ui.MUTED, false);

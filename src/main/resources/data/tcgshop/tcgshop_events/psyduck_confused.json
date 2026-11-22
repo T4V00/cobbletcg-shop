@@ -1,0 +1,70 @@
+{
+  "_comment": "#7 Psyduck confundido: tira productos de un expositor (1-3 casillas no se pueden comprar; los objetos NO se mueven). Con lluvia o cerca del agua.",
+  "category": "negative",
+  "tier": "common",
+  "template": "psyduck",
+  "duration": {
+    "ticks": [
+      5000,
+      8000
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "psyduck",
+      "level": [
+        5,
+        15
+      ],
+      "behaviour": "goto_display",
+      "disable": "slots",
+      "disableCount": [
+        1,
+        3
+      ],
+      "resolve": [
+        "shoo",
+        "feed",
+        "battle"
+      ],
+      "shooHits": 3,
+      "reviewTag": "pkmn_psyduck"
+    }
+  ],
+  "variants": [
+    {
+      "key": "rain",
+      "weight": 1,
+      "conditions": {
+        "weather": [
+          "wet"
+        ]
+      }
+    },
+    {
+      "key": "water",
+      "weight": 1,
+      "conditions": {
+        "biomes": [
+          "#minecraft:is_river",
+          "#minecraft:is_beach",
+          "#minecraft:is_ocean",
+          "minecraft:swamp",
+          "minecraft:mangrove_swamp"
+        ]
+      }
+    }
+  ],
+  "review": {
+    "tag": "mess",
+    "chance": 0.4,
+    "mood": -1,
+    "fixedChance": 0.25
+  },
+  "notify": {
+    "lines": "act_psyduck",
+    "count": 6,
+    "chance": 0.3
+  }
+}

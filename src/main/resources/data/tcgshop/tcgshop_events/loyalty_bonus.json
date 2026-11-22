@@ -1,0 +1,22 @@
+{
+  "_comment": "#53 bonus de fidelidad: un poco de dinero por cliente habitual (con tope)",
+  "category": "positive",
+  "tier": "uncommon",
+  "template": "loyalty",
+  "duration": 600,
+  "conditions": {
+    "minRegulars": 4
+  },
+  "effects": [
+    {
+      "type": "reward",
+      "scale": "regulars",
+      "perUnit": 300,
+      "money": [
+        0,
+        4000
+      ],
+      "loot": "tcgshop:events/snacks"
+    }
+  ]
+}

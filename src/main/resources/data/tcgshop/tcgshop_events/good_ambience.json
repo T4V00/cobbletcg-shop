@@ -1,0 +1,28 @@
+{
+  "_comment": "#57 (+56 decoración popular) buen ambiente: +3 de reputación hoy",
+  "category": "positive",
+  "tier": "common",
+  "template": "ambience",
+  "duration": "day",
+  "conditions": {
+    "flags": [
+      "cozy"
+    ]
+  },
+  "effects": [
+    {
+      "type": "modifier",
+      "repDelta": 3,
+      "while": "always"
+    },
+    {
+      "type": "notify",
+      "particles": "happy"
+    }
+  ],
+  "review": {
+    "tag": "decor",
+    "chance": 0.35,
+    "mood": 1
+  }
+}

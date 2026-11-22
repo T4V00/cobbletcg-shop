@@ -1,0 +1,41 @@
+{
+  "_comment": "#17 puerta atascada: escombros delante; nadie entra por esa puerta (la puerta real no se toca). Arreglo: retirarlos a mano (3 golpes).",
+  "category": "negative",
+  "tier": "common",
+  "template": "door",
+  "duration": {
+    "ticks": [
+      6000,
+      10000
+    ]
+  },
+  "conditions": {
+    "requires": [
+      "door"
+    ]
+  },
+  "effects": [
+    {
+      "type": "incident",
+      "kind": "debris",
+      "count": 1,
+      "near": "door",
+      "fix": {
+        "items": "hand",
+        "hits": 3
+      },
+      "closeDoor": true
+    }
+  ],
+  "review": {
+    "tag": "blocked",
+    "chance": 0.5,
+    "mood": -1
+  },
+  "notify": {
+    "toast": true,
+    "lines": "inc_door",
+    "count": 6,
+    "chance": 0.35
+  }
+}

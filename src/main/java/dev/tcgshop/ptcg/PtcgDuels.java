@@ -7,7 +7,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import dev.tcgshop.advancement.CardAdvancements;
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import dev.tcgshop.collection.BinderData;
 import dev.tcgshop.collection.CollectionService;
 import dev.tcgshop.duel.League;
@@ -528,7 +528,7 @@ public final class PtcgDuels {
             } else {
                 boolean humanWon = ws == 0;
                 ServerPlayerEntity hp = server.getPlayerManager().getPlayer(m.players[0]);
-                if (m.mode == Mode.RANKED_AI) m.ratingDelta = lg.recordVsAi(m.players[0], m.names[0], LEVEL_RATING[m.level], humanWon);
+                if (m.mode == Mode.RANKED_AI) m.ratingDelta = lg.recordVsAi(m.players[0], m.names[0], m.level, humanWon);
                 else if (humanWon) { lg.entry(m.players[0], m.names[0]).aiWins++; lg.markDirty(); }
                 if (!humanWon && m.mode == Mode.RANKED_AI) penalize(hp, LEVEL_PENALTY[m.level], m, 0);
                 if (humanWon && hp != null) {
@@ -603,7 +603,7 @@ public final class PtcgDuels {
             be.markDirty();
             m.world.updateListeners(m.table, be.getCachedState(), be.getCachedState(), 3);
         }
-        PtcgEngine.call(api -> { api.getMember("dispose").execute(m.id); return true; });
+        PtcgEngine.call(api -> { api.run("dispose", m.id); return true; });
     }
 
     // ------------------------------------------------------------------ ciclo
@@ -739,7 +739,16 @@ public final class PtcgDuels {
                 String mode = o.has("mode") ? o.get("mode").getAsString() : "casual";
                 int level = o.has("level") ? o.get("level").getAsInt() : 1;
                 switch (mode) {
-                    case "ranked_ai" -> startAi(p, null, Mode.RANKED_AI, level);
+                    case "ranked_ai" -> {
+                        int r = League.get(p.getServer()).entry(p.getUuid(), p.getName().getString()).rating;
+                        if (!League.aiLevelAllowed(r, level)) {
+                            p.sendMessage(Text.translatable("tcgshop.league.level_locked",
+                                    Text.translatable("tcgshop.ptcg.ui.level." + Math.max(0, Math.min(3, level))),
+                                    Text.translatable("tcgshop.league.rank." + League.rank(r))).formatted(Formatting.RED), false);
+                            return;
+                        }
+                        startAi(p, null, Mode.RANKED_AI, level);
+                    }
                     case "queue" -> deckFor(p, deck -> {
                         if (deck == null) return;
                         if (!QUEUE.contains(p.getUuid())) QUEUE.add(p.getUuid());
@@ -836,6 +845,9 @@ public final class PtcgDuels {
                 l.addProperty("key", LEVELS[i]);
                 l.addProperty("rating", LEVEL_RATING[i]);
                 l.addProperty("reward", LEVEL_REWARD[i]);
+                l.addProperty("gain", League.AI_WIN[i]);
+                l.addProperty("loss", League.AI_LOSS[i]);
+                l.addProperty("allowed", League.aiLevelAllowed(e.rating, i));
                 levels.add(l);
             }
             out.add("levels", levels);

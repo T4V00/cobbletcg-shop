@@ -1,0 +1,23 @@
+{
+  "_comment": "#84 anuncian una nueva expansión (cadena hacia #104 en 3 días)",
+  "category": "neutral",
+  "tier": "uncommon",
+  "template": "expansion_news",
+  "duration": "day",
+  "effects": [
+    {
+      "type": "notify",
+      "message": "tcgshop.event.expansion_announced.chat"
+    }
+  ],
+  "notify": {
+    "lines": "expansion_news",
+    "count": 6,
+    "chance": 0.35
+  },
+  "chain": {
+    "next": "tcgshop:expansion_party",
+    "withinDays": 3,
+    "weightMult": 6
+  }
+}

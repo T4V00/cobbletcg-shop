@@ -1,7 +1,7 @@
 package dev.tcgshop.client.screen;
 
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.client.binder.Ui;
 import dev.tcgshop.pricing.PriceService;
 import net.minecraft.client.MinecraftClient;

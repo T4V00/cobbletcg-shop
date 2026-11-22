@@ -5,7 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dev.tcgshop.TcgShop;
 import dev.tcgshop.advancement.CardAdvancements;
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import dev.tcgshop.network.TitlesPayload;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;

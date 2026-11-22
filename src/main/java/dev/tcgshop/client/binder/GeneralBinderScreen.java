@@ -1,6 +1,6 @@
 package dev.tcgshop.client.binder;
 
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.client.screen.Draw;
 import dev.tcgshop.collection.Titles;
 import dev.tcgshop.network.BinderActionPayload;
@@ -15,9 +15,12 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Predicate;
 
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
@@ -25,13 +28,15 @@ import static dev.tcgshop.client.screen.Draw.withAlpha;
  * Binder General: todas tus cartas en un único inventario.
  *  · Pestañas laterales: ★ Todas, ♥ Deseadas, ✦ Nuevas y una por pack (con progreso).
  *  · Pestañas superiores por rareza (globales o dentro del pack elegido), buscador y huecos de cartas que faltan.
- *  · Notificaciones ★: se quitan al pasar el cursor; doble clic en una pestaña limpia todas las suyas.
+ *  · Notificaciones ★: se quitan tras ~1,5 s con el cursor encima, o al salir de «Nuevas» / cerrar (las que miraste);
+ *    las cartas nuevas siguen en «Nuevas» mientras el binder esté abierto. Doble clic en una pestaña limpia todas las suyas.
  *  · Panel de detalle (precio, tendencia 7 días, deseada, sacar cartas) y selector de título.
  */
 public class GeneralBinderScreen extends Screen {
-    private static final Rarity[] RARITY_TABS = {Rarity.COMMON, Rarity.DOUBLE_RARE, Rarity.ULTRA_RARE, Rarity.ILLUSTRATION_RARE,
-            Rarity.SPECIAL_ILLUSTRATION_RARE, Rarity.HYPER_RARE};
+    private static final Rarity.Family[] RARITY_TABS = Rarity.Family.values();
     private static final int CELL_W = 36, CELL_H = 50, GAP = 5, HEADER_H = 20;
+    /** Tiempo con el cursor encima para dar una carta nueva por vista, y duración del desvanecido del brillo. */
+    private static final long SEEN_HOVER_MS = 1500, FADE_MS = 700;
 
     private enum Mode { SET, WISH, NEW }
 
@@ -42,7 +47,7 @@ public class GeneralBinderScreen extends Screen {
     private final List<Area> areas = new ArrayList<>();
     private Mode mode = Mode.SET;
     private String selectedSet;
-    private Rarity selectedRarity;
+    private Rarity.Family selectedRarity;
     private boolean showMissing = true;
     private String selectedCard;
     private TextFieldWidget search;
@@ -53,6 +58,16 @@ public class GeneralBinderScreen extends Screen {
     private String lastClickedTab;
     private long lastClickTime;
     private int lastHash;
+    /** Cartas que han sido nuevas mientras el binder está abierto: «Nuevas» no las pierde aunque ya se hayan visto. */
+    private final Set<String> sessionNew = new HashSet<>();
+    /** Cartas nuevas que miraste (aunque fuera un instante): se marcan vistas al salir de «Nuevas» o al cerrar. */
+    private final Set<String> glanced = new HashSet<>();
+    /** Momento en que se marcó vista cada carta, para desvanecer su brillo en vez de quitarlo de golpe. */
+    private final Map<String, Long> fadeStart = new HashMap<>();
+    private String hoverKey;
+    /** Vista ampliada de la carta del panel derecho (superpuesta: el binder conserva scroll, filtros y pestaña). */
+    private final CardZoom zoom = new CardZoom();
+    private long hoverSince;
 
     private int px, py, pw, ph, sideX, sideY, sideW, sideH, gridX, gridY, gridW, gridH, detX, detW;
 
@@ -95,10 +110,10 @@ public class GeneralBinderScreen extends Screen {
     // ------------------------------------------------------------------ filtros y layout
 
     private boolean matches(Catalog.Card c) {
-        if (selectedRarity != null && c.rarity() != selectedRarity) return false;
+        if (selectedRarity != null && c.rarity().family != selectedRarity) return false;
         boolean owned = ClientCollection.count(c.key()) > 0;
         if (mode == Mode.WISH && !ClientCollection.wishlist.contains(c.key())) return false;
-        if (mode == Mode.NEW && !ClientCollection.fresh.contains(c.key())) return false;
+        if (mode == Mode.NEW && !sessionNew.contains(c.key())) return false;
         if (mode == Mode.SET && !owned && !showMissing) return false;
         String q = search.getText().trim().toLowerCase(Locale.ROOT);
         return q.isEmpty() || c.name().getString().toLowerCase(Locale.ROOT).contains(q);
@@ -135,8 +150,11 @@ public class GeneralBinderScreen extends Screen {
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        int realX = mouseX, realY = mouseY;
+        if (zoom.isOpen()) { mouseX = -10000; mouseY = -10000; } // debajo de la vista ampliada no hay hover ni tooltips
         ClientCollection.tick();
-        int hash = ClientCollection.counts.hashCode() * 31 + ClientCollection.wishlist.hashCode() + (mode == Mode.NEW ? ClientCollection.fresh.hashCode() : 0);
+        sessionNew.addAll(ClientCollection.fresh); // las que lleguen con el binder abierto también se quedan
+        int hash = ClientCollection.counts.hashCode() * 31 + ClientCollection.wishlist.hashCode() + (mode == Mode.NEW ? sessionNew.hashCode() : 0);
         if (hash != lastHash) { lastHash = hash; dirty = true; }
         if (dirty) layout();
         areas.clear();
@@ -149,20 +167,21 @@ public class GeneralBinderScreen extends Screen {
 
         renderHeader(ctx, mouseX, mouseY);
         Map<String, Integer> freshBySet = new HashMap<>();
-        Map<Rarity, Integer> freshByRarity = new HashMap<>();
+        Map<Rarity.Family, Integer> freshByRarity = new HashMap<>();
         for (String k : ClientCollection.fresh) {
             Catalog.Card c = Catalog.card(k);
             if (c == null) continue;
             freshBySet.merge(c.set(), 1, Integer::sum);
-            if (mode != Mode.SET || selectedSet == null || selectedSet.equals(c.set())) freshByRarity.merge(c.rarity(), 1, Integer::sum);
+            if (mode != Mode.SET || selectedSet == null || selectedSet.equals(c.set())) freshByRarity.merge(c.rarity().family, 1, Integer::sum);
         }
         renderSidebar(ctx, mouseX, mouseY, freshBySet);
         renderRarityTabs(ctx, mouseX, mouseY, freshByRarity);
         Catalog.Card hovered = titlesOpen ? null : renderGrid(ctx, mouseX, mouseY, t);
-        if (titlesOpen) renderGridFrameOnly(ctx);
+        if (titlesOpen) { renderGridFrameOnly(ctx); trackHover(null); }
         renderDetail(ctx, mouseX, mouseY, hovered, t);
         search.render(ctx, mouseX, mouseY, delta);
         if (titlesOpen) renderTitles(ctx, mouseX, mouseY);
+        if (zoom.isOpen()) zoom.render(ctx, width, height, realX, realY);
     }
 
     private void renderHeader(DrawContext ctx, int mouseX, int mouseY) {
@@ -247,7 +266,7 @@ public class GeneralBinderScreen extends Screen {
         String key = m == Mode.SET ? "all" : m == Mode.NEW ? "new" : "wish";
         areas.add(new Area(x, Math.max(y, sideY), w, h, () -> {
             if (isDoubleClick(key) && m != Mode.WISH) clearFresh("all");
-            else { mode = m; selectedSet = null; selectedRarity = null; scroll = 0; dirty = true; }
+            else { switchMode(m); selectedSet = null; selectedRarity = null; scroll = 0; dirty = true; }
         }));
     }
 
@@ -280,15 +299,15 @@ public class GeneralBinderScreen extends Screen {
         String tabKey = "set:" + set.id();
         areas.add(new Area(x, Math.max(y, sideY), w, h, () -> {
             if (isDoubleClick(tabKey)) clearFresh(tabKey);
-            else { mode = Mode.SET; selectedSet = set.id(); selectedRarity = null; scroll = 0; dirty = true; }
+            else { switchMode(Mode.SET); selectedSet = set.id(); selectedRarity = null; scroll = 0; dirty = true; }
         }));
     }
 
-    private void renderRarityTabs(DrawContext ctx, int mouseX, int mouseY, Map<Rarity, Integer> freshByRarity) {
+    private void renderRarityTabs(DrawContext ctx, int mouseX, int mouseY, Map<Rarity.Family, Integer> freshByRarity) {
         int y = py + 38, h = 16;
         List<Text> labels = new ArrayList<>();
         labels.add(Text.translatable("tcgshop.binder.all_rarities"));
-        for (Rarity r : RARITY_TABS) labels.add(Text.translatable("tcgshop.rarity.short." + r.key));
+        for (Rarity.Family r : RARITY_TABS) labels.add(r.shortName());
         Text missing = Text.translatable(showMissing ? "tcgshop.binder.missing_on" : "tcgshop.binder.missing_off");
         int natural = 0;
         for (Text l : labels) natural += Ui.chipWidth(l) + 3;
@@ -299,7 +318,7 @@ public class GeneralBinderScreen extends Screen {
         for (int v : freshByRarity.values()) totalFresh += v;
         for (int i = 0; i < labels.size(); i++) {
             int w = Math.max(24, (int) (Ui.chipWidth(labels.get(i)) * k));
-            Rarity r = i == 0 ? null : RARITY_TABS[i - 1];
+            Rarity.Family r = i == 0 ? null : RARITY_TABS[i - 1];
             boolean sel = selectedRarity == r;
             int accent = r == null ? 0xFFCCCCCC : r.color;
             Ui.chip(ctx, x, y, w, h, labels.get(i), sel, Ui.in(mouseX, mouseY, x, y, w, h), accent, r == null ? totalFresh : freshByRarity.getOrDefault(r, 0));
@@ -331,6 +350,7 @@ public class GeneralBinderScreen extends Screen {
                 ctx.drawCenteredTextWithShadow(textRenderer, line, gridX + gridW / 2, y, Ui.MUTED);
                 y += 10;
             }
+            trackHover(null);
             return null;
         }
         Catalog.Card hovered = null;
@@ -355,7 +375,7 @@ public class GeneralBinderScreen extends Screen {
             int x = gridX + 7;
             for (Catalog.Card c : row.cards) {
                 boolean hover = Ui.in(mouseX, mouseY, x, y, CELL_W, CELL_H) && Ui.in(mouseX, mouseY, gridX, gridY, gridW, gridH);
-                if (hover) { hovered = c; hx = x; hy = y; ClientCollection.markSeen(c.key()); }
+                if (hover) { hovered = c; hx = x; hy = y; }
                 else drawCell(ctx, c, x, y, false, t);
                 String key = c.key();
                 if (y >= gridY - CELL_H && y <= gridY + gridH)
@@ -363,6 +383,7 @@ public class GeneralBinderScreen extends Screen {
                 x += CELL_W + GAP;
             }
         }
+        trackHover(hovered == null ? null : hovered.key());
         if (hovered != null) drawCell(ctx, hovered, hx, hy - 2, true, t); // encima, levantada
         ctx.disableScissor();
         if (contentHeight > gridH) {
@@ -376,10 +397,11 @@ public class GeneralBinderScreen extends Screen {
     private void drawCell(DrawContext ctx, Catalog.Card c, int x, int y, boolean hover, double t) {
         int count = ClientCollection.count(c.key());
         boolean fresh = ClientCollection.fresh.contains(c.key());
+        float freshA = fresh ? 1f : fadeAlpha(c.key()); // brillo de «nueva» (se desvanece tras verla)
         boolean selected = c.key().equals(selectedCard);
         boolean wish = ClientCollection.wishlist.contains(c.key());
         if (count > 0) {
-            if (fresh) Draw.glow(ctx, x + CELL_W / 2f, y + CELL_H / 2f, CELL_W, CELL_H, 0xFFFFE066, 0.35f + 0.25f * (float) Math.sin(t * 5));
+            if (freshA > 0) Draw.glow(ctx, x + CELL_W / 2f, y + CELL_H / 2f, CELL_W, CELL_H, 0xFFFFE066, (0.35f + 0.25f * (float) Math.sin(t * 5)) * freshA);
             ctx.fill(x + 2, y + 3, x + CELL_W + 2, y + CELL_H + 3, 0x77000000);
             Draw.cardFace(ctx, c.texture(), c.stack(), x, y, CELL_W, CELL_H, 1f);
             if (hover && c.rarity().tier > 0) Draw.holo(ctx, x, y, CELL_W, CELL_H, c.rarity().tier, c.rarity().color, t, x + CELL_W / 2);
@@ -390,7 +412,11 @@ public class GeneralBinderScreen extends Screen {
                 ctx.fill(x + CELL_W - w, y + CELL_H - 9, x + CELL_W, y + CELL_H, 0xCC000000);
                 ctx.drawText(textRenderer, s, x + CELL_W - w + 2, y + CELL_H - 8, 0xFFFFFFFF, false);
             }
-            if (fresh) ctx.drawText(textRenderer, "★", x + 2, y + 2, withAlpha(0xFFFFE066, 0.6f + 0.4f * (float) Math.sin(t * 6)), true);
+            if (freshA > 0.05f) ctx.drawText(textRenderer, "★", x + 2, y + 2, withAlpha(0xFFFFE066, (0.6f + 0.4f * (float) Math.sin(t * 6)) * freshA), true);
+            if (fresh && hover && c.key().equals(hoverKey)) { // barra de «vista» mientras mantienes el cursor
+                float p = Math.min(1f, (System.currentTimeMillis() - hoverSince) / (float) SEEN_HOVER_MS);
+                ctx.fill(x + 1, y + CELL_H - 3, x + 1 + Math.round((CELL_W - 2) * p), y + CELL_H - 1, 0xFFFFE066);
+            }
         } else {
             Ui.roundGradient(ctx, x, y, CELL_W, CELL_H, 0xFF22263A, 0xFF181B28);
             Ui.outline(ctx, x, y, CELL_W, CELL_H, selected ? 0xFFFFFFFF : withAlpha(c.rarity().color, 0.45f));
@@ -418,7 +444,7 @@ public class GeneralBinderScreen extends Screen {
         } else {
             int count = ClientCollection.count(c.key());
             int cw = Math.min(w, 100), ch = Math.round(cw / Draw.CARD_RATIO);
-            int maxH = sideH - 120;
+            int maxH = sideH - 128; // 8 px para la pista «Clic para ver en grande»
             if (ch > maxH) { ch = maxH; cw = Math.round(ch * Draw.CARD_RATIO); }
             int cx = detX + (detW - cw) / 2, cy = sideY + 8;
             if (count > 0) {
@@ -432,12 +458,19 @@ public class GeneralBinderScreen extends Screen {
                 Ui.outline(ctx, cx, cy, cw, ch, withAlpha(c.rarity().color, 0.5f));
                 Ui.text(ctx, Text.translatable("tcgshop.binder.not_owned"), cx, cy + ch / 2 - 6, cw, 12, 0xFFDDDDDD, true);
             }
-            int y = cy + ch + 5;
+            // clic en la carta grande = verla ampliada
+            boolean overCard = !titlesOpen && Ui.in(mouseX, mouseY, cx, cy, cw, ch);
+            if (overCard) Ui.outline(ctx, cx - 1, cy - 1, cw + 2, ch + 2, 0xFFFFFFFF);
+            final Catalog.Card zc = c;
+            final boolean zOwned = count > 0;
+            areas.add(new Area(cx, cy, cw, ch, () -> zoom.open(zc, zOwned)));
+            Draw.scaledCentered(ctx, Text.translatable("tcgshop.binder.zoom_hint"), cx + cw / 2f, cy + ch + 2, 0.7f, overCard ? Ui.GOLD : Ui.MUTED);
+            int y = cy + ch + 10;
             for (var line : textRenderer.wrapLines(c.name(), w)) {
                 ctx.drawTextWithShadow(textRenderer, line, x, y, Ui.TEXT);
                 y += 10;
             }
-            ctx.drawText(textRenderer, Text.translatable("tcgshop.set." + c.set()), x, y, Ui.MUTED, false);
+            ctx.drawText(textRenderer, Text.translatable("masterball.set." + c.set()), x, y, Ui.MUTED, false);
             y += 10;
             ctx.drawTextWithShadow(textRenderer, c.rarity().displayName(), x, y, c.rarity().color);
             y += 10;
@@ -506,27 +539,79 @@ public class GeneralBinderScreen extends Screen {
     }
 
     private void clearFresh(String filter) {
-        if (filter.equals("all")) ClientCollection.fresh.clear();
-        else ClientCollection.fresh.removeIf(k -> {
+        Predicate<String> cleared = filter.equals("all") ? k -> true : k -> {
             Catalog.Card c = Catalog.card(k);
             if (c == null) return false;
             if (filter.startsWith("set:")) return c.set().equals(filter.substring(4));
-            if (filter.startsWith("rarity:")) return c.rarity().key.equals(filter.substring(7))
+            if (filter.startsWith("rarity:")) return c.rarity().family.key.equals(filter.substring(7))
                     && (mode != Mode.SET || selectedSet == null || c.set().equals(selectedSet));
             return false;
-        });
+        };
+        ClientCollection.fresh.removeIf(cleared);
+        // limpiar a propósito sí las saca de «Nuevas» (a diferencia de mirarlas)
+        sessionNew.removeIf(cleared);
+        glanced.removeIf(cleared);
         if (filter.startsWith("rarity:") && mode == Mode.SET && selectedSet != null) {
             List<String> ids = new ArrayList<>();
             for (Catalog.CardSet s : Catalog.sets())
-                if (s.id().equals(selectedSet)) for (Catalog.Card c : s.cards()) if (c.rarity().key.equals(filter.substring(7))) ids.add(c.key());
+                if (s.id().equals(selectedSet)) for (Catalog.Card c : s.cards()) if (c.rarity().family.key.equals(filter.substring(7))) ids.add(c.key());
             ClientCollection.action(BinderActionPayload.MARK_SEEN, String.join(",", ids), 0);
             return;
         }
         ClientCollection.action(BinderActionPayload.CLEAR_FRESH, filter, 0);
     }
 
+    /** Cambia de pestaña; si sales de «Nuevas», da por vistas las que miraste y las saca de la lista. */
+    private void switchMode(Mode next) {
+        if (mode == Mode.NEW && next != Mode.NEW) {
+            commitGlanced();
+            sessionNew.retainAll(ClientCollection.fresh);
+        }
+        mode = next;
+    }
+
+    /** Seguimiento del cursor: una carta nueva se da por vista tras SEEN_HOVER_MS seguidos encima, nunca al instante. */
+    private void trackHover(String key) {
+        long now = System.currentTimeMillis();
+        if (key == null) { hoverKey = null; return; }
+        if (!key.equals(hoverKey)) { hoverKey = key; hoverSince = now; }
+        if (!ClientCollection.fresh.contains(key)) return;
+        glanced.add(key);
+        if (now - hoverSince >= SEEN_HOVER_MS) seen(key, now);
+    }
+
+    private void seen(String key, long now) {
+        if (ClientCollection.fresh.contains(key)) {
+            ClientCollection.markSeen(key);
+            fadeStart.put(key, now);
+        }
+        glanced.remove(key);
+    }
+
+    private void commitGlanced() {
+        long now = System.currentTimeMillis();
+        for (String k : new ArrayList<>(glanced)) seen(k, now);
+        glanced.clear();
+        ClientCollection.flushSeen();
+    }
+
+    private float fadeAlpha(String key) {
+        Long st = fadeStart.get(key);
+        if (st == null) return 0f;
+        long dt = System.currentTimeMillis() - st;
+        if (dt >= FADE_MS) { fadeStart.remove(key); return 0f; }
+        return 1f - dt / (float) FADE_MS;
+    }
+
+    @Override
+    public void removed() {
+        commitGlanced(); // al cerrar: las que miraste quedan vistas
+        super.removed();
+    }
+
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (zoom.isOpen()) return zoom.mouseClicked(mouseX, mouseY, button);
         if (search.mouseClicked(mouseX, mouseY, button)) {
             setFocused(search);
             return true;
@@ -544,6 +629,7 @@ public class GeneralBinderScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double h, double v) {
+        if (zoom.isOpen()) return true;
         if (Ui.in(mouseX, mouseY, sideX, sideY, sideW, sideH)) sideScroll -= v * 26;
         else scroll = MathHelper.clamp(scroll - v * (CELL_H + GAP), 0, Math.max(0, contentHeight - gridH + 8));
         return true;
@@ -551,11 +637,13 @@ public class GeneralBinderScreen extends Screen {
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
+        if (zoom.isOpen()) return true;
         return search.isFocused() && search.charTyped(chr, modifiers);
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (zoom.isOpen()) return zoom.keyPressed(keyCode, scanCode);
         if (search.isFocused() && keyCode != GLFW.GLFW_KEY_ESCAPE) return search.keyPressed(keyCode, scanCode, modifiers) || true;
         if (titlesOpen && keyCode == GLFW.GLFW_KEY_ESCAPE) { titlesOpen = false; return true; }
         if (dev.tcgshop.client.TcgShopClient.OPEN_BINDER.matchesKey(keyCode, scanCode)) {

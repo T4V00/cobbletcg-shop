@@ -1,0 +1,70 @@
+{
+  "_comment": "#81 (+82 día de viento) cambio de tiempo: lluvia (más paciencia, algo menos de gente); sin techo o sin paredes, peor",
+  "category": "neutral",
+  "tier": "common",
+  "template": "weather",
+  "duration": "day",
+  "conditions": {
+    "weather": [
+      "rain",
+      "thunder"
+    ]
+  },
+  "effects": [
+    {
+      "type": "modifier",
+      "patienceMult": 1.3,
+      "spawnMult": 0.85
+    }
+  ],
+  "variants": [
+    {
+      "key": "cozy",
+      "weight": 3
+    },
+    {
+      "key": "roofless",
+      "weight": 3,
+      "conditions": {
+        "flags": [
+          "no_roof"
+        ]
+      },
+      "effects": [
+        {
+          "type": "modifier",
+          "moodStart": -1
+        }
+      ]
+    },
+    {
+      "key": "windy",
+      "weight": 2,
+      "conditions": {
+        "flags": [
+          "no_walls"
+        ]
+      },
+      "effects": [
+        {
+          "type": "modifier",
+          "moodStart": -1
+        },
+        {
+          "type": "notify",
+          "particles": "cloud"
+        }
+      ]
+    }
+  ],
+  "review": {
+    "tag": "weather",
+    "chance": 0.25,
+    "mood": 0
+  },
+  "notify": {
+    "lines": "rain",
+    "count": 6,
+    "chance": 0.3
+  }
+}

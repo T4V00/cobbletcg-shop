@@ -30,7 +30,20 @@ public final class BinderData {
             Codec.STRING.optionalFieldOf("owner_name", "?").forGetter(b -> b.ownerName),
             Codec.unboundedMap(Codec.STRING, Codec.INT).optionalFieldOf("counts", Map.of()).forGetter(b -> b.counts),
             Codec.STRING.listOf().optionalFieldOf("fresh", List.of()).forGetter(b -> List.copyOf(b.fresh))
-    ).apply(i, (o, n, c, f) -> new BinderData(o, n, c, new HashSet<>(f))));
+    ).apply(i, (o, n, c, f) -> new BinderData(o, n, migrateCounts(c), migrateIds(f))));
+
+    /** Ids guardados con el namespace de ScalperTCG ("cobbletcg:") pasan a los de MasterBall Traders API. */
+    static Map<String, Integer> migrateCounts(Map<String, Integer> in) {
+        Map<String, Integer> out = new HashMap<>();
+        in.forEach((k, v) -> { String id = dev.masterball.api.card.CardInfo.migrate(k); if (!dev.masterball.api.card.CardCatalog.isRemovedId(id)) out.merge(id, v, Integer::sum); });
+        return out;
+    }
+
+    static HashSet<String> migrateIds(java.util.Collection<String> in) {
+        HashSet<String> out = new HashSet<>();
+        for (String s : in) { String id = dev.masterball.api.card.CardInfo.migrate(s); if (!dev.masterball.api.card.CardCatalog.isRemovedId(id)) out.add(id); }
+        return out;
+    }
 
     public int count(String id) { return counts.getOrDefault(id, 0); }
 

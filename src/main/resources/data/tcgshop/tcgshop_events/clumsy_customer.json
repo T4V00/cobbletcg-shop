@@ -1,0 +1,54 @@
+{
+  "_comment": "#27 cliente que rompe productos: un cliente patoso tira productos de un expositor. Las casillas afectadas quedan bloqueadas (el objeto NUNCA se mueve). Arreglo: recoger con la mano o la fregona.",
+  "category": "negative",
+  "tier": "uncommon",
+  "template": "clumsy",
+  "duration": {
+    "ticks": [
+      6000,
+      9000
+    ]
+  },
+  "conditions": {
+    "minDisplays": 2
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "REGULAR",
+      "title": "tcgshop.role.ev_clumsy",
+      "lines": "inc_clumsy",
+      "linesCount": 6,
+      "delay": [
+        100,
+        300
+      ],
+      "moodStart": 0
+    },
+    {
+      "type": "incident",
+      "kind": "mess",
+      "count": [
+        1,
+        3
+      ],
+      "near": "display",
+      "disable": "slot",
+      "fix": {
+        "items": "#tcgshop:fix/mess",
+        "hand": true,
+        "hits": 1
+      },
+      "delay": [
+        500,
+        900
+      ],
+      "message": "tcgshop.event.clumsy_customer.dropped"
+    }
+  ],
+  "review": {
+    "tag": "broken",
+    "chance": 0.45,
+    "mood": -1
+  }
+}

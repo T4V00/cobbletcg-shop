@@ -1,0 +1,36 @@
+{
+  "_comment": "#47 día de principiantes: más clientes normales y más ganas de sobres",
+  "category": "positive",
+  "tier": "common",
+  "template": "beginners",
+  "duration": {
+    "ticks": [
+      8000,
+      11000
+    ]
+  },
+  "effects": [
+    {
+      "type": "modifier",
+      "typeW": {
+        "regular": 1.3
+      },
+      "buy": [
+        {
+          "filter": "packs",
+          "mult": 1.2
+        }
+      ]
+    }
+  ],
+  "review": {
+    "tag": "fun_event",
+    "chance": 0.15,
+    "mood": 1
+  },
+  "notify": {
+    "lines": "beginners",
+    "count": 6,
+    "chance": 0.3
+  }
+}

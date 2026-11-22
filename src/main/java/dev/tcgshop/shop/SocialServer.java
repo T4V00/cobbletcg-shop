@@ -1,7 +1,7 @@
 package dev.tcgshop.shop;
 
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.collection.BinderData;
 import dev.tcgshop.collection.CollectionService;
 import dev.tcgshop.duel.League;
@@ -75,10 +75,21 @@ public final class SocialServer {
                 NbtCompound c = p.getCompound(k);
                 d.names.put(u, c.getString("name"));
                 Set<String> fav = new LinkedHashSet<>();
-                for (NbtElement e : c.getList("fav", NbtElement.STRING_TYPE)) fav.add(e.asString());
+                for (NbtElement e : c.getList("fav", NbtElement.STRING_TYPE)) {
+                    String id = dev.masterball.api.card.CardInfo.migrate(e.asString());
+                    if (!dev.masterball.api.card.CardCatalog.isRemovedId(id)) fav.add(id); // TCG Pocket: quitado en la 0.9
+                }
                 if (!fav.isEmpty()) d.favorites.put(u, fav);
                 List<NbtCompound> h = new ArrayList<>();
-                for (NbtElement e : c.getList("hist", NbtElement.COMPOUND_TYPE)) h.add((NbtCompound) e);
+                for (NbtElement e : c.getList("hist", NbtElement.COMPOUND_TYPE)) {
+                    NbtCompound he = (NbtCompound) e;
+                    if (he.contains("c")) {
+                        String id = dev.masterball.api.card.CardInfo.migrate(he.getString("c"));
+                        if (dev.masterball.api.card.CardCatalog.isRemovedId(id)) continue; // TCG Pocket: quitado en la 0.9
+                        he.putString("c", id);
+                    }
+                    h.add(he);
+                }
                 if (!h.isEmpty()) d.history.put(u, h);
                 d.friends.put(u, uuids(c.getList("friends", NbtElement.STRING_TYPE)));
                 d.requests.put(u, uuids(c.getList("req", NbtElement.STRING_TYPE)));

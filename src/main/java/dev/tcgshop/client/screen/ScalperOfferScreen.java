@@ -1,6 +1,6 @@
 package dev.tcgshop.client.screen;
 
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import dev.tcgshop.client.binder.Ui;
 import dev.tcgshop.network.ScalperAnswerPayload;
 import dev.tcgshop.pricing.PriceService;

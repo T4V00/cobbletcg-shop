@@ -2,8 +2,8 @@ package dev.tcgshop.collection;
 
 import dev.tcgshop.TcgShop;
 import dev.tcgshop.advancement.CardAdvancements;
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.compat.AccessoriesCompat;
 import dev.tcgshop.item.TcgItems;
 import dev.tcgshop.network.CollectionSyncPayload;
@@ -172,6 +172,13 @@ public final class CollectionService {
         for (ItemStack st : cards) {
             if (!CardInfo.isCard(st)) continue;
             if (dev.tcgshop.grading.Grading.isGraded(st)) { player.getInventory().offerOrDrop(st.copy()); continue; } // las gradeadas no van al binder
+            if (dev.masterball.api.card.PrintVariant.isSpecial(st)) { // las variantes (reverse, 1ª edición...) tampoco, pero cuentan para la colección
+                player.getInventory().offerOrDrop(st.copy());
+                pd.totalObtained += st.getCount();
+                String vid = CardInfo.id(st).toString();
+                if (!pd.credited.contains(vid)) CardAdvancements.credit(player, pd, d, List.of(vid));
+                continue;
+            }
             String id = CardInfo.id(st).toString();
             if (d.count(id) == 0 && !pd.credited.contains(id)) d.fresh.add(id);
             d.add(id, st.getCount());
@@ -200,7 +207,7 @@ public final class CollectionService {
         CardCollection pd = playerData(player);
         for (int i = 0; i < inv.size(); i++) {
             ItemStack st = inv.getStack(i);
-            if (!CardInfo.isCard(st) || dev.tcgshop.grading.Grading.isGraded(st)) continue;
+            if (!CardInfo.isCard(st) || dev.tcgshop.grading.Grading.isGraded(st) || dev.masterball.api.card.PrintVariant.isSpecial(st)) continue;
             String id = CardInfo.id(st).toString();
             if (d.count(id) == 0 && !pd.credited.contains(id)) d.fresh.add(id);
             d.add(id, st.getCount());
@@ -227,7 +234,7 @@ public final class CollectionService {
             String key = filter.substring(7);
             d.fresh.removeIf(id -> {
                 Item item = CardInfo.item(Identifier.of(id));
-                return item != null && Rarity.of(new ItemStack(item)).key.equals(key);
+                return item != null && Rarity.of(new ItemStack(item)).family.key.equals(key);
             });
         }
         dirty(player);

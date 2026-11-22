@@ -1,0 +1,124 @@
+{
+ "parent": "tcgshop:block/statue_emerald",
+ "display": {
+  "gui": {
+   "rotation": [
+    30,
+    225,
+    0
+   ],
+   "translation": [
+    0,
+    -2.143,
+    0
+   ],
+   "scale": [
+    0.3571,
+    0.3571,
+    0.3571
+   ]
+  },
+  "ground": {
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "translation": [
+    0,
+    2.143,
+    0
+   ],
+   "scale": [
+    0.1429,
+    0.1429,
+    0.1429
+   ]
+  },
+  "fixed": {
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "translation": [
+    0,
+    -1.714,
+    0
+   ],
+   "scale": [
+    0.2857,
+    0.2857,
+    0.2857
+   ]
+  },
+  "thirdperson_righthand": {
+   "rotation": [
+    75,
+    45,
+    0
+   ],
+   "translation": [
+    0,
+    1.214,
+    0
+   ],
+   "scale": [
+    0.2143,
+    0.2143,
+    0.2143
+   ]
+  },
+  "firstperson_righthand": {
+   "rotation": [
+    0,
+    45,
+    0
+   ],
+   "translation": [
+    0,
+    -1.372,
+    0
+   ],
+   "scale": [
+    0.2286,
+    0.2286,
+    0.2286
+   ]
+  },
+  "firstperson_lefthand": {
+   "rotation": [
+    0,
+    225,
+    0
+   ],
+   "translation": [
+    0,
+    -1.372,
+    0
+   ],
+   "scale": [
+    0.2286,
+    0.2286,
+    0.2286
+   ]
+  },
+  "head": {
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "translation": [
+    0,
+    3.943,
+    0
+   ],
+   "scale": [
+    0.3429,
+    0.3429,
+    0.3429
+   ]
+  }
+ }
+}

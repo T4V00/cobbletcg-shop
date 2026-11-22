@@ -1,0 +1,28 @@
+{
+  "_comment": "#114 oferta por tiempo limitado: unas horas, más ventas de lo que esté a precio de mercado o menos",
+  "category": "positive",
+  "tier": "rare",
+  "template": "limited_offer",
+  "duration": {
+    "ticks": [
+      3000,
+      4000
+    ]
+  },
+  "effects": [
+    {
+      "type": "modifier",
+      "buy": [
+        {
+          "filter": "fair_price",
+          "mult": 1.3
+        }
+      ]
+    }
+  ],
+  "notify": {
+    "lines": "limited_offer",
+    "count": 6,
+    "chance": 0.3
+  }
+}

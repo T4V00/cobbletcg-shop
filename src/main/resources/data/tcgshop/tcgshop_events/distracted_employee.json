@@ -1,0 +1,31 @@
+{
+  "_comment": "#29 empleado distraído: clic derecho al cajero",
+  "category": "negative",
+  "tier": "common",
+  "template": "staff",
+  "duration": {
+    "ticks": [
+      6000,
+      10000
+    ]
+  },
+  "conditions": {
+    "requires": [
+      "cashier"
+    ]
+  },
+  "effects": [
+    {
+      "type": "staff",
+      "serviceMult": 1.5,
+      "distracted": true,
+      "lines": "distracted",
+      "count": 6
+    }
+  ],
+  "review": {
+    "tag": "slow",
+    "chance": 0.4,
+    "mood": -1
+  }
+}

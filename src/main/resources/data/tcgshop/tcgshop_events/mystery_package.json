@@ -1,0 +1,52 @@
+{
+  "_comment": "#88 caja misteriosa (+#89 paquete sin remitente como variante): una caja dentro de la tienda, junto a la puerta. Sólo el dueño la abre (mano vacía). Premio pequeño con tope semanal por dueño.",
+  "category": "positive",
+  "tier": "uncommon",
+  "template": "package",
+  "duration": {
+    "ticks": [
+      8000,
+      14000
+    ]
+  },
+  "variants": [
+    {
+      "key": "box",
+      "weight": 3,
+      "replace": true,
+      "effects": [
+        {
+          "type": "incident",
+          "kind": "package",
+          "count": 1,
+          "near": "door",
+          "loot": "tcgshop:events/package",
+          "weeklyCap": 2
+        }
+      ]
+    },
+    {
+      "key": "no_sender",
+      "weight": 2,
+      "replace": true,
+      "effects": [
+        {
+          "type": "incident",
+          "kind": "package",
+          "count": 1,
+          "near": "outside_door",
+          "loot": "tcgshop:events/snacks",
+          "money": [
+            100,
+            400
+          ],
+          "weeklyCap": 2
+        },
+        {
+          "type": "notify",
+          "message": "tcgshop.event.mystery_package.var.no_sender"
+        }
+      ]
+    }
+  ]
+}

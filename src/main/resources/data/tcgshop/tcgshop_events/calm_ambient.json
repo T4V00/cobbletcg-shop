@@ -1,0 +1,89 @@
+{
+  "_comment": "#38 Psyduck tranquilo (+#62 Abra dormido, +#67 Slowpoke mirando un expositor): ambiente relajado. Abra se teletransporta si lo tocas.",
+  "category": "positive",
+  "tier": "common",
+  "template": "calm",
+  "duration": {
+    "ticks": [
+      5000,
+      8000
+    ]
+  },
+  "effects": [],
+  "variants": [
+    {
+      "key": "psyduck",
+      "weight": 2,
+      "effects": [
+        {
+          "type": "actor",
+          "species": "psyduck",
+          "level": [
+            5,
+            15
+          ],
+          "behaviour": "stay",
+          "pet": true,
+          "feed": true
+        },
+        {
+          "type": "modifier",
+          "patienceMult": 1.3
+        }
+      ]
+    },
+    {
+      "key": "abra",
+      "weight": 1,
+      "effects": [
+        {
+          "type": "actor",
+          "species": "abra",
+          "level": [
+            5,
+            15
+          ],
+          "behaviour": "stay",
+          "pet": true,
+          "petLeaves": true,
+          "cry": false
+        },
+        {
+          "type": "modifier",
+          "patienceMult": 1.2
+        }
+      ]
+    },
+    {
+      "key": "slowpoke",
+      "weight": 1,
+      "effects": [
+        {
+          "type": "actor",
+          "species": "slowpoke",
+          "level": [
+            5,
+            15
+          ],
+          "behaviour": "goto_display",
+          "pet": true,
+          "feed": true
+        },
+        {
+          "type": "modifier",
+          "moodStart": 1
+        }
+      ]
+    }
+  ],
+  "review": {
+    "tag": "pkmn_cute",
+    "chance": 0.2,
+    "mood": 1
+  },
+  "notify": {
+    "lines": "act_calm",
+    "count": 6,
+    "chance": 0.25
+  }
+}

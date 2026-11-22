@@ -1,7 +1,7 @@
 package dev.tcgshop.client.render;
 
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.client.screen.Draw;
 import dev.tcgshop.pricing.PriceService;
 import dev.tcgshop.shop.BoosterBox;
@@ -57,8 +57,8 @@ public final class ShopRenderers {
     private static final Identifier WRAP = Identifier.of("tcgshop", "textures/block/shrink_wrap.png");
     private static final Map<String, Identifier> PACK_TEX = new HashMap<>();
     private static final int FULL = 0xF000F0;
-    /** Alto de una carta de cobbletcg en el espacio del modo FIXED (modelo card_template: 0,85 x escala 2,2). */
-    private static final float FRAME_CARD_H = 1.87f;
+    /** Alto de una carta en el espacio del modo FIXED (modelo card_template de la API: 0,85 x escala 2,2). */
+    private static final float FRAME_CARD_H = dev.masterball.api.client.CardItemRenderer.FIXED_HEIGHT;
 
     private ShopRenderers() {}
 
@@ -139,12 +139,12 @@ public final class ShopRenderers {
         front(vc.get(), m.peek(), -w / 2, -h / 2, w / 2, h / 2, 0, 0xFFFFFFFF, light, overlay);
     }
 
-    /** Carta de cobbletcg dibujada exactamente como en un marco (modo FIXED), centrada y de `h` bloques de alto. */
+    /** Carta dibujada exactamente como en un marco (modo FIXED), centrada y de `h` bloques de alto. */
     public static void frameCard(ItemStack st, MatrixStack m, VertexConsumerProvider vcp, int light, int overlay, float h) {
         MinecraftClient mc = MinecraftClient.getInstance();
         float k = h / FRAME_CARD_H;
         m.push();
-        m.translate(0, -0.025f * k, 0.025f * k); // el modelo de cobbletcg deja la carta 0,025 arriba y delante del centro
+        m.translate(0, -0.025f * k, 0.025f * k); // el modelo card_template deja la carta 0,025 arriba y delante del centro
         m.scale(k, k, k);
         mc.getItemRenderer().renderItem(st, ModelTransformationMode.FIXED, light, OverlayTexture.DEFAULT_UV, m, vcp, mc.world, 0);
         m.pop();
@@ -302,7 +302,7 @@ public final class ShopRenderers {
         // --- textos: "36 SOBRES" en la faja y el nombre del set en los laterales de la tapa
         TextRenderer tr = MinecraftClient.getInstance().textRenderer;
         if (a.lid < 0.05f) {
-            Text name = Text.translatable("tcgshop.set." + set).formatted(Formatting.BOLD);
+            Text name = Text.translatable("masterball.set." + set).formatted(Formatting.BOLD);
             float s = Math.min(0.0055f * h / 0.6f, (d * 0.92f) / Math.max(1, tr.getWidth(name)));
             m.push();
             m.translate(x1 + ov + 0.002f, lidY + (h - lidY) * 0.32f, 0.5f);

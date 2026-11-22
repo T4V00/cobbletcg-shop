@@ -1,0 +1,58 @@
+{
+  "_comment": "#34 Butterfree primaveral: revolotea por la tienda y atrae a algun coleccionista mas. De dia, despejado y con flores.",
+  "category": "positive",
+  "tier": "uncommon",
+  "template": "butterfree",
+  "duration": {
+    "ticks": [
+      5000,
+      8000
+    ]
+  },
+  "conditions": {
+    "time": [
+      1000,
+      11000
+    ],
+    "weather": [
+      "clear"
+    ],
+    "biomes": [
+      "minecraft:flower_forest",
+      "minecraft:meadow",
+      "minecraft:sunflower_plains",
+      "minecraft:plains",
+      "minecraft:cherry_grove",
+      "#minecraft:is_forest"
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "butterfree",
+      "level": [
+        10,
+        20
+      ],
+      "behaviour": "wander",
+      "pet": true,
+      "particles": "spore"
+    },
+    {
+      "type": "modifier",
+      "typeW": {
+        "whale": 1.5
+      }
+    }
+  ],
+  "review": {
+    "tag": "pkmn_cute",
+    "chance": 0.3,
+    "mood": 1
+  },
+  "notify": {
+    "lines": "act_butterfree",
+    "count": 6,
+    "chance": 0.3
+  }
+}

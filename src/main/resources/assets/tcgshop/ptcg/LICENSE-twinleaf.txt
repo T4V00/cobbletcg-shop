@@ -1,4 +1,4 @@
-CobbleTCG Shop incluye el motor de juego de Pokémon TCG de twinleaf.gg (https://github.com/twinleafgg/twinleafgg),
+MasterBall Traders Co. incluye el motor de juego de Pokémon TCG de twinleaf.gg (https://github.com/twinleafgg/twinleafgg),
 basado en ryuu-play (https://github.com/keeshii/ryuu-play), ambos publicados bajo licencia MIT, y textos de su cliente.
 
 The MIT License (MIT)

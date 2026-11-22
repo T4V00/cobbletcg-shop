@@ -1,0 +1,50 @@
+{
+  "_comment": "#98 Tropius frutal: si le acaricias suelta algo de fruta, y si le das una baya, alguna baya mas (pocas, una vez). Climas calidos.",
+  "category": "positive",
+  "tier": "rare",
+  "template": "tropius",
+  "duration": {
+    "ticks": [
+      6000,
+      9000
+    ]
+  },
+  "conditions": {
+    "minTemp": 0.8,
+    "requires": [
+      "door"
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "tropius",
+      "level": [
+        15,
+        30
+      ],
+      "behaviour": "outside",
+      "pet": true,
+      "feed": true,
+      "particles": "leaf",
+      "reward": {
+        "onPet": {
+          "loot": "tcgshop:events/fruit"
+        },
+        "onFeed": {
+          "loot": "tcgshop:events/berries"
+        }
+      }
+    }
+  ],
+  "review": {
+    "tag": "pkmn_rare",
+    "chance": 0.35,
+    "mood": 1
+  },
+  "notify": {
+    "lines": "act_tropius",
+    "count": 6,
+    "chance": 0.3
+  }
+}

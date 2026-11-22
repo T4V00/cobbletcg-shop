@@ -1,6 +1,6 @@
 package dev.tcgshop.client.screen;
 
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.client.binder.Catalog;
 import dev.tcgshop.client.binder.ClientCollection;
 import dev.tcgshop.client.binder.Ui;
@@ -96,7 +96,7 @@ public class BinderMarketScreen extends Screen {
             Catalog.Card c = Catalog.card(e.getKey());
             if (c == null) continue;
             if (setIdx >= 0 && setIdx < sets.size() && !sets.get(setIdx).id().equals(c.set())) continue;
-            if (rarityIdx >= 0 && c.rarity() != Rarity.values()[rarityIdx]) continue;
+            if (rarityIdx >= 0 && c.rarity().family != Rarity.Family.values()[rarityIdx]) continue;
             if (onlyFav && !fav.contains(c.key())) continue;
             if (qtyBand == 1 && e.getValue() < 2) continue;
             if (qtyBand == 2 && e.getValue() < 5) continue;
@@ -150,8 +150,8 @@ public class BinderMarketScreen extends Screen {
         List<Catalog.CardSet> sets = Catalog.sets();
         Text setLabel = setIdx < 0 ? Text.translatable("tcgshop.bm2.f_all_sets") : sets.get(setIdx).name();
         fx = chip(ctx, fx, fy, Text.translatable("tcgshop.bm2.f_set", setLabel), mx, my, () -> setIdx = setIdx + 1 >= sets.size() ? -1 : setIdx + 1, () -> setIdx = setIdx - 1 < -1 ? sets.size() - 1 : setIdx - 1);
-        Text rl = rarityIdx < 0 ? Text.translatable("tcgshop.bm2.f_all") : Rarity.values()[rarityIdx].displayName();
-        fx = chip(ctx, fx, fy, Text.translatable("tcgshop.bm2.f_rarity", rl), mx, my, () -> rarityIdx = rarityIdx + 1 >= Rarity.values().length ? -1 : rarityIdx + 1, () -> rarityIdx = rarityIdx - 1 < -1 ? Rarity.values().length - 1 : rarityIdx - 1);
+        Text rl = rarityIdx < 0 ? Text.translatable("tcgshop.bm2.f_all") : Rarity.Family.values()[rarityIdx].displayName();
+        fx = chip(ctx, fx, fy, Text.translatable("tcgshop.bm2.f_rarity", rl), mx, my, () -> rarityIdx = rarityIdx + 1 >= Rarity.Family.values().length ? -1 : rarityIdx + 1, () -> rarityIdx = rarityIdx - 1 < -1 ? Rarity.Family.values().length - 1 : rarityIdx - 1);
         fx = chip(ctx, fx, fy, Text.translatable("tcgshop.bm2.f_value", Text.translatable("tcgshop.bm2.band." + BAND_KEYS[valueBand])), mx, my, () -> valueBand = (valueBand + 1) % BANDS.length, () -> valueBand = (valueBand + BANDS.length - 1) % BANDS.length);
         fx = chip(ctx, fx, fy, Text.translatable("tcgshop.bm2.f_qty", Text.translatable("tcgshop.bm2.qty." + qtyBand)), mx, my, () -> qtyBand = (qtyBand + 1) % 3, () -> qtyBand = (qtyBand + 2) % 3);
         fx = chip(ctx, fx, fy, Text.translatable("tcgshop.bm2.sort." + sort), mx, my, () -> sort = (sort + 1) % 4, () -> sort = (sort + 3) % 4);
@@ -186,7 +186,7 @@ public class BinderMarketScreen extends Screen {
             }
             String name = Ui.ellipsis(r.card.stack().getName().getString(), colQty - x - 150);
             ctx.drawText(textRenderer, name, x + 32, y + 4, r.card.rarity().color | 0xFF000000, false);
-            ctx.drawText(textRenderer, Ui.ellipsis(Text.translatable("tcgshop.set." + r.card.set()).getString(), 110), colQty - 118, y + 4, 0xFF8A90A8, false);
+            ctx.drawText(textRenderer, Ui.ellipsis(Text.translatable("masterball.set." + r.card.set()).getString(), 110), colQty - 118, y + 4, 0xFF8A90A8, false);
             ctx.drawText(textRenderer, "×" + r.count, colQty, y + 4, r.count > 1 ? 0xFF8BE08B : 0xFFCCCCCC, false);
             ctx.drawText(textRenderer, PriceService.format(r.unit), colUnit, y + 4, Ui.GOLD, false);
             long sellUnit = Math.max(1, Math.round(r.unit * rate()));

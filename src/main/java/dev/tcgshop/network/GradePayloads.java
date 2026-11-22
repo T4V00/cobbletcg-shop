@@ -28,16 +28,36 @@ public final class GradePayloads {
         for (ItemStack st : l) ItemStack.OPTIONAL_PACKET_CODEC.encode(buf, st);
     }
 
-    /** Cliente -> servidor: pedir datos, enviar cartas (huecos del inventario + servicio) o recoger un pedido. */
-    public record Action(int action, int service, List<Integer> slots, int order) implements CustomPayload {
+    /**
+     * Cliente -> servidor: pedir datos, enviar cartas (huecos del inventario + servicio) o recoger un pedido.
+     * {@code expected} va en paralelo a {@code slots}: el id de la carta que el jugador eligió en cada hueco ("" = sin
+     * comprobar), para que el servidor no gradee otra carta si el hueco cambió por el camino.
+     */
+    public record Action(int action, int service, List<Integer> slots, List<String> expected, int order) implements CustomPayload {
         public static final Id<Action> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "grade_action"));
+
+        /** Sin ids esperados (SYNC, COLLECT). */
+        public Action(int action, int service, List<Integer> slots, int order) {
+            this(action, service, slots, List.of(), order);
+        }
+
+        /** Id esperado del hueco i-ésimo ("" si no viene). */
+        public String expectedAt(int i) {
+            return i >= 0 && i < expected.size() ? expected.get(i) : "";
+        }
+
         public static final PacketCodec<RegistryByteBuf, Action> CODEC = new PacketCodec<>() {
             @Override
             public Action decode(RegistryByteBuf buf) {
-                int a = buf.readVarInt(), s = buf.readVarInt(), n = Math.min(64, buf.readVarInt());
-                List<Integer> slots = new ArrayList<>();
-                for (int i = 0; i < n; i++) slots.add(buf.readVarInt());
-                return new Action(a, s, slots, buf.readVarInt());
+                int a = buf.readVarInt(), s = buf.readVarInt(), n = buf.readVarInt();
+                if (n < 0 || n > 64) throw new io.netty.handler.codec.DecoderException("grade_action: demasiados huecos " + n);
+                List<Integer> slots = new ArrayList<>(n);
+                List<String> expected = new ArrayList<>(n);
+                for (int i = 0; i < n; i++) {
+                    slots.add(buf.readVarInt());
+                    expected.add(buf.readString(256));
+                }
+                return new Action(a, s, slots, expected, buf.readVarInt());
             }
 
             @Override
@@ -45,7 +65,10 @@ public final class GradePayloads {
                 buf.writeVarInt(p.action);
                 buf.writeVarInt(p.service);
                 buf.writeVarInt(p.slots.size());
-                for (int s : p.slots) buf.writeVarInt(s);
+                for (int i = 0; i < p.slots.size(); i++) {
+                    buf.writeVarInt(p.slots.get(i));
+                    buf.writeString(p.expectedAt(i), 256);
+                }
                 buf.writeVarInt(p.order);
             }
         };

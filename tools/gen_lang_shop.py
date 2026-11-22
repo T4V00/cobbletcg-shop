@@ -55,9 +55,6 @@ T = {
     "tcgshop.binder.titles": ("Elige tu título", "Choose your title"),
     "tcgshop.binder.no_title": ("Sin título", "No title"),
     "tcgshop.binder.no_titles": ("Saca 5 cartas del mismo Pokémon para conseguir tu primer título.", "Pull 5 cards of the same Pokémon to earn your first title."),
-    "tcgshop.rarity.short.common": ("Común", "Common"), "tcgshop.rarity.short.double_rare": ("Doble", "Double"),
-    "tcgshop.rarity.short.ultra_rare": ("Ultra", "Ultra"), "tcgshop.rarity.short.illustration_rare": ("Ilustr.", "Illus."),
-    "tcgshop.rarity.short.special_illustration_rare": ("Ilustr. esp.", "Sp. illus."), "tcgshop.rarity.short.hyper_rare": ("Hiper", "Hyper"),
 
     # personal binder
     "tcgshop.personal.tab_mine": ("Mis cartas", "My cards"),

@@ -1,0 +1,29 @@
+{
+  "_comment": "#45 (+50 cliente agradecido) vuelve un habitual de buen humor",
+  "category": "positive",
+  "tier": "common",
+  "template": "returning",
+  "duration": {
+    "ticks": [
+      6000,
+      8000
+    ]
+  },
+  "conditions": {
+    "minRegulars": 1
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "REGULAR",
+      "regular": true,
+      "moodStart": 2,
+      "buyMult": 1.15,
+      "lines": "returning",
+      "linesCount": 6
+    }
+  ],
+  "notify": {
+    "toast": false
+  }
+}

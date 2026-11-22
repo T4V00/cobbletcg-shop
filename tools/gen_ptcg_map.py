@@ -5,7 +5,7 @@ Entrada: engine/twinleaf_cards.json (lo exporta el motor) y el lang en_us de cob
 Salida: src/main/resources/data/tcgshop/tcgshop_ptcg/cards.json -> {"cobbletcg:<set>/cards/<id>": "<fullName del motor>"}
 Reglas: mismo código de set y número; si no (rarezas secretas con otro número), mismo nombre dentro del set;
 los Entrenadores y Energías también valen por nombre en cualquier set (son reimpresiones con el mismo efecto).
-Uso: python tools/gen_ptcg_map.py <cobbletcg.jar>
+Uso: python tools/gen_ptcg_map.py   (cartas: catálogo de ../masterball-api)
 """
 import json
 import re
@@ -36,17 +36,12 @@ def main():
         by_name_any[norm(c["n"])].append(c)
     codes = set(c["s"] for c in tl)
 
-    z = zipfile.ZipFile(sys.argv[1])
-    lang = json.loads(z.read("assets/cobbletcg/lang/en_us.json"))
-    cards = defaultdict(list)  # set cobbletcg -> [(id, code, num, name)]
-    for k, v in lang.items():
-        m = re.match(r"item\.cobbletcg\.([^.]+)\.cards\.(.+)$", k)
-        if not m:
-            continue
-        mm = re.match(r"^\s*([A-Z0-9]+)\s+(\d+)\s+(.*?)\s*$", v)
-        if not mm:
-            continue
-        cards[m.group(1)].append((f"cobbletcg:{m.group(1)}/cards/{m.group(2)}", mm.group(1), mm.group(2).lstrip("0"), mm.group(3)))
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from fetch_prices import load_cards  # catálogo de MasterBall Traders API
+    cards = defaultdict(list)  # set -> [(id, código, número, nombre)]
+    for c in load_cards():
+        if c["num"] > 0 and not c["promo"]:
+            cards[c["set"]].append((c["id"], c["code"], str(c["num"]), c["name"]))
 
     out, stats = {}, {}
     for cset, lst in cards.items():
@@ -74,6 +69,8 @@ def main():
         stats[cset] = (tcode, ok, len(lst))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(out, indent=0, sort_keys=True), encoding="utf-8")
+    # copia para el cliente (pantalla de duelo), idéntica
+    (ROOT / "src/main/resources/assets/tcgshop/ptcg/cards.json").write_text(json.dumps(out, indent=0, sort_keys=True), encoding="utf-8")
     total = sum(v[2] for v in stats.values())
     for k, (code, ok, n) in sorted(stats.items(), key=lambda x: x[1][1] / max(1, x[1][2])):
         print(f"{k:22s} -> {code:4s} {ok:4d}/{n:4d}")

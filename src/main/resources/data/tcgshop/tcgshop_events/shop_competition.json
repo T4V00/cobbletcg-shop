@@ -1,0 +1,19 @@
+{
+  "_comment": "#105 comparativa de tiendas: si eres la mejor valorada (o rep >= 60 jugando solo), buena fama",
+  "category": "neutral",
+  "tier": "rare",
+  "template": "contest",
+  "duration": 600,
+  "effects": [
+    {
+      "type": "reward",
+      "rank": "rep",
+      "rankMinRep": 60,
+      "charity": 3,
+      "money": [
+        1000,
+        2500
+      ]
+    }
+  ]
+}

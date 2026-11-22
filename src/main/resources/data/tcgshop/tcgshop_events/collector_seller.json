@@ -1,0 +1,30 @@
+{
+  "_comment": "#113 coleccionista que vende cartas (nunca por debajo del mercado)",
+  "category": "neutral",
+  "tier": "rare",
+  "template": "seller",
+  "duration": {
+    "ticks": [
+      6000,
+      8000
+    ]
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "SELLER",
+      "fairSeller": true,
+      "count": 2,
+      "gap": [
+        200,
+        600
+      ],
+      "title": "tcgshop.role.ev_seller_collector",
+      "lines": "seller_collector",
+      "linesCount": 6
+    }
+  ],
+  "notify": {
+    "toast": false
+  }
+}

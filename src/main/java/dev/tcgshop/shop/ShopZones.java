@@ -1,5 +1,6 @@
 package dev.tcgshop.shop;
 
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.registry.RegistryWrapper;
@@ -33,6 +34,12 @@ public class ShopZones extends PersistentState {
             c.putString("k", key);
             c.putLong("d", day);
             return c;
+        }
+
+        /** Frase completa de la reseña (1120 variantes por estrellas y motivo, tools/gen_lang_reviews.py); fija por cliente y día. */
+        public String textKey() {
+            int n = Math.floorMod((name + "#" + day + "#" + key).hashCode(), 8);
+            return "tcgshop.reviewtext." + key + "." + Math.max(1, Math.min(5, stars)) + "." + n;
         }
 
         public static Review fromNbt(NbtCompound c) {
@@ -79,10 +86,87 @@ public class ShopZones extends PersistentState {
         public long rejectDay = -1, infamyDay = -1;
         /** Lo que han notado los clientes del entorno en el último cálculo (no se guarda): no_roof, dark, hostile... */
         public final java.util.Set<String> flags = new java.util.HashSet<>();
+        /**
+         * Reputación con decimales (sube despacio, baja deprisa). -1 = aún no calculada (mundos antiguos: se toma
+         * {@link #reputation}). {@link #reputation} es siempre su valor redondeado.
+         */
+        public double repExact = -1;
+        /** Último objetivo y techo de reputación calculados (no se guardan; los enseña el teléfono vía factors m_target / m_ceiling). */
+        public int repTarget = -1, repCeiling = 100;
+        // ---- 0.9: misiones de la tienda y aforo (ShopMissions)
+        /** Misiones cumplidas (bit i = ShopMissions.Mission i). -1 = aún sin calcular (mundos antiguos: flujo normal). */
+        public int missions = -1;
+        /** Misiones que se han cumplido alguna vez (para avisar sólo la primera vez, sin spam si una va y viene). */
+        public int missionsEver;
+        /** Asientos (sillas, bancos, sofás de muebles) y mesas de juego de la tienda en el último cálculo. */
+        public int seats, playTables;
+        /** Clientes que se quedaron sin entrar por aforo: hoy y el día anterior (para sugerir mejorar la tienda). */
+        public int overflowToday, overflowPrev;
+        public long overflowDay = -1;
+        /** No se guardan: progreso de cada misión del último cálculo (null = sin calcular) y cuándo se calculó. */
+        public int[] missionProgress;
+        public long lastCalc = -1;
+        /**
+         * No se guarda: lo que suman / restan ahora mismo los eventos de luz y decoración (apagón, Flaaffy...) a la
+         * reputación. Sólo cuenta para la reputación efectiva de los clientes (ShopLife.effectiveRep), nunca para
+         * settleReputation, igual que Mods.repDelta.
+         */
+        public int eventEnvRep;
+        /** 0.9 eventos aleatorios: eventos activos, memoria para reseñas, historial e ingresos por día (ext.events). */
+        public dev.tcgshop.events.ZoneEvents events = new dev.tcgshop.events.ZoneEvents();
+
+        /** Aforo actual: base del nivel + bonus de misiones y asientos. */
+        public int capacity() { return ShopMissions.capacity(this); }
+
+        /** Multiplicador de llegada de clientes por las misiones cumplidas. */
+        public double flow() { return ShopMissions.flow(missions); }
 
         public void addReview(String name, int stars, String key, long day) {
             reviews.add(0, new Review(name, stars, key, day));
             while (reviews.size() > 24) reviews.remove(reviews.size() - 1);
+        }
+
+        /**
+         * Aplica el valor "bruto" de reputación que sale del entorno (ShopLife.recompute) con la economía de la
+         * reputación:
+         *  · rendimientos decrecientes por encima de repSoftCap (los últimos puntos cuestan mucho más),
+         *  · un techo por experiencia (ventas hechas) y por estrellas medias (con 5+ reseñas),
+         *  · sube poco a poco (más despacio cuanto más alta) y baja deprisa.
+         */
+        public void settleReputation(int raw) {
+            dev.tcgshop.EconomyConfig c = dev.tcgshop.EconomyConfig.INSTANCE;
+            int knee = Math.max(0, Math.min(100, c.repSoftCap));
+            double t = Math.max(0, Math.min(100, raw));
+            if (t > knee && knee < 100) t = knee + (100 - knee) * Math.pow((t - knee) / (100.0 - knee), Math.max(1, c.repTopExponent));
+            // techo: hace falta experiencia (ventas) para llegar arriba, y no se puede estar muy alto con malas reseñas
+            double exp = c.repSalesForMax <= 0 ? 1 : Math.min(1, sales / (double) c.repSalesForMax);
+            double ceiling = knee + (100 - knee) * Math.sqrt(exp);
+            if (reviews.size() >= 5) ceiling = Math.min(ceiling, 40 + avgStars() * 12); // 5★ = 100, 4★ = 88, 3★ = 76
+            t = Math.min(t, ceiling);
+            if (repExact < 0) repExact = reputation;
+            double gap = t - repExact;
+            if (gap > 0) {
+                double slow = Math.max(0.15, 1 - repExact / 125.0); // cuanto más alta, más le cuesta
+                double step = Math.min(c.repMaxRisePerUpdate, Math.max(0.05, gap * c.repRiseRate * slow));
+                repExact = Math.min(t, repExact + step);
+            } else if (gap < 0) {
+                // baja deprisa sólo si el objetivo bajo se repite (dos cálculos seguidos); una lectura suelta
+                // (un monstruo que pasa, un cálculo raro) apenas la mueve, para no perder en un minuto lo que cuesta horas
+                boolean confirmed = repTarget >= 0 && repTarget <= Math.round(t) + 2;
+                double rate = confirmed ? c.repFallRate : Math.min(c.repFallRate, 0.05);
+                repExact = Math.max(t, repExact + (confirmed ? Math.min(-0.25, gap * rate) : gap * rate));
+            }
+            repExact = Math.max(0, Math.min(100, repExact));
+            reputation = (int) Math.round(repExact);
+            repTarget = (int) Math.round(t);
+            repCeiling = (int) Math.round(ceiling);
+            factors.put("m_target", repTarget);
+            factors.put("m_ceiling", repCeiling);
+        }
+
+        /** Lo que los clientes están dispuestos a pagar por encima del mercado en esta tienda (0.2 = +20%). */
+        public double premiumFor(ItemStack st) {
+            return repPremium(reputation, isSealed(st));
         }
 
         public double avgStars() {
@@ -126,7 +210,7 @@ public class ShopZones extends PersistentState {
             return p.getX() >= b.minX && p.getX() < b.maxX && p.getY() >= b.minY && p.getY() < b.maxY && p.getZ() >= b.minZ && p.getZ() < b.maxZ;
         }
 
-        NbtCompound write() {
+        public NbtCompound write() {
             NbtCompound c = new NbtCompound();
             c.putUuid("id", id);
             c.putUuid("owner", owner);
@@ -168,11 +252,20 @@ public class ShopZones extends PersistentState {
             x.putBoolean("cashier2", cashier2);
             x.putInt("charity", charity);
             x.putString("cashier2_name", cashier2Name);
+            x.putDouble("rep_exact", repExact);
+            x.putInt("missions", missions);
+            x.putInt("missions_ever", missionsEver);
+            x.putInt("seats", seats);
+            x.putInt("play_tables", playTables);
+            x.putInt("ovf_today", overflowToday);
+            x.putInt("ovf_prev", overflowPrev);
+            x.putLong("ovf_day", overflowDay);
+            x.put("events", events.write());
             c.put("ext", x);
             return c;
         }
 
-        static Zone read(NbtCompound c) {
+        public static Zone read(NbtCompound c) {
             Zone z = new Zone(c.getUuid("id"), c.getUuid("owner"), c.getString("owner_name"), BlockPos.fromLong(c.getLong("core")), c.getInt("tier"));
             z.revenue = c.getLong("revenue");
             z.balance = c.getLong("balance");
@@ -206,8 +299,41 @@ public class ShopZones extends PersistentState {
             z.cashier2 = x.getBoolean("cashier2");
             z.charity = x.getInt("charity");
             z.cashier2Name = x.getString("cashier2_name");
+            z.repExact = x.contains("rep_exact") ? x.getDouble("rep_exact") : -1;
+            z.missions = x.contains("missions") ? x.getInt("missions") : -1;
+            z.missionsEver = x.getInt("missions_ever");
+            z.seats = x.getInt("seats");
+            z.playTables = x.getInt("play_tables");
+            z.overflowToday = x.getInt("ovf_today");
+            z.overflowPrev = x.getInt("ovf_prev");
+            z.overflowDay = x.contains("ovf_day") ? x.getLong("ovf_day") : -1;
+            z.events = dev.tcgshop.events.ZoneEvents.read(x.getCompound("events"));
             return z;
         }
+    }
+
+    // ------------------------------------------------------------------ economía de la reputación
+
+    /**
+     * Sobreprecio que aceptan los clientes según la reputación de la tienda (configurable en tcgshop-economy.json):
+     * nada hasta repPremiumStart, luego crece con la curva repPremiumCurve hasta repPremiumMax a 100. Sobres y cajas
+     * (repPremiumSealedBonus) se pagan aún mejor en una tienda famosa. Por debajo de repPenaltyBelow es negativo:
+     * en una tienda de mala fama quieren precios por debajo del mercado. Común a cliente y servidor (el cliente
+     * tiene EconomyConfig sincronizado), así la ventana de trato puede enseñarlo.
+     */
+    public static double repPremium(int rep, boolean sealed) {
+        dev.tcgshop.EconomyConfig c = dev.tcgshop.EconomyConfig.INSTANCE;
+        if (rep < c.repPenaltyBelow && c.repPenaltyBelow > 0)
+            return -c.repPenaltyMax * (c.repPenaltyBelow - rep) / (double) c.repPenaltyBelow;
+        if (rep <= c.repPremiumStart || c.repPremiumMax <= 0) return 0;
+        double x = Math.min(1, (rep - c.repPremiumStart) / (double) Math.max(1, 100 - c.repPremiumStart));
+        double p = c.repPremiumMax * Math.pow(x, Math.max(0.1, c.repPremiumCurve));
+        return sealed ? p * Math.max(0, c.repPremiumSealedBonus) : p;
+    }
+
+    /** Sobres, cajas y Mystery Box (los productos "sellados"). */
+    public static boolean isSealed(ItemStack st) {
+        return dev.masterball.api.card.CardInfo.isPack(st) || st.isOf(TcgBlocks.BOOSTER_BOX_ITEM) || st.isOf(TcgBlocks.MYSTERY_BOX);
     }
 
     public static Box boxFor(BlockPos core, ShopTier t) {

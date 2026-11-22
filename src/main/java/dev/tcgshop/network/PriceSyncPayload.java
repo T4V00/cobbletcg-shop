@@ -15,7 +15,7 @@ import java.util.Map;
  * (~7.700 cartas ≈ 300 KB; se envía una sola vez, el cambio de día va en MarketDayPayload).
  */
 public record PriceSyncPayload(Map<String, Double> cardsUsd, Map<String, Double> sealedUsd, Map<String, Double> rarityMedianUsd,
-                               Market market, String economy) implements CustomPayload {
+                               Map<String, Double> gradedUsd, Market market, String economy) implements CustomPayload {
     public static final Id<PriceSyncPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "price_sync"));
 
     public record Market(double cdPerUsd, long seed, double volatility, long day) {
@@ -34,6 +34,7 @@ public record PriceSyncPayload(Map<String, Double> cardsUsd, Map<String, Double>
             MAP, PriceSyncPayload::cardsUsd,
             MAP, PriceSyncPayload::sealedUsd,
             MAP, PriceSyncPayload::rarityMedianUsd,
+            MAP, PriceSyncPayload::gradedUsd,
             Market.CODEC, PriceSyncPayload::market,
             PacketCodecs.string(262_144), PriceSyncPayload::economy,
             PriceSyncPayload::new);

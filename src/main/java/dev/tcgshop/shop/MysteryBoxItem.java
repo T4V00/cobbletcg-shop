@@ -1,8 +1,8 @@
 package dev.tcgshop.shop;
 
 import dev.tcgshop.TcgSounds;
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -44,8 +44,8 @@ public class MysteryBoxItem extends Item {
             if (id.getPath().contains("/sealed_")) { if (!PackLock.locked(id)) sealed.add(it); }
             else if (CardInfo.isCard(id)) {
                 Rarity rar = Rarity.of(new ItemStack(it));
-                if (rar == Rarity.HYPER_RARE || rar == Rarity.SPECIAL_ILLUSTRATION_RARE) hypers.add(it);
-                else if (rar == Rarity.ULTRA_RARE || rar == Rarity.ILLUSTRATION_RARE) rares.add(it);
+                if (rar.family == Rarity.Family.HYPER_RARE || rar.family == Rarity.Family.SPECIAL_ILLUSTRATION_RARE) hypers.add(it);
+                else if (rar.family == Rarity.Family.ULTRA_RARE || rar.family == Rarity.Family.ILLUSTRATION_RARE) rares.add(it);
             }
         }
         float f = r.nextFloat();

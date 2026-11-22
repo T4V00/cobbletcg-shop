@@ -1,0 +1,69 @@
+{
+  "_comment": "#6 Geodude revoltoso: escombros junto a los expositores y la decoracion cuenta menos hasta arreglarlo. Zonas de montana o piedra.",
+  "category": "negative",
+  "tier": "uncommon",
+  "template": "geodude",
+  "duration": {
+    "ticks": [
+      6000,
+      9000
+    ]
+  },
+  "conditions": {
+    "biomes": [
+      "#minecraft:is_mountain",
+      "#minecraft:is_hill",
+      "minecraft:stony_shore",
+      "minecraft:windswept_hills",
+      "minecraft:windswept_gravelly_hills",
+      "minecraft:windswept_forest",
+      "minecraft:stony_peaks",
+      "minecraft:dripstone_caves",
+      "#minecraft:is_badlands"
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "geodude",
+      "level": [
+        8,
+        20
+      ],
+      "behaviour": "wander",
+      "resolve": [
+        "shoo",
+        "feed",
+        "battle"
+      ],
+      "shooHits": 4,
+      "particles": "dust",
+      "reviewTag": "pkmn_geodude"
+    },
+    {
+      "type": "incident",
+      "kind": "debris",
+      "count": [
+        2,
+        3
+      ],
+      "near": "display"
+    },
+    {
+      "type": "modifier",
+      "decorDelta": -4,
+      "while": "unresolved"
+    }
+  ],
+  "review": {
+    "tag": "broken",
+    "chance": 0.5,
+    "mood": -1,
+    "fixedChance": 0.3
+  },
+  "notify": {
+    "lines": "act_geodude",
+    "count": 6,
+    "chance": 0.3
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "_comment": "#21 cliente muy exigente",
+  "category": "negative",
+  "tier": "common",
+  "template": "demanding",
+  "duration": {
+    "ticks": [
+      6000,
+      8000
+    ]
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "PICKY",
+      "moodStart": -1,
+      "patienceMult": 0.7,
+      "resolveOnVisit": true,
+      "minStars": 3,
+      "title": "tcgshop.role.ev_demanding",
+      "lines": "demanding",
+      "linesCount": 6
+    }
+  ]
+}

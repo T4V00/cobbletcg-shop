@@ -1,0 +1,80 @@
+# -*- coding: utf-8 -*-
+"""Textos de la tienda de muebles (CobbleFurnies + peluches) y del Vendedor de muebles.
+
+Actualiza/inserta las claves en es_es.json y en_us.json (no borra nada).
+Las frases del NPC (tcgshop.npc.furn_*) las genera otro script.
+"""
+import json
+import os
+
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "main", "resources", "assets", "tcgshop", "lang")
+
+KEYS = {
+    # entidad / rol / huevo / app
+    "entity.tcgshop.furniture_seller": ("Vendedor de muebles", "Furniture Seller"),
+    "item.tcgshop.furniture_seller_spawn_egg": ("Huevo generador de Vendedor de muebles", "Furniture Seller Spawn Egg"),
+    "tcgshop.role.furniture_seller": ("Vendedor de muebles", "Furniture Seller"),
+    "tcgshop.phone.furniture": ("Muebles", "Furniture"),
+    "tcgshop.furn.tab": ("Muebles", "Furniture"),
+    "tcgshop.furn.subtitle": ("Muebles para tu tienda y peluches Pokémon", "Furniture for your shop and Pokémon plushies"),
+    "tcgshop.furn.arrived": ("¡Un Vendedor de muebles ha llegado a tu tienda! Trae muebles y peluches.",
+                             "A Furniture Seller has arrived at your shop! They bring furniture and plushies."),
+    # estados
+    "tcgshop.furn.loading": ("Cargando catálogo", "Loading catalog"),
+    "tcgshop.furn.unavailable": ("No hay muebles disponibles (hace falta CobbleFurnies o Pokéblocks).",
+                                 "No furniture available (CobbleFurnies or Pokéblocks required)."),
+    "tcgshop.furn.empty": ("No hay nada que coincida.", "Nothing matches."),
+    "tcgshop.furn.nothing_to_sell": ("No llevas muebles ni peluches que vender.", "You carry no furniture or plushies to sell."),
+    # cabecera
+    "tcgshop.furn.mode_buy": ("Comprar", "Buy"),
+    "tcgshop.furn.mode_sell": ("Vender", "Sell"),
+    "tcgshop.furn.balance": ("Saldo: %s", "Balance: %s"),
+    "tcgshop.furn.found": ("%s artículos", "%s items"),
+    # detalle
+    "tcgshop.furn.hint_buy": ("Elige un mueble para comprarlo", "Pick a piece of furniture to buy it"),
+    "tcgshop.furn.hint_sell": ("Elige qué vender (te pagan menos de lo que cuesta)", "Pick what to sell (you get less than it costs)"),
+    "tcgshop.furn.unit": ("Unidad: %s", "Each: %s"),
+    "tcgshop.furn.owned": ("Tienes: %s", "Owned: %s"),
+    "tcgshop.furn.all": ("Todo", "All"),
+    "tcgshop.furn.shift_hint": ("Mayús + clic: de 10 en 10", "Shift + click: 10 at a time"),
+    "tcgshop.furn.buy_btn": ("Comprar · %s", "Buy · %s"),
+    "tcgshop.furn.sell_btn": ("Vender · %s", "Sell · %s"),
+    "tcgshop.furn.confirm": ("¿Seguro? · %s", "Sure? · %s"),
+    "tcgshop.furn.cant_afford": ("No te alcanza el dinero", "You can't afford it"),
+    "tcgshop.furn.tip_buy": ("Comprar: %s", "Buy: %s"),
+    "tcgshop.furn.tip_sell": ("Te dan: %s", "Sells for: %s"),
+    # mensajes del servidor
+    "tcgshop.furn.bought": ("Compraste %sx %s por %s", "You bought %sx %s for %s"),
+    "tcgshop.furn.sold": ("Vendiste %sx %s por %s", "You sold %sx %s for %s"),
+    "tcgshop.furn.none_to_sell": ("No llevas ese objeto en el inventario.", "You don't have that item in your inventory."),
+    # categorías
+    "tcgshop.furn.cat.all": ("Todo", "All"),
+    "tcgshop.furn.cat.seating": ("Asientos", "Seating"),
+    "tcgshop.furn.cat.tables": ("Mesas", "Tables"),
+    "tcgshop.furn.cat.kitchen": ("Cocina", "Kitchen"),
+    "tcgshop.furn.cat.storage": ("Armarios", "Storage"),
+    "tcgshop.furn.cat.lighting": ("Lámparas", "Lighting"),
+    "tcgshop.furn.cat.textiles": ("Textiles", "Textiles"),
+    "tcgshop.furn.cat.building": ("Suelos y paredes", "Floors & walls"),
+    "tcgshop.furn.cat.plants": ("Plantas", "Plants"),
+    "tcgshop.furn.cat.bathroom": ("Baño", "Bathroom"),
+    "tcgshop.furn.cat.decor": ("Decoración", "Decor"),
+    "tcgshop.furn.cat.plush": ("Peluches", "Plushies"),
+    "tcgshop.furn.cat.other": ("Otros", "Other"),
+}
+
+
+def update(name, idx):
+    path = os.path.join(ROOT, name)
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    for k, v in KEYS.items():
+        data[k] = v[idx]
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+    print(f"{name}: {len(KEYS)} claves")
+
+
+if __name__ == "__main__":
+    update("es_es.json", 0)
+    update("en_us.json", 1)

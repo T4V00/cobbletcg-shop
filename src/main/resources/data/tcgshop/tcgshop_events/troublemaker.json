@@ -1,0 +1,32 @@
+{
+  "_comment": "#24 (+27) cliente problemático: lo calma el dueño (clic derecho) o el guardia",
+  "category": "negative",
+  "tier": "uncommon",
+  "template": "troublemaker",
+  "duration": {
+    "ticks": [
+      6000,
+      8000
+    ]
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "HAGGLER",
+      "troublemaker": true,
+      "moodStart": -2,
+      "title": "tcgshop.role.ev_troublemaker",
+      "lines": "rude",
+      "linesCount": 8
+    },
+    {
+      "type": "modifier",
+      "moodStart": -1
+    }
+  ],
+  "review": {
+    "tag": "rude",
+    "chance": 0.5,
+    "mood": -1
+  }
+}

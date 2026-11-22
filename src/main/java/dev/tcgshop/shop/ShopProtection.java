@@ -19,7 +19,6 @@ import net.minecraft.util.math.BlockPos;
  * Protección de las zonas de tienda (en X, Y y Z):
  *  · Sólo el dueño puede romper o colocar bloques dentro de su zona (y abrir cofres ajenos no está permitido).
  *  · Los muebles de tienda sólo se pueden colocar dentro de una zona de tienda TUYA.
- *  · El ATM de cobbletcg queda desactivado: ahora todos los sobres se compran con Pokédólares.
  */
 public final class ShopProtection {
     private ShopProtection() {}
@@ -40,12 +39,7 @@ public final class ShopProtection {
         });
 
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
-            // ATM de cobbletcg desactivado (sin PokéCoins): los sobres se compran al Mayorista o con el teléfono
             BlockPos target = hit.getBlockPos();
-            if (Registries.BLOCK.getId(world.getBlockState(target).getBlock()).toString().equals("cobbletcg:atm")) {
-                if (!world.isClient) player.sendMessage(Text.translatable("tcgshop.shop.atm_disabled").formatted(Formatting.YELLOW), true);
-                return ActionResult.FAIL;
-            }
             if (!(world instanceof ServerWorld sw) || bypass(player)) return ActionResult.PASS;
             ShopZones zones = ShopZones.get(sw);
             ItemStack held = player.getStackInHand(hand);

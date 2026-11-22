@@ -1,0 +1,36 @@
+{
+  "_comment": "#43 familia de compradores (gastan poco, prefieren sobres)",
+  "category": "positive",
+  "tier": "common",
+  "template": "family",
+  "duration": {
+    "ticks": [
+      6000,
+      8000
+    ]
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "REGULAR",
+      "count": 3,
+      "gap": [
+        10,
+        40
+      ],
+      "buyMult": 0.6,
+      "filter": "packs",
+      "moodStart": 1,
+      "lines": "family",
+      "linesCount": 6
+    }
+  ],
+  "review": {
+    "tag": "fun_event",
+    "chance": 0.15,
+    "mood": 1
+  },
+  "notify": {
+    "toast": false
+  }
+}

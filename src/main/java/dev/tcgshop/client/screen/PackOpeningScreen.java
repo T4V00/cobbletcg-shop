@@ -1,8 +1,8 @@
 package dev.tcgshop.client.screen;
 
 import dev.tcgshop.TcgSounds;
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.network.GroupCutPayload;
 import dev.tcgshop.network.GroupReadyPayload;
 import dev.tcgshop.network.GroupRevealPayload;
@@ -206,6 +206,8 @@ public class PackOpeningScreen extends Screen {
         if (maxTier >= 2) play(TcgSounds.CARD_ANTICIPATE, maxTier == 3 ? 0.6f : 0.8f, 1f);
     }
 
+    private boolean variantsToInventory;
+
     public void onGroupReveal(GroupRevealPayload p) {
         for (int i = 0; i < packs.size() && i < p.cards().size(); i++) {
             PackState s = packs.get(i);
@@ -220,6 +222,10 @@ public class PackOpeningScreen extends Screen {
             s.damaged = p.damaged().get(i);
         }
         toBinder = p.toBinder();
+        variantsToInventory = false; // las variantes (reverse, 1ª edición...) no van al Binder sino al inventario
+        for (int i = 0; i < p.cards().size(); i++)
+            if (!(i < p.damaged().size() && p.damaged().get(i)))
+                for (ItemStack c : p.cards().get(i)) variantsToInventory |= dev.masterball.api.card.PrintVariant.isSpecial(c);
         revealReceived = true;
     }
 
@@ -670,7 +676,8 @@ public class PackOpeningScreen extends Screen {
         }
         scaledCentered(ctx, Text.translatable(packs.size() > 1 ? "tcgshop.open.summary_group" : "tcgshop.open.summary", packs.size()), width / 2f, 14, 1.5f, 0xFFFFFFFF);
         scaledCentered(ctx, Text.translatable("tcgshop.open.total", PriceService.format(total)), width / 2f, 32, 1.2f, 0xFFFFD34D);
-        if (toBinder) ctx.drawCenteredTextWithShadow(textRenderer, Text.translatable("tcgshop.open.to_binder"), width / 2, 46, 0xFF8BE08B);
+        if (toBinder) ctx.drawCenteredTextWithShadow(textRenderer, Text.translatable(variantsToInventory ? "tcgshop.open.to_binder_variants" : "tcgshop.open.to_binder"),
+                width / 2, 46, 0xFF8BE08B);
 
         // filas: una por sobre
         List<PackState> shown = new ArrayList<>();

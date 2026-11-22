@@ -1,8 +1,8 @@
 package dev.tcgshop.trade;
 
 import dev.tcgshop.advancement.CardAdvancements;
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.network.TradePayloads;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.item.ItemStack;
@@ -140,7 +140,7 @@ public final class TradeManager {
         if (s == null) return;
         if (!confirm) { cancel(p.getServer(), s, "tcgshop.trade.cancelled_by", p.getGameProfile().getName()); return; }
         if (s.offerA.isEmpty() || s.offerB.isEmpty()) { sendState(p, s, "tcgshop.trade.need_both"); return; }
-        if (Rarity.of(s.offerA) != Rarity.of(s.offerB)) { sendState(p, s, "tcgshop.trade.same_rarity"); return; }
+        if (Rarity.of(s.offerA).family != Rarity.of(s.offerB).family) { sendState(p, s, "tcgshop.trade.same_rarity"); return; }
         if (s.isA(p.getUuid())) s.okA = true; else s.okB = true;
         if (s.okA && s.okB) execute(p.getServer(), s);
         else sync(p.getServer(), s, "");
@@ -150,14 +150,16 @@ public final class TradeManager {
         var inv = p.getInventory();
         if (hint >= 0 && hint < 36 && ItemStack.areItemsAndComponentsEqual(inv.getStack(hint), want)) return hint;
         for (int i = 0; i < 36; i++) if (ItemStack.areItemsAndComponentsEqual(inv.getStack(i), want)) return i;
-        return dev.tcgshop.collection.BinderSlots.findInBinder(p, want); // también desde el Binder
+        // también desde el Binder, que sólo guarda copias estándar: una variante (reverse, 1ª edición...) tiene que estar en el inventario
+        if (dev.masterball.api.card.PrintVariant.isSpecial(want)) return -1;
+        return dev.tcgshop.collection.BinderSlots.findInBinder(p, want);
     }
 
     private static void execute(MinecraftServer server, Session s) {
         ServerPlayerEntity a = server.getPlayerManager().getPlayer(s.a), b = server.getPlayerManager().getPlayer(s.b);
         if (a == null || b == null) { cancel(server, s, "tcgshop.trade.left", ""); return; }
         int ia = find(a, s.offerA, s.slotA), ib = find(b, s.offerB, s.slotB);
-        if (ia < 0 || ib < 0 || !tradeable(s.offerA) || !tradeable(s.offerB) || Rarity.of(s.offerA) != Rarity.of(s.offerB)) {
+        if (ia < 0 || ib < 0 || !tradeable(s.offerA) || !tradeable(s.offerB) || Rarity.of(s.offerA).family != Rarity.of(s.offerB).family) {
             if (ia < 0) { s.offerA = ItemStack.EMPTY; s.slotA = -1; }
             if (ib < 0) { s.offerB = ItemStack.EMPTY; s.slotB = -1; }
             s.okA = s.okB = false;

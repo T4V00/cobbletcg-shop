@@ -1,6 +1,6 @@
 package dev.tcgshop.client.screen;
 
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.client.ShopClient;
 import dev.tcgshop.client.binder.Catalog;
 import dev.tcgshop.client.binder.ClientCollection;
@@ -45,7 +45,7 @@ import static dev.tcgshop.client.screen.Draw.withAlpha;
  *  · Colección (Binder General) · Títulos · Logros.
  */
 public class PhoneScreen extends Screen {
-    private enum App { HOME, MARKET, PRICES, SHOP, TITLES, GRADE, LEAGUE, SELL, FRIENDS, DISPLAYS, SETTINGS }
+    private enum App { HOME, MARKET, PRICES, SHOP, TITLES, GRADE, LEAGUE, SELL, FRIENDS, DISPLAYS, SETTINGS, FURNITURE, UPGRADES }
 
     private record Area(int x, int y, int w, int h, Runnable action) {}
 
@@ -53,7 +53,11 @@ public class PhoneScreen extends Screen {
 
     private static final int SURF = 0xF0171A26, SURF2 = 0xF01F2333, LINE = 0xFF2C3149;
 
-    private final CatalogPanel market;
+    private CatalogPanel market;
+    /** App Mejoras (0.9): niveles del teléfono, compra de mejoras y llamada diaria. */
+    private final dev.tcgshop.client.phone.UpgradesPanel upgrades = new dev.tcgshop.client.phone.UpgradesPanel();
+    /** App bloqueada que se ha intentado abrir (muestra el aviso «Requiere teléfono X») o null. */
+    private String lockedPrompt;
     private final List<Area> areas = new ArrayList<>();
     private final List<AppDef> apps = new ArrayList<>();
     private App app = App.HOME;
@@ -61,18 +65,31 @@ public class PhoneScreen extends Screen {
     private float morphFrom, morphTo;
     private TextFieldWidget search;
     private String priceCard, priceSet = "", shopTab = "summary", gradeTab = "send";
-    private final java.util.Set<Integer> gradeSel = new java.util.LinkedHashSet<>();
-    private int gradeService = 1;
+    /** CobbleGrade · «Enviar cartas»: filtros, selección arrastrando, servicios y valor esperado (ver GradeSendPanel). */
+    private final dev.tcgshop.client.screen.grade.GradeSendPanel gradePanel = new dev.tcgshop.client.screen.grade.GradeSendPanel(() -> {
+        gradeTab = "orders";
+        listScroll = 0;
+    });
     private String leagueTab = "play";
     /** Submenú de Venta rápida: cartas del inventario o del Binder. */
     private String sellTab = "inv";
     private final CosmeticsPanel cosPanel = new CosmeticsPanel();
+    /** App Muebles (CobbleFurnies / peluches) con precios del teléfono (envío a domicilio). */
+    private final FurnitureApp furniture = new FurnitureApp(-1, this);
     private int aiLevel = 1;
     private double lastLeagueSync;
     private final List<String> deckEdit = new ArrayList<>();
     private boolean deckDirty;
+    /** Editor de mazos y ayuda de la Liga TCG (client/screen/league). */
+    private final dev.tcgshop.client.screen.league.DeckBuilderPanel deckPanel = new dev.tcgshop.client.screen.league.DeckBuilderPanel(new dev.tcgshop.client.screen.league.DeckBuilderPanel.Host() {
+        @Override public List<String> deck() { return deckEdit; }
+        @Override public boolean dirty() { return deckDirty; }
+        @Override public void setDirty(boolean dirty) { deckDirty = dirty; }
+        @Override public void send(String action, List<String> deck) { leagueSend(action, deck); }
+    });
+    private final dev.tcgshop.client.screen.league.LeagueHelpPanel leagueHelp = new dev.tcgshop.client.screen.league.LeagueHelpPanel();
 
-    private Rarity priceRarity;
+    private Rarity.Family priceRarity;
     // filtro y orden de precios (app Precios)
     private int priceBand, priceSort;
     private static final long[] BAND_MIN = {0, 0, 1_000, 10_000, 100_000}, BAND_MAX = {Long.MAX_VALUE, 1_000, 10_000, 100_000, Long.MAX_VALUE};
@@ -105,8 +122,34 @@ public class PhoneScreen extends Screen {
         apps.add(new AppDef("sell", 0xFFD9472B, () -> new ItemStack(Items.GOLD_INGOT)));
         apps.add(new AppDef("displays", 0xFF5C6BC0, () -> new ItemStack(TcgBlocks.DISPLAY_CASE_ITEM)));
         apps.add(new AppDef("friends", 0xFF26A69A, () -> new ItemStack(Items.PLAYER_HEAD)));
+        if (FurnitureApp.available()) apps.add(new AppDef("furniture", 0xFF8D6E63, FurnitureApp::icon));
+        apps.add(new AppDef("upgrades", 0xFFB3262E, () -> new ItemStack(TcgItems.TCG_PHONE)));
         apps.add(new AppDef("settings", 0xFF607D8B, () -> new ItemStack(Items.COMPARATOR)));
-        quickSell.price = st -> dev.tcgshop.shop.CardSales.offer(st, dev.tcgshop.shop.CardSales.PHONE_RATE);
+        quickSell.price = st -> dev.tcgshop.shop.CardSales.offer(st, dev.tcgshop.shop.CardSales.PHONE_RATE + dev.tcgshop.client.phone.PhoneClient.sellBonus());
+    }
+
+    /**
+     * El servidor manda el catálogo del teléfono: si el teléfono ya está abierto (p. ej. tras comprar una mejora) se
+     * refresca el Mercado sin cerrar la app actual; si no, se abre.
+     */
+    public static void openOrRefresh(List<ItemStack> goods, List<Long> prices) {
+        var mc = net.minecraft.client.MinecraftClient.getInstance();
+        boolean refreshOnly = refreshOnlyNext;
+        refreshOnlyNext = false;
+        if (mc.currentScreen instanceof PhoneScreen ps) ps.refreshMarket(goods, prices);
+        else if (!refreshOnly) mc.setScreen(new PhoneScreen(goods, prices));
+    }
+
+    /**
+     * El próximo catálogo del teléfono sólo refresca un teléfono ya abierto (lo marca el Sync "refresh" que manda el
+     * servidor tras comprar una mejora): si el jugador lo cerró o abrió otra pantalla, no se le reabre encima.
+     */
+    public static boolean refreshOnlyNext;
+
+    private void refreshMarket(List<ItemStack> goods, List<Long> prices) {
+        CatalogPanel fresh = new CatalogPanel(-1, goods, prices);
+        fresh.copyStateFrom(market);
+        market = fresh;
     }
 
     private long cachedPrice(Catalog.Card c) {
@@ -221,11 +264,17 @@ public class PhoneScreen extends Screen {
             case SHOP -> shopApp(ctx, mouseX, mouseY, t);
             case TITLES -> titlesApp(ctx, mouseX, mouseY);
             case GRADE -> gradeApp(ctx, mouseX, mouseY, t);
-            case LEAGUE -> leagueApp(ctx, mouseX, mouseY, t);
+            case LEAGUE -> {
+                boolean helpOpen = leagueHelp.isOpen(); // con la ayuda abierta, lo de debajo no reacciona al ratón
+                leagueApp(ctx, helpOpen ? -9999 : mouseX, helpOpen ? -9999 : mouseY, t);
+                leagueHelp.render(ctx, lg(), sx, sy, sw, sh, mouseX, mouseY, t);
+            }
             case SELL -> sellApp(ctx, mouseX, mouseY, t);
             case FRIENDS -> friendsApp(ctx, mouseX, mouseY);
             case DISPLAYS -> displaysApp(ctx, mouseX, mouseY);
             case SETTINGS -> settingsApp(ctx, mouseX, mouseY);
+            case FURNITURE -> furnitureApp(ctx, mouseX, mouseY, delta);
+            case UPGRADES -> upgradesApp(ctx, mouseX, mouseY, t);
         }
         ctx.disableScissor();
         if (fade < 1) ctx.fill(sx, sy + 13, sx + sw, sy + sh - 8, withAlpha(0xFF0B0D16, 1 - fade));
@@ -287,6 +336,17 @@ public class PhoneScreen extends Screen {
     // ------------------------------------------------------------------ componentes
 
     private void appIcon(DrawContext ctx, AppDef a, int x, int y, int s, boolean hover) {
+        appIconBase(ctx, a, x, y, s, hover);
+        if (!dev.tcgshop.client.phone.PhoneClient.appUnlocked(a.key)) { // app de un nivel de teléfono superior: gris y con candado
+            int lift = hover ? 2 : 0, r = Math.max(3, s / 4);
+            Ui.rounded(ctx, x, y - lift, s, s, r, 0xB0141620);
+            int ls = Math.max(8, s / 2);
+            dev.tcgshop.client.phone.LockIcon.draw(ctx, x + s / 2 - Math.round(ls * 0.4f), y + s / 2 - ls / 2 - lift, ls,
+                    dev.tcgshop.phone.PhoneTier.of(dev.tcgshop.phone.PhoneTier.appTier(a.key)).color);
+        }
+    }
+
+    private void appIconBase(DrawContext ctx, AppDef a, int x, int y, int s, boolean hover) {
         int lift = hover ? 2 : 0, r = Math.max(3, s / 4);
         if (hover) Ui.rounded(ctx, x - 3, y - 3 - lift, s + 6, s + 6, r + 3, withAlpha(a.color, 0.35f));
         Ui.rounded(ctx, x + 1, y + 3 - lift + 1, s, s, r, 0x40000000);
@@ -475,7 +535,8 @@ public class PhoneScreen extends Screen {
             int ix = sx + gap + (i % cols) * (is + gap), iy = gy + (i / cols) * (is + 20);
             boolean hover = Ui.in(mouseX, mouseY, ix, iy, is, is);
             appIcon(ctx, a, ix, iy, is, hover);
-            Ui.text(ctx, Text.translatable("tcgshop.phone." + a.key), ix - gap / 2, iy + is + 3, is + gap, 10, 0xFFFFFFFF, true);
+            Ui.text(ctx, Text.translatable("tcgshop.phone." + a.key), ix - gap / 2, iy + is + 3, is + gap, 10,
+                    dev.tcgshop.client.phone.PhoneClient.appUnlocked(a.key) ? 0xFFFFFFFF : 0xFF8A8FA8, true);
             areas.add(new Area(ix, iy, is, is, () -> openApp(a.key)));
         }
         // dock
@@ -488,6 +549,9 @@ public class PhoneScreen extends Screen {
             appIcon(ctx, a, dx, dy, ds, Ui.in(mouseX, mouseY, dx, dy, ds, ds));
             areas.add(new Area(dx, dy, ds, ds, () -> openApp(a.key)));
         }
+        if (lockedPrompt != null)
+            dev.tcgshop.client.phone.UpgradesPanel.lockPrompt(ctx, sx, sy + 13, sw, sh - 21, lockedPrompt, mouseX, mouseY,
+                    (x, y, w, h, r) -> areas.add(new Area(x, y, w, h, r)), () -> openApp("upgrades"), () -> lockedPrompt = null);
     }
 
     private List<ShopClient.ZoneInfo> myZones() {
@@ -503,6 +567,11 @@ public class PhoneScreen extends Screen {
     }
 
     private void openApp(String key) {
+        lockedPrompt = null;
+        if (!dev.tcgshop.client.phone.PhoneClient.appUnlocked(key)) { // en vez de la app, el aviso para desbloquearla
+            lockedPrompt = key;
+            return;
+        }
         switch (key) {
             case "market" -> open(App.MARKET);
             case "prices" -> open(App.PRICES);
@@ -516,6 +585,7 @@ public class PhoneScreen extends Screen {
             case "league" -> {
                 leagueSend("sync", null);
                 open(App.LEAGUE);
+                leagueHelp.onEnter();
             }
             case "grade" -> {
                 dev.tcgshop.client.ClientGrading.request();
@@ -530,6 +600,14 @@ public class PhoneScreen extends Screen {
                 dev.tcgshop.client.ClientSocial.act("binder_open", "open");
             }
             case "settings" -> open(App.SETTINGS);
+            case "upgrades" -> {
+                listScroll = 0;
+                open(App.UPGRADES);
+            }
+            case "furniture" -> {
+                furniture.request();
+                open(App.FURNITURE);
+            }
             case "friends" -> {
                 dev.tcgshop.client.ClientSocial.act("friends", "refresh");
                 listScroll = 0;
@@ -547,6 +625,20 @@ public class PhoneScreen extends Screen {
         }
     }
 
+    // ------------------------------------------------------------------ mejoras del teléfono (0.9)
+
+    private void upgradesApp(DrawContext ctx, int mouseX, int mouseY, double t) {
+        topBar(ctx, def("upgrades"), mouseX, mouseY);
+        listScroll = upgrades.render(ctx, sx + 8, sy + 41, sw - 16, sh - 52, mouseX, mouseY, t, listScroll,
+                (x, y, w, h, r) -> areas.add(new Area(x, y, w, h, r)));
+    }
+
+    // ------------------------------------------------------------------ muebles
+
+    private void furnitureApp(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        topBar(ctx, def("furniture"), mouseX, mouseY);
+        furniture.render(ctx, sx + 8, sy + 41, sw - 16, sh - 52, mouseX, mouseY, delta);
+    }
     // ------------------------------------------------------------------ amigos
 
     private void friendsApp(DrawContext ctx, int mouseX, int mouseY) {
@@ -761,6 +853,8 @@ public class PhoneScreen extends Screen {
             gc.showPriceInTooltip = !gc.showPriceInTooltip;
             dev.tcgshop.TcgShopConfig.save();
         });
+        y = settingRow(ctx, px, y, lw, "tcgshop.settings.phone_upgrades",
+                "tcgshop.phoneup.tier." + dev.tcgshop.phone.PhoneTier.of(dev.tcgshop.client.phone.PhoneClient.tier).key, mouseX, mouseY, () -> openApp("upgrades"));
         // vista previa del bocadillo con los ajustes actuales
         int vx = px + lw + 10, vw = pw - lw - 10, vy = py;
         Ui.roundGradient(ctx, vx, vy, vw, ph, 0xFF3A6A3A, 0xFF1E3A24); // "hierba" de fondo
@@ -786,9 +880,12 @@ public class PhoneScreen extends Screen {
             m.pop();
         }
         if (cs.patienceBars) {
-            int bx3 = vx + vw / 2 - 20, by3 = vy + ph - 16;
-            ctx.fill(bx3, by3, bx3 + 40, by3 + 4, 0xCC101018);
-            ctx.fill(bx3 + 1, by3 + 1, bx3 + 26, by3 + 3, 0xFF5BD46B);
+            int wcx = vx + vw / 2, wcy = vy + ph - 20; // rueda de paciencia (65% restante)
+            for (int i = 0; i < 24; i++) {
+                double ang = Math.toRadians(i * 15 - 90);
+                int sx = wcx + (int) Math.round(Math.cos(ang) * 10), sy = wcy + (int) Math.round(Math.sin(ang) * 10);
+                ctx.fill(sx - 1, sy - 1, sx + 1, sy + 1, i < 16 ? 0xFF5BD46B : 0xCC101018);
+            }
         }
     }
 
@@ -852,7 +949,8 @@ public class PhoneScreen extends Screen {
         areas.add(new Area(selX + selW - 12, barY + 4, 12, 15, () -> { priceSet = fsi + 1 < sets.size() ? sets.get(fsi + 1).id() : ""; listScroll = 0; }));
         searchBox(ctx, sx + sw - 162, barY + 4, 152, mouseX, mouseY, delta);
         // carril: rarezas
-        Rarity[] rs = {null, Rarity.COMMON, Rarity.DOUBLE_RARE, Rarity.ULTRA_RARE, Rarity.ILLUSTRATION_RARE, Rarity.SPECIAL_ILLUSTRATION_RARE, Rarity.HYPER_RARE};
+        Rarity.Family[] rs = new Rarity.Family[Rarity.Family.values().length + 1];
+        System.arraycopy(Rarity.Family.values(), 0, rs, 1, rs.length - 1);
         String[] keys = new String[rs.length], labels = new String[rs.length];
         for (int i = 0; i < rs.length; i++) {
             keys[i] = rs[i] == null ? "all" : rs[i].key;
@@ -860,7 +958,7 @@ public class PhoneScreen extends Screen {
         }
         int rw = rail(ctx, keys, labels, null, priceRarity == null ? "all" : priceRarity.key, a.color, mouseX, mouseY, k -> {
             priceRarity = null;
-            for (Rarity r : rs) if (r != null && r.key.equals(k)) priceRarity = r;
+            for (Rarity.Family r : rs) if (r != null && r.key.equals(k)) priceRarity = r;
             listScroll = 0;
         });
         int px = sx + rw, py = sy + 41, pw = sw - rw - 8, ph = sh - 52;
@@ -872,7 +970,7 @@ public class PhoneScreen extends Screen {
         for (Catalog.CardSet s : sets) {
             if (!priceSet.isEmpty() && !s.id().equals(priceSet)) continue;
             for (Catalog.Card c : s.cards()) {
-                if (priceRarity != null && c.rarity() != priceRarity) continue;
+                if (priceRarity != null && c.rarity().family != priceRarity) continue;
                 if (q.length() >= 2 && !c.name().getString().toLowerCase(Locale.ROOT).contains(q)) continue;
                 if (priceBand != 0) {
                     long pv = cachedPrice(c);
@@ -1034,8 +1132,10 @@ public class PhoneScreen extends Screen {
         }));
         if (!hov.isEmpty()) {
             long v = dev.tcgshop.shop.CardSales.unitValue(hov);
-            ctx.drawTooltip(textRenderer, List.of(hov.getName(), Text.translatable("tcgshop.sell.market", PriceService.format(v)).formatted(Formatting.GRAY),
-                    Text.translatable("tcgshop.sell.you_get", PriceService.format(quickSell.price.applyAsLong(hov))).formatted(Formatting.GOLD)), mouseX, mouseY);
+            List<Text> tip = List.of(hov.getName(), Text.translatable("tcgshop.sell.market", PriceService.format(v)).formatted(Formatting.GRAY),
+                    Text.translatable("tcgshop.sell.you_get", PriceService.format(quickSell.price.applyAsLong(hov))).formatted(Formatting.GOLD));
+            // fuera del scissor del teléfono: lo dibuja el Screen al final del frame
+            setTooltip(tip.stream().map(Text::asOrderedText).toList(), net.minecraft.client.gui.tooltip.HoveredTooltipPositioner.INSTANCE, true);
         }
     }
 
@@ -1069,7 +1169,11 @@ public class PhoneScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double h, double v) {
+        if (app == App.LEAGUE && leagueHelp.mouseScrolled(mouseX, mouseY, v)) return true;
+        if (app == App.LEAGUE && leagueTab.equals("deck") && deckPanel.mouseScrolled(mouseX, mouseY, v)) return true;
+        if (app == App.FURNITURE) { furniture.mouseScrolled(mouseX, mouseY, v); return true; }
         if (app == App.SELL) { quickSell.scroll(v); return true; }
+        if (app == App.GRADE && gradeTab.equals("send")) { gradePanel.scroll(mouseX, mouseY, v); return true; }
         if (app == App.MARKET) market.scroll(v);
         else if (app == App.LEAGUE && hoverDeckList) deckScroll -= v * 30;
         else if (app == App.GRADE || app == App.LEAGUE) listScroll -= v * 30;
@@ -1098,12 +1202,13 @@ public class PhoneScreen extends Screen {
             ctx.drawText(textRenderer, "›", selX + selW - 8, barY + 7, 0xFFFFFFFF, true);
             areas.add(new Area(selX, barY + 4, selW, 15, () -> zoneIndex++));
         }
-        String[] tabs = {"summary", "staff", "security", "reputation", "reviews"};
+        String[] tabs = {"summary", "staff", "security", "reputation", "reviews", "events"};
         String[] labels = new String[tabs.length];
         int[] counts = new int[tabs.length];
         for (int i = 0; i < tabs.length; i++) {
             labels[i] = Text.translatable("tcgshop.phone.tab." + tabs[i]).getString();
-            counts[i] = tabs[i].equals("reviews") ? z.reviews().size() : -1;
+            counts[i] = tabs[i].equals("reviews") ? z.reviews().size()
+                    : tabs[i].equals("events") ? (z.ext().getCompound("ev").getList("active", 10).isEmpty() ? -1 : z.ext().getCompound("ev").getList("active", 10).size()) : -1;
         }
         int rw = rail(ctx, tabs, labels, counts, shopTab, a.color, mouseX, mouseY, k -> { shopTab = k; listScroll = 0; });
         int px = sx + rw, py = sy + 41, pw = sw - rw - 8, ph = sh - 52;
@@ -1112,6 +1217,7 @@ public class PhoneScreen extends Screen {
             case "security" -> securityTab(ctx, z, px, py, pw);
             case "reputation" -> repTab(ctx, z, px, py, pw, ph);
             case "reviews" -> reviewsTab(ctx, z, px, py, pw, ph);
+            case "events" -> eventsTab(ctx, z, px, py, pw, ph);
             default -> summaryTab(ctx, z, px, py, pw, ph, mouseX, mouseY);
         }
     }
@@ -1215,6 +1321,8 @@ public class PhoneScreen extends Screen {
         Ui.text(ctx, Text.translatable("tcgshop.phone.w_rep"), px, py + 76, lw, 10, 0xFFCCCCCC, false);
         if (!z.reviews().isEmpty())
             Ui.text(ctx, Text.literal(String.format(Locale.ROOT, "%.1f ★", z.avgStars())), px, py + 90, lw, 10, Ui.GOLD, true);
+        if (z.factors().containsKey("m_target"))
+            Ui.text(ctx, Text.translatable("tcgshop.haggle.rep_target", z.factors().get("m_target"), z.factors().getOrDefault("m_ceiling", 100)), px, py + 102, lw, 10, 0xFF9FD8FF, false);
         int x = px + lw + 8, w = pw - lw - 8, y = py;
         if (z.factors().isEmpty()) {
             paragraph(ctx, Text.translatable("tcgshop.phone.rep_wait"), x, y + 4, w, Ui.MUTED);
@@ -1263,7 +1371,7 @@ public class PhoneScreen extends Screen {
         ctx.drawText(textRenderer, Text.literal(stars((int) Math.round(avg))).formatted(Formatting.BOLD), px + 8, py + 9, Ui.GOLD, true);
         ctx.drawText(textRenderer, Text.translatable("tcgshop.phone.reviews_head", String.format(Locale.ROOT, "%.1f", avg), rv.size(), z.regulars()),
                 px + 70, py + 9, 0xFFDDDDDD, false);
-        int top = py + 30, h = ph - 30, rowH = 26;
+        int top = py + 30, h = ph - 30, rowH = 36;
         if (rv.isEmpty()) {
             paragraph(ctx, Text.translatable("tcgshop.phone.no_reviews"), px + 8, top + 8, pw - 16, Ui.MUTED);
             return;
@@ -1282,9 +1390,87 @@ public class PhoneScreen extends Screen {
             ctx.drawText(textRenderer, Text.literal(Ui.ellipsis(r.name(), pw / 2)).formatted(Formatting.BOLD), px + 64, y + 3, 0xFFFFFFFF, false);
             String when = day - r.day() <= 0 ? Text.translatable("tcgshop.phone.today").getString() : Text.translatable("tcgshop.phone.days_ago", day - r.day()).getString();
             ctx.drawText(textRenderer, when, px + pw - 6 - textRenderer.getWidth(when), y + 3, 0xFF8A8FA8, false);
-            ctx.drawText(textRenderer, Ui.ellipsis("«" + Text.translatable("tcgshop.review." + r.key()).getString() + "»", pw - 16), px + 8, y + 13, 0xFFC8CCDA, false);
+            String full = net.minecraft.client.resource.language.I18n.hasTranslation(r.textKey())
+                    ? Text.translatable(r.textKey()).getString() : Text.translatable("tcgshop.review." + r.key()).getString();
+            var wrapped = textRenderer.wrapLines(Text.literal("«" + full + "»"), pw - 16);
+            for (int li = 0; li < Math.min(2, wrapped.size()); li++)
+                ctx.drawText(textRenderer, wrapped.get(li), px + 8, y + 13 + li * 9, 0xFFC8CCDA, false);
         }
         ctx.disableScissor();
+    }
+
+    /**
+     * 0.9 eventos aleatorios: evento activo (qué pasa, cómo arreglarlo y cuánto le queda) y lo que pasó hoy y los
+     * últimos 7 días. Datos: ext.ev de la sincronización de zonas (EventManager.writeSync).
+     */
+    private void eventsTab(DrawContext ctx, ShopClient.ZoneInfo z, int px, int py, int pw, int ph) {
+        net.minecraft.nbt.NbtCompound ev = z.ext().getCompound("ev");
+        net.minecraft.nbt.NbtList act = ev.getList("active", 10), hist = ev.getList("hist", 10);
+        long clientNow = client != null && client.world != null ? client.world.getTime() : 0;
+        long syncedAt = ev.getLong("now");
+        int top = py, bottom = py + ph;
+        ctx.enableScissor(px, top, px + pw, bottom);
+        int y = top - (int) listScroll;
+        if (act.isEmpty()) {
+            Ui.roundGradient(ctx, px, y, pw, 30, SURF2, SURF);
+            Ui.outline(ctx, px, y, pw, 30, LINE);
+            paragraph(ctx, Text.translatable("tcgshop.phone.ev.none"), px + 8, y + 6, pw - 16, Ui.MUTED);
+            y += 36;
+        }
+        for (int i = 0; i < act.size(); i++) {
+            net.minecraft.nbt.NbtCompound a = act.getCompound(i);
+            String k = a.getString("k"), cat = a.getString("cat");
+            boolean res = a.getBoolean("res"), fix = a.getBoolean("fix");
+            int col = cat.equals("positive") ? 0xFF43C463 : cat.equals("negative") ? 0xFFE05050 : 0xFF6BC5FF;
+            var desc = textRenderer.wrapLines(Text.translatable(k + ".desc"), pw - 18);
+            var fixL = fix && !res ? textRenderer.wrapLines(Text.translatable(k + ".fix"), pw - 26) : java.util.List.<net.minecraft.text.OrderedText>of();
+            int h = 28 + desc.size() * 10 + (fixL.isEmpty() ? 0 : 16 + fixL.size() * 10) + 4;
+            Ui.roundGradient(ctx, px, y, pw, h, SURF2, SURF);
+            Ui.outline(ctx, px, y, pw, h, LINE);
+            ctx.fill(px + 1, y + 1, px + 3, y + h - 1, col);
+            ctx.drawTextWithShadow(textRenderer, Text.translatable(k + ".name").formatted(Formatting.BOLD), px + 8, y + 5, col);
+            String tier = Text.translatable("tcgshop.event.tier." + a.getString("tier")).getString();
+            ctx.drawText(textRenderer, tier, px + pw - 6 - textRenderer.getWidth(tier), y + 5, 0xFFB983FF, false);
+            long left = Math.max(0, a.getLong("left") - Math.max(0, clientNow - syncedAt));
+            Text when = res ? Text.translatable("tcgshop.phone.ev.fixed").formatted(Formatting.GREEN)
+                    : Text.translatable("tcgshop.phone.ev.ends_in", left / 1200, String.format(Locale.ROOT, "%02d", (left / 20) % 60));
+            ctx.drawText(textRenderer, when, px + 8, y + 16, 0xFFAAB0C8, false);
+            int ly = y + 28;
+            for (var line : desc) { ctx.drawText(textRenderer, line, px + 8, ly, 0xFFDDDDDD, false); ly += 10; }
+            if (!fixL.isEmpty()) {
+                ly += 3;
+                Ui.round(ctx, px + 6, ly - 2, pw - 12, 12 + fixL.size() * 10, 0x33FFD34D);
+                ctx.drawText(textRenderer, Text.translatable("tcgshop.event.fix_prefix").formatted(Formatting.BOLD), px + 10, ly, 0xFFFFD34D, false);
+                ly += 11;
+                for (var line : fixL) { ctx.drawText(textRenderer, line, px + 10, ly, 0xFFFFE9A8, false); ly += 10; }
+            }
+            y += h + 5;
+        }
+        ctx.drawTextWithShadow(textRenderer, Text.translatable("tcgshop.phone.ev.history").formatted(Formatting.BOLD), px + 2, y + 2, 0xFFFFFFFF);
+        y += 14;
+        if (hist.isEmpty()) {
+            paragraph(ctx, Text.translatable("tcgshop.phone.ev.no_history"), px + 6, y, pw - 12, Ui.MUTED);
+            y += 12;
+        }
+        for (int i = 0; i < hist.size(); i++) {
+            net.minecraft.nbt.NbtCompound hh = hist.getCompound(i);
+            long ago = hh.getLong("ago");
+            String cat = hh.getString("cat"), out = hh.getString("o");
+            int col = cat.equals("positive") ? 0xFF43C463 : cat.equals("negative") ? 0xFFE05050 : 0xFF6BC5FF;
+            Ui.roundGradient(ctx, px, y, pw, 14, SURF2, SURF);
+            ctx.fill(px + 1, y + 1, px + 3, y + 13, col);
+            String w = ago <= 0 ? Text.translatable("tcgshop.phone.today").getString() : Text.translatable("tcgshop.phone.days_ago", ago).getString();
+            ctx.drawText(textRenderer, w, px + 7, y + 3, 0xFF8A8FA8, false);
+            String nm = Ui.ellipsis(Text.translatable(hh.getString("k") + ".name").getString(), pw - 150);
+            ctx.drawText(textRenderer, nm, px + 62, y + 3, 0xFFFFFFFF, false);
+            String os = Text.translatable("tcgshop.phone.ev.out." + out).getString();
+            int oc = out.equals("resolved") || out.equals("done") ? 0xFF8BE08B : out.equals("expired") || out.equals("failed") ? 0xFFFF9F6B : 0xFFAAAAAA;
+            ctx.drawText(textRenderer, os, px + pw - 6 - textRenderer.getWidth(os), y + 3, oc, false);
+            y += 16;
+        }
+        ctx.disableScissor();
+        int content = y + (int) listScroll - top;
+        listScroll = MathHelper.clamp(listScroll, 0, Math.max(0, content - ph));
     }
 
     private static String stars(int n) {
@@ -1322,110 +1508,26 @@ public class PhoneScreen extends Screen {
         topBar(ctx, a, mouseX, mouseY);
         ctx.drawText(textRenderer, Text.translatable("tcgshop.grade.slogan"), sx + sw - 10 - textRenderer.getWidth(Text.translatable("tcgshop.grade.slogan")),
                 sy + 20, 0xCCFFFFFF, false);
-        String[] tabs = {"send", "orders", "odds"};
+        String[] tabs = {"send", "orders", "odds", "info"};
         String[] labels = new String[tabs.length];
         int[] counts = new int[tabs.length];
         for (int i = 0; i < tabs.length; i++) {
             labels[i] = Text.translatable("tcgshop.grade.tab." + tabs[i]).getString();
-            counts[i] = tabs[i].equals("orders") ? dev.tcgshop.client.ClientGrading.orders.size() : tabs[i].equals("send") ? gradeSel.size() : -1;
+            counts[i] = tabs[i].equals("orders") ? dev.tcgshop.client.ClientGrading.orders.size() : tabs[i].equals("send") ? gradePanel.sel.size() : -1;
         }
-        int rw = rail(ctx, tabs, labels, counts, gradeTab, a.color, mouseX, mouseY, k -> { gradeTab = k; listScroll = 0; });
+        int rw = rail(ctx, tabs, labels, counts, gradeTab, a.color, mouseX, mouseY, k -> { gradeTab = k; listScroll = 0; gradePanel.blur(); });
         int px = sx + rw, py = sy + 41, pw = sw - rw - 8, ph = sh - 52;
         switch (gradeTab) {
             case "orders" -> gradeOrders(ctx, px, py, pw, ph, mouseX, mouseY);
             case "odds" -> gradeOdds(ctx, px, py, pw);
+            case "info" -> gradeInfo(ctx, px, py, pw, ph);
             default -> gradeSend(ctx, px, py, pw, ph, mouseX, mouseY, t);
         }
     }
 
-    private List<Integer> gradeableSlots() {
-        List<Integer> out = new ArrayList<>();
-        if (client == null || client.player == null) return out;
-        for (int i = 0; i < 36; i++) {
-            ItemStack st = client.player.getInventory().getStack(i);
-            if (dev.tcgshop.card.CardInfo.isCard(st) && !dev.tcgshop.grading.Grading.isGraded(st)) out.add(i);
-        }
-        out.addAll(dev.tcgshop.client.binder.ClientBinderSlots.slots()); // y las del Binder
-        return out;
-    }
-
+    /** Pestaña «Enviar cartas»: todo lo dibuja y gestiona GradeSendPanel (client/screen/grade). */
     private void gradeSend(DrawContext ctx, int px, int py, int pw, int ph, int mouseX, int mouseY, double t) {
-        List<Integer> slots = gradeableSlots();
-        gradeSel.retainAll(slots);
-        int sideW = 128, gw = pw - sideW - 8;
-        Ui.roundGradient(ctx, px, py, gw, ph, SURF2, SURF);
-        Ui.outline(ctx, px, py, gw, ph, LINE);
-        if (slots.isEmpty()) paragraph(ctx, Text.translatable("tcgshop.grade.no_cards"), px + 8, py + 10, gw - 16, Ui.MUTED);
-        int cw = 34, chh = Math.round(cw / Draw.CARD_RATIO), gap = 5, cols = Math.max(1, (gw - 8 + gap) / (cw + gap));
-        int rows = (slots.size() + cols - 1) / cols;
-        listScroll = MathHelper.clamp(listScroll, 0, Math.max(0, rows * (chh + gap) - (ph - 8)));
-        int ox = px + (gw - (cols * (cw + gap) - gap)) / 2;
-        ItemStack hovered = ItemStack.EMPTY;
-        ctx.enableScissor(px + 1, py + 1, px + gw - 1, py + ph - 1);
-        for (int k = 0; k < slots.size(); k++) {
-            int slot = slots.get(k);
-            ItemStack st = CardPickGrid.stackAt(client.player, slot);
-            int x = ox + (k % cols) * (cw + gap), y = py + 4 + (k / cols) * (chh + gap) - (int) listScroll;
-            if (y + chh < py || y > py + ph) continue;
-            boolean sel = gradeSel.contains(slot), hover = Ui.in(mouseX, mouseY, x, y, cw, chh) && Ui.in(mouseX, mouseY, px, py, gw, ph);
-            Draw.cardFace(ctx, dev.tcgshop.card.CardInfo.texture(dev.tcgshop.card.CardInfo.id(st)), st, x, y, cw, chh, sel || hover ? 1f : 0.75f);
-            if (st.getCount() > 1) ctx.drawText(textRenderer, "x" + st.getCount(), x + 2, y + chh - 9, 0xFFFFFFFF, true);
-            if (dev.tcgshop.collection.BinderSlots.isBinder(slot)) {
-                Ui.round(ctx, x + 1, y + 1, 9, 9, 0xEE3A6FD8);
-                ctx.drawText(textRenderer, "B", x + 3, y + 2, 0xFFFFFFFF, false);
-            }
-            if (sel) {
-                Ui.outline(ctx, x - 1, y - 1, cw + 2, chh + 2, Ui.GOLD);
-                Ui.outline(ctx, x - 2, y - 2, cw + 4, chh + 4, withAlpha(Ui.GOLD, 0.5f));
-                Ui.round(ctx, x + cw - 11, y + 2, 9, 9, 0xFF2E9C5A);
-                ctx.drawText(textRenderer, "✔", x + cw - 10, y + 3, 0xFFFFFFFF, false);
-            } else if (hover) Ui.outline(ctx, x - 1, y - 1, cw + 2, chh + 2, 0xFFFFFFFF);
-            if (hover) hovered = st;
-            if (y >= py && y + chh <= py + ph) areas.add(new Area(x, y, cw, chh, () -> {
-                if (!gradeSel.remove(slot) && gradeSel.size() < dev.tcgshop.grading.Grading.MAX_PER_ORDER) gradeSel.add(slot);
-            }));
-        }
-        ctx.disableScissor();
-        // panel lateral: servicio, total y enviar
-        int x = px + gw + 8, y = py;
-        Ui.roundGradient(ctx, x, y, sideW, ph, SURF2, SURF);
-        Ui.outline(ctx, x, y, sideW, ph, LINE);
-        ctx.drawText(textRenderer, Text.translatable("tcgshop.grade.service").formatted(Formatting.BOLD), x + 6, y + 5, 0xFFFFFFFF, false);
-        long total = 0;
-        dev.tcgshop.grading.Grading.Service[] svc = dev.tcgshop.grading.Grading.Service.values();
-        for (int i = 0; i < svc.length; i++) {
-            dev.tcgshop.grading.Grading.Service sv = svc[i];
-            int by = y + 17 + i * 30;
-            boolean sel = gradeService == i, hover = Ui.in(mouseX, mouseY, x + 4, by, sideW - 8, 27);
-            Ui.round(ctx, x + 4, by, sideW - 8, 27, sel ? withAlpha(0xFF1E8FA8, 0.55f) : hover ? 0x33FFFFFF : 0x22000000);
-            if (sel) Ui.outline(ctx, x + 4, by, sideW - 8, 27, 0xFF6BE0F5);
-            ctx.drawText(textRenderer, Text.translatable("tcgshop.grade.service." + sv.key).formatted(Formatting.BOLD), x + 9, by + 4, 0xFFFFFFFF, false);
-            ctx.drawText(textRenderer, dev.tcgshop.client.ClientGrading.duration(sv.ticks), x + 9, by + 15, 0xFFB8D8E8, false);
-            String fee = compact(sv.baseFee) + " +" + Math.round(sv.pct * 100) + "%";
-            ctx.drawText(textRenderer, fee, x + sideW - 9 - textRenderer.getWidth(fee), by + 15, Ui.GOLD, false);
-            int fi = i;
-            areas.add(new Area(x + 4, by, sideW - 8, 27, () -> gradeService = fi));
-        }
-        dev.tcgshop.grading.Grading.Service cur = dev.tcgshop.grading.Grading.Service.of(gradeService);
-        for (int slot : gradeSel) total += cur.fee(ShopServer.priceOf(CardPickGrid.stackAt(client.player, slot).copyWithCount(1), 1.0));
-        int ty = y + 17 + svc.length * 30 + 4;
-        ctx.drawText(textRenderer, Text.translatable("tcgshop.grade.selected", gradeSel.size(), dev.tcgshop.grading.Grading.MAX_PER_ORDER), x + 6, ty, 0xFFDDDDDD, false);
-        ctx.drawText(textRenderer, Text.translatable("tcgshop.grade.total", PriceService.format(total)).formatted(Formatting.BOLD), x + 6, ty + 11, Ui.GOLD, false);
-        int bh = 18, bY = y + ph - bh - 6;
-        boolean can = !gradeSel.isEmpty();
-        Ui.button(ctx, x + 6, bY, sideW - 12, bh, Text.translatable("tcgshop.grade.send"), mouseX, mouseY, can, 0xFF1E8FA8);
-        if (can) areas.add(new Area(x + 6, bY, sideW - 12, bh, () -> {
-            ClientPlayNetworking.send(new dev.tcgshop.network.GradePayloads.Action(dev.tcgshop.network.GradePayloads.SUBMIT, gradeService,
-                    new ArrayList<>(gradeSel), 0));
-            gradeSel.clear();
-            gradeTab = "orders";
-        }));
-        paragraph(ctx, Text.translatable("tcgshop.grade.send_note"), x + 6, ty + 26, sideW - 12, 0xFF8A8FA8);
-        if (!hovered.isEmpty()) {
-            long v = ShopServer.priceOf(hovered.copyWithCount(1), 1.0);
-            ctx.drawTooltip(textRenderer, List.of(hovered.getName(), Text.literal(PriceService.format(v)).formatted(Formatting.GOLD),
-                    Text.translatable("tcgshop.grade.fee_one", PriceService.format(cur.fee(v))).formatted(Formatting.GRAY)), mouseX, mouseY);
-        }
+        gradePanel.render(ctx, px, py, pw, ph, mouseX, mouseY, 0f);
     }
 
     private void gradeOrders(DrawContext ctx, int px, int py, int pw, int ph, int mouseX, int mouseY) {
@@ -1449,7 +1551,7 @@ public class PhoneScreen extends Screen {
             int tw = 16, th = Math.round(tw / Draw.CARD_RATIO);
             for (int k = 0; k < Math.min(5, o.cards().size()); k++) {
                 ItemStack st = o.cards().get(k);
-                Draw.cardFace(ctx, dev.tcgshop.card.CardInfo.texture(dev.tcgshop.card.CardInfo.id(st)), st, px + 6 + k * 9, y + 9, tw, th, ready ? 1f : 0.55f);
+                Draw.cardFace(ctx, dev.masterball.api.card.CardInfo.texture(dev.masterball.api.card.CardInfo.id(st)), st, px + 6 + k * 9, y + 9, tw, th, ready ? 1f : 0.55f);
             }
             int tx = px + 6 + Math.min(5, o.cards().size()) * 9 + 14;
             ctx.drawText(textRenderer, Text.translatable("tcgshop.grade.order", o.id(), o.cards().size()).formatted(Formatting.BOLD), tx, y + 5, 0xFFFFFFFF, false);
@@ -1487,14 +1589,50 @@ public class PhoneScreen extends Screen {
             ctx.fillGradient(px + labelW, y + 4, px + labelW + Math.max(2, bw), y + 11, Ui.brighten(col, 30), col);
             String pct = (b.percent() == Math.floor(b.percent()) ? String.valueOf((int) b.percent()) : String.valueOf(b.percent())) + "%";
             ctx.drawText(textRenderer, pct, px + labelW + Math.max(2, bw) + 4, y + 4, 0xFFFFFFFF, false);
-            String mult = String.format(Locale.ROOT, b.from() == b.to() ? "x%.1f" : "x%.1f–%.1f", dev.tcgshop.grading.Grading.multiplier(b.from()),
-                    dev.tcgshop.grading.Grading.multiplier(b.to()));
+            String mult = String.format(Locale.ROOT, b.from() == b.to() ? "%.0f%%" : "%.0f–%.0f%%", 100 * dev.tcgshop.grading.Grading.multiplier(b.from()),
+                    100 * dev.tcgshop.grading.Grading.multiplier(b.to()));
             ctx.drawText(textRenderer, mult, px + pw - 6 - textRenderer.getWidth(mult), y + 4, Ui.GOLD, false);
             y += 17;
         }
         paragraph(ctx, Text.translatable("tcgshop.grade.odds_note"), px + 2, y + 4, pw - 4, 0xFFAAB0C8);
     }
 
+
+    /** Explicación del sistema de Grado (textos tcgshop.gradeinfo.N; "#" = título) + ejemplos calculados con GradeModel. */
+    private void gradeInfo(DrawContext ctx, int px, int py, int pw, int ph) {
+        List<Text> parts = new ArrayList<>();
+        for (int n = 0; net.minecraft.client.resource.language.I18n.hasTranslation("tcgshop.gradeinfo." + n); n++)
+            parts.add(Text.translatable("tcgshop.gradeinfo." + n));
+        // ejemplos en vivo: mismos cálculos que el precio real
+        parts.add(Text.translatable("tcgshop.gradeinfo.ex_pop_head"));
+        for (int rank : new int[]{1, 50, 150, 300, 301, 500, 800, 1025})
+            parts.add(Text.literal(String.format(Locale.ROOT, "  #%d → Pfinal = %.3f", rank, dev.tcgshop.pricing.GradeModel.popularity(rank))));
+        parts.add(Text.translatable("tcgshop.gradeinfo.ex_mult_head"));
+        double[][] ex = {{1, 0}, {0.6, 0.2}, {0.9, 0.6}, {1, 1}}; // (Q, A)
+        for (double[] e : ex) {
+            double z = 0.45 * e[1] + 0.55 * e[0], m10 = Math.min(100, 1 + 99 * Math.pow(z, 4));
+            StringBuilder sb = new StringBuilder(String.format(Locale.ROOT, "  Q=%.1f A=%.1f → Z=%.3f, M10=x%.2f:", e[0], e[1], z, m10));
+            for (int g : new int[]{10, 30, 49, 50, 80, 90, 95, 99, 100})
+                sb.append(String.format(Locale.ROOT, "  %s x%.2f", dev.tcgshop.grading.Grading.format(g), dev.tcgshop.pricing.GradeModel.mult(m10, g)));
+            parts.add(Text.literal(sb.toString()));
+        }
+        int top = py, total = 0;
+        for (Text t : parts) total += textRenderer.wrapLines(t, pw - 8).size() * 10 + 4;
+        listScroll = MathHelper.clamp(listScroll, 0, Math.max(0, total - ph));
+        ctx.enableScissor(px, py, px + pw, py + ph);
+        int y = top - (int) listScroll;
+        for (Text t : parts) {
+            String raw = t.getString();
+            boolean head = raw.startsWith("#");
+            Text shown = head ? Text.literal(raw.substring(1).trim()).formatted(Formatting.BOLD) : t;
+            for (var line : textRenderer.wrapLines(shown, pw - 8)) {
+                ctx.drawText(textRenderer, line, px + 4, y, head ? Ui.GOLD : 0xFFD8DCEA, false);
+                y += 10;
+            }
+            y += 4;
+        }
+        ctx.disableScissor();
+    }
 
     // ------------------------------------------------------------------ Liga TCG (TCG real)
 
@@ -1538,7 +1676,7 @@ public class PhoneScreen extends Screen {
             return;
         }
         switch (leagueTab) {
-            case "deck" -> leagueDeck(ctx, L, px, py, pw, ph, mouseX, mouseY);
+            case "deck" -> deckPanel.render(ctx, L, px, py, pw, ph, mouseX, mouseY, sx, sy, sw, sh);
             case "rules" -> paragraph(ctx, Text.translatable("tcgshop.ptcg.rules"), px + 4, py + 4, pw - 8, 0xFFDDE3F0);
             case "play" -> leaguePlay(ctx, L, px, py, pw, ph, mouseX, mouseY, t);
             case "coins" -> listScroll = cosPanel.coins(ctx, L, px, py, pw, ph, mouseX, mouseY, t, listScroll, (x, y, w, h, r) -> areas.add(new Area(x, y, w, h, r)));
@@ -1616,7 +1754,7 @@ public class PhoneScreen extends Screen {
         ItemStack st = dev.tcgshop.client.ClientPtcg.stack(f);
         ctx.fill(x, y + 1, x + w + 1, y + h + 2, Draw.withAlpha(0xFF000000, 0.35f * alpha));
         if (!st.isEmpty()) {
-            Draw.cardFace(ctx, dev.tcgshop.card.CardInfo.texture(dev.tcgshop.card.CardInfo.id(st)), st, x, y, w, h, alpha);
+            Draw.cardFace(ctx, dev.masterball.api.card.CardInfo.texture(dev.masterball.api.card.CardInfo.id(st)), st, x, y, w, h, alpha);
             return;
         }
         int stype = gi(info, "st");
@@ -1887,7 +2025,8 @@ public class PhoneScreen extends Screen {
             Ui.text(ctx, Text.translatable("tcgshop.ptcg.ui.level." + k).formatted(Formatting.BOLD), cx2, y + 3, cw, 10, sel ? 0xFFFFFFFF : col, true);
             var lv = k < levels.size() ? levels.get(k).getAsJsonObject() : null;
             Ui.text(ctx, Text.translatable("tcgshop.league.play.ai_rating", gi(lv, "rating")), cx2, y + 14, cw, 9, 0xFFAEB6CC, false);
-            Ui.text(ctx, Text.literal("$" + gi(lv, "reward")), cx2, y + 23, cw, 9, 0xFFFFD34D, false);
+            boolean locked = lv != null && lv.has("allowed") && !lv.get("allowed").getAsBoolean();
+            Ui.text(ctx, locked ? Text.translatable("tcgshop.league.level_locked_short") : Text.literal("$" + gi(lv, "reward")), cx2, y + 23, cw, 9, locked ? 0xFFFF7A7A : 0xFFFFD34D, false);
             int kk = k;
             areas.add(new Area(cx2, y, cw, 34, () -> aiLevel = kk));
         }
@@ -1895,12 +2034,14 @@ public class PhoneScreen extends Screen {
         int half = (w - 6) / 2;
         boolean canPlay = ready && !inMatch && !queued;
         modeCard(ctx, x, y, half, 46, "casual", 0xFF2F8FD0, canPlay, mouseX, mouseY, () -> playMode("casual"));
-        int myRating = gi(L, "rating");
         var lvSel = aiLevel < levels.size() ? levels.get(aiLevel).getAsJsonObject() : null;
-        double exp = 1 / (1 + Math.pow(10, (gi(lvSel, "rating") - myRating) / 400.0));
-        int gain = Math.max(3, (int) Math.round(24 * (1 - exp))), loss = Math.max(3, (int) Math.round(24 * exp));
-        modeCard(ctx, x + half + 6, y, half, 46, "ranked_ai", 0xFFD0A020, canPlay, mouseX, mouseY, () -> playMode("ranked_ai"));
-        Ui.text(ctx, Text.literal("+" + gain + " / -" + loss + " pts · -$" + dev.tcgshop.ptcg.PtcgDuels.LEVEL_PENALTY[Math.max(0, Math.min(3, aiLevel))]), x + half + 6, y + 33, half, 9, 0xFFFFE08A, false);
+        int lvi = Math.max(0, Math.min(3, aiLevel));
+        int gain = lvSel != null && lvSel.has("gain") ? gi(lvSel, "gain") : dev.tcgshop.duel.League.AI_WIN[lvi];
+        int loss = lvSel != null && lvSel.has("loss") ? gi(lvSel, "loss") : dev.tcgshop.duel.League.AI_LOSS[lvi];
+        boolean lvOk = lvSel == null || !lvSel.has("allowed") || lvSel.get("allowed").getAsBoolean();
+        modeCard(ctx, x + half + 6, y, half, 46, "ranked_ai", 0xFFD0A020, canPlay && lvOk, mouseX, mouseY, () -> playMode("ranked_ai"));
+        Ui.text(ctx, lvOk ? Text.literal("+" + gain + " / -" + loss + " pts · -$" + dev.tcgshop.ptcg.PtcgDuels.LEVEL_PENALTY[lvi])
+                : Text.translatable("tcgshop.league.level_locked_short"), x + half + 6, y + 33, half, 9, lvOk ? 0xFFFFE08A : 0xFFFF7A7A, false);
         y += 52;
         // --- cola contra jugadores
         ctx.drawText(textRenderer, Text.translatable("tcgshop.league.play.vs_players").formatted(Formatting.BOLD), x, y + 2, 0xFFFFFFFF, false);
@@ -1952,6 +2093,9 @@ public class PhoneScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (morphing()) return true;
+        if (app == App.LEAGUE && leagueHelp.mouseClicked(mouseX, mouseY, button)) return true;
+        if (app == App.LEAGUE && leagueTab.equals("deck") && deckPanel.mouseClicked(mouseX, mouseY, button)) return true;
+        if (app == App.GRADE && gradeTab.equals("send") && gradePanel.mouseClicked(mouseX, mouseY, button)) return true;
         if ((app == App.MARKET || app == App.PRICES) && search.mouseClicked(mouseX, mouseY, button)) {
             setFocused(search);
             search.setFocused(true);
@@ -1966,20 +2110,33 @@ public class PhoneScreen extends Screen {
             }
         }
         if (app == App.MARKET && market.click(mouseX, mouseY)) return true;
+        if (app == App.FURNITURE && furniture.mouseClicked(mouseX, mouseY, button)) return true;
         if (app == App.SELL && sellTab.equals("inv") && quickSell.click(mouseX, mouseY)) return true;
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
+        if (app == App.LEAGUE && leagueHelp.isOpen()) return true; // con la ayuda abierta no se escribe en el buscador de debajo
+        if (app == App.LEAGUE && leagueTab.equals("deck") && deckPanel.charTyped(chr)) return true;
+        if (app == App.FURNITURE && furniture.charTyped(chr, modifiers)) return true;
+        if (app == App.GRADE && gradeTab.equals("send") && gradePanel.charTyped(chr, modifiers)) return true;
         return search.isFocused() && search.charTyped(chr, modifiers);
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (app == App.LEAGUE && leagueHelp.keyPressed(keyCode)) return true;
+        if (app == App.LEAGUE && leagueTab.equals("deck") && deckPanel.keyPressed(keyCode, scanCode, modifiers)) return true;
+        if (app == App.FURNITURE && furniture.keyPressed(keyCode, scanCode, modifiers)) return true;
+        if (app == App.GRADE && gradeTab.equals("send") && gradePanel.keyPressed(keyCode, scanCode, modifiers)) return true;
         if (search.isFocused() && keyCode != GLFW.GLFW_KEY_ESCAPE) return search.keyPressed(keyCode, scanCode, modifiers) || true;
         if (keyCode == GLFW.GLFW_KEY_ESCAPE && search.isFocused()) {
             search.setFocused(false);
+            return true;
+        }
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE && lockedPrompt != null) {
+            lockedPrompt = null;
             return true;
         }
         if (keyCode == GLFW.GLFW_KEY_ESCAPE && app != App.HOME) {
@@ -1992,6 +2149,7 @@ public class PhoneScreen extends Screen {
     /** Venta rápida: mantener pulsado y arrastrar por encima de varias cartas para elegirlas (o quitarlas) de golpe. */
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+        if (button == 0 && app == App.GRADE && gradePanel.mouseDragged(mouseX, mouseY)) return true; // CobbleGrade: pintar selección
         if (button == 0 && app == App.SELL && sellTab.equals("inv") && quickSell.drag(mouseX, mouseY)) return true;
         return super.mouseDragged(mouseX, mouseY, button, dx, dy);
     }
@@ -1999,6 +2157,7 @@ public class PhoneScreen extends Screen {
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         quickSell.release();
+        gradePanel.mouseReleased();
         return super.mouseReleased(mouseX, mouseY, button);
     }
 }

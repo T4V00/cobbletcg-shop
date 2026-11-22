@@ -1,6 +1,6 @@
 package dev.tcgshop.shop;
 
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import net.fabricmc.fabric.api.loot.v3.LootTableEvents;
 import net.minecraft.item.Item;
 import net.minecraft.loot.LootPool;

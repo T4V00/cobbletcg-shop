@@ -100,7 +100,7 @@ public class BoxOpenScreen extends Screen {
             m.translate(0, 0, 400);
             Draw.scaledCentered(ctx, Text.translatable("tcgshop.box.done_title", packs).formatted(Formatting.BOLD), width / 2f, gy - 34, 2f,
                     Draw.withAlpha(Ui.GOLD, a));
-            Draw.scaledCentered(ctx, Text.translatable("tcgshop.set." + set), width / 2f, gy - 14, 1f, Draw.withAlpha(0xFFFFFFFF, a));
+            Draw.scaledCentered(ctx, Text.translatable("masterball.set." + set), width / 2f, gy - 14, 1f, Draw.withAlpha(0xFFFFFFFF, a));
             Draw.scaledCentered(ctx, Text.translatable("tcgshop.box.click_close"), width / 2f, height - 22, 1f, Draw.withAlpha(0xFFAAAAAA, a));
             m.pop();
         }

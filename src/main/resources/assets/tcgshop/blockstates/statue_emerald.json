@@ -1,0 +1,19 @@
+{
+ "variants": {
+  "facing=north": {
+   "model": "tcgshop:block/statue_emerald"
+  },
+  "facing=east": {
+   "model": "tcgshop:block/statue_emerald",
+   "y": 90
+  },
+  "facing=south": {
+   "model": "tcgshop:block/statue_emerald",
+   "y": 180
+  },
+  "facing=west": {
+   "model": "tcgshop:block/statue_emerald",
+   "y": 270
+  }
+ }
+}

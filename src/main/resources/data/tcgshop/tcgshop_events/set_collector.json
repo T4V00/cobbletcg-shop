@@ -1,0 +1,36 @@
+{
+  "_comment": "#41 coleccionista que busca un set (el que más tengas expuesto)",
+  "category": "positive",
+  "tier": "uncommon",
+  "template": "wanted_set",
+  "duration": {
+    "ticks": [
+      6000,
+      9000
+    ]
+  },
+  "conditions": {
+    "minDisplays": 3
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "WHALE",
+      "filter": "most_stocked_set",
+      "browses": [
+        4,
+        6
+      ],
+      "purchases": [
+        2,
+        3
+      ],
+      "title": "tcgshop.role.ev_set_collector",
+      "lines": "set_collector",
+      "linesCount": 6
+    }
+  ],
+  "notify": {
+    "toast": false
+  }
+}

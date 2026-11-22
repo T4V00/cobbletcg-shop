@@ -20,6 +20,6 @@ esbuild.build({
   legalComments: 'inline',
   logLevel: 'warning',
   alias: Object.fromEntries(nodeOnly.map(m => [m, stub])),
-  banner: { js: '/* Motor Pokémon TCG: twinleaf.gg (MIT) basado en ryuu-play (MIT, (c) 2020 keeshii). Puente: CobbleTCG Shop. */\n' +
+  banner: { js: '/* Motor Pokémon TCG: twinleaf.gg (MIT) basado en ryuu-play (MIT, (c) 2020 keeshii). Puente: MasterBall Traders Co.. */\n' +
     'var global = globalThis; var process = globalThis.process || { env: {}, argv: [], platform: "graal", nextTick: function (f) { f(); } };' }
 }).then(r => console.log('ok', r.warnings.length, 'avisos')).catch(() => process.exit(1));

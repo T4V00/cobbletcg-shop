@@ -1,7 +1,7 @@
 package dev.tcgshop.client.binder;
 
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
@@ -63,7 +63,7 @@ public final class Catalog {
             cs.sort(Comparator.comparingInt(Card::number).thenComparing(Card::key));
             Identifier sealed = sealedOf.get(s);
             Item sealedItem = sealed == null ? null : Registries.ITEM.get(sealed);
-            ordered.put(s, new CardSet(s, Text.translatable("tcgshop.set." + s), cs,
+            ordered.put(s, new CardSet(s, Text.translatable("masterball.set." + s), cs,
                     sealed == null ? Identifier.of("minecraft", "missingno") : CardInfo.packTexture(sealed),
                     sealedItem == null ? ItemStack.EMPTY : new ItemStack(sealedItem)));
         }

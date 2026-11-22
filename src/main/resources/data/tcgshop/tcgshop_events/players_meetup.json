@@ -1,0 +1,40 @@
+{
+  "_comment": "#79 (+110 evento comunitario) quedada de jugadores en tu mesa de juego",
+  "category": "neutral",
+  "tier": "uncommon",
+  "template": "meetup",
+  "duration": {
+    "ticks": [
+      6000,
+      8000
+    ]
+  },
+  "conditions": {
+    "requires": [
+      "playtable"
+    ]
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "REGULAR",
+      "count": 3,
+      "gap": [
+        20,
+        80
+      ],
+      "browses": 2,
+      "lines": "meetup",
+      "linesCount": 6
+    },
+    {
+      "type": "modifier",
+      "spawnMult": 1.1
+    }
+  ],
+  "review": {
+    "tag": "fun_event",
+    "chance": 0.25,
+    "mood": 1
+  }
+}

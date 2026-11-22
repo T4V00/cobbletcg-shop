@@ -80,6 +80,8 @@ public final class NpcPokemonDuel {
                 Vec3d spot = me.getPos().add(dir.lengthSquared() < 1e-3 ? new Vec3d(1, 0, 0) : dir.normalize().multiply(Math.min(2.2, dir.length() * 0.35)));
                 mon.refreshPositionAndAngles(spot.x, me.getY(), spot.z, 0, 0);
                 if (mon instanceof MobEntity mm) mm.setAiDisabled(true);
+                mon.setInvulnerable(true);
+                TempPokemon.mark(mon); // 0.9: nunca se guarda en el mundo (sin huérfanos si se cierra a mitad)
                 world.spawnEntity(mon);
                 d.mon[i] = mon;
                 d.moves.add(movesOf(mon));
@@ -97,7 +99,7 @@ public final class NpcPokemonDuel {
                 p.sendMessage(Text.translatable("tcgshop.duel_npc.start", a.getDisplayName(), b.getDisplayName()).formatted(Formatting.GOLD), false);
             return true;
         } catch (Throwable e) {
-            for (Entity m : d.mon) if (m != null) m.discard();
+            for (Entity m : d.mon) if (m != null) { m.discard(); TempPokemon.release(m); }
             a.setAiDisabled(false);
             b.setAiDisabled(false);
             if (!warned) {
@@ -197,6 +199,7 @@ public final class NpcPokemonDuel {
                 world.spawnParticles(ParticleTypes.POOF, tp.x, tp.y + 0.5, tp.z, 20, 0.3, 0.3, 0.3, 0.02);
                 world.playSound(null, target.getBlockPos(), SoundEvents.ENTITY_GENERIC_DEATH, SoundCategory.NEUTRAL, 0.8f, 1.3f);
                 target.discard(); // se debilita
+                TempPokemon.release(target);
                 NpcLines.speak(d.npc[def], Text.translatable("tcgshop.duel_npc.fainted", target.getDisplayName()));
                 for (var p : world.getPlayers(pl -> pl.squaredDistanceTo(trainer) < 40 * 40))
                     p.sendMessage(Text.translatable("tcgshop.duel_npc.won", trainer.getDisplayName(), d.npc[def].getDisplayName()).formatted(Formatting.GOLD), false);
@@ -215,6 +218,7 @@ public final class NpcPokemonDuel {
                     w.spawnParticles(ParticleTypes.CLOUD, d.mon[i].getX(), d.mon[i].getY() + 0.5, d.mon[i].getZ(), 10, 0.3, 0.3, 0.3, 0.02);
                 d.mon[i].discard(); // vuelve a su Poké Ball
             }
+            TempPokemon.release(d.mon[i]);
             d.npc[i].setAiDisabled(false);
         }
     }

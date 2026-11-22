@@ -1,7 +1,7 @@
 package dev.tcgshop.grading;
 
 import dev.tcgshop.advancement.CardAdvancements;
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import dev.tcgshop.economy.CobbleDollarsBridge;
 import dev.tcgshop.network.GradePayloads;
 import dev.tcgshop.pricing.PriceService;
@@ -23,7 +23,6 @@ import net.minecraft.world.PersistentState;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -53,25 +52,42 @@ public final class GradingService extends PersistentState {
 
     private static long now(MinecraftServer server) { return server.getOverworld().getTime(); }
 
+    /** Número de certificado nuevo (comandos de administración, etc.); comparte contador con los pedidos. */
+    public static int nextCert(MinecraftServer server) {
+        GradingService s = get(server);
+        s.markDirty();
+        return s.nextCert++;
+    }
+
     // ------------------------------------------------------------------ acciones
 
     public static void handle(ServerPlayerEntity p, GradePayloads.Action a) {
         switch (a.action()) {
-            case GradePayloads.SUBMIT -> submit(p, Grading.Service.of(a.service()), a.slots());
+            case GradePayloads.SUBMIT -> {
+                // 0.9: CobbleGrade es una app del teléfono con nivel mínimo; recoger pedidos ya hechos sigue libre
+                if (dev.tcgshop.phone.PhoneUpgrades.requireApp(p, "grade")) submit(p, Grading.Service.of(a.service()), a);
+            }
             case GradePayloads.COLLECT -> collect(p, a.order());
             default -> {}
         }
         sync(p);
     }
 
-    private static void submit(ServerPlayerEntity p, Grading.Service service, List<Integer> slots) {
-        Set<Integer> unique = new LinkedHashSet<>(slots);
+    private static void submit(ServerPlayerEntity p, Grading.Service service, GradePayloads.Action a) {
+        List<Integer> slots = a.slots();
+        Set<Integer> unique = new HashSet<>();
         List<Integer> valid = new ArrayList<>();
         long fee = 0;
-        for (int slot : unique) {
+        for (int i = 0; i < slots.size(); i++) {
+            int slot = slots.get(i);
+            if (!unique.add(slot)) continue;
             if (slot < 0 || (slot >= 36 && !dev.tcgshop.collection.BinderSlots.isBinder(slot))) continue;
             ItemStack st = dev.tcgshop.collection.BinderSlots.peek(p, slot);
             if (!CardInfo.isCard(st) || Grading.isGraded(st)) continue;
+            // la carta del hueco debe ser la que el jugador confirmó: si el Binder se reordenó (entró o salió otra
+            // carta) o el hueco cambió mientras el paquete viajaba, se salta en vez de gradear otra carta
+            String want = a.expectedAt(i);
+            if (!want.isEmpty() && !want.equals(CardInfo.id(st).toString())) continue;
             valid.add(slot);
             fee += service.fee(ShopServer.priceOf(st.copyWithCount(1), 1.0));
             if (valid.size() >= Grading.MAX_PER_ORDER) break;
@@ -80,10 +96,13 @@ public final class GradingService extends PersistentState {
             p.sendMessage(Text.translatable("tcgshop.grade.none_selected").formatted(Formatting.RED), true);
             return;
         }
+        double evf = dev.tcgshop.events.EventManager.gradingFeeFactor(p, false); // 0.9 eventos: "visita de un experto"
+        if (evf < 1) fee = Math.max(1, Math.round(fee * evf));
         if (!CobbleDollarsBridge.tryCharge(p, fee)) {
             p.sendMessage(Text.translatable("tcgshop.shop.no_money", PriceService.format(fee)).formatted(Formatting.RED), true);
             return;
         }
+        if (evf < 1) dev.tcgshop.events.EventManager.gradingFeeFactor(p, true);
         GradingService s = get(p.getServer());
         Order o = new Order();
         o.id = s.nextId++;
@@ -120,7 +139,9 @@ public final class GradingService extends PersistentState {
         List<ItemStack> graded = new ArrayList<>();
         long before = 0, after = 0;
         for (ItemStack card : o.cards) {
-            int g = Grading.roll(p.getRandom());
+            // Pasamos el ID de cada carta para que Grading aplique el penalizador
+            // extremo a las impresiones de 2017 y anteriores.
+            int g = Grading.roll(p.getRandom(), CardInfo.id(card));
             ItemStack out = Grading.apply(card, g, s.nextCert++);
             before += PriceService.priceCd(card);
             after += PriceService.priceCd(out);
@@ -134,6 +155,27 @@ public final class GradingService extends PersistentState {
         for (ItemStack g : graded) p.getInventory().offerOrDrop(g.copy());
         p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.6f, 1.4f);
         if (ServerPlayNetworking.canSend(p, GradePayloads.Reveal.ID)) ServerPlayNetworking.send(p, new GradePayloads.Reveal(graded, before, after));
+    }
+
+    /** 0.9 eventos: ¿tiene este jugador algún pedido aún sin terminar? */
+    public static boolean hasPending(MinecraftServer server, UUID player) {
+        long now = now(server);
+        for (Order o : get(server).orders.getOrDefault(player, List.of())) if (o.ready > now) return true;
+        return false;
+    }
+
+    /** 0.9 eventos: acelera UN pedido pendiente (el que más tarde), quitándole esa fracción de lo que le queda. */
+    public static boolean speedUpOne(MinecraftServer server, UUID player, double fraction) {
+        long now = now(server);
+        Order best = null;
+        for (Order o : get(server).orders.getOrDefault(player, List.of())) if (o.ready > now && (best == null || o.ready > best.ready)) best = o;
+        if (best == null) return false;
+        long left = best.ready - now;
+        best.ready = Math.max(now, best.ready - Math.round(left * Math.max(0, Math.min(0.9, fraction))));
+        get(server).markDirty();
+        ServerPlayerEntity p = server.getPlayerManager().getPlayer(player);
+        if (p != null) sync(p);
+        return true;
     }
 
     public static void sync(ServerPlayerEntity p) {

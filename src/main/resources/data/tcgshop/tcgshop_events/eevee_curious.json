@@ -1,0 +1,41 @@
+{
+  "_comment": "#32 Eevee curioso: un Eevee curiosea entre los expositores; los clientes, encantados.",
+  "category": "positive",
+  "tier": "common",
+  "template": "eevee",
+  "duration": {
+    "ticks": [
+      5000,
+      8000
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "eevee",
+      "level": [
+        5,
+        15
+      ],
+      "behaviour": "wander",
+      "pet": true,
+      "feed": true,
+      "particles": "heart"
+    },
+    {
+      "type": "modifier",
+      "spawnMult": 1.1,
+      "moodStart": 1
+    }
+  ],
+  "review": {
+    "tag": "pkmn_cute",
+    "chance": 0.35,
+    "mood": 1
+  },
+  "notify": {
+    "lines": "act_cute",
+    "count": 6,
+    "chance": 0.3
+  }
+}

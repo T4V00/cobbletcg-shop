@@ -1,0 +1,13 @@
+{
+  "_comment": "#83 (+111, +112) vendedor fuera de catálogo: aparece el mercader negro (cambia un Pokémon por un sobre)",
+  "category": "neutral",
+  "tier": "rare",
+  "template": "vendor",
+  "duration": 600,
+  "effects": [
+    {
+      "type": "supplier",
+      "spawn": "black_market"
+    }
+  ]
+}

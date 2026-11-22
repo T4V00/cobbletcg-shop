@@ -1,0 +1,97 @@
+{
+  "_comment": "#12 fuga de agua (+#1 Squirtle como variante): charcos (bloque de incidente, nunca agua real). Arreglo: fregona.",
+  "category": "negative",
+  "tier": "common",
+  "template": "water",
+  "duration": {
+    "ticks": [
+      6000,
+      12000
+    ]
+  },
+  "effects": [
+    {
+      "type": "incident",
+      "kind": "puddle",
+      "count": [
+        3,
+        6
+      ],
+      "near": "floor",
+      "fix": {
+        "items": "#tcgshop:fix/puddle"
+      }
+    },
+    {
+      "type": "modifier",
+      "buyMult": 0.9,
+      "patienceMult": 0.9
+    }
+  ],
+  "variants": [
+    {
+      "key": "pipe",
+      "weight": 3
+    },
+    {
+      "key": "roof",
+      "weight": 3,
+      "conditions": {
+        "weather": [
+          "wet"
+        ]
+      },
+      "effects": [
+        {
+          "type": "notify",
+          "message": "tcgshop.event.water_leak.var.roof"
+        }
+      ]
+    },
+    {
+      "key": "squirtle",
+      "weight": 2,
+      "conditions": {
+        "requires": [
+          "cobblemon"
+        ],
+        "minTemp": 0.15
+      },
+      "effects": [
+        {
+          "type": "notify",
+          "message": "tcgshop.event.water_leak.var.squirtle"
+        },
+        {
+          "type": "actor",
+          "species": "squirtle",
+          "level": [
+            5,
+            15
+          ],
+          "count": 1,
+          "behaviour": "wander",
+          "resolve": [
+            "shoo",
+            "feed",
+            "battle",
+            "expire"
+          ],
+          "shooHits": 2,
+          "reviewTag": "pkmn_squirtle"
+        }
+      ]
+    }
+  ],
+  "review": {
+    "tag": "flood",
+    "chance": 0.6,
+    "mood": -2
+  },
+  "notify": {
+    "toast": true,
+    "lines": "inc_flood",
+    "count": 6,
+    "chance": 0.35
+  }
+}

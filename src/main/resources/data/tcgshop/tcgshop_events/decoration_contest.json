@@ -1,0 +1,21 @@
+{
+  "_comment": "#86 concurso de decoración: premio pequeño si la tienda está bien decorada",
+  "category": "neutral",
+  "tier": "uncommon",
+  "template": "contest",
+  "duration": 600,
+  "effects": [
+    {
+      "type": "reward",
+      "minDecor": 5,
+      "scale": "decor",
+      "perUnit": 200,
+      "money": [
+        0,
+        3000
+      ],
+      "charity": 1,
+      "loot": "tcgshop:events/decor"
+    }
+  ]
+}

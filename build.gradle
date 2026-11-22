@@ -9,34 +9,58 @@ base { archivesName = project.archives_base_name }
 
 repositories { mavenCentral() }
 
+configurations { graalBundle }
+
 // Ruta a la instancia de CurseForge (para copiar el jar al terminar el build)
 def instanceDir = file('../..')
+// La instancia donde se juega (installToInstance copia aquí): Cobbleverse 1.8.0 si existe, si no esta misma.
+// Se puede cambiar con -PtargetInstance="ruta".
+def playDir = project.hasProperty('targetInstance') ? file(project.targetInstance)
+        : (file('../../../COBBLEVERSE - Pokemon Adventure [Cobblemon] (1)').isDirectory() ? file('../../../COBBLEVERSE - Pokemon Adventure [Cobblemon] (1)') : instanceDir)
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-    // cobbletcg y CobbleDollars NO se compilan contra el código: se usan por IDs/tags y reflexión.
-    // Para probar en el entorno de desarrollo (runClient) se cargan desde la carpeta mods de la instancia.
-    // cobbletcg: se compila contra �l s�lo para el rework de sus �lbumes (pantalla Panini). No se incluye en el jar.
-    modCompileOnly files("${instanceDir}/mods/cobbletcg-1.6.0.jar")
-    modLocalRuntime files("${instanceDir}/mods/cobbletcg-1.6.0.jar")
+    // MasterBall Traders API (cartas, sobres, rarezas, imágenes): proyecto hermano ../masterball-api.
+    // Compílalo antes (cd ../masterball-api && ./gradlew build). CobbleDollars y Cobblemon se usan por reflexión.
+    modImplementation files("../masterball-api/build/libs/masterball-traders-api-${project.api_version}.jar")
 
     // Motor real de Pokemon TCG (twinleaf.gg, MIT) ejecutado con GraalJS dentro del mod (jar-in-jar)
+    // NO como mods anidados (include): Fabric los cargaría junto al GraalVM de otros mods (Cobblemon 1.8 trae el 22.3
+    // sin reubicar) y chocan. Van como recursos en graal/ y PtcgEngine los carga en un cargador de clases aislado.
     for (String m : ['org.graalvm.polyglot:polyglot', 'org.graalvm.sdk:collections', 'org.graalvm.sdk:nativeimage', 'org.graalvm.sdk:word',
                      'org.graalvm.sdk:jniutils', 'org.graalvm.truffle:truffle-api', 'org.graalvm.truffle:truffle-runtime',
                      'org.graalvm.truffle:truffle-compiler', 'org.graalvm.js:js-language', 'org.graalvm.regex:regex', 'org.graalvm.shadowed:icu4j']) {
-        implementation("${m}:24.1.1") { transitive = false }
-        include("${m}:24.1.1")
+        compileOnly("${m}:24.1.1") { transitive = false }
+        graalBundle("${m}:24.1.1") { transitive = false }
     }
 }
 
+// GraalVM como recursos del jar: graal/<artefacto>.jar + graal/index.txt (lista para PtcgEngine)
+def graalOut = layout.buildDirectory.dir('graal-bundle')
+tasks.register('bundleGraal') {
+    inputs.files configurations.graalBundle
+    outputs.dir graalOut
+    doLast {
+        def dir = graalOut.get().dir('graal').asFile
+        project.delete(dir)
+        dir.mkdirs()
+        def names = []
+        configurations.graalBundle.resolvedConfiguration.resolvedArtifacts.each { a ->
+            def name = "${a.moduleVersion.id.name}-${a.moduleVersion.id.version}.jar"
+            java.nio.file.Files.copy(a.file.toPath(), new File(dir, name).toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            names << name
+        }
+        new File(dir, 'index.txt').text = names.sort().join(System.lineSeparator()) + System.lineSeparator()
+    }
+}
 processResources {
+    dependsOn 'bundleGraal'
+    from(graalOut)
     inputs.property 'version', project.version
     filesMatching('fabric.mod.json') { expand 'version': project.version }
-    // public build (./gradlew build -Prelease): leaves out the fixed cobbletcg advancements (another author's files)
-    if (project.hasProperty('release')) exclude 'data/cobbletcg/**'
 }
 
 tasks.withType(JavaCompile).configureEach { it.options.release = 21 }
@@ -46,11 +70,18 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
-// ./gradlew installToInstance  -> compila y copia el jar a la carpeta mods de la instancia
+// ./gradlew installToInstance  -> compila y copia el jar (y el de la API) a la carpeta mods de la instancia
 tasks.register('installToInstance', Copy) {
     dependsOn remapJar
+    doFirst {
+        // builds anteriores de este mod y de la API (si no, Fabric ve dos mods con el mismo id)
+        delete fileTree("${playDir}/mods") { include 'masterball-traders-*.jar', 'cobbletcg-shop-*.jar' }
+        if (file("${playDir}/mods").listFiles().any { it.name.startsWith('cobbletcg-') && !it.name.startsWith('cobbletcg-shop') })
+            logger.warn('AVISO: ScalperTCG (cobbletcg-*.jar) sigue en mods/ y es incompatible con MasterBall Traders API: quítalo.')
+    }
     from remapJar.archiveFile
-    into "${instanceDir}/mods"
+    from "../masterball-api/build/libs/masterball-traders-api-${project.api_version}.jar"
+    into "${playDir}/mods"
 }
 
 // --- banco de pruebas del motor TCG en GraalJS (no forma parte del mod)

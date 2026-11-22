@@ -1,0 +1,41 @@
+{
+  "_comment": "#15 caja registradora averiada: chispas junto a la caja; el cajero no puede cobrar (el dueño en la caja sí). Arreglo: kit de reparación.",
+  "category": "negative",
+  "tier": "common",
+  "template": "register",
+  "duration": {
+    "ticks": [
+      6000,
+      10000
+    ]
+  },
+  "conditions": {
+    "requires": [
+      "register"
+    ]
+  },
+  "effects": [
+    {
+      "type": "incident",
+      "kind": "sparks",
+      "count": 1,
+      "near": "register",
+      "fix": {
+        "items": "#tcgshop:fix/sparks",
+        "hits": 2
+      },
+      "registerDown": true
+    }
+  ],
+  "review": {
+    "tag": "slow",
+    "chance": 0.45,
+    "mood": -1
+  },
+  "notify": {
+    "toast": true,
+    "lines": "inc_register",
+    "count": 6,
+    "chance": 0.35
+  }
+}

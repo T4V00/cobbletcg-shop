@@ -1,0 +1,13 @@
+{
+ "replace": false,
+ "values": [
+  "tcgshop:statue_bronze",
+  "tcgshop:statue_silver",
+  "tcgshop:statue_gold",
+  "tcgshop:statue_emerald",
+  "tcgshop:statue_diamond",
+  "tcgshop:statue_netherite",
+  "tcgshop:statue_masterball",
+  "tcgshop:statue_part"
+ ]
+}

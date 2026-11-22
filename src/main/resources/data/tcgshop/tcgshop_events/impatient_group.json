@@ -1,0 +1,39 @@
+{
+  "_comment": "#23 grupo impaciente",
+  "category": "negative",
+  "tier": "common",
+  "template": "impatient",
+  "duration": {
+    "ticks": [
+      6000,
+      8000
+    ]
+  },
+  "conditions": {
+    "minTier": "stone"
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "REGULAR",
+      "count": [
+        3,
+        4
+      ],
+      "gap": [
+        20,
+        60
+      ],
+      "patienceMult": 0.5,
+      "resolveOnVisit": true,
+      "minStars": 3,
+      "lines": "impatient",
+      "linesCount": 6
+    }
+  ],
+  "review": {
+    "tag": "crowd",
+    "chance": 0.3,
+    "mood": -1
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "_comment": "#35 Meowth afortunado: si le acaricias o le das una baya suelta alguna moneda (pequena, con el tope diario de premios). Distinto del Meowth del tutorial.",
+  "category": "positive",
+  "tier": "uncommon",
+  "template": "meowth",
+  "duration": {
+    "ticks": [
+      5000,
+      8000
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "meowth",
+      "level": [
+        5,
+        15
+      ],
+      "behaviour": "wander",
+      "pet": true,
+      "feed": true,
+      "particles": "wax",
+      "reward": {
+        "onPet": {
+          "money": [
+            100,
+            300
+          ]
+        },
+        "onFeed": {
+          "money": [
+            200,
+            500
+          ]
+        }
+      },
+      "reviewTag": "pkmn_meowth"
+    }
+  ],
+  "review": {
+    "tag": "pkmn_cute",
+    "chance": 0.25,
+    "mood": 1
+  },
+  "notify": {
+    "lines": "act_meowth",
+    "count": 6,
+    "chance": 0.3
+  }
+}

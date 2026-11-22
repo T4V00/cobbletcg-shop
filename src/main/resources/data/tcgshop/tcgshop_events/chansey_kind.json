@@ -1,0 +1,51 @@
+{
+  "_comment": "#33 Chansey amable: calma a los clientes que esperan (mas paciencia, mejor humor). Tiendas con buena reputacion.",
+  "category": "positive",
+  "tier": "uncommon",
+  "template": "chansey",
+  "duration": {
+    "ticks": [
+      6000,
+      9000
+    ]
+  },
+  "conditions": {
+    "rep": [
+      30,
+      100
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "chansey",
+      "level": [
+        10,
+        25
+      ],
+      "behaviour": "wander",
+      "pet": true,
+      "feed": true,
+      "reward": {
+        "onFeed": {
+          "charity": 1
+        }
+      }
+    },
+    {
+      "type": "modifier",
+      "moodStart": 1,
+      "patienceMult": 1.3
+    }
+  ],
+  "review": {
+    "tag": "pkmn_cute",
+    "chance": 0.3,
+    "mood": 1
+  },
+  "notify": {
+    "lines": "act_chansey",
+    "count": 6,
+    "chance": 0.3
+  }
+}

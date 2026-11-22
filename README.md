@@ -1,9 +1,11 @@
-# CobbleTCG Shop
+# MasterBall Traders Co.
 
-A shop-simulator add-on for **[ScalperTCG](https://www.curseforge.com/minecraft/mc-mods/scalpertcg)** (formerly CobbleTCG) (Fabric, Minecraft 1.21.1).
+**PTCG Shop Simulator & PvP**
+
+A Pokémon TCG shop simulator for Cobblemon worlds (Fabric, Minecraft 1.21.1). The cards come from **MasterBall Traders API** (11,700+ physical cards from 68 sets; TCG Pocket cards are not included).
 Run your own Pokémon TCG card shop, open packs with animations, trade with NPCs and players, grade cards, play the real TCG and climb a ranked league. All prices are in CobbleDollars.
 
-> **This add-on only exists thanks to ScalperTCG and its author, SorEscopeta.** All the cards, art and collection systems belong to ScalperTCG. Please support the original mod.
+> Started as an add-on for ScalperTCG (by SorEscopeta). Since 0.2.0 it no longer needs it: its saved cards are converted automatically. Thanks to SorEscopeta for the original mod.
 >
 > Heavily inspired by **TCG Card Shop Simulator** and **Pokémon TCG Pocket**.
 >
@@ -18,8 +20,8 @@ Run your own Pokémon TCG card shop, open packs with animations, trade with NPCs
 
 | | Dependency | Why |
 |---|---|---|
-| **Required** | ScalperTCG (formerly CobbleTCG) 1.6.0+ | Base mod (cards, packs, collections). |
-| **Required** | ScalperTCG resource packs ("cobbletcg resourcepack 1, 2, 3...") | Card art. Without them, cards render blank. Install them client-side and enable them. |
+| **Required** | MasterBall Traders API 0.1.0+ | Cards, packs, rarities, print variants and card images (downloaded automatically on first launch). |
+| **Incompatible** | ScalperTCG | Replaced by the API. Remove it: its cards in your worlds are converted, and its placed albums are emptied into barrels. |
 | **Required** | CobbleDollars | The whole economy (buying, selling, wages, rewards) uses CobbleDollars. |
 | **Required** | Fabric API, Fabric Loader 0.18.4+, Java 21 | |
 | Recommended | Cobblemon 1.7+ | Pokémon battles against thieves and Scalpers, the black-market dealer, Pokémon titles. |
@@ -30,8 +32,8 @@ Install the mods on the server and on every client. The resource packs are only 
 ## Installation
 
 1. Create a Fabric 1.21.1 profile (Fabric Loader 0.18.4+).
-2. Put Fabric API, ScalperTCG, CobbleDollars, CobbleTCG Shop (and ideally Cobblemon) in `mods/`.
-3. Put every ScalperTCG resource pack in `resourcepacks/` and enable them in *Options > Resource Packs*.
+2. Put Fabric API, MasterBall Traders API, CobbleDollars, MasterBall Traders Co. (and ideally Cobblemon) in `mods/`.
+3. Start the game once: the card images download on the title screen (or point `imageFolder` in `config/masterball-api.json` to a folder of images).
 4. Start the game. The config files are created the first time it runs (see below).
 
 ---
@@ -57,7 +59,7 @@ Card, pack and box prices are real TCGplayer market prices in **USD**. The mod t
 | `announceRadius` | `0` | Radius in blocks for pull announcements. `0` = whole server. |
 | `emeraldPriceCd` | `300` | Legacy. Emeralds now use the vanilla price table (see below). |
 | `starterPacks` | `true` | Give sealed packs to players the first time they join a world. |
-| `starterPackCount` | `5` | How many starter packs. |
+| `starterPackCount` | `3` | How many starter packs. |
 | `packOpeningAnimation` | `true` | *(client)* Animated pack opening screen. |
 | `showPriceInTooltip` | `true` | *(client)* Show the market price in card tooltips. |
 | `configVersion` | `2` | Internal, used to migrate old defaults. Don't change it. |
@@ -147,7 +149,7 @@ The file contains a `_help` section with short explanations. Missing values are 
 
 | Setting | Default | What it does |
 |---|---|---|
-| `announceAllAdvancements` | `true` | Announce every CobbleTCG Shop and ScalperTCG advancement in chat (not only challenges). Also respects the `announceAdvancements` gamerule. |
+| `announceAllAdvancements` | `true` | Announce every MasterBall Traders Co. advancement in chat (not only challenges). Also respects the `announceAdvancements` gamerule. |
 
 ### `config/tcgshop-vanilla-prices.json`: what the Wholesaler pays for vanilla items
 
@@ -169,7 +171,7 @@ saves/<world>/datapacks/my_prices/data/tcgshop/tcgshop_prices/cards.json
 ```
 ```json
 {
-  "cards_usd": { "cobbletcg:aradiance/cards/asr001": 5.0 },
+  "cards_usd": { "masterball:aradiance/cards/asr001": 5.0 },
   "sealed_usd": { "aradiance": { "pack": 4.0, "box": 150.0, "etb": 60.0 } },
   "rarity_median_usd": { "*": { "common": 0.15 } }
 }
@@ -200,15 +202,23 @@ Default keybind: **G** opens your General Binder.
 
 ```
 ./gradlew build              # personal build
-./gradlew build -Prelease    # public build (without the locally fixed ScalperTCG advancements)
+./gradlew build              # needs ../masterball-api built first
 ```
-The jar ends up in `build/libs/`. The build compiles against the ScalperTCG jar of the instance it sits in (`../../mods/cobbletcg-1.6.0.jar`, see `build.gradle`); that jar is not included in this repository. CobbleDollars and Cobblemon are used through reflection only.
+The jar ends up in `build/libs/`. The build compiles against MasterBall Traders API (`../masterball-api/build/libs`, see `build.gradle`). CobbleDollars and Cobblemon are used through reflection only.
 
 `tools/` contains the generators for language files, textures, price data (`fetch_prices.py`, public data from tcgcsv.com) and the TCG engine card map.
 
+### Graded prices (PriceCharting)
+
+Graded cards use real graded prices when a price file has a `graded_usd` table (grades 7, 8, 9, 9.5 and 10 per card id); otherwise a typical PriceCharting curve is used (7 → x1.15, 8 → x1.5, 9 → x2.4, 9.5 → x4, 10 → x9 over the ungraded price, with a minimum value per slab). PriceCharting does not allow automated downloads, so import your own export: `python tools/import_pricecharting.py --csv pokemon-cards.csv` (or `--token <your API token>`). It writes `data/tcgshop/tcgshop_prices/pricecharting.json`, which overrides the TCGplayer prices where it has data.
+
+### League points vs. the AI
+
+Fixed per level: win easy +4, normal +9, hard +16, champion +28; lose easy -16, normal -12, hard -10, champion -10. From Gold you can no longer play ranked on easy, from Platinum not on normal, and from Diamond only against the champion.
+
 ## Credits
 
-- **ScalperTCG** by SorEscopeta: base mod, cards and art.
+- **ScalperTCG** by SorEscopeta: the original mod this started from; its card list (CC0) was used as a reference for card names.
 - Pokémon TCG rules engine: **twinleaf.gg**, based on **ryuu-play** by keeshii (MIT, license included in `assets/tcgshop/ptcg/LICENSE-twinleaf.txt`). Runs on GraalJS (UPL).
 - Market data: TCGplayer, via tcgcsv.com.
 - Inspiration: TCG Card Shop Simulator, Pokémon TCG Pocket.

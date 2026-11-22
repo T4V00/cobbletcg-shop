@@ -1,8 +1,8 @@
 package dev.tcgshop.advancement;
 
 import dev.tcgshop.TcgShop;
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.collection.CardCollection;
 import dev.tcgshop.pricing.PriceService;
 import net.minecraft.advancement.AdvancementCriterion;
@@ -30,7 +30,7 @@ import java.util.Set;
  * Logros de cartas. NO hay rastreador aparte de cartas vistas: todo se acredita en el momento en que
  * el jugador ABRE un binder (general, personal o álbum de set), con las cartas que contiene.
  *
- *  · Logros de colección de cobbletcg: tienen un criterio "inventory_changed" por carta; los otorgamos
+ *  · Logros de colección de otros mods (criterio "inventory_changed" de una sola carta): se otorgan
  *    directamente (así cuentan aunque la carta esté guardada en un binder y no en el inventario).
  *  · Logros propios (data/tcgshop/advancement): cartas únicas, valor de la colección, sets completos...
  */
@@ -54,7 +54,7 @@ public final class CardAdvancements {
         if (index != null) return index;
         Map<String, List<Crit>> map = new HashMap<>();
         for (AdvancementEntry e : server.getAdvancementLoader().getAdvancements()) {
-            if (!e.id().getNamespace().equals("cobbletcg")) continue;
+            if (e.id().getNamespace().equals("minecraft")) continue;
             for (Map.Entry<String, AdvancementCriterion<?>> c : e.value().criteria().entrySet()) {
                 if (!(c.getValue().conditions() instanceof InventoryChangedCriterion.Conditions cond)) continue;
                 if (cond.items().size() != 1) continue;
@@ -67,7 +67,7 @@ public final class CardAdvancements {
                 if (CardInfo.isCard(id)) map.computeIfAbsent(id.toString(), k -> new ArrayList<>()).add(new Crit(e, c.getKey()));
             }
         }
-        TcgShop.LOGGER.info("Logros de cartas indexados: {} cartas con criterios de cobbletcg", map.size());
+        TcgShop.LOGGER.info("Logros de cartas indexados: {} cartas con criterios de colección", map.size());
         index = map;
         return map;
     }
@@ -88,6 +88,7 @@ public final class CardAdvancements {
         Map<String, List<Crit>> idx = index(player.getServer());
         int oldUnique = c.credited.size();
         for (String id : ids) {
+            if (dev.masterball.api.card.CardCatalog.isRemovedId(id)) continue; // TCG Pocket: quitado en la 0.9
             c.credited.add(id);
             List<Crit> crits = idx.get(id);
             if (crits != null) for (Crit k : crits) player.getAdvancementTracker().grantCriterion(k.entry, k.name);
@@ -117,7 +118,7 @@ public final class CardAdvancements {
     /** Logros por sacar cartas de cierta rareza (se llama al abrir un sobre limpio). */
     public static void creditPull(ServerPlayerEntity player, List<ItemStack> cards, List<Long> prices) {
         for (int i = 0; i < cards.size(); i++) {
-            switch (Rarity.of(cards.get(i))) {
+            switch (Rarity.of(cards.get(i)).family) {
                 case DOUBLE_RARE -> grant(player, "pull_double_rare");
                 case ULTRA_RARE -> grant(player, "pull_ultra_rare");
                 case ILLUSTRATION_RARE -> grant(player, "pull_illustration_rare");

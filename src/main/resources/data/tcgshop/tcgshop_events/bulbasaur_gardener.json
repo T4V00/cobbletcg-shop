@@ -1,0 +1,45 @@
+{
+  "_comment": "#37 Bulbasaur jardinero: arregla las plantas de la entrada; la decoracion cuenta un poco mas HOY (no coloca bloques).",
+  "category": "positive",
+  "tier": "uncommon",
+  "template": "bulbasaur",
+  "duration": "day",
+  "conditions": {
+    "minTemp": 0.5,
+    "requires": [
+      "door"
+    ],
+    "notBiomes": [
+      "minecraft:desert",
+      "#minecraft:is_badlands"
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "bulbasaur",
+      "level": [
+        5,
+        15
+      ],
+      "behaviour": "outside",
+      "pet": true,
+      "particles": "leaf"
+    },
+    {
+      "type": "modifier",
+      "decorDelta": 3,
+      "while": "always"
+    }
+  ],
+  "review": {
+    "tag": "decor",
+    "chance": 0.3,
+    "mood": 1
+  },
+  "notify": {
+    "lines": "act_bulbasaur",
+    "count": 6,
+    "chance": 0.3
+  }
+}

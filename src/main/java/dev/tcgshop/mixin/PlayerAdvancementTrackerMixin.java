@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Anuncia en el chat los logros de CobbleTCG Shop y de cobbletcg aunque su archivo no lo pida (por defecto sólo
+ * Anuncia en el chat los logros de MasterBall Traders Co. aunque su archivo no lo pida (por defecto sólo
  * los desafíos salían en el chat). Respeta la regla announceAdvancements y la opción announceAllAdvancements.
  */
 @Mixin(PlayerAdvancementTracker.class)
@@ -28,7 +28,7 @@ public abstract class PlayerAdvancementTrackerMixin {
     private void tcgshop$announce(AdvancementEntry entry, String criterion, CallbackInfoReturnable<Boolean> cir) {
         if (!Boolean.TRUE.equals(cir.getReturnValue()) || owner == null || !EconomyConfig.INSTANCE.announceAllAdvancements) return;
         String ns = entry.id().getNamespace();
-        if (!ns.equals("tcgshop") && !ns.equals("cobbletcg")) return;
+        if (!ns.equals("tcgshop")) return;
         AdvancementDisplay d = entry.value().display().orElse(null);
         if (d == null || d.isHidden() || d.shouldAnnounceToChat()) return; // los que ya se anuncian solos, no repetir
         if (!getProgress(entry).isDone()) return;

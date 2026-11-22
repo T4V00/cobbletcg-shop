@@ -1,4 +1,4 @@
-# CobbleTCG Shop — add-on para CobbleTCG / ScalperTCG 1.6.0
+# MasterBall Traders Co. — add-on para CobbleTCG / ScalperTCG 1.6.0
 
 Mod Fabric 1.21.1 que **depende** de `cobbletcg` (no lo modifica ni redistribuye sus
 assets; su licencia es CC BY-NC 3.0). Se integra con CobbleDollars (opcional, por reflexión).
@@ -247,3 +247,23 @@ Gradeo, empleados, eventos de mercado, cajas de bulto, elección sorpresa, inter
 
 ### Futuro — PvP
 Batallas de cartas entre jugadores (motor de reglas, mazos, mesa, torneos).
+
+## Próximas actualizaciones
+
+- **Eventos aleatorios:** en desarrollo en la 0.9 (motor por datos, 10 % de probabilidad diaria por dueño,
+  incidentes que se arreglan, Pokémon de Cobblemon, reseñas que recuerdan lo que pasó).
+- **Propiedades:** más adelante se podrán comprar construcciones de Minecraft con dinero; las estatuas de lujo
+  de la 0.9 cambiarán y mejorarán según su tier.
+
+### 0.9.5 (después de corregir la 0.9; luego se publica en GitHub y CurseForge)
+- Empiezas con 5 sobres y un Binder General ya equipado en el slot de accesorios, a tu nombre.
+- Empiezas con 5.000 de dinero, pero solo se entregan al abrir tu primer sobre.
+- Evento único por jugador: tras jugar un rato aparece un NPC coleccionista único (no vuelve) que ofrece 5.000
+  por una carta de tu colección que le gusta.
+- El mayorista tiene más probabilidad de aparecer si aún no tienes tienda.
+- A los 4 días de Minecraft sin tienda aparece un NPC que te tira una carta al azar de unos 15.000, te llama
+  mendigo y suelta frases para fastidiarte y animarte a abrir una tienda.
+- Skins mejores y muchas más, nombres comunes, y clientes separados por sexo (skins y nombres femeninos y
+  masculinos).
+- Tiers de ladrones según la popularidad de la tienda; los más altos pueden matar a tus guardias o a ti y robar
+  todo el stock (MUY infrecuentes). Contratar y mejorar guardias se vuelve importante (añadir mejoras de guardia).

@@ -7,11 +7,13 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import dev.tcgshop.TcgSounds;
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import dev.tcgshop.client.ClientPtcg;
 import dev.tcgshop.client.PtcgAudio;
 import dev.tcgshop.client.binder.StylePainter;
 import dev.tcgshop.client.binder.Ui;
+import dev.tcgshop.client.screen.duel.DuelFx;
+import dev.tcgshop.client.screen.duel.DuelPalette;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -58,7 +60,7 @@ public class PtcgDuelScreen extends Screen {
 
     private record Drop(String key, JsonObject target) {}
 
-    private record LogLine(int turn, String text, int color, double at, @Nullable String card) {}
+    private record LogLine(int turn, String text, int color, double at, @Nullable String card, int kind) {}
 
     /** Muelle amortiguado: lo que hace que todo se mueva "buttery" (con inercia y un pequeño rebote). */
     private static final class Spr {
@@ -90,9 +92,23 @@ public class PtcgDuelScreen extends Screen {
 
     private static final class Fx {
         String text;
-        int color;
-        float x, y, scale;
+        int color, kind; // kind: 0 texto, 1 daño, 2 curación, 3 K.O.
+        float x, y, scale, drift;
         double start, life;
+    }
+
+    /** Pokémon debilitado: su carta tiembla, se apaga y se hunde en la mesa. */
+    private static final class KoGhost {
+        String f;
+        float x, y, w, h;
+        double start;
+        boolean mine;
+    }
+
+    /** Carta de Premio que vuela a la mano de quien la coge, dándose la vuelta. */
+    private static final class PrizeFly {
+        float x0, y0, x1, y1, w, h;
+        double start;
     }
 
     private static final class Particle {
@@ -120,8 +136,15 @@ public class PtcgDuelScreen extends Screen {
     private final List<Drop> drops = new ArrayList<>();
     private final List<Fx> fx = new ArrayList<>();
     private final List<Particle> parts = new ArrayList<>();
+    private final List<Particle> confetti = new ArrayList<>(); // por encima de la pantalla final
     private final List<Fly> flies = new ArrayList<>();
     private final List<LogLine> log = new ArrayList<>();
+    private final List<KoGhost> koGhosts = new ArrayList<>();
+    private final List<PrizeFly> prizeFlies = new ArrayList<>();
+    private final Map<String, DuelFx.HpBar> hpBars = new HashMap<>();
+    // transiciones: registro deslizante, velo de decisiones y confeti del final
+    private float drawerT;
+    private boolean confettiDone;
 
     // ratón / mano
     private List<Text> tooltip;
@@ -256,7 +279,8 @@ public class PtcgDuelScreen extends Screen {
         } else if (suggestion != null && stateKey() != suggestKey) suggestion = null;
         int turn = i(v, "turn", 0);
         if (turn != lastTurn) {
-            if (turn > 0) addLog("— " + ui("turn_n", turn) + " · " + (myTurn() ? s(side("me"), "name") : s(side("opp"), "name")) + " —", SOFT);
+            if (turn > 0) addLog("— " + ui("turn_n", turn) + " · " + (myTurn() ? ui("you") : s(side("opp"), "name")) + " —",
+                    DuelPalette.side(myTurn()), null, DuelPalette.K_TURN);
             lastTurn = turn;
         }
         if (prev == null && i(v, "turn", 0) > 1) introSkipped = true;
@@ -620,10 +644,14 @@ public class PtcgDuelScreen extends Screen {
 
     // ================================================================== registro
 
-    private void addLog(String text, int color) { addLog(text, color, null); }
+    private void addLog(String text, int color) { addLog(text, color, null, DuelPalette.K_PLAY); }
 
-    private void addLog(String text, int color, @Nullable String card) {
-        log.add(new LogLine(i(v, "turn", 0), text, color, now(), card == null || card.isEmpty() ? null : card));
+    private void addLog(String text, int color, int kind) { addLog(text, color, null, kind); }
+
+    private void addLog(String text, int color, @Nullable String card) { addLog(text, color, card, DuelPalette.K_PLAY); }
+
+    private void addLog(String text, int color, @Nullable String card, int kind) {
+        log.add(new LogLine(i(v, "turn", 0), text, color, now(), card == null || card.isEmpty() ? null : card, kind));
         while (log.size() > 300) log.remove(0);
         logScroll = 0;
     }
@@ -698,7 +726,11 @@ public class PtcgDuelScreen extends Screen {
                 case "LOG_PLAYER_USES_ATTACK", "LOG_PLAYER_USES_ABILITY" -> s(monAt(sk, ACTIVE, 0), "f");
                 default -> null;
             };
-            addLog(ClientPtcg.tr("log", m, localizeParams(p, sk)), mine ? BLUE : who.isEmpty() ? INK : RED, card);
+            boolean koLine = m.equals("LOG_POKEMON_KO");
+            boolean flipLine = m.equals("LOG_PLAYER_FLIPS_HEADS") || m.equals("LOG_PLAYER_FLIPS_TAILS");
+            int lineCol = koLine ? DuelPalette.LOG_KO : m.equals("LOG_PLAYER_EVOLVES_POKEMON") ? DuelPalette.LOG_EVOLVE : who.isEmpty() ? DuelPalette.LOG_SYSTEM : mine ? BLUE : RED;
+            addLog(ClientPtcg.tr("log", m, localizeParams(p, sk)), lineCol, card,
+                    koLine ? DuelPalette.K_KO : who.isEmpty() || flipLine ? DuelPalette.K_SYSTEM : DuelPalette.K_PLAY);
             boolean flip = m.equals("LOG_PLAYER_FLIPS_HEADS") || m.equals("LOG_PLAYER_FLIPS_TAILS");
             if (flip && i(v, "turn", 0) == 0 && bigCoinAt < 0 && !introSkipped && now() - introAt < 30) {
                 // la moneda que decide quién empieza: en grande, en el centro
@@ -751,12 +783,29 @@ public class PtcgDuelScreen extends Screen {
                     String key = findMon(prev, who);
                     float[] c = key == null ? null : center(key);
                     if (c != null) {
-                        floatText("K.O.", 0xFFFFFFFF, c[0], c[1], 2.6f);
+                        Fx ko = floatText(ui("ko"), 0xFFFFFFFF, c[0], c[1], 2.6f);
+                        ko.kind = 3;
+                        ko.life = 1.7;
                         burst(c[0], c[1], GOLD, 40, 3.2f);
                         burst(c[0], c[1], RED, 30, 2.4f);
+                        ring(c[0], c[1], DuelPalette.LOG_KO, 70);
+                        // fantasma de la carta debilitada (el nuevo estado ya no la trae)
+                        JsonObject dead = monByKeyIn(prev, key);
+                        int[] r = rects.get(key);
+                        if (dead != null && r != null) {
+                            KoGhost g = new KoGhost();
+                            g.f = s(dead, "f");
+                            g.x = r[0];
+                            g.y = r[1];
+                            g.w = r[2];
+                            g.h = r[3];
+                            g.start = now();
+                            g.mine = key.startsWith("me");
+                            koGhosts.add(g);
+                        }
                     }
                     shakeAt = now();
-                    shakePow = 7;
+                    shakePow = 8;
                     vignetteAt = now();
                     vignetteColor = GOLD;
                     PtcgAudio.cry(who, 0.75f, 0.9f); // el registro trae el nombre del motor
@@ -770,7 +819,7 @@ public class PtcgDuelScreen extends Screen {
 
     // ================================================================== efectos
 
-    private void floatText(String text, int color, float x, float y, float scale) {
+    private Fx floatText(String text, int color, float x, float y, float scale) {
         Fx f = new Fx();
         f.text = text;
         f.color = color;
@@ -779,10 +828,37 @@ public class PtcgDuelScreen extends Screen {
         f.scale = scale;
         f.start = now();
         f.life = 1.4;
+        f.drift = (RNG.nextFloat() - 0.5f) * 18;
         fx.add(f);
+        return f;
     }
 
-    private void burst(float x, float y, int color, int n, float speed) {
+    /** Número de daño / curación que "explota" y flota: más grande y más rojo cuanto mayor es el golpe. */
+    private void damageText(int amount, boolean heal, float x, float y) {
+        float sc = heal ? 1.6f : MathHelper.clamp(1.7f + amount / 90f, 1.7f, 3.2f);
+        int col = heal ? DuelPalette.HP_HIGH : amount >= 120 ? 0xFFFF2A4A : amount >= 60 ? 0xFFFF5A3C : 0xFFFF8A3C;
+        Fx f = floatText((heal ? "+" : "-") + amount, col, x, y, sc);
+        f.kind = heal ? 2 : 1;
+        f.life = heal ? 1.3 : 1.5;
+    }
+
+    @Nullable
+    private JsonObject monByKeyIn(@Nullable JsonObject view, @Nullable String key) {
+        if (view == null || !isMonKey(key)) return null;
+        String[] p = key.split(":");
+        JsonObject pl = obj(view.get(p[0]));
+        if (pl == null) return null;
+        try {
+            if (Integer.parseInt(p[1]) == ACTIVE) return obj(pl.get("active"));
+            JsonArray bench = arr(pl, "bench");
+            int idx = Integer.parseInt(p[2]);
+            return idx < bench.size() ? obj(bench.get(idx)) : null;
+        } catch (NumberFormatException e) { return null; }
+    }
+
+    private void burst(float x, float y, int color, int n, float speed) { burst(parts, x, y, color, n, speed); }
+
+    private void burst(List<Particle> into, float x, float y, int color, int n, float speed) {
         for (int k = 0; k < n; k++) {
             Particle p = new Particle();
             double a = RNG.nextDouble() * Math.PI * 2, sp = speed * (0.4 + RNG.nextDouble());
@@ -794,7 +870,7 @@ public class PtcgDuelScreen extends Screen {
             p.color = RNG.nextBoolean() ? color : 0xFFFFFFFF;
             p.start = now();
             p.life = 0.6 + RNG.nextDouble() * 0.6;
-            parts.add(p);
+            into.add(p);
         }
     }
 
@@ -841,13 +917,16 @@ public class PtcgDuelScreen extends Screen {
                     int hp = i(mb, "hp", 0), dm = i(mb, "dmg", 0);
                     int d = dm - i(ma, "dmg", 0);
                     if (d > 0) {
-                        addLog(ui("log_damage", mn, owner, d, Math.max(0, hp - dm), hp), col);
+                        addLog(ui("log_damage", mn, owner, d, Math.max(0, hp - dm), hp), DuelPalette.LOG_DAMAGE, DuelPalette.K_DAMAGE);
                         if (c != null) {
-                            floatText("-" + d, RED, c[0], c[1], 2f);
+                            damageText(d, false, c[0], c[1]);
                             burst(c[0], c[1], RED, 10 + d / 10, 2.2f);
+                            if (d >= 100) burst(c[0], c[1], GOLD, 16, 3f);
                         }
+                        // sacudida proporcional al golpe (si la anterior ya terminó, empieza de cero)
+                        if (now() - shakeAt > 0.35) shakePow = 0;
                         shakeAt = now();
-                        shakePow = Math.max(shakePow, Math.min(7, 2 + d / 30f));
+                        shakePow = Math.max(shakePow, Math.min(8, 2 + d / 25f));
                         hitAt.put(key, now());
                         Anim ha = boardAnim(key);
                         ha.ry.v += (RNG.nextBoolean() ? 1 : -1) * Math.min(900, 300 + d * 4);
@@ -856,10 +935,10 @@ public class PtcgDuelScreen extends Screen {
                         sound(SoundEvents.ENTITY_PLAYER_ATTACK_STRONG, 1f, 0.7f);
                         PtcgAudio.play("poke_ball.hit", SoundEvents.ENTITY_PLAYER_HURT, 1f, 0.5f);
                     } else if (d < 0) {
-                        addLog(ui("log_heal", mn, owner, -d, Math.max(0, hp - dm), hp), GREEN);
+                        addLog(ui("log_heal", mn, owner, -d, Math.max(0, hp - dm), hp), DuelPalette.LOG_HEAL, DuelPalette.K_HEAL);
                         PtcgAudio.play("item.medicine.spray.use", SoundEvents.ENTITY_PLAYER_LEVELUP, 1.2f, 0.6f);
                         if (c != null) {
-                            floatText("+" + (-d), GREEN, c[0], c[1], 1.6f);
+                            damageText(-d, true, c[0], c[1]);
                             burst(c[0], c[1], GREEN, 10, 1.4f);
                         }
                     }
@@ -869,7 +948,7 @@ public class PtcgDuelScreen extends Screen {
                         int ecol = energyColor(l.get(l.size() - 1).getAsString());
                         burst(c[0], c[1], ecol, 14, 1.6f);
                         ring(c[0], c[1], ecol, 40);
-                    } else if (en < 0) addLog(ui("log_energy_lost", mn, owner, -en), SOFT);
+                    } else if (en < 0) addLog(ui("log_energy_lost", mn, owner, -en), DuelPalette.LOG_SYSTEM, DuelPalette.K_SYSTEM);
                     Set<Integer> ca = new HashSet<>(), cb = new HashSet<>();
                     for (JsonElement e : arr(ma, "sc")) ca.add(e.getAsInt());
                     for (JsonElement e : arr(mb, "sc")) cb.add(e.getAsInt());
@@ -877,12 +956,14 @@ public class PtcgDuelScreen extends Screen {
                         addLog(ui("log_cond_on", mn, ui("cond." + k)), COND_COLORS[k]);
                         sound(k == 3 ? SoundEvents.BLOCK_BREWING_STAND_BREW : k == 4 ? SoundEvents.ITEM_FIRECHARGE_USE : SoundEvents.ENTITY_EVOKER_CAST_SPELL, 1.2f, 0.5f);
                     }
-                    for (int k : ca) if (!cb.contains(k) && k >= 0 && k < 5) addLog(ui("log_cond_off", mn, ui("cond." + k)), SOFT);
+                    for (int k : ca) if (!cb.contains(k) && k >= 0 && k < 5) addLog(ui("log_cond_off", mn, ui("cond." + k)), DuelPalette.LOG_SYSTEM, DuelPalette.K_SYSTEM);
                 } else {
                     boolean evo = false;
                     for (JsonElement e : arr(mb, "below")) if (e.getAsString().equals(s(ma, "f"))) evo = true;
+                    // la evolución ya la registra el motor (LOG_PLAYER_EVOLVES_POKEMON, en violeta): aquí solo efectos
                     if (evo && c != null) {
                         floatText(ui("evolved"), VIOLET, c[0], c[1] - 10, 1.2f);
+                        ring(c[0], c[1], VIOLET, 60);
                         burst(c[0], c[1], VIOLET, 30, 2.6f);
                         sound(SoundEvents.BLOCK_BEACON_POWER_SELECT, 1.6f, 0.6f);
                         PtcgAudio.play("evolution.ui", null, 1f, 0.7f);
@@ -893,21 +974,38 @@ public class PtcgDuelScreen extends Screen {
             }
             int prizes = i(pa, "prizes", 6) - i(pb, "prizes", 6);
             if (prizes > 0) {
-                addLog(ui("log_prizes", owner, prizes, i(pb, "prizes", 0)), GOLD);
+                addLog(ui("log_prizes", owner, prizes, i(pb, "prizes", 0)), DuelPalette.LOG_PRIZE, DuelPalette.K_PRIZE);
                 PtcgAudio.play("gui.levelup", SoundEvents.ENTITY_PLAYER_LEVELUP, 1f, 0.7f);
                 float[] pc = center(sideKey + ":prizes");
+                int[] pr = rects.get(sideKey + ":prizes");
                 if (pc != null) {
                     floatText(ui("prize_taken", prizes), GOLD, pc[0], pc[1], 1.3f);
                     burst(pc[0], pc[1], GOLD, 16, 1.8f);
+                    ring(pc[0], pc[1], GOLD, 40);
+                }
+                if (pr != null) { // las cartas de Premio vuelan a la mano de quien las coge
+                    boolean mineSide = sideKey.equals("me");
+                    int pw = Math.round(bw * 0.5f), ph = Math.round(pw / Draw.CARD_RATIO);
+                    for (int k = 0; k < Math.min(prizes, 6); k++) {
+                        PrizeFly pf = new PrizeFly();
+                        pf.w = pw;
+                        pf.h = ph;
+                        pf.x0 = pr[0] + pr[2] / 2f;
+                        pf.y0 = pr[1] + pr[3] / 2f;
+                        pf.x1 = cx + (k - (prizes - 1) / 2f) * pw * 0.8f;
+                        pf.y1 = mineSide ? H - hh * 0.35f : 6;
+                        pf.start = now() + k * 0.12;
+                        prizeFlies.add(pf);
+                    }
                 }
             }
             int drawn = i(pb, "hand", 0) - i(pa, "hand", 0), deckDelta = i(pa, "deck", 0) - i(pb, "deck", 0);
-            if (deckDelta > 0 && drawn > 0) addLog(ui("log_draw", owner, Math.min(drawn, deckDelta), i(pb, "deck", 0)), SOFT);
+            if (deckDelta > 0 && drawn > 0) addLog(ui("log_draw", owner, Math.min(drawn, deckDelta), i(pb, "deck", 0)), DuelPalette.LOG_SYSTEM, DuelPalette.K_SYSTEM);
             int disc = arr(pb, "discard").size() - arr(pa, "discard").size();
-            if (disc > 2) addLog(ui("log_discard", owner, disc), SOFT);
+            if (disc > 2) addLog(ui("log_discard", owner, disc), DuelPalette.LOG_SYSTEM, DuelPalette.K_SYSTEM);
         }
         String sa = s(a, "stadium"), sb = s(b, "stadium");
-        if (!sb.isEmpty() && !sb.equals(sa)) addLog(ui("log_stadium", name(sb)), GREEN);
+        if (!sb.isEmpty() && !sb.equals(sa)) addLog(ui("log_stadium", name(sb)), DuelPalette.LOG_STADIUM);
     }
 
     @Nullable
@@ -977,12 +1075,13 @@ public class PtcgDuelScreen extends Screen {
 
     private int tw(String s, float scale) { return Math.round(textRenderer.getWidth(s) * scale); }
 
-    /** Panel blanco redondeado con sombra suave. */
+    /** Panel redondeado con degradado suave (blanco → azul muy claro), brillo arriba y sombra suave. */
     private static void panel(DrawContext ctx, int x, int y, int w, int h, int fill) {
-        ctx.fill(x + 1, y + 3, x + w + 1, y + h + 4, 0x1A0A2A50);
-        ctx.fill(x, y + 2, x + w, y + h + 2, 0x140A2A50);
-        round(ctx, x, y, w, h, fill);
-        roundOutline(ctx, x, y, w, h, LINE);
+        float al = (fill >>> 24) / 255f;
+        ctx.fill(x + 1, y + 3, x + w + 1, y + h + 4, withAlpha(0x1A0A2A50, al));
+        ctx.fill(x, y + 2, x + w, y + h + 2, withAlpha(0x140A2A50, al));
+        int bottom = DuelPalette.lerp(fill, withAlpha(DuelPalette.PANEL_BOTTOM, al), 0.85f);
+        DuelFx.gradientPanel(ctx, x, y, w, h, fill, bottom, withAlpha(LINE, Math.max(0.3f, al)));
     }
 
     private static void round(DrawContext ctx, int x, int y, int w, int h, int c) {
@@ -1048,19 +1147,21 @@ public class PtcgDuelScreen extends Screen {
 
     private void energyDot(DrawContext ctx, int cx, int cy, int r, int type) {
         net.minecraft.util.Identifier tex = r >= 3 ? ClientPtcg.energyTexture(type) : null;
-        if (tex != null) {
+        int tc = DuelPalette.energy(type);
+        if (tex != null) { // aro del color del tipo alrededor del símbolo real
             StylePainter.circle(ctx, cx + 1, cy + 1, r + 1, 0x500A2A50);
-            StylePainter.circle(ctx, cx, cy, r + 1, 0xFFFFFFFF);
+            StylePainter.circle(ctx, cx, cy, r + 1, Ui.darken(tc, 20));
             Draw.circleTexture(ctx, tex, cx, cy, r, 0.5f, 0.4928f, 0.226f, 0.1625f);
             return;
         }
-        StylePainter.circle(ctx, cx, cy, r + 1, 0xFFFFFFFF);
-        StylePainter.circle(ctx, cx, cy, r, ClientPtcg.typeColor(type));
-        if (r >= 3) StylePainter.circle(ctx, cx - r / 3, cy - r / 3, Math.max(1, r / 3), withAlpha(0xFFFFFFFF, 0.45f));
+        StylePainter.circle(ctx, cx + 1, cy + 1, r + 1, 0x400A2A50);
+        StylePainter.circle(ctx, cx, cy, r + 1, Ui.darken(tc, 45));
+        StylePainter.circle(ctx, cx, cy, r, tc);
+        if (r >= 3) StylePainter.circle(ctx, cx - r / 3, cy - r / 3, Math.max(1, r / 3), withAlpha(0xFFFFFFFF, 0.5f));
         if (r >= 4) {
             String l = ClientPtcg.typeLetter(type);
             float sc = r >= 6 ? 0.75f : 0.55f;
-            text(ctx, l, cx - tw(l, sc) / 2f + 0.5f, cy - 3.6f * sc, type == 9 ? 0xFF333333 : 0xFFFFFFFF, sc, false);
+            text(ctx, l, cx - tw(l, sc) / 2f + 0.5f, cy - 3.6f * sc, DuelPalette.energyInk(type), sc, false);
         }
     }
 
@@ -1070,7 +1171,16 @@ public class PtcgDuelScreen extends Screen {
         return prov.size() > 0 ? prov.get(0).getAsInt() : 9;
     }
 
-    private static int energyColor(String f) { return ClientPtcg.typeColor(energyType(f)); }
+    private static int energyColor(String f) { return DuelPalette.energy(energyType(f)); }
+
+    /** Píldora de color con el nombre de un tipo de Energía (tipos, debilidad, resistencia). Devuelve su ancho. */
+    private int typeBadge(DrawContext ctx, int x, int y, int type, String extra, float scale) {
+        String l = ui("type." + type) + (extra.isEmpty() ? "" : " " + extra);
+        int w = tw(l, scale) + 8, h = Math.round(8 * scale) + 3, c = DuelPalette.energy(type);
+        Ui.roundedGradient(ctx, x, y, w, h, Math.min(4, h / 2), Ui.brighten(c, 25), Ui.darken(c, 15));
+        text(ctx, l, x + 4, y + 2, DuelPalette.energyInk(type), scale, false);
+        return w;
+    }
 
     /** Imagen de la carta (la real de cobbletcg si existe, también las Energías; si no, una carta limpia con sus datos). */
     private void card(DrawContext ctx, String fullName, float x, float y, float w, float h, float alpha) {
@@ -1084,7 +1194,7 @@ public class PtcgDuelScreen extends Screen {
         int stype = i(d, "st", 0);
         int col = 0xFF8A94A8;
         if (stype == 3) col = energyColor(fullName);
-        else if (stype == 1 && arr(d, "ct").size() > 0) col = ClientPtcg.typeColor(arr(d, "ct").get(0).getAsInt());
+        else if (stype == 1 && arr(d, "ct").size() > 0) col = DuelPalette.energy(arr(d, "ct").get(0).getAsInt());
         else if (stype == 2) col = i(d, "tt", 0) == 1 ? 0xFFF08A4B : i(d, "tt", 0) == 2 ? 0xFF3FBF7F : i(d, "tt", 0) == 3 ? 0xFF7A8AE0 : 0xFF4FA3E8;
         ctx.fill(ix, iy, ix + iw, iy + ih, withAlpha(0xFFF4E7A8, alpha));
         ctx.fillGradient(ix + 1, iy + 1, ix + iw - 1, iy + ih - 1, withAlpha(Ui.brighten(col, 70), alpha), withAlpha(col, alpha));
@@ -1197,10 +1307,10 @@ public class PtcgDuelScreen extends Screen {
         background(ctx, t);
         float sx = 0, sy = 0;
         double sa = t - shakeAt;
-        if (sa < 0.35) {
-            float k = (float) (1 - sa / 0.35) * shakePow;
-            sx = (float) Math.sin(t * 90) * k;
-            sy = (float) Math.cos(t * 77) * k * 0.6f;
+        if (sa < 0.42) { // sacudida que se apaga con suavidad (cuadrática) y mezcla dos frecuencias para no ser mecánica
+            float d = (float) (1 - sa / 0.42), k = d * d * shakePow;
+            sx = (float) (Math.sin(t * 87) * 0.7 + Math.sin(t * 53 + 1.3) * 0.3) * k;
+            sy = (float) (Math.cos(t * 71) * 0.7 + Math.cos(t * 41 + 0.7) * 0.3) * k * 0.6f;
         }
         m.push();
         m.translate(sx, sy, 0);
@@ -1216,7 +1326,11 @@ public class PtcgDuelScreen extends Screen {
         if (intro) { syncHand(handCards()); handReady = true; }
         else hand(ctx, bmx, bmy, t);
         effects(ctx, t);
-        if (menuOpen) logDrawer(ctx, mouseX, mouseY, t);
+        // registro completo: entra y sale deslizándose (se sigue dibujando mientras se cierra)
+        drawerT = DuelFx.approach(drawerT, menuOpen ? 1 : 0, 14f, dt);
+        if (menuOpen && drawerT > 0.995f) drawerT = 1;
+        if (!menuOpen && drawerT < 0.01f) drawerT = 0;
+        if (menuOpen || drawerT > 0) logDrawer(ctx, mouseX, mouseY, t);
 
         m.push();
         m.translate(0, 0, 300);
@@ -1355,6 +1469,7 @@ public class PtcgDuelScreen extends Screen {
         Anim an = boardAnim(key);
         if (p == null) {
             an.f = "";
+            hpBars.remove(key);
             round(ctx, x, y, w, h, 0x26FFFFFF);
             roundOutline(ctx, x, y, w, h, 0x70FFFFFF);
             return;
@@ -1369,6 +1484,7 @@ public class PtcgDuelScreen extends Screen {
                 an.lift.x = 1.4f;
             }
             an.f = f;
+            hpBars.remove(key); // otro Pokémon (o evolución): la barra empieza en su valor real
         }
         if (dragActive && key.equals("me:1:0")) {
             round(ctx, x, y, w, h, 0x30FFFFFF);
@@ -1485,11 +1601,17 @@ public class PtcgDuelScreen extends Screen {
     /** PS restantes en una píldora grande del color de la salud, sobre el borde inferior de la carta. Devuelve su alto. */
     private int hpPill(DrawContext ctx, int x, int y, int w, int h, int left, int hp, String key, double t) {
         float frac = hp == 0 ? 0 : left / (float) hp;
-        int col = frac > 0.5f ? GREEN : frac > 0.25f ? GOLD : RED;
+        // barra animada: baja con suavidad y deja un "fantasma" claro detrás (o una franja verde delante al curarse)
+        DuelFx.HpBar bar = hpBars.computeIfAbsent(key, k -> new DuelFx.HpBar());
+        bar.update(frac, t, dt);
+        float shown = bar.shown, ghost = bar.ghost;
+        int col = DuelPalette.hp(shown);
         double hit = t - hitAt.getOrDefault(key, -10.0);
         float pop = hit < 0.5 ? 1 + 0.25f * (float) Math.sin(hit / 0.5 * Math.PI) : 1;
         float hs = MathHelper.clamp(w / 32f, 0.8f, 1.45f) * pop;
-        String hpS = String.valueOf(left);
+        // el número cuenta hacia abajo (o arriba) junto con la barra
+        int shownHp = Math.abs(shown - frac) < 0.002f ? left : Math.round(shown * hp);
+        String hpS = String.valueOf(shownHp);
         boolean showLabel = w >= 34;
         int tW = tw(hpS, hs) + (showLabel ? tw(ui("hp"), 0.55f * pop) + 3 : 0);
         int ph = Math.round(8 * hs) + 4, pw = Math.max(tW + 12, Math.round(w * 0.62f));
@@ -1504,10 +1626,17 @@ public class PtcgDuelScreen extends Screen {
         }
         ctx.fill(px + 1, py + 2, px + pw + 1, py + ph + 2, 0x400A2A50);
         pill(ctx, px - 1, py - 1, pw + 2, ph + 2, 0xFFFFFFFF);
-        pill(ctx, px, py, pw, ph, Ui.darken(col, 70));
-        int fw = Math.max(ph, Math.round(pw * frac));
-        if (left > 0) pill(ctx, px, py, fw, ph, col);
-        ctx.fill(px + 3, py + 1, px + fw - 3, py + 2, withAlpha(0xFFFFFFFF, 0.45f));
+        pill(ctx, px, py, pw, ph, Ui.darken(col, 80));
+        if (ghost > shown + 0.002f) { // fantasma: amarillo claro tras un golpe, verde claro al curarse
+            int gw = Math.max(ph, Math.round(pw * ghost));
+            pill(ctx, px, py, gw, ph, bar.healing() ? DuelPalette.HP_HEAL : DuelPalette.HP_GHOST);
+        }
+        int fw = Math.max(ph, Math.round(pw * shown));
+        if (left > 0 || shown > 0.003f) {
+            pill(ctx, px, py, fw, ph, col);
+            ctx.fill(px + 2, py + ph - 2, px + fw - 2, py + ph - 1, withAlpha(Ui.darken(col, 40), 0.6f)); // sombra inferior
+        }
+        ctx.fill(px + 3, py + 1, px + fw - 3, py + 2, withAlpha(0xFFFFFFFF, 0.5f));
         float tx = x + w / 2f - tW / 2f;
         text(ctx, hpS, tx, py + (ph - 8 * hs) / 2f + 0.5f, 0xFFFFFFFF, hs, true);
         if (showLabel) text(ctx, ui("hp"), tx + tw(hpS, hs) + 3, py + ph / 2f - 1.5f, 0xE0FFFFFF, 0.55f * pop, true);
@@ -1625,10 +1754,18 @@ public class PtcgDuelScreen extends Screen {
         int ew = Math.max(70, tw(ui("end_turn"), 1f) + 26), eh = 18, ex = rightX - ew, ey = midY - eh / 2;
         rects.put("btn:pass", new int[]{ex, ey, ew, eh});
         boolean eHover = turn && Ui.in(mx, my, ex, ey, ew, eh);
-        ctx.fill(ex + 1, ey + 3, ex + ew + 1, ey + eh + 3, 0x220A2A50);
-        pill(ctx, ex, ey, ew, eh, turn ? (eHover ? 0xFFEAF4FF : 0xFFFFFFFF) : 0xC0FFFFFF);
-        roundOutline(ctx, ex, ey, ew, eh, turn ? BLUE : LINE);
-        textC(ctx, ui("end_turn"), ex + ew / 2f, ey + 5, turn ? BLUE : 0xFFA9B6C8, 1f);
+        if (turn) { // tu turno: botón azul brillante que late suavemente
+            float pz = 0.5f + 0.5f * (float) Math.sin(t * 3);
+            Ui.rounded(ctx, ex - 2, ey - 2, ew + 4, eh + 4, 10, withAlpha(BLUE, 0.12f + 0.12f * pz));
+            glossy(ctx, ex, ey, ew, eh, BLUE, eHover, true);
+        } else {
+            ctx.fill(ex + 1, ey + 3, ex + ew + 1, ey + eh + 3, 0x220A2A50);
+            pill(ctx, ex, ey, ew, eh, 0xC0FFFFFF);
+            roundOutline(ctx, ex, ey, ew, eh, LINE);
+        }
+        float esc = Math.min(1f, (ew - 8f) / Math.max(1, textRenderer.getWidth(ui("end_turn"))));
+        if (turn) textCS(ctx, ui("end_turn"), ex + ew / 2f, ey + 5 + pressed(eHover), 0xFFFFFFFF, esc);
+        else textC(ctx, ui("end_turn"), ex + ew / 2f, ey + 5, 0xFFA9B6C8, esc);
         if (turn) areas.add(new Area(ex, ey, ew, eh, () -> act("pass")));
         int tsw = tw(ts, 0.7f) + 12;
         pill(ctx, ex + ew / 2 - tsw / 2, ey - 14, tsw, 10, myTurn() ? BLUE : over() ? SOFT : RED);
@@ -1660,13 +1797,16 @@ public class PtcgDuelScreen extends Screen {
         String n = Ui.ellipsis(name, 90);
         int w = 20 + tw(n, 0.8f) + (extra.isEmpty() ? 6 : tw(extra, 0.6f) + 12);
         pill(ctx, x, y, w, 16, 0xF0FFFFFF);
+        // de quién es el turno: la ficha se tiñe del color del jugador con un degradado
+        if (active) DuelFx.hGradient(ctx, x + 3, y + 1, x + w - 3, y + 15, withAlpha(color, 0.28f), withAlpha(color, 0.04f));
+        ctx.fill(x + 4, y + 14, x + w - 4, y + 15, withAlpha(color, active ? 0.9f : 0.35f));
         roundOutline(ctx, x, y, w, 16, active ? color : LINE);
         float p = 0.5f + 0.5f * (float) Math.sin(now() * 5);
         if (active) StylePainter.circle(ctx, x + 8, y + 8, 7, withAlpha(color, 0.25f + 0.25f * p));
         StylePainter.circle(ctx, x + 8, y + 8, 6, color);
         String l = name.isEmpty() ? "?" : name.substring(0, 1).toUpperCase();
         text(ctx, l, x + 8 - tw(l, 0.75f) / 2f + 0.5f, y + 5.2f, 0xFFFFFFFF, 0.75f, false);
-        text(ctx, n, x + 17, y + 4.5f, INK, 0.8f, false);
+        text(ctx, n, x + 17, y + 4.5f, active ? Ui.darken(color, 50) : INK, 0.8f, false);
         if (!extra.isEmpty()) text(ctx, extra, x + 22 + tw(n, 0.8f), y + 5.5f, SOFT, 0.6f, false);
     }
 
@@ -1689,13 +1829,15 @@ public class PtcgDuelScreen extends Screen {
     /** Registro completo: cabecera, turnos como separadores, cada jugada con su color, miniatura y las nuevas resaltadas. */
     private void logDrawer(DrawContext ctx, int mx, int my, double t) {
         int w = drawerW(), x = mx0 + 6, y = 24, h = H - 48;
+        boolean live = menuOpen; // cerrándose: solo se dibuja, ya no recibe clics
         MatrixStack m = ctx.getMatrices();
         m.push();
-        m.translate(0, 0, 250);
+        m.translate(-(1 - drawerT) * (w + 14), 0, 250);
         panel(ctx, x, y, w, h, 0xFAFFFFFF);
-        ctx.fill(x + 3, y + 1, x + w - 3, y + 21, 0xFFEEF5FF);
-        ctx.fill(x + 1, y + 3, x + w - 1, y + 21, 0xFFEEF5FF);
+        Ui.roundedGradient(ctx, x + 1, y + 1, w - 2, 21, 3, 0xFFE6F0FF, 0xFFF4F8FF);
         ctx.fill(x + 1, y + 21, x + w - 1, y + 22, LINE);
+        ctx.fill(x + 4, y + 21, x + w / 2, y + 22, withAlpha(BLUE, 0.6f));
+        ctx.fill(x + w / 2, y + 21, x + w - 4, y + 22, withAlpha(RED, 0.6f));
         StylePainter.circle(ctx, x + 12, y + 11, 6, BLUE);
         text(ctx, "☰", x + 9.2f, y + 7.6f, 0xFFFFFFFF, 0.7f, false);
         text(ctx, ui("log").toUpperCase(), x + 22, y + 7.5f, INK, 0.9f, false);
@@ -1721,16 +1863,18 @@ public class PtcgDuelScreen extends Screen {
         int step = 9, max = lh / step;
         logScroll = MathHelper.clamp(logScroll, 0, Math.max(0, rows.size() - max));
         int start = Math.max(0, rows.size() - max - logScroll);
-        ctx.enableScissor(x + 2, ly0, x + w - 2, ly0 + lh);
+        // el scissor no sigue a la matriz: se desplaza a mano junto con el cajón
+        int off = Math.round(-(1 - drawerT) * (w + 14));
+        ctx.enableScissor(x + 2 + off, ly0, x + w - 2 + off, ly0 + lh);
         int ly = ly0;
         for (int k = start; k < Math.min(rows.size(), start + max); k++) {
             LogRow r = rows.get(k);
             LogLine l = r.line();
-            if (r.sep()) {
+            if (r.sep()) { // separador de turno con el color de quien juega
                 int sw = tw(l.text().replace("—", "").trim(), 0.7f) + 14;
-                ctx.fill(x + 10, ly + 4, x + w - 10, ly + 5, LINE);
-                pill(ctx, x + w / 2 - sw / 2, ly, sw, 9, 0xFFEFF4FA);
-                drawOrdered(ctx, r.text(), x + w / 2f - sw / 2f + 7, ly + 1.5f, SOFT, 0.7f);
+                ctx.fill(x + 10, ly + 4, x + w - 10, ly + 5, withAlpha(l.color(), 0.35f));
+                pill(ctx, x + w / 2 - sw / 2, ly, sw, 9, l.color());
+                drawOrdered(ctx, r.text(), x + w / 2f - sw / 2f + 7, ly + 1.5f, 0xFFFFFFFF, 0.7f);
             } else {
                 float age = (float) (t - l.at());
                 int bg = r.entry() % 2 == 0 ? 0x00FFFFFF : 0x0C2F8CFF;
@@ -1740,6 +1884,9 @@ public class PtcgDuelScreen extends Screen {
                 if (r.first() && l.card() != null) {
                     int th = step + 1, tww = Math.max(4, Math.round(th * Draw.CARD_RATIO));
                     card(ctx, l.card(), x + 12, ly - 1, tww, th, 1f);
+                } else if (r.first() && !DuelPalette.icon(l.kind()).isEmpty()) {
+                    String ic = DuelPalette.icon(l.kind());
+                    text(ctx, ic, x + 15.5f - tw(ic, 0.7f) / 2f, ly + 0.5f, l.color(), 0.7f, false);
                 }
                 drawOrdered(ctx, r.text(), textX, ly + 0.5f, l.color() == INK ? INK : Ui.darken(l.color(), 10), sc);
             }
@@ -1752,8 +1899,10 @@ public class PtcgDuelScreen extends Screen {
             ctx.fill(x + w - 5, ly0, x + w - 3, ly0 + trackH, 0x200A2A50);
             ctx.fill(x + w - 5, barY, x + w - 3, barY + barH, withAlpha(BLUE, 0.7f));
         }
-        areas.add(new Area(x, y, w, h, () -> {})); // los clics dentro del panel no atraviesan al tablero
-        areas.add(new Area(x + w - 18, y + 4, 14, 14, () -> menuOpen = false));
+        if (live) {
+            areas.add(new Area(x, y, w, h, () -> {})); // los clics dentro del panel no atraviesan al tablero
+            areas.add(new Area(x + w - 18, y + 4, 14, 14, () -> menuOpen = false));
+        }
         if (!over()) {
             if (concedeArmed && now() - concedeAt > 3) concedeArmed = false;
             String cl = ui(concedeArmed ? "concede_sure" : "concede");
@@ -1761,7 +1910,7 @@ public class PtcgDuelScreen extends Screen {
             boolean ch = Ui.in(mx, my, x + 10, by, bw2, 14);
             pill(ctx, x + 10, by, bw2, 14, concedeArmed ? RED : ch ? 0xFFFFE3E8 : PANEL2);
             textC(ctx, cl, x + w / 2f, by + 3.5f, concedeArmed ? 0xFFFFFFFF : RED, 0.8f);
-            areas.add(new Area(x + 10, by, bw2, 14, () -> {
+            if (live) areas.add(new Area(x + 10, by, bw2, 14, () -> {
                 if (concedeArmed) act("concede");
                 concedeArmed = !concedeArmed;
                 concedeAt = now();
@@ -1821,7 +1970,7 @@ public class PtcgDuelScreen extends Screen {
                 String st = l.text().replace("—", "").trim();
                 float ssc = 0.55f;
                 int sw = Math.min(w, tw(st, ssc) + 12);
-                pill(ctx, x + ox, y, sw, 9, withAlpha(0xFF22324A, 0.55f * al));
+                pill(ctx, x + ox, y, sw, 9, withAlpha(Ui.darken(l.color(), 20), 0.85f * al));
                 text(ctx, Ui.ellipsis(st, Math.round((sw - 10) / ssc)), x + ox + 6, y + 1.8f, withAlpha(0xFFFFFFFF, al), ssc, false);
             } else {
                 boolean hov = Ui.in(mx, my, x, y, w, eh);
@@ -1837,10 +1986,18 @@ public class PtcgDuelScreen extends Screen {
                 if (l.card() != null) {
                     card(ctx, l.card(), tx, y + (eh - thumbH) / 2f, thumbW, thumbH, al);
                     tx += thumbW + 4;
+                } else if (!DuelPalette.icon(l.kind()).isEmpty()) { // icono de la categoría: daño, curación, K.O., premio...
+                    String ic = DuelPalette.icon(l.kind());
+                    int icx = tx + thumbW / 2, icy = y + eh / 2;
+                    StylePainter.circle(ctx, icx, icy, 4, withAlpha(l.color(), 0.18f * al));
+                    text(ctx, ic, icx - tw(ic, 0.6f) / 2f + 0.5f, icy - 2.2f, withAlpha(l.color(), al), 0.6f, false);
+                    tx += thumbW + 4;
                 }
                 float lyy = y + (lines.size() <= 1 ? 5f : 3.5f);
+                // texto del color de su categoría (oscurecido para leerse bien sobre blanco); las jugadas normales en tinta
+                int ink = l.kind() == DuelPalette.K_PLAY ? (rank == 0 ? INK : 0xFF3E506A) : Ui.darken(l.color(), rank == 0 ? 25 : 10);
                 for (OrderedText ot : lines) {
-                    drawOrdered(ctx, ot, tx, lyy, withAlpha(rank == 0 ? INK : 0xFF3E506A, al), sc);
+                    drawOrdered(ctx, ot, tx, lyy, withAlpha(ink, al), sc);
                     lyy += 6.5f;
                 }
                 if (hov) {
@@ -2329,21 +2486,34 @@ public class PtcgDuelScreen extends Screen {
         int cy = y + 8;
         List<Runnable> draws = new ArrayList<>();
         int stype = i(d, "st", 0);
+        // cabecera teñida del tipo de la carta (Pokémon: su tipo; Energía: la suya; Entrenador: su clase)
+        int headCol = stype == 1 && arr(d, "ct").size() > 0 ? DuelPalette.energy(arr(d, "ct").get(0).getAsInt())
+                : stype == 3 ? energyColor(f) : stype == 2 ? (i(d, "tt", 0) == 1 ? 0xFFF08A4B : i(d, "tt", 0) == 2 ? 0xFF3FBF7F : i(d, "tt", 0) == 3 ? 0xFF7A8AE0 : 0xFF4FA3E8)
+                : SOFT;
+        draws.add(() -> {
+            Ui.roundedGradient(ctx, x + 1, y + 1, w - 2, 34, 3, withAlpha(headCol, 0.30f), withAlpha(headCol, 0.04f));
+            ctx.fill(x + 4, y + 1, x + w - 4, y + 3, headCol);
+        });
         final int fy = cy;
-        draws.add(() -> text(ctx, Ui.ellipsis(name(f), Math.round((w - 16) / 1.1f)), x + 8, fy, INK, 1.1f, false));
+        draws.add(() -> text(ctx, Ui.ellipsis(name(f), Math.round((w - 16) / 1.1f)), x + 8, fy, INK, 1.1f, true));
         cy += 13;
-        String sub;
-        if (stype == 1) {
-            StringBuilder types = new StringBuilder();
-            for (JsonElement tE : arr(d, "ct")) types.append(Text.translatable("tcgshop.ptcg.ui.type." + tE.getAsInt()).getString()).append(" ");
-            sub = ui("stage." + i(d, "stage", 2)) + " · " + types.toString().trim();
-        } else sub = stype == 2 ? ui("trainer." + i(d, "tt", 0)) : ui("energy");
+        String sub = stype == 1 ? ui("stage." + i(d, "stage", 2)) : stype == 2 ? ui("trainer." + i(d, "tt", 0)) : ui("energy");
         final int sy = cy;
-        draws.add(() -> text(ctx, sub, x + 8, sy, SOFT, 0.7f, false));
+        final int hp = mon != null ? i(mon, "hp", 0) : i(d, "hp", 0), left = mon != null ? Math.max(0, hp - i(mon, "dmg", 0)) : hp;
+        final String hs = stype == 1 ? left + "/" + hp + " " + ui("hp") : "";
+        draws.add(() -> {
+            text(ctx, sub, x + 8, sy, Ui.darken(SOFT, 15), 0.7f, false);
+            if (stype == 1) { // tipos como píldoras de color, sin pisar los PS alineados a la derecha
+                int bx2 = x + 12 + tw(sub, 0.7f), lim = x + w - 12 - tw(hs, 0.8f);
+                for (JsonElement tE : arr(d, "ct")) {
+                    int tt = tE.getAsInt();
+                    if (bx2 + tw(ui("type." + tt), 0.6f) + 8 > lim) break;
+                    bx2 += typeBadge(ctx, bx2, sy - 1, tt, "", 0.6f) + 3;
+                }
+            }
+        });
         if (stype == 1) {
-            int hp = mon != null ? i(mon, "hp", 0) : i(d, "hp", 0), left = mon != null ? Math.max(0, hp - i(mon, "dmg", 0)) : hp;
-            final String hs = left + "/" + hp + " " + ui("hp");
-            draws.add(() -> text(ctx, hs, x + w - 8 - tw(hs, 0.8f), sy - 1, left * 2 > hp ? GREEN : RED, 0.8f, false));
+            draws.add(() -> text(ctx, hs, x + w - 8 - tw(hs, 0.8f), sy - 1, Ui.darken(DuelPalette.hp(hp == 0 ? 0 : left / (float) hp), 25), 0.8f, false));
         }
         cy += 11;
         if (mon != null) {
@@ -2402,14 +2572,18 @@ public class PtcgDuelScreen extends Screen {
             final int by = cy;
             draws.add(() -> {
                 boolean hover = usable && Ui.in(mx, my, x + 6, by, w - 12, bh2);
-                round(ctx, x + 6, by, w - 12, bh2, hover ? 0xFFFFE9ED : usable ? 0xFFFFF5F7 : PANEL2);
-                roundOutline(ctx, x + 6, by, w - 12, bh2, usable ? RED : LINE);
+                JsonArray cost = arr(at, "c");
+                int ac = cost.size() > 0 ? DuelPalette.energy(cost.get(0).getAsInt()) : DuelPalette.energy(9);
+                if (usable) Ui.roundedGradient(ctx, x + 6, by, w - 12, bh2, 3, hover ? 0xFFFFE3E9 : 0xFFFFF7F9, hover ? 0xFFFFD3DC : 0xFFFFEBEF);
+                else round(ctx, x + 6, by, w - 12, bh2, PANEL2);
+                ctx.fill(x + 7, by + 2, x + 9, by + bh2 - 2, withAlpha(ac, usable || !mineActive ? 1f : 0.45f)); // franja del tipo del coste
+                roundOutline(ctx, x + 6, by, w - 12, bh2, usable ? (hover ? Ui.darken(RED, 30) : RED) : LINE);
                 int ex = x + 13;
-                for (JsonElement c : arr(at, "c")) { energyDot(ctx, ex, by + 7, 4, c.getAsInt()); ex += 10; }
+                for (JsonElement c : cost) { energyDot(ctx, ex, by + 7, 4, c.getAsInt()); ex += 10; }
                 int txtCol = usable || !mineActive ? INK : 0xFF9AA6B8;
                 text(ctx, anShow, ex + 2, by + 4, txtCol, 0.9f, false);
                 String dm = i(at, "d", 0) > 0 ? i(at, "d", 0) + s(at, "dc") : "";
-                if (!dm.isEmpty()) text(ctx, dm, x + w - 12 - tw(dm, 1.1f), by + 3, txtCol, 1.1f, false);
+                if (!dm.isEmpty()) text(ctx, dm, x + w - 12 - tw(dm, 1.1f), by + 3, usable ? Ui.darken(RED, 35) : txtCol, 1.1f, false);
                 int ly = by + 15;
                 for (OrderedText ot : lines) { drawOrdered(ctx, ot, x + 11, ly, SOFT, 0.65f); ly += 7; }
                 if (mineActive && turn && !ok) text(ctx, ui("no_energy"), x + w - 12 - tw(ui("no_energy"), 0.55f), by + bh2 - 7, RED, 0.55f, false);
@@ -2424,14 +2598,53 @@ public class PtcgDuelScreen extends Screen {
             cy += lines.size() * 8 + 4;
         }
         if (stype == 1) {
-            StringBuilder wr = new StringBuilder();
-            for (JsonElement we : arr(d, "weak")) wr.append(ui("weak")).append(" ").append(ClientPtcg.typeLetter(we.getAsJsonObject().get("t").getAsInt())).append("   ");
-            for (JsonElement we : arr(d, "res")) wr.append(ui("resist")).append(" ").append(ClientPtcg.typeLetter(we.getAsJsonObject().get("t").getAsInt())).append("   ");
-            wr.append(ui("retreat_n", i(d, "retreat", 0)));
-            final int wy = cy + 1;
-            final String ws = wr.toString();
-            draws.add(() -> text(ctx, ws, x + 8, wy, SOFT, 0.65f, false));
-            cy += 11;
+            // Debilidad / Resistencia como píldoras del color del tipo; Retirada con sus Energías Incoloras
+            JsonArray weak = arr(d, "weak"), res = arr(d, "res");
+            final int retreatN = i(d, "retreat", 0);
+            // maquetación previa: cada bloque (etiqueta + píldora) baja a otra línea si no cabe en el panel
+            List<Object[]> wItems = new ArrayList<>(); // {isWeak, tipo, valor}
+            for (JsonArray list : new JsonArray[]{weak, res}) {
+                boolean isWeak = list == weak;
+                for (JsonElement we : list) {
+                    JsonObject wo = obj(we);
+                    if (wo == null) continue;
+                    int vv = i(wo, "v", 0);
+                    String val = vv == 0 ? (isWeak ? "×2" : "") : vv > 0 ? "+" + vv : String.valueOf(vv);
+                    wItems.add(new Object[]{isWeak, i(wo, "t", 9), val});
+                }
+            }
+            int[][] wPos = new int[wItems.size() + 1][2]; // {x, línea}; el último es la Retirada
+            int lx = x + 8, line = 0, right = x + w - 6;
+            for (int k = 0; k < wItems.size(); k++) {
+                Object[] it = wItems.get(k);
+                String val = (String) it[2];
+                int bw = tw(ui((Boolean) it[0] ? "weak" : "resist"), 0.6f) + 3
+                        + tw(ui("type." + it[1]) + (val.isEmpty() ? "" : " " + val), 0.55f) + 8;
+                if (lx > x + 8 && lx + bw > right) { lx = x + 8; line++; }
+                wPos[k] = new int[]{lx, line};
+                lx += bw + 7;
+            }
+            int rlw = tw(ui("retreat_n", retreatN), 0.6f) + 5 + Math.min(5, retreatN) * 8;
+            if (lx > x + 8 && lx + rlw > right) { lx = x + 8; line++; }
+            wPos[wItems.size()] = new int[]{lx, line};
+            final int wy0 = cy + 1;
+            draws.add(() -> {
+                for (int k = 0; k < wItems.size(); k++) {
+                    Object[] it = wItems.get(k);
+                    boolean isWeak = (Boolean) it[0];
+                    int wx = wPos[k][0], wy = wy0 + wPos[k][1] * 11;
+                    String lab = ui(isWeak ? "weak" : "resist");
+                    text(ctx, lab, wx, wy + 1, isWeak ? Ui.darken(RED, 20) : Ui.darken(GREEN, 20), 0.6f, false);
+                    wx += tw(lab, 0.6f) + 3;
+                    typeBadge(ctx, wx, wy - 1, (Integer) it[1], (String) it[2], 0.55f);
+                }
+                int wx = wPos[wItems.size()][0], wy = wy0 + wPos[wItems.size()][1] * 11;
+                String rl = ui("retreat_n", retreatN);
+                text(ctx, rl, wx, wy + 1, SOFT, 0.6f, false);
+                int rx2 = wx + tw(rl, 0.6f) + 5;
+                for (int k = 0; k < Math.min(5, retreatN) && rx2 < x + w - 6; k++, rx2 += 8) energyDot(ctx, rx2, wy + 3, 3, 9);
+            });
+            cy += 12 + line * 11;
             if (!s(d, "ev").isEmpty()) {
                 final int ey = cy;
                 draws.add(() -> text(ctx, ui("evolves_from", s(d, "ev")), x + 8, ey, SOFT, 0.65f, false)); // las especies se llaman igual en las cartas en español
@@ -2499,7 +2712,22 @@ public class PtcgDuelScreen extends Screen {
 
     // ------------------------------------------------------------------ efectos
 
+    /** Dibuja (y purga las caducadas) una lista de partículas con gravedad. */
+    private void particles(DrawContext ctx, List<Particle> list, double t) {
+        for (Iterator<Particle> it = list.iterator(); it.hasNext(); ) {
+            Particle p = it.next();
+            double a = (t - p.start) / p.life;
+            if (a >= 1) { it.remove(); continue; }
+            float age = (float) (t - p.start) * 60;
+            float x = p.x + p.vx * age, y = p.y + p.vy * age + 0.04f * age * age;
+            int s = Math.round(p.size);
+            ctx.fill(Math.round(x), Math.round(y), Math.round(x) + s, Math.round(y) + s, withAlpha(p.color, (float) (1 - a)));
+        }
+    }
+
     private void effects(DrawContext ctx, double t) {
+        koGhostsDraw(ctx, t);
+        prizeFliesDraw(ctx, t);
         for (Iterator<double[]> it = rings.iterator(); it.hasNext(); ) {
             double[] r = it.next();
             double a = (t - r[3]) / 0.55;
@@ -2535,26 +2763,96 @@ public class PtcgDuelScreen extends Screen {
             m.pop();
             ctx.fill(0, 0, W, H, withAlpha(0xFFFFFFFF, 0.18f * (1 - k)));
         }
-        for (Iterator<Particle> it = parts.iterator(); it.hasNext(); ) {
-            Particle p = it.next();
-            double a = (t - p.start) / p.life;
-            if (a >= 1) { it.remove(); continue; }
-            float age = (float) (t - p.start) * 60;
-            float x = p.x + p.vx * age, y = p.y + p.vy * age + 0.04f * age * age;
-            int s = Math.round(p.size);
-            ctx.fill(Math.round(x), Math.round(y), Math.round(x) + s, Math.round(y) + s, withAlpha(p.color, (float) (1 - a)));
-        }
+        particles(ctx, parts, t);
         for (Iterator<Fx> it = fx.iterator(); it.hasNext(); ) {
             Fx f = it.next();
-            double a = (t - f.start) / f.life;
+            double age = t - f.start, a = age / f.life;
             if (a >= 1) { it.remove(); continue; }
-            float pop = (float) Draw.easeOutBack(Math.min(1, a * 4));
-            float y = f.y - (float) (a * 26);
             MatrixStack m = ctx.getMatrices();
             m.push();
             m.translate(0, 0, 200);
-            textCS(ctx, f.text, f.x, y - 4 * f.scale, withAlpha(f.color, (float) Math.min(1, (1 - a) * 2.5)), f.scale * Math.max(0.1f, pop));
+            float al = (float) Math.min(1, (1 - a) * 2.5);
+            if (f.kind == 1 || f.kind == 2 || f.kind == 3) {
+                // número de daño: entra enorme, rebota elástico, sube con una curva suave y se desvía un poco a un lado
+                float pop = DuelFx.outElastic(age / 0.55);
+                float sc = f.scale * (f.kind == 2 ? 0.8f + 0.2f * pop : 1.6f - 0.6f * pop);
+                float rise = DuelFx.outCubic(a) * (f.kind == 3 ? 18 : 34);
+                float x = f.x + f.drift * DuelFx.outCubic(a);
+                float y = f.y - rise - 4 * sc;
+                if (f.kind == 1 && age < 0.15) x += (float) Math.sin(age * 120) * 2.5f * (1 - (float) age / 0.15f); // temblor del impacto
+                int outline = withAlpha(f.kind == 2 ? 0xFF0B4A26 : 0xFF3A0610, al);
+                DuelFx.outlinedC(ctx, textRenderer, f.text, x, y, withAlpha(f.color, al), outline, Math.max(0.1f, sc));
+                if (f.kind == 3 && age < 0.5) { // K.O.: destello blanco que se expande detrás
+                    float g = 1 - (float) age / 0.5f;
+                    Draw.glow(ctx, f.x, f.y, 60 * (1 + (1 - g)), 30 * (1 + (1 - g)), DuelPalette.LOG_KO, 0.5f * g);
+                }
+            } else {
+                float pop = (float) Draw.easeOutBack(Math.min(1, a * 4));
+                float y = f.y - DuelFx.outCubic(a) * 26;
+                textCS(ctx, f.text, f.x + f.drift * 0.3f * (float) a, y - 4 * f.scale, withAlpha(f.color, al), f.scale * Math.max(0.1f, pop));
+            }
             m.pop();
+        }
+    }
+
+    /** Pokémon debilitado: tiembla en rojo, se apaga, gira un poco y se hunde desvaneciéndose. */
+    private void koGhostsDraw(DrawContext ctx, double t) {
+        for (Iterator<KoGhost> it = koGhosts.iterator(); it.hasNext(); ) {
+            KoGhost g = it.next();
+            double age = t - g.start;
+            if (age > 1.1) { it.remove(); continue; }
+            float shake = age < 0.35 ? (float) Math.sin(age * 85) * 3.5f * (1 - (float) age / 0.35f) : 0;
+            float sink = DuelFx.inCubic((age - 0.3) / 0.8);
+            float al = 1 - sink;
+            if (al <= 0.01f) continue;
+            MatrixStack m = ctx.getMatrices();
+            m.push();
+            m.translate(g.x + g.w / 2f + shake, g.y + g.h / 2f + sink * (g.mine ? 22 : -22), 60);
+            m.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(sink * (g.mine ? -14 : 14)));
+            float sc = 1 - 0.18f * sink;
+            m.scale(sc, sc, 1);
+            float flash = age < 0.3 ? 1 - (float) age / 0.3f : 0;
+            card3d(ctx, g.f, g.w, g.h, sink * 30, 0, al, 0.2f, flash > 0 ? withAlpha(DuelPalette.LOG_KO, flash) : 0, Math.min(1, (float) age * 2.5f), t);
+            m.pop();
+        }
+    }
+
+    /** Cartas de Premio volando a la mano: arco con giro, estela dorada y destello al llegar. */
+    private void prizeFliesDraw(DrawContext ctx, double t) {
+        for (Iterator<PrizeFly> it = prizeFlies.iterator(); it.hasNext(); ) {
+            PrizeFly p = it.next();
+            double age = t - p.start;
+            if (age < 0) continue;
+            if (age > 0.75) {
+                burst(p.x1, p.y1, GOLD, 10, 1.4f);
+                it.remove();
+                continue;
+            }
+            float e = DuelFx.inOutCubic(age / 0.75);
+            float x = p.x0 + (p.x1 - p.x0) * e, y = p.y0 + (p.y1 - p.y0) * e - (float) Math.sin(e * Math.PI) * 40;
+            float sc = 1 + 0.6f * (float) Math.sin(e * Math.PI);
+            float flipX = Math.abs((float) Math.cos(e * Math.PI * 2)); // se da la vuelta dos veces por el camino
+            MatrixStack m = ctx.getMatrices();
+            m.push();
+            m.translate(x, y, 120);
+            Draw.glow(ctx, 0, 0, p.w * 1.8f, p.h * 1.8f, GOLD, 0.35f * (1 - e * 0.5f));
+            m.scale(sc * Math.max(0.08f, flipX), sc, 1);
+            int iw = Math.round(p.w), ih = Math.round(p.h);
+            back(ctx, -iw / 2, -ih / 2, iw, ih);
+            roundOutline(ctx, -iw / 2 - 1, -ih / 2 - 1, iw + 2, ih + 2, GOLD);
+            m.pop();
+            if (RNG.nextFloat() < dt * 40) { // estela de chispas (por tiempo, no por fotograma)
+                Particle sp = new Particle();
+                sp.x = x;
+                sp.y = y;
+                sp.vx = (RNG.nextFloat() - 0.5f) * 0.6f;
+                sp.vy = (RNG.nextFloat() - 0.5f) * 0.6f;
+                sp.size = 1 + RNG.nextInt(2);
+                sp.color = RNG.nextBoolean() ? GOLD : 0xFFFFF4C2;
+                sp.start = t;
+                sp.life = 0.4 + RNG.nextDouble() * 0.3;
+                parts.add(sp);
+            }
         }
     }
 
@@ -2578,23 +2876,48 @@ public class PtcgDuelScreen extends Screen {
     private void turnDraw(DrawContext ctx, double t) {
         double a = t - turnFxAt;
         if (a > 1.7) return;
-        int col = turnFxMine ? BLUE : RED;
+        int col = turnFxMine ? BLUE : RED, dark = DuelPalette.sideDark(turnFxMine);
         float flash = (float) Math.max(0, 1 - a / 0.35);
         ctx.fill(0, 0, W, H, withAlpha(col, 0.22f * flash));
-        float in = (float) Draw.easeOutCubic(Math.min(1, a / 0.35)), out = a > 1.3 ? (float) Draw.easeInCubic((a - 1.3) / 0.4) : 0;
+        // franja: entra deslizándose con frenada suave, se queda y sale hacia el otro lado desvaneciéndose
+        float in = DuelFx.outQuint(a / 0.45), out = a > 1.3 ? DuelFx.inCubic((a - 1.3) / 0.4) : 0;
+        float al = Math.min(1, (float) a / 0.12f) * (1 - out);
+        int dir = turnFxMine ? 1 : -1; // tu turno entra por la izquierda, el del rival por la derecha
         int bh = 46, by = midY - bh / 2;
-        int bx0 = Math.round(-W + W * in + W * out * 1.2f);
-        ctx.fill(bx0, by - 3, bx0 + W, by + bh + 3, withAlpha(0xFFFFFFFF, 0.9f));
-        ctx.fillGradient(bx0, by, bx0 + W, by + bh, Ui.brighten(col, 40), col);
+        int bx0 = Math.round(dir * (-W + W * in + W * out * 1.2f));
+        // sombra y bordes blancos
+        ctx.fill(bx0, by - 4, bx0 + W, by + bh + 5, withAlpha(0xFF0A1A30, 0.18f * al));
+        ctx.fill(bx0, by - 3, bx0 + W, by + bh + 3, withAlpha(0xFFFFFFFF, 0.9f * al));
+        ctx.fillGradient(bx0, by, bx0 + W, by + bh, withAlpha(Ui.brighten(col, 45), al), withAlpha(dark, al));
+        DuelFx.hGradient(ctx, bx0, by, bx0 + W, by + 2, withAlpha(0xFFFFFFFF, 0f), withAlpha(0xFFFFFFFF, 0.5f * al));
         for (int k = 0; k < 6; k++) {
-            int sx = bx0 + (int) ((t * 220 + k * 140) % (W + 140)) - 70;
-            ctx.fill(sx, by, sx + 14, by + bh, withAlpha(0xFFFFFFFF, 0.12f));
+            int sx = bx0 + (int) ((t * 220 * dir + k * 140) % (W + 140) + W + 140) % (W + 140) - 70;
+            ctx.fill(sx, by, sx + 14, by + bh, withAlpha(0xFFFFFFFF, 0.12f * al));
+        }
+        // flechas ">>>" que avanzan en la dirección del turno
+        int ch = bh / 2 - 4;
+        for (int k = 0; k < 3; k++) {
+            float ph = (float) ((t * 1.6 + k / 3.0) % 1.0);
+            int ax = bx0 + W / 2 + dir * Math.round(W * 0.3f + ph * 26);
+            float ca = al * (float) Math.sin(ph * Math.PI) * 0.7f;
+            for (int r = -ch; r <= ch; r++) {
+                int off = (ch - Math.abs(r)) / 2;
+                ctx.fill(ax + dir * off, midY + r, ax + dir * off + 3 * dir, midY + r + 1, withAlpha(0xFFFFFFFF, ca));
+            }
+            int ax2 = bx0 + W / 2 - dir * Math.round(W * 0.3f + (1 - ph) * 26);
+            for (int r = -ch; r <= ch; r++) {
+                int off = (ch - Math.abs(r)) / 2;
+                ctx.fill(ax2 + dir * off, midY + r, ax2 + dir * off + 3 * dir, midY + r + 1, withAlpha(0xFFFFFFFF, ca * 0.6f));
+            }
         }
         String big = (turnFxMine ? ui("your_turn") : ui("opp_turn")).toUpperCase();
-        String sub = ui("turn_n", i(v, "turn", 0));
+        String sub = ui("turn_n", i(v, "turn", 0)) + " · " + ui(turnFxMine ? "turn_hint_me" : "turn_hint_opp");
         int tx = bx0 + W / 2;
-        textCS(ctx, big, tx, by + 9, 0xFFFFFFFF, 2.2f);
-        textCS(ctx, sub, tx, by + 31, withAlpha(0xFFFFFFFF, 0.85f), 0.8f);
+        float bigSc = Math.min(2.2f, (W * 0.5f) / Math.max(1, textRenderer.getWidth(big)));
+        float pop = 0.85f + 0.15f * DuelFx.outBack((a - 0.1) / 0.4);
+        DuelFx.outlinedC(ctx, textRenderer, big, tx, by + 23 - 4 * bigSc * pop - 3, withAlpha(0xFFFFFFFF, al), withAlpha(dark, 0.8f * al), bigSc * pop);
+        float subSc = Math.min(0.8f, (W - 30f) / Math.max(1, textRenderer.getWidth(sub)));
+        textCS(ctx, sub, tx, by + 33, withAlpha(0xFFFFFFFF, 0.9f * al), subSc);
     }
 
     private void bannerDraw(DrawContext ctx, double t) {
@@ -2608,12 +2931,13 @@ public class PtcgDuelScreen extends Screen {
         MatrixStack m = ctx.getMatrices();
         m.push();
         m.translate(cx, midY, 0);
-        float k = 0.8f + 0.2f * Math.max(0, in);
+        float k = (0.8f + 0.2f * Math.max(0, in)) * Math.min(1f, (W - 24f) / Math.max(1, w)); // nunca se sale de la pantalla
         m.scale(k, k, 1);
         m.translate(-cx, -midY, 0);
         ctx.fill(x + 2, y + 4, x + w + 2, y + h + 4, withAlpha(0xFF0A2A50, 0.18f * alpha));
         pill(ctx, x, y, w, h, withAlpha(0xFFFFFFFF, 0.96f * alpha));
-        ctx.fill(x + 8, y + h - 3, x + w - 8, y + h - 2, withAlpha(bannerColor, alpha));
+        Ui.roundedGradient(ctx, x + 2, y + 1, w - 4, h / 2, Math.min(8, h / 4), withAlpha(bannerColor, 0.16f * alpha), withAlpha(bannerColor, 0f));
+        DuelFx.hGradient(ctx, x + 8, y + h - 3, x + w - 8, y + h - 1, withAlpha(bannerColor, 0.2f * alpha), withAlpha(bannerColor, alpha));
         if (!bannerSub.isEmpty()) textC(ctx, bannerSub, cx, y + 5, withAlpha(SOFT, alpha), 0.75f);
         textC(ctx, big, cx, y + (bannerSub.isEmpty() ? 8 : 15), withAlpha(bannerColor, alpha), 1.8f);
         if (!bannerCard.isEmpty() && alpha > 0.3f) {
@@ -2816,7 +3140,8 @@ public class PtcgDuelScreen extends Screen {
     }
 
     private void promptPanel(DrawContext ctx, JsonObject p, int mx, int my, double t) {
-        ctx.fill(0, 0, W, H, 0x660E1E36);
+        float veil = DuelFx.outCubic((t - promptAt) / 0.25); // el velo oscuro aparece con suavidad
+        ctx.fill(0, 0, W, H, withAlpha(0xFF0E1E36, 0.4f * veil));
         areas.add(new Area(0, 0, W, H, () -> {}));
         String kind = s(p, "kind");
         ppw = Math.min(W - 40, 480);
@@ -2829,9 +3154,9 @@ public class PtcgDuelScreen extends Screen {
         m.translate(cx, H / 2f, 0);
         float sc = 0.92f + 0.08f * in;
         m.scale(sc, sc, 1);
-        m.translate(-cx, -H / 2f, 0);
+        m.translate(-cx, -H / 2f + (1 - DuelFx.outCubic((t - promptAt) / 0.25)) * 10, 0);
         panel(ctx, ppx, ppy, ppw, pph, 0xFFFFFFFF);
-        ctx.fill(ppx + 3, ppy, ppx + ppw - 3, ppy + 3, BLUE);
+        DuelFx.hGradient(ctx, ppx + 3, ppy, ppx + ppw - 3, ppy + 3, Ui.brighten(BLUE, 40), VIOLET);
         String src = s(p, "src");
         int tx = ppx + 12, ty = ppy + 10;
         if (!src.isEmpty()) {
@@ -3127,7 +3452,7 @@ public class PtcgDuelScreen extends Screen {
         int left = Math.max(0, hp - dmg);
         float frac = hp == 0 ? 0 : left / (float) hp;
         ctx.fill(x, y - 4, x + w, y - 1, 0xFFFFFFFF);
-        ctx.fill(x + 1, y - 3, x + 1 + Math.round((w - 2) * frac), y - 2, frac > 0.5f ? GREEN : RED);
+        ctx.fill(x + 1, y - 3, x + 1 + Math.round((w - 2) * frac), y - 2, DuelPalette.hp(frac));
         String hs = String.valueOf(left);
         text(ctx, hs, x + w - tw(hs, 0.8f), y - 11, INK, 0.8f, false);
         if (sel) roundOutline(ctx, x - 2, y - 2, w + 4, h + 4, BLUE);
@@ -3445,19 +3770,62 @@ public class PtcgDuelScreen extends Screen {
     // ================================================================== final
 
     private void result(DrawContext ctx, int mx, int my, double t) {
-        ctx.fill(0, 0, W, H, 0x880E1E36);
-        areas.add(new Area(0, 0, W, H, () -> {}));
         int w = i(v, "winner", -1), meIdx = i(v, "meIndex", 0);
         boolean win = w == meIdx, draw = w == 3 || w == -1;
-        float in = (float) Draw.easeOutBack(MathHelper.clamp((t - changedAt) / 0.5, 0, 1));
-        if (win) Draw.rays(ctx, W / 2f, H / 2f - 30, Math.max(W, H), t * 25, 0xFFFFE08A, 0.18f, 14);
-        int pw = 250, ph = 136, px = W / 2 - pw / 2, py = H / 2 - ph / 2;
-        panel(ctx, px, py, pw, ph, 0xFFFFFFFF);
+        double age = t - changedAt;
+        // el fondo se oscurece poco a poco, el panel entra con escala y rebote y el título cae un poco después
+        float veil = DuelFx.outCubic(age / 0.6);
+        ctx.fill(0, 0, W, H, withAlpha(win ? 0xFF1A1405 : 0xFF0E1E36, 0.6f * veil));
+        if (!win && !draw) ctx.fillGradient(0, 0, W, H / 3, withAlpha(RED, 0.25f * veil), withAlpha(RED, 0f));
+        areas.add(new Area(0, 0, W, H, () -> {}));
+        float in = DuelFx.outBack((age - 0.1) / 0.5);
+        float tin = DuelFx.outElastic((age - 0.35) / 0.9);
+        if (win) Draw.rays(ctx, W / 2f, H / 2f - 30, Math.max(W, H), t * 25, 0xFFFFE08A, 0.18f * veil, 14);
+        if (win && !confettiDone && age > 0.3) { // confeti dorado, azul y blanco
+            confettiDone = true;
+            for (int k = 0; k < 4; k++) {
+                float bx = W * (0.2f + 0.2f * k), byy = H * 0.3f;
+                burst(confetti, bx, byy, GOLD, 22, 3.2f);
+                burst(confetti, bx, byy, BLUE, 12, 2.6f);
+                burst(confetti, bx, byy, GREEN, 8, 2.2f);
+            }
+        }
+        int pw = Math.min(W - 24, 270), ph = 170, px = W / 2 - pw / 2, py = H / 2 - ph / 2;
+        MatrixStack rm = ctx.getMatrices();
+        rm.push();
+        rm.translate(W / 2f, H / 2f, 0);
+        float psc = Math.max(0.05f, 0.6f + 0.4f * in);
+        rm.scale(psc, psc, 1);
+        rm.translate(-W / 2f, -H / 2f, 0);
         int accent = win ? GOLD : draw ? SOFT : RED;
-        ctx.fill(px + 3, py, px + pw - 3, py + 3, accent);
-        String title = ui(draw ? "draw" : win ? "victory" : "defeat");
-        textC(ctx, title.toUpperCase(), W / 2f, py + 16, accent, 2.4f * Math.max(0.1f, in));
-        int ly = py + 50;
+        float pal = Math.min(1, (float) age / 0.2f);
+        if (win) Draw.glow(ctx, W / 2f, H / 2f, pw + 30, ph + 30, GOLD, 0.35f * pal);
+        panel(ctx, px, py, pw, ph, withAlpha(0xFFFFFFFF, pal));
+        Ui.roundedGradient(ctx, px + 1, py + 1, pw - 2, 44, 3, withAlpha(accent, 0.28f * pal), withAlpha(accent, 0f));
+        DuelFx.hGradient(ctx, px + 3, py, px + pw - 3, py + 3, Ui.brighten(accent, 50), Ui.darken(accent, 30));
+        String title = ui(draw ? "draw" : win ? "victory" : "defeat").toUpperCase();
+        float tsc = Math.min(2.4f, (pw - 20f) / Math.max(1, textRenderer.getWidth(title))) * Math.max(0.1f, 0.5f + 0.5f * tin);
+        DuelFx.outlinedC(ctx, textRenderer, title, W / 2f, py + 20 - 4 * tsc, accent == SOFT ? INK : accent, withAlpha(Ui.darken(accent, 90), 0.35f), tsc);
+        String subT = ui(draw ? "result_draw_sub" : win ? "result_win_sub" : "result_lose_sub");
+        float ssc = Math.min(0.8f, (pw - 16f) / Math.max(1, textRenderer.getWidth(subT)));
+        textC(ctx, subT, W / 2f, py + 34, withAlpha(SOFT, DuelFx.prog(t, changedAt + 0.4, 0.3)), ssc);
+        // resumen: turnos y premios de cada uno, con el color de cada jugador
+        float stA = DuelFx.prog(t, changedAt + 0.55, 0.35);
+        if (stA > 0) {
+            int myTaken = 6 - i(side("me"), "prizes", 6), oppTaken = 6 - i(side("opp"), "prizes", 6);
+            String s1 = ui("result_turns", i(v, "turn", 0));
+            String s2 = ui("result_prizes_you", myTaken), s3 = ui("result_prizes_opp", oppTaken);
+            int sy0 = py + 46 + Math.round((1 - DuelFx.outCubic(stA)) * 6);
+            int cw3 = (pw - 24) / 3;
+            for (int k = 0; k < 3; k++) {
+                int bx = px + 12 + k * cw3, col = k == 0 ? SOFT : k == 1 ? BLUE : RED;
+                Ui.rounded(ctx, bx + 2, sy0, cw3 - 4, 16, 6, withAlpha(k == 0 ? PANEL2 : DuelPalette.sideSoft(k == 1), stA));
+                String st = k == 0 ? s1 : k == 1 ? s2 : s3;
+                float sc3 = Math.min(0.7f, (cw3 - 10f) / Math.max(1, textRenderer.getWidth(st)));
+                textC(ctx, st, bx + cw3 / 2f, sy0 + 8 - 4 * sc3, withAlpha(Ui.darken(col, 25), stA), sc3);
+            }
+        }
+        int ly = py + 70;
         int rd = i(v, "ratingDelta", 0);
         if (b(v, "ranked") && !draw) {
             String rs = ui("rating_change", (rd >= 0 ? "+" : "") + rd);
@@ -3471,6 +3839,10 @@ public class PtcgDuelScreen extends Screen {
         int penalty = i(v, "penalty", 0);
         if (penalty > 0) textC(ctx, ui("penalty", penalty), W / 2f, ly + 2, RED, 0.9f);
         int bw2 = 96, by = py + ph - 30;
+        // los botones se dibujan dentro de la escala: el ratón se pasa al espacio escalado y sus áreas se llevan al de pantalla
+        int a0 = areas.size();
+        mx = Math.round(W / 2f + (mx - W / 2f) / psc);
+        my = Math.round(H / 2f + (my - H / 2f) / psc);
         if (b(v, "ai")) {
             bigButton(ctx, W / 2 - bw2 - 5, by, bw2, 20, ui("rematch"), mx, my, BLUE, () -> {
                 JsonObject a = new JsonObject();
@@ -3482,6 +3854,17 @@ public class PtcgDuelScreen extends Screen {
             });
             bigButton(ctx, W / 2 + 5, by, bw2, 20, ui("close"), mx, my, GREEN, this::close);
         } else bigButton(ctx, W / 2 - bw2 / 2, by, bw2, 20, ui("close"), mx, my, GREEN, this::close);
+        for (int k = a0; k < areas.size(); k++) {
+            Area a = areas.get(k);
+            int ax = Math.round(W / 2f + (a.x() - W / 2f) * psc), ay = Math.round(H / 2f + (a.y() - H / 2f) * psc);
+            areas.set(k, new Area(ax, ay, Math.round(a.w() * psc), Math.round(a.h() * psc), a.action()));
+        }
+        rm.pop();
+        // confeti por encima del velo y del panel
+        rm.push();
+        rm.translate(0, 0, 50);
+        particles(ctx, confetti, t);
+        rm.pop();
     }
 
     // ================================================================== entrada

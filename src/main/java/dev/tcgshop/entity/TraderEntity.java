@@ -1,7 +1,7 @@
 package dev.tcgshop.entity;
 
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.economy.CobbleDollarsBridge;
 import dev.tcgshop.network.MarketPayloads;
 import dev.tcgshop.pricing.PriceService;
@@ -119,9 +119,17 @@ public class TraderEntity extends PathAwareEntity implements TcgNpc {
         if (want != null && want.isEmpty()) return -1;
         var inv = player.getInventory();
         if (want != null) {
-            for (int i = 0; i < 36; i++) if (CardInfo.isCard(inv.getStack(i)) && CardInfo.id(inv.getStack(i)).toString().equals(want)) return i;
-            int b = dev.tcgshop.collection.BinderSlots.findInBinder(player, dev.tcgshop.collection.BinderSlots.stackFor(want, 1));
-            if (b >= 0) return b;
+            // "id" o "id#variante" (reverse, 1ª edición...): la variante sólo puede estar en el inventario
+            int hash = want.indexOf('#');
+            String wid = hash < 0 ? want : want.substring(0, hash), wvar = hash < 0 ? "standard" : want.substring(hash + 1);
+            for (int i = 0; i < 36; i++) {
+                ItemStack st = inv.getStack(i);
+                if (CardInfo.isCard(st) && CardInfo.id(st).toString().equals(wid) && dev.masterball.api.card.PrintVariant.of(st).key.equals(wvar)) return i;
+            }
+            if (hash < 0) {
+                int b = dev.tcgshop.collection.BinderSlots.findInBinder(player, dev.tcgshop.collection.BinderSlots.stackFor(wid, 1));
+                if (b >= 0) return b;
+            }
         }
         // elige una nueva entre inventario y Binder: prefiere las de más valor, con algo de azar
         List<Integer> cards = new ArrayList<>();
@@ -136,7 +144,9 @@ public class TraderEntity extends PathAwareEntity implements TcgNpc {
                 CardSales.unitValue(dev.tcgshop.collection.BinderSlots.peek(player, a))));
         int top = Math.max(1, Math.min(12, (cards.size() + 1) / 2));
         int slot = cards.get(random.nextInt(top));
-        wishes.put(player.getUuid(), CardInfo.id(dev.tcgshop.collection.BinderSlots.peek(player, slot)).toString());
+        ItemStack picked = dev.tcgshop.collection.BinderSlots.peek(player, slot);
+        dev.masterball.api.card.PrintVariant pv = dev.masterball.api.card.PrintVariant.of(picked);
+        wishes.put(player.getUuid(), CardInfo.id(picked).toString() + (pv == dev.masterball.api.card.PrintVariant.STANDARD ? "" : "#" + pv.key));
         return slot;
     }
 
@@ -249,7 +259,9 @@ public class TraderEntity extends PathAwareEntity implements TcgNpc {
         wishes.clear();
         NbtCompound w = nbt.getCompound("Wishes");
         for (String k : w.getKeys()) {
-            try { wishes.put(UUID.fromString(k), w.getString(k)); } catch (IllegalArgumentException ignored) {}
+            String wid = dev.masterball.api.card.CardInfo.migrate(w.getString(k));
+            if (dev.masterball.api.card.CardCatalog.isRemovedId(wid)) continue; // TCG Pocket: quitado en la 0.9
+            try { wishes.put(UUID.fromString(k), wid); } catch (IllegalArgumentException ignored) {}
         }
         if (nbt.contains("Trades")) tradesLeft = nbt.getInt("Trades");
         if (nbt.contains("Life")) lifeTicks = nbt.getInt("Life");

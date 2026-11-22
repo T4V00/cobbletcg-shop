@@ -3,8 +3,8 @@ package dev.tcgshop.pack;
 import dev.tcgshop.TcgShop;
 import dev.tcgshop.TcgShopConfig;
 import dev.tcgshop.advancement.CardAdvancements;
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.collection.CardCollection;
 import dev.tcgshop.collection.CollectionService;
 import dev.tcgshop.network.GroupCutPayload;
@@ -13,13 +13,14 @@ import dev.tcgshop.network.GroupRevealPayload;
 import dev.tcgshop.network.OpenGroupPayload;
 import dev.tcgshop.pricing.PriceService;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import dev.masterball.api.card.PrintVariant;
+import dev.masterball.api.pack.PackContents;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
@@ -30,11 +31,11 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Apertura de sobres en grupo (1-100 por rasgada), controlada por el servidor con la lógica original de
- * cobbletcg (sus loot tables):
+ * Apertura de sobres en grupo (1-100 por rasgada), controlada por el servidor con el contenido de sobres de
+ * MasterBall Traders API (PackContents):
  *
- *  1. OpenGroup(ids): por cada sobre, si está sellado lo "usa" (cobbletcg sortea normal/semi-dios/dios y
- *     entrega el sobre abierto) y luego usa el abierto (cobbletcg entrega las 5 cartas). Todo queda pendiente.
+ *  1. OpenGroup(ids): por cada sobre, si está sellado se sortea normal/semi-dios/dios y se sacan sus 5 cartas (con su
+ *     variante de impresión). Todo queda pendiente.
  *     Responde GroupReady con el tipo de cada sobre y la rareza máxima de su contenido (para el brillo).
  *  2. GroupCut(dañados): entrega las cartas de los sobres bien cortados (al Binder General si lo tienes, o
  *     al inventario) y destruye las de los mal cortados. Responde GroupReveal.
@@ -93,37 +94,17 @@ public final class PackOpener {
         if (item == null) return null;
         int tier = CardInfo.packTier(new ItemStack(item));
         if (tier < 0) return null;
-        ItemStack ripped;
-        if (tier == 0) {
-            ItemStack sealed = takeOne(player, item);
-            if (sealed.isEmpty()) return null;
-            List<ItemStack> got = useInHand(player, sealed);
-            ripped = ItemStack.EMPTY;
-            for (ItemStack st : got) {
-                if (ripped.isEmpty() && CardInfo.packTier(st) > 0) ripped = st.copyWithCount(1);
-                else player.getInventory().offerOrDrop(st);
-            }
-            if (ripped.isEmpty()) {
-                if (got.isEmpty()) player.getInventory().offerOrDrop(new ItemStack(item)); // cobbletcg no hizo nada
-                return null;
-            }
-        } else {
-            ripped = takeOne(player, item);
-            if (ripped.isEmpty()) return null;
-        }
-        Identifier rippedId = CardInfo.id(ripped);
-        int rippedTier = CardInfo.packTier(ripped);
-        List<ItemStack> got = useInHand(player, ripped);
-        List<ItemStack> cards = new ArrayList<>();
-        for (ItemStack st : got) {
-            if (CardInfo.isCard(st)) cards.add(st);
-            else player.getInventory().offerOrDrop(st);
-        }
-        if (got.isEmpty()) { // no se pudo abrir: devolver el sobre abierto
-            player.getInventory().offerOrDrop(new ItemStack(CardInfo.item(rippedId)));
+        ItemStack one = takeOne(player, item);
+        if (one.isEmpty()) return null;
+        String set = CardInfo.setId(CardInfo.id(one));
+        int rippedTier = tier == 0 ? PackContents.rollTier(player.getRandom()) : tier;  // sellado: normal / semi-dios / dios
+        Identifier rippedId = CardInfo.rippedOf(set, rippedTier);
+        List<ItemStack> cards = new ArrayList<>(PackContents.open(set, rippedTier, player.getRandom()));
+        if (rippedId == null || cards.isEmpty()) { // set desconocido: devolver el sobre
+            player.getInventory().offerOrDrop(one);
             return null;
         }
-        cards.sort(Comparator.comparingInt((ItemStack st) -> revealRank(Rarity.of(st))).thenComparingLong(PriceService::priceCd));
+        cards.sort(Comparator.comparingInt((ItemStack st) -> revealRank(Rarity.of(st))).thenComparing(PrintVariant::isSpecial).thenComparingLong(PriceService::priceCd));
         List<Long> prices = new ArrayList<>();
         for (ItemStack st : cards) prices.add(PriceService.priceCd(st));
         return new Pending(rippedId, rippedTier, cards, prices);
@@ -201,44 +182,13 @@ public final class PackOpener {
         return slot < 0 ? ItemStack.EMPTY : inv.getStack(slot).split(1);
     }
 
-    /**
-     * Pone el ítem en la mano principal, llama a Item.use (donde está el mixin de cobbletcg) y devuelve lo que
-     * cobbletcg intentó entregar (capturado, no entra al inventario). Restaura la mano después.
-     */
-    private static List<ItemStack> useInHand(ServerPlayerEntity player, ItemStack one) {
-        PlayerInventory inv = player.getInventory();
-        int sel = inv.selectedSlot;
-        ItemStack prev = inv.getStack(sel);
-        inv.setStack(sel, one);
-        List<ItemStack> captured;
-        PackCapture.start(player);
-        try {
-            one.use(player.getWorld(), player, Hand.MAIN_HAND);
-        } catch (Exception e) {
-            TcgShop.LOGGER.error("Error abriendo sobre {}", CardInfo.id(one), e);
-        } finally {
-            captured = PackCapture.stop();
-        }
-        inv.setStack(sel, prev);
-        inv.markDirty();
-        return captured;
-    }
-
     private static void reply(ServerPlayerEntity player, net.minecraft.network.packet.CustomPayload payload) {
         if (ServerPlayNetworking.canSend(player, payload.getId())) ServerPlayNetworking.send(player, payload);
     }
 
     /** Orden de revelado estilo TCG Pocket: la más rara al final. */
     public static int revealRank(Rarity r) {
-        return switch (r) {
-            case UNKNOWN -> -1;
-            case COMMON -> 0;
-            case DOUBLE_RARE -> 1;
-            case ULTRA_RARE -> 2;
-            case ILLUSTRATION_RARE -> 3;
-            case HYPER_RARE -> 4;
-            case SPECIAL_ILLUSTRATION_RARE -> 5;
-        };
+        return r.rank;
     }
 
     private static void announce(ServerPlayerEntity player, List<ItemStack> cards, List<Long> prices) {

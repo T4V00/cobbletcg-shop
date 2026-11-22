@@ -193,6 +193,7 @@ public class EmployeeEntity extends PathAwareEntity implements TcgNpc {
             // al dueño, el cajero le entrega el dinero de la caja (con la fila delante a veces no se llega a la caja)
             ShopZones.Zone z = zoneId == null ? null : ShopZones.get(sp.getServerWorld()).byId(zoneId);
             if (z != null && z.owner.equals(sp.getUuid())) {
+                if (dev.tcgshop.events.EventManager.onEmployeeInteract(sp, z, this)) return ActionResult.SUCCESS; // 0.9: cajero distraído
                 dev.tcgshop.shop.ShopServer.useRegister(sp, z);
                 return ActionResult.SUCCESS;
             }

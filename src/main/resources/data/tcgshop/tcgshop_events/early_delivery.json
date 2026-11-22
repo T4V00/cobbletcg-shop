@@ -1,0 +1,13 @@
+{
+  "_comment": "#52-alt entrega anticipada: un pedido de CobbleGrade llega antes",
+  "category": "positive",
+  "tier": "uncommon",
+  "template": "supplier",
+  "duration": 600,
+  "effects": [
+    {
+      "type": "supplier",
+      "speedup": 0.5
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "_comment": "#51 descuento del proveedor: viene el Mayorista y la próxima compra (Mayorista o teléfono) sale un 15% más barata",
+  "category": "positive",
+  "tier": "uncommon",
+  "template": "supplier",
+  "duration": "day",
+  "effects": [
+    {
+      "type": "supplier",
+      "perk": "wholesale_discount",
+      "factor": 0.85,
+      "spawn": "wholesaler"
+    }
+  ]
+}

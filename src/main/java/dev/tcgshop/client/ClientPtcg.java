@@ -150,7 +150,7 @@ public final class ClientPtcg {
             String id = itemId(ENERGY_NAMES[t] + " Energy SVE");
             Identifier iid = id == null ? null : Identifier.tryParse(id);
             if (iid == null) return null;
-            Identifier tex = dev.tcgshop.card.CardInfo.texture(iid);
+            Identifier tex = dev.masterball.api.card.CardInfo.texture(iid);
             return dev.tcgshop.client.screen.Draw.textureExists(tex) ? tex : null;
         });
     }

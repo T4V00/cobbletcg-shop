@@ -1,6 +1,6 @@
 package dev.tcgshop.entity;
 
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import dev.tcgshop.compat.CobblemonParty;
 import dev.tcgshop.shop.PackLock;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;

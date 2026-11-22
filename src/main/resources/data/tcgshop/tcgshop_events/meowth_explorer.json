@@ -1,0 +1,29 @@
+{
+  "_comment": "#64 Meowth explorador: curiosea por la tienda y se va. Solo ambiente.",
+  "category": "neutral",
+  "tier": "common",
+  "template": "meowth",
+  "duration": {
+    "ticks": [
+      4000,
+      7000
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "meowth",
+      "level": [
+        5,
+        15
+      ],
+      "behaviour": "wander",
+      "pet": true
+    }
+  ],
+  "notify": {
+    "lines": "act_meowth",
+    "count": 6,
+    "chance": 0.25
+  }
+}

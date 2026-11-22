@@ -1,8 +1,27 @@
-# CobbleTCG Shop
+# MasterBall Traders Co.
+
+**PTCG Shop Simulator & PvP**
 
 ### Open your own Pokémon card shop in Minecraft. Rip packs, chase hits, price your stock, haggle with customers and become the best TCG store in the server.
 
-**CobbleTCG Shop** is a shop-simulator add-on for **[ScalperTCG](https://www.curseforge.com/minecraft/mc-mods/scalpertcg)** (formerly CobbleTCG). It turns ScalperTCG's card collection into a full trading-card economy: real market prices, a living shop full of NPC customers, pack openings that feel like the real thing, binders, grading, a phone with apps, and real Pokémon TCG matches with a ranked league.
+**MasterBall Traders Co.** is a Pokémon TCG shop simulator for Cobblemon worlds. Its cards come from **MasterBall Traders API** (11,700+ physical cards from 68 sets). It turns that card collection into a full trading-card economy: real market prices, a living shop full of NPC customers, pack openings that feel like the real thing, binders, grading, a phone with apps, and real Pokémon TCG matches with a ranked league.
+
+---
+
+## What's new in 0.9
+
+- **Random shop events:** 78 data-driven events (positive, neutral and negative), only a 10% chance per day. They include incidents you clean up with a mop or repair kit, and Cobblemon Pokémon that wander in (scare them, feed them a berry or battle them). Nothing bad happens while you are offline.
+- **Shop missions and capacity:** right-click your shop to see its stats and 12 missions. Customer flow depends on how many you complete. Each shop tier raises capacity, and when the shop is full, customers queue outside.
+- **Phone upgrades:** 7 tiers, from Basic to MasterBall Edition. Each unlocks apps and merchant stock; the top tier adds a daily call to a collector or wholesaler.
+- **Exclusive statues** from 1,000 to 1,000,000,000 CobbleDollars, and the **MasterBall Mansion Key** (1,000,000,000): right-click to build a 100x100 Poké Ball-themed estate. It is furnished with CobbleFurnies furniture and has resident Cobblemon that can't be caught.
+- **Customers sit down:** browsers and some buyers rest on chairs, sofas and benches (CobbleFurnies, Cozyhome and more) before leaving, and stop to look at your furniture and plush.
+- **PvP / TCG matches polished:**
+  - smooth HP bars, animated damage numbers, K.O. and prize-card animations;
+  - turn banners, energy-type colours and colour-coded logs;
+  - a new end screen.
+- **Binder:** click a card to see its art full-size.
+- **Team Rocket Meowth** now talks in short speech bubbles and stays still, facing you.
+- **TCG Pocket cards and packs removed:** only physical products remain.
 
 ---
 
@@ -66,34 +85,32 @@
 
 | | Mod | Notes |
 |---|---|---|
-| **Required** | [ScalperTCG](https://www.curseforge.com/minecraft/mc-mods/scalpertcg) (1.6.0+) | The base mod. This add-on does not work without it. |
-| **Required** | ScalperTCG resource packs (listed as "cobbletcg resourcepack 1, 2, 3...") | Published by the ScalperTCG author on CurseForge. Without them, the cards have no art. |
-| **Required** | [CobbleDollars](https://www.curseforge.com/minecraft/mc-mods/cobbledollars) | Everything is bought and sold in CobbleDollars. Without it, the economy can't pay or charge you. |
+| **Required** | MasterBall Traders API 0.1.0+ | Cards, packs, rarities and print variants. Card images are downloaded automatically on first launch. |
+| **Required** | [CobbleDollars](https://www.curseforge.com/minecraft/mc-mods/cobbledollars) | Everything is bought and sold in CobbleDollars. |
 | **Required** | Fabric API | |
 | **Required** | Fabric Loader 0.18.4+ · Minecraft 1.21.1 · Java 21 | |
-| Recommended | [Cobblemon](https://www.curseforge.com/minecraft/mc-mods/cobblemon) | Pokémon battles against thieves and Scalpers, the black-market dealer, Pokémon titles. |
+| **Incompatible** | ScalperTCG | Replaced by the API. Remove it: its cards in existing worlds are converted automatically. |
+| Recommended | [Cobblemon](https://www.curseforge.com/minecraft/mc-mods/cobblemon) | Pokémon battles, event Pokémon, mansion residents, the black-market dealer. |
+| Optional | CobbleFurnies, Lucky's Cozyhome | Customers sit on their chairs and sofas; the mansion is furnished with CobbleFurnies. |
 | Optional | Pokeblocks | Pokédolls as shop decoration and stock. |
-
-**Don't forget the resource packs.** ScalperTCG's card art comes in separate resource packs. Download all of them from the ScalperTCG author's page and enable them in *Options > Resource Packs*, or your cards will show up blank.
 
 ---
 
 ## How to install
 
 1. Install Minecraft **1.21.1** with **Fabric Loader** (0.18.4 or newer). The CurseForge app does this for you with a Fabric profile.
-2. Add **Fabric API**, **ScalperTCG**, **CobbleDollars** and **CobbleTCG Shop** to your `mods` folder. Cobblemon is strongly recommended.
-3. Download every **ScalperTCG resource pack** and put them in your `resourcepacks` folder.
-4. Launch the game, go to *Options > Resource Packs* and enable all the ScalperTCG packs.
-5. Create or open a world. On your first join you get a few sealed packs to start your collection.
-6. Buy a **TCG Phone** from the Mysterious Wholesaler, a travelling merchant who shows up near players every now and then. The phone is your hub for the market, your shop and everything else.
+2. Add **Fabric API**, **MasterBall Traders API**, **CobbleDollars** and **MasterBall Traders Co.** to your `mods` folder. Cobblemon is strongly recommended.
+3. Launch the game once: the card images download on the title screen.
+4. Create or open a world. On your first join you get a few sealed packs to start your collection.
+5. Buy a **TCG Phone** from the Mysterious Wholesaler, a travelling merchant who shows up near players every now and then. The phone is your hub for the market, your shop and everything else.
 
-**On a server:** install the same mods on the server and on every client. The resource packs are client-side only.
+**On a server:** install the same mods on the server and on every client.
 
 ---
 
 ## Credits and thanks
 
-- **This add-on only exists thanks to [ScalperTCG](https://www.curseforge.com/minecraft/mc-mods/scalpertcg) and its author, SorEscopeta.** All the cards, card art, packs and collection systems are theirs. Please support the original mod.
+- Started as an add-on for **[ScalperTCG](https://www.curseforge.com/minecraft/mc-mods/scalpertcg)** by SorEscopeta. Thanks for the original idea and mod.
 - Heavily inspired by **TCG Card Shop Simulator** and **Pokémon TCG Pocket**.
 - Pokémon TCG rules engine from **[twinleaf.gg](https://github.com/twinleafgg/twinleafgg)**, based on **[ryuu-play](https://github.com/keeshii/ryuu-play)** (MIT License, included in the mod).
 - Market data from TCGplayer, via [tcgcsv.com](https://tcgcsv.com).

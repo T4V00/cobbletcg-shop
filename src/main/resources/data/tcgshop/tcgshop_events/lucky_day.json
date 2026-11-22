@@ -1,0 +1,25 @@
+{
+  "_comment": "#117 día de suerte",
+  "category": "positive",
+  "tier": "rare",
+  "template": "lucky",
+  "duration": "day",
+  "effects": [
+    {
+      "type": "modifier",
+      "typeW": {
+        "whale": 2.0
+      },
+      "buyMult": 1.1
+    },
+    {
+      "type": "notify",
+      "particles": "glow"
+    }
+  ],
+  "review": {
+    "tag": "fun_event",
+    "chance": 0.2,
+    "mood": 1
+  }
+}

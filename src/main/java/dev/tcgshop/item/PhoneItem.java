@@ -16,7 +16,10 @@ import net.minecraft.world.World;
 
 import java.util.List;
 
-/** Teléfono TCG: Mercado online, Precios con gráfica, tu Colección, tus Tiendas y Títulos. */
+/**
+ * Teléfono TCG: Mercado online, Precios con gráfica, tu Colección, tus Tiendas y Títulos. Se abre en silencio
+ * (sin mensajes en el chat); las apps y el catálogo dependen del nivel del teléfono (dev.tcgshop.phone.PhoneTier).
+ */
 public class PhoneItem extends Item {
     public PhoneItem(Settings settings) {
         super(settings);

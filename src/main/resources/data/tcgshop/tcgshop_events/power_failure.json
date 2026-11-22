@@ -1,0 +1,95 @@
+{
+  "_comment": "#11 fallo eléctrico (+#3 Pichu como variante): chispas en el 'cuadro eléctrico' junto al núcleo, apagón y caja sin cobrar. Arreglo: kit de reparación.",
+  "category": "negative",
+  "tier": "uncommon",
+  "template": "power",
+  "duration": {
+    "ticks": [
+      6000,
+      12000
+    ]
+  },
+  "effects": [
+    {
+      "type": "incident",
+      "kind": "sparks",
+      "count": 1,
+      "near": "core",
+      "fix": {
+        "items": "#tcgshop:fix/sparks",
+        "hits": 2
+      },
+      "registerDown": true,
+      "lighting": 3
+    },
+    {
+      "type": "modifier",
+      "spawnMult": 0.9
+    }
+  ],
+  "variants": [
+    {
+      "key": "fuse",
+      "weight": 3
+    },
+    {
+      "key": "storm",
+      "weight": 3,
+      "conditions": {
+        "weather": [
+          "thunder"
+        ]
+      },
+      "effects": [
+        {
+          "type": "notify",
+          "message": "tcgshop.event.power_failure.var.storm"
+        }
+      ]
+    },
+    {
+      "key": "pichu",
+      "weight": 2,
+      "conditions": {
+        "requires": [
+          "cobblemon"
+        ]
+      },
+      "effects": [
+        {
+          "type": "notify",
+          "message": "tcgshop.event.power_failure.var.pichu"
+        },
+        {
+          "type": "actor",
+          "species": "pichu",
+          "level": [
+            3,
+            10
+          ],
+          "count": 1,
+          "behaviour": "goto_register",
+          "resolve": [
+            "shoo",
+            "feed",
+            "battle",
+            "expire"
+          ],
+          "shooHits": 2,
+          "reviewTag": "pkmn_pichu"
+        }
+      ]
+    }
+  ],
+  "review": {
+    "tag": "dark",
+    "chance": 0.55,
+    "mood": -2
+  },
+  "notify": {
+    "toast": true,
+    "lines": "inc_power",
+    "count": 6,
+    "chance": 0.35
+  }
+}

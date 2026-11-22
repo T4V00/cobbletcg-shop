@@ -1,0 +1,59 @@
+{
+  "_comment": "#8 Jigglypuff cantante: los clientes llegan de peor humor y con menos paciencia; cada minuto algunos de los que estan dentro se van (devolviendo lo que llevaban).",
+  "category": "negative",
+  "tier": "uncommon",
+  "template": "song",
+  "duration": {
+    "ticks": [
+      5000,
+      8000
+    ]
+  },
+  "conditions": {
+    "time": [
+      12000,
+      23500
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "jigglypuff",
+      "level": [
+        5,
+        15
+      ],
+      "behaviour": "stay",
+      "resolve": [
+        "shoo",
+        "feed",
+        "battle"
+      ],
+      "shooHits": 2,
+      "particles": "note",
+      "leaveCustomers": {
+        "chance": 0.3,
+        "every": 1200,
+        "reviewKey": "ev_pkmn_song"
+      },
+      "reviewTag": "pkmn_song"
+    },
+    {
+      "type": "modifier",
+      "moodStart": -1,
+      "patienceMult": 0.7,
+      "while": "unresolved"
+    }
+  ],
+  "review": {
+    "tag": "noise",
+    "chance": 0.6,
+    "mood": -1,
+    "fixedChance": 0.25
+  },
+  "notify": {
+    "lines": "act_jigglypuff",
+    "count": 6,
+    "chance": 0.4
+  }
+}

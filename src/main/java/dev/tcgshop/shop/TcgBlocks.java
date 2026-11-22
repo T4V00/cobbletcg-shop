@@ -72,6 +72,15 @@ public final class TcgBlocks {
     public static final DecorBlocks.RouletteBlock ROULETTE = register("roulette", new DecorBlocks.RouletteBlock(furniture(BlockSoundGroup.WOOD)));
     public static final BoosterBox.BoxBlock BOOSTER_BOX = register("booster_box", new BoosterBox.BoxBlock(
             AbstractBlock.Settings.create().strength(0.6f).sounds(BlockSoundGroup.WOOL).nonOpaque()));
+    /**
+     * 0.9 eventos: incidente (charco, escombros, chispas...). Sin objeto ni pestaña creativa; irrompible a mano, sin
+     * drops, sin colisión, "sólido" para que el agua no lo arrastre, no inflamable, los pistones no lo mueven.
+     */
+    public static final dev.tcgshop.events.incident.IncidentBlock INCIDENT = register("incident", new dev.tcgshop.events.incident.IncidentBlock(
+            AbstractBlock.Settings.create().mapColor(MapColor.CLEAR).strength(-1.0f, 3_600_000.0f).noCollision().nonOpaque().dropsNothing()
+                    .solid().ticksRandomly().sounds(BlockSoundGroup.WOOL).allowsSpawning((st, w, p, type) -> false)
+                    .luminance(st -> st.get(dev.tcgshop.events.incident.IncidentBlock.KIND) == dev.tcgshop.events.incident.IncidentKind.SPARKS ? 4 : 0)
+                    .pistonBehavior(net.minecraft.block.piston.PistonBehavior.BLOCK)));
 
     public static final Item CARD_STAND_ITEM = item("card_stand", new BlockItem(CARD_STAND, new Item.Settings()));
     public static final Item DISPLAY_CASE_ITEM = item("display_case", new BlockItem(DISPLAY_CASE, new Item.Settings()));
@@ -112,6 +121,9 @@ public final class TcgBlocks {
     public static final BlockEntityType<DecorBlocks.DecorEntity> DECOR_BE = Registry.register(Registries.BLOCK_ENTITY_TYPE,
             Identifier.of(TcgShop.MOD_ID, "decor"),
             BlockEntityType.Builder.create(DecorBlocks.DecorEntity::new, CASH_REGISTER, POSTER, PLAY_TABLE, THEFT_DETECTOR, ROULETTE).build(null));
+    public static final BlockEntityType<dev.tcgshop.events.incident.IncidentBlockEntity> INCIDENT_BE = Registry.register(Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(TcgShop.MOD_ID, "incident"),
+            BlockEntityType.Builder.create(dev.tcgshop.events.incident.IncidentBlockEntity::new, INCIDENT).build(null));
 
     private TcgBlocks() {}
 

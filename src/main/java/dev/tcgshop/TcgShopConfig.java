@@ -46,7 +46,14 @@ public class TcgShopConfig {
     public long emeraldPriceCd = 300;
     /** Al entrar por primera vez en un mundo recibes sobres sellados al azar. */
     public boolean starterPacks = true;
-    public int starterPackCount = 5;
+    /** Cuántos sobres de bienvenida (al azar de los sets más baratos; 0 = ninguno). */
+    public int starterPackCount = 3;
+    /** 0.9.5: los clientes se sientan un rato en sillas/sofás/bancos de la tienda (CobbleFurnies, Cozyhome...). */
+    public boolean customerSeats = true;
+    /** Probabilidad de sentarse quien sólo mira (no compra). */
+    public double customerSitChance = 0.45;
+    /** Probabilidad de sentarse después de pagar. */
+    public double customerSitChanceBuyer = 0.35;
 
     // --- Cliente ---
     public boolean packOpeningAnimation = true;

@@ -1,0 +1,34 @@
+{
+  "_comment": "#72 (+80 debate de precios) dos coleccionistas discuten",
+  "category": "neutral",
+  "tier": "common",
+  "template": "argue",
+  "duration": {
+    "ticks": [
+      5000,
+      7000
+    ]
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "REGULAR",
+      "count": 2,
+      "gap": [
+        10,
+        30
+      ],
+      "browses": 3,
+      "lines": "argue",
+      "linesCount": 8
+    }
+  ],
+  "review": {
+    "tag": "noise",
+    "chance": 0.15,
+    "mood": 0
+  },
+  "notify": {
+    "toast": false
+  }
+}

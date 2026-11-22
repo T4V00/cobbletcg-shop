@@ -1,5 +1,5 @@
 /*
- * Puente entre el motor de Pokémon TCG de twinleaf.gg (MIT, basado en ryuu-play de keeshii, MIT) y CobbleTCG Shop.
+ * Puente entre el motor de Pokémon TCG de twinleaf.gg (MIT, basado en ryuu-play de keeshii, MIT) y MasterBall Traders Co..
  * Se compila con esbuild a un único archivo y se ejecuta dentro de Minecraft con GraalJS. Todas las funciones
  * reciben y devuelven texto (JSON) para que la interoperabilidad con Java sea trivial.
  */

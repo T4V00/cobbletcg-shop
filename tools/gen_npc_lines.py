@@ -610,8 +610,8 @@ UI_ES = {
     "tcgshop.roulette.spin": "¡GIRAR!",
     "tcgshop.roulette.win": "¡Ganas %s!",
     "tcgshop.roulette.lose": "La casa gana...",
-    "tcgshop.shop.no_cashier": "Necesitas un cajero en la caja para vender sobres y cajas.",
-    "tcgshop.shop.needs_cashier_hint": "Los sobres y cajas sólo se venden si hay un cajero contratado (Teléfono → Mi tienda → Personal). Mientras tanto, vende tus cartas.",
+    "tcgshop.shop.no_cashier": "Para vender sobres y cajas alguien tiene que cobrar: ponte junto a la caja registradora o contrata un cajero.",
+    "tcgshop.shop.needs_cashier_hint": "Los sobres y cajas necesitan a alguien cobrando: tú mismo junto a la caja registradora (o clic derecho al cliente de la fila) o un cajero contratado.",
     "tcgshop.shop.rep_line": "Reputación de la tienda: %s/100",
     "tcgshop.staff.hired_cashier": "Has contratado a %s como cajero.",
     "tcgshop.staff.hired_guard": "Has contratado a %s como guardia de seguridad.",
@@ -704,8 +704,8 @@ UI_EN = {
     "tcgshop.roulette.spin": "SPIN!",
     "tcgshop.roulette.win": "You win %s!",
     "tcgshop.roulette.lose": "The house wins...",
-    "tcgshop.shop.no_cashier": "You need a cashier at the register to sell packs and boxes.",
-    "tcgshop.shop.needs_cashier_hint": "Packs and boxes only sell with a hired cashier (Phone → My Shop → Staff). Meanwhile, sell your cards.",
+    "tcgshop.shop.no_cashier": "Someone has to ring up packs and boxes: stand by the cash register or hire a cashier.",
+    "tcgshop.shop.needs_cashier_hint": "Packs and boxes need someone at the till: you, standing by the cash register (or right-click the customer in the queue), or a hired cashier.",
     "tcgshop.shop.rep_line": "Shop reputation: %s/100",
     "tcgshop.staff.hired_cashier": "You hired %s as cashier.",
     "tcgshop.staff.hired_guard": "You hired %s as security guard.",
@@ -719,11 +719,54 @@ UI_EN = {
 }
 
 
+# ---------------------------------------------------------------- frases nuevas (v3): se AÑADEN a las categorías
+_OWN = set(L)  # categorías que genera este script; el resto vienen de otros (gen_lang_merchants, phase_b...)
+
+
+def _lang_lines(cat):
+    """Frases actuales de una categoría ajena, leídas de los archivos de idioma (es, en)."""
+    es = json.loads((LANG / "es_es.json").read_text(encoding="utf-8"))
+    en = json.loads((LANG / "en_us.json").read_text(encoding="utf-8"))
+    out, i = [], 0
+    while f"tcgshop.npc.{cat}.{i}" in es:
+        out.append((es[f"tcgshop.npc.{cat}.{i}"], en.get(f"tcgshop.npc.{cat}.{i}", es[f"tcgshop.npc.{cat}.{i}"])))
+        i += 1
+    return out
+
+
+for _mod in ("npc_lines_v3_a", "npc_lines_v3_b", "npc_lines_v3_c", "npc_lines_v3_d"):
+    try:
+        _extra = __import__(_mod).EXTRA
+    except ModuleNotFoundError:
+        continue
+    for _cat, _lines in _extra.items():
+        if _cat not in L:
+            L[_cat] = _lang_lines(_cat)  # conserva las frases que ya existen (de otro script)
+        _have = {a for a, _ in L[_cat]}
+        L[_cat].extend(pair for pair in _lines if pair[0] not in _have)  # sin duplicar al volver a ejecutar
+
+
+def write_counts():
+    """Reescribe NpcLines.COUNTS con las cantidades reales de cada categoría (orden: el de L)."""
+    java = JAVA.read_text(encoding="utf-8")
+    start = java.index("Map.ofEntries(") + len("Map.ofEntries(")
+    end = java.index(");", start)
+    counts = {m.group(1): int(m.group(2)) for m in re.finditer(r'Map\.entry\("([a-z_]+)", (\d+)\)', java[start:end])}
+    for c, v in L.items():  # actualiza las de L y añade las nuevas; conserva las demás categorías
+        counts[c] = len(v)
+    entries = [f'Map.entry("{c}", {n})' for c, n in counts.items()]
+    body = "\n            " + ",\n            ".join(", ".join(entries[i:i + 4]) for i in range(0, len(entries), 4))
+    JAVA.write_text(java[:start] + body + java[end:], encoding="utf-8")
+
+
 def main():
+    write_counts()
     java = JAVA.read_text(encoding="utf-8")
     counts = {m.group(1): int(m.group(2)) for m in re.finditer(r'Map\.entry\("([a-z_]+)", (\d+)\)', java)}
     ok = True
     for cat, n in counts.items():
+        if cat not in L:
+            continue
         have = len(L.get(cat, []))
         if have != n:
             print(f"ERROR {cat}: java={n} py={have}")
@@ -738,7 +781,8 @@ def main():
     for lang, idx, ui in (("es_es", 0, UI_ES), ("en_us", 1, UI_EN)):
         p = LANG / f"{lang}.json"
         d = json.loads(p.read_text(encoding="utf-8"))
-        d = {k: v for k, v in d.items() if not k.startswith("tcgshop.npc.")}
+        # sólo se reescriben las categorías de L (las demás son de otros scripts)
+        d = {k: v for k, v in d.items() if not (k.startswith("tcgshop.npc.") and k.split(".")[2] in L)}
         for cat, lines in L.items():
             for i, pair in enumerate(lines):
                 d[f"tcgshop.npc.{cat}.{i}"] = pair[idx]

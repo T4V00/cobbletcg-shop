@@ -1,0 +1,31 @@
+{
+  "_comment": "#77 coleccionista misterioso que nunca compra (después es más probable #41)",
+  "category": "neutral",
+  "tier": "uncommon",
+  "template": "mystery",
+  "duration": {
+    "ticks": [
+      5000,
+      7000
+    ]
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "REGULAR",
+      "noBuy": true,
+      "browses": 4,
+      "title": "tcgshop.role.ev_mystery",
+      "lines": "mystery",
+      "linesCount": 6
+    }
+  ],
+  "notify": {
+    "toast": false
+  },
+  "chain": {
+    "next": "tcgshop:set_collector",
+    "withinDays": 2,
+    "weightMult": 3
+  }
+}

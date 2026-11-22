@@ -1,0 +1,35 @@
+{
+  "_comment": "#48 comprador al por mayor: compra hasta 3 cosas (precio máximo ~1.15x mercado)",
+  "category": "positive",
+  "tier": "uncommon",
+  "template": "wholesale",
+  "duration": {
+    "ticks": [
+      6000,
+      8000
+    ]
+  },
+  "conditions": {
+    "minDisplays": 4
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "WHALE",
+      "browses": [
+        5,
+        6
+      ],
+      "purchases": [
+        2,
+        3
+      ],
+      "title": "tcgshop.role.ev_wholesale",
+      "lines": "wholesale",
+      "linesCount": 6
+    }
+  ],
+  "notify": {
+    "toast": false
+  }
+}

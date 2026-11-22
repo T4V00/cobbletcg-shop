@@ -1,0 +1,79 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "tcgshop:block/incident_package_side",
+    "s": "tcgshop:block/incident_package_side",
+    "t": "tcgshop:block/incident_package_top"
+  },
+  "elements": [
+    {
+      "from": [
+        3,
+        0,
+        3
+      ],
+      "to": [
+        13,
+        9,
+        13
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            3,
+            7,
+            13,
+            16
+          ],
+          "texture": "#s"
+        },
+        "south": {
+          "uv": [
+            3,
+            7,
+            13,
+            16
+          ],
+          "texture": "#s"
+        },
+        "east": {
+          "uv": [
+            3,
+            7,
+            13,
+            16
+          ],
+          "texture": "#s"
+        },
+        "west": {
+          "uv": [
+            3,
+            7,
+            13,
+            16
+          ],
+          "texture": "#s"
+        },
+        "up": {
+          "uv": [
+            3,
+            3,
+            13,
+            13
+          ],
+          "texture": "#t"
+        },
+        "down": {
+          "uv": [
+            3,
+            3,
+            13,
+            13
+          ],
+          "texture": "#s",
+          "cullface": "down"
+        }
+      }
+    }
+  ]
+}

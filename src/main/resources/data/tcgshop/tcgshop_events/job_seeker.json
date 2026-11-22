@@ -1,0 +1,28 @@
+{
+  "_comment": "#87 alguien busca trabajo: la próxima contratación a mitad de precio (hoy)",
+  "category": "neutral",
+  "tier": "uncommon",
+  "template": "job",
+  "duration": "day",
+  "conditions": {
+    "requires": [
+      "staff_slot"
+    ]
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "REGULAR",
+      "noBuy": true,
+      "browses": 2,
+      "title": "tcgshop.role.ev_job_seeker",
+      "lines": "job_seeker",
+      "linesCount": 6
+    },
+    {
+      "type": "supplier",
+      "perk": "hire_discount",
+      "factor": 0.5
+    }
+  ]
+}

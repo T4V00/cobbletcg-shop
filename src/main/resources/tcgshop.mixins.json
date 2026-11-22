@@ -5,15 +5,12 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "MobEntityAccessor",
-    "PlayerAdvancementTrackerMixin",
-    "PlayerInventoryMixin",
-    "ServerPlayerEntityMixin"
+    "PlayerAdvancementTrackerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
   },
   "client": [
-    "client.HandledScreensMixin",
     "client.ToastManagerMixin",
     "client.AdvancementToastAccessor",
     "client.PlayerEntityRendererMixin",

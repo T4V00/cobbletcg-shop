@@ -1,15 +1,23 @@
 package dev.tcgshop.client;
 
 import dev.tcgshop.entity.ScalperEntity;
+import dev.tcgshop.entity.TcgNpc;
 import dev.tcgshop.entity.WholesalerEntity;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
-import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,6 +28,10 @@ import java.util.Map;
 /**
  * Bocadillos de diálogo de los NPC: el texto aparece letra a letra sobre su cabeza mientras "balbucean" con
  * pitidos de bloque musical (cada NPC con su voz: tono e instrumento según quién sea).
+ * <p>
+ * Los NPC propios del mod (TcgNpc) pintan su bocadillo en su renderer (TcgNpcRenderer). Para cualquier OTRA entidad
+ * (p.ej. el Meowth del Team Rocket, que es un Pokémon de Cobblemon) el bocadillo se pinta aquí, en el evento de
+ * render del mundo, sobre la entidad con esa id.
  */
 public final class ClientSpeech {
     /** Letras por tick que se van mostrando. */
@@ -31,13 +43,16 @@ public final class ClientSpeech {
         public final String plain;
         public final long start;
         public final int duration;
+        /** Bocadillo guionizado (tutorial): se ve aunque el jugador haya apagado los bocadillos de los NPC. */
+        public final boolean forced;
         int cursor, letters;
 
-        Speech(String plain, List<String> lines, long start, int duration) {
+        Speech(String plain, List<String> lines, long start, int duration, boolean forced) {
             this.plain = plain;
             this.lines = lines;
             this.start = start;
             this.duration = duration;
+            this.forced = forced;
         }
 
         public int visibleChars(float now) { return (int) Math.max(0, (now - start) * CHARS_PER_TICK); }
@@ -49,8 +64,21 @@ public final class ClientSpeech {
     }
 
     private static final Map<Integer, Speech> SPEECH = new HashMap<>();
+    private static boolean worldHooked;
+
+    static {
+        // la clase se inicializa en el primer tick del cliente (ClientTickEvents -> tick): ahí se engancha el render
+        hookWorldRender();
+    }
 
     private ClientSpeech() {}
+
+    /** Engancha el render de bocadillos sobre entidades que no son TcgNpc (idempotente). */
+    public static void hookWorldRender() {
+        if (worldHooked) return;
+        worldHooked = true;
+        WorldRenderEvents.AFTER_ENTITIES.register(ClientSpeech::renderWorld);
+    }
 
     public static Speech get(int entityId) { return SPEECH.get(entityId); }
 
@@ -60,7 +88,22 @@ public final class ClientSpeech {
         String plain = text.getString();
         List<String> lines = wrap(mc.textRenderer, plain, MAX_WIDTH);
         int duration = Math.min(240, 50 + Math.round(plain.length() / CHARS_PER_TICK) + plain.length());
-        SPEECH.put(entityId, new Speech(plain, lines, mc.world.getTime(), duration));
+        SPEECH.put(entityId, new Speech(plain, lines, mc.world.getTime(), duration, false));
+    }
+
+    /**
+     * Bocadillo guionizado (tutorial del Meowth): dura al menos {@code minTicks} y siempre lo bastante para escribirse
+     * entero y leerse; se ve aunque los bocadillos de NPC estén desactivados en los ajustes.
+     */
+    public static void sayScripted(int entityId, Text text, int minTicks) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.world == null) return;
+        hookWorldRender();
+        String plain = text.getString();
+        List<String> lines = wrap(mc.textRenderer, plain, MAX_WIDTH);
+        int typing = Math.round(plain.length() / CHARS_PER_TICK);
+        int duration = Math.max(Math.max(20, minTicks), typing + 40);
+        SPEECH.put(entityId, new Speech(plain, lines, mc.world.getTime(), duration, true));
     }
 
     /** Partido por palabras (y por letras si una palabra no cabe). */
@@ -108,14 +151,105 @@ public final class ClientSpeech {
     private static void blip(MinecraftClient mc, Entity who, char c) {
         int h = who.getUuid().hashCode();
         SoundEvent sound;
-        float base;
+        float base, volume = 0.55f;
         if (who instanceof ScalperEntity) { sound = SoundEvents.ENTITY_PILLAGER_AMBIENT; base = 0.95f + Math.floorMod(h, 20) / 100f; }
         else if (who instanceof WholesalerEntity) { sound = SoundEvents.ENTITY_WANDERING_TRADER_AMBIENT; base = 0.95f + Math.floorMod(h, 15) / 100f; }
+        else if (who instanceof dev.tcgshop.entity.FurnitureSellerEntity) { sound = SoundEvents.ENTITY_WANDERING_TRADER_AMBIENT; base = 1.08f + Math.floorMod(h, 15) / 100f; }
+        else if (!(who instanceof TcgNpc)) { sound = SoundEvents.ENTITY_CAT_AMBIENT; base = 1.15f; volume = 0.35f; } // el Meowth del tutorial
         else {
             sound = Math.floorMod(h, 4) == 0 ? SoundEvents.ENTITY_VILLAGER_TRADE : SoundEvents.ENTITY_VILLAGER_AMBIENT;
             base = 0.9f + Math.floorMod(h, 35) / 100f; // cada cliente con su "voz"
         }
         float pitch = base + (who.getRandom().nextFloat() - 0.5f) * 0.1f;
-        mc.world.playSound(who.getX(), who.getEyeY(), who.getZ(), sound, SoundCategory.NEUTRAL, 0.55f, pitch, false);
+        mc.world.playSound(who.getX(), who.getEyeY(), who.getZ(), sound, SoundCategory.NEUTRAL, volume, pitch, false);
+    }
+
+    // ------------------------------------------------------------------ bocadillos sobre entidades que no son TcgNpc
+
+    private static void renderWorld(WorldRenderContext ctx) {
+        if (SPEECH.isEmpty()) return;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.world == null || ctx.camera() == null) return;
+        MatrixStack matrices = ctx.matrixStack();
+        VertexConsumerProvider consumers = ctx.consumers();
+        if (consumers == null) consumers = mc.getBufferBuilders().getEntityVertexConsumers();
+        if (matrices == null) return;
+        float tickDelta = ctx.tickCounter().getTickDelta(true);
+        Vec3d cam = ctx.camera().getPos();
+        Quaternionf rot = ctx.camera().getRotation();
+        boolean drew = false;
+        for (Map.Entry<Integer, Speech> e : SPEECH.entrySet()) {
+            Entity who = mc.world.getEntityById(e.getKey());
+            if (who == null || who instanceof TcgNpc || who.isInvisible()) continue; // los TcgNpc lo pintan en su renderer
+            Speech sp = e.getValue();
+            if (!sp.forced && !ClientSettings.INSTANCE.bubbles) continue;
+            double x = MathHelper.lerp(tickDelta, who.prevX, who.getX());
+            double y = MathHelper.lerp(tickDelta, who.prevY, who.getY());
+            double z = MathHelper.lerp(tickDelta, who.prevZ, who.getZ());
+            if (cam.squaredDistanceTo(x, y, z) > 40 * 40) continue;
+            matrices.push();
+            matrices.translate(x - cam.x, y - cam.y, z - cam.z);
+            drew |= bubble(mc.textRenderer, who, sp, tickDelta, matrices, consumers, rot);
+            matrices.pop();
+        }
+        if (drew && consumers instanceof VertexConsumerProvider.Immediate imm) imm.draw();
+    }
+
+    /** Mismo bocadillo de cómic que TcgNpcRenderer: fondo, piquito hacia la entidad y texto letra a letra. */
+    private static boolean bubble(TextRenderer tr, Entity who, Speech sp, float tickDelta, MatrixStack matrices,
+                                  VertexConsumerProvider consumers, Quaternionf cameraRotation) {
+        var cfg = ClientSettings.INSTANCE;
+        float now = who.getWorld().getTime() + tickDelta;
+        float alpha = sp.alpha(now);
+        if (alpha <= 0.02f) return false;
+        int w = 0;
+        for (String l : sp.lines) w = Math.max(w, tr.getWidth(l));
+        int lineH = 10, padX = 5, padY = 4;
+        int bw = w + padX * 2, bh = sp.lines.size() * lineH + padY * 2 - 1;
+        float pop = Math.min(1, (now - sp.start) / 4f);
+        float scale = 0.021f * cfg.size() * (0.7f + 0.3f * (float) Math.sin(pop * Math.PI / 2));
+        matrices.push();
+        // por encima del nombre (mote) que pinta el renderer de la entidad
+        matrices.translate(0, who.getHeight() + 0.85f + (cfg.size() - 1f) * 0.25f, 0);
+        matrices.multiply(cameraRotation);
+        matrices.scale(scale, -scale, scale);
+        float x0 = -bw / 2f, y0 = -6 - bh;
+        int bg = cfg.bgColor();
+        if (bg == 0 && sp.forced) bg = ClientSettings.BG_COLORS[0]; // guionizado: siempre con fondo para leerse bien
+        int bgCol = bg == 0 ? 0 : (Math.round(((bg >>> 24) / 255f) * alpha * 255) << 24) | (bg & 0xFFFFFF);
+        int tc = cfg.textColor();
+        if (sp.forced && cfg.bgColor() == 0) tc = 0xFF16161E;
+        int textCol = (Math.max(8, Math.round(alpha * 255)) << 24) | (tc & 0xFFFFFF);
+        int visible = sp.visibleChars(now), used = 0;
+        int target = w + padX * 2;
+        boolean typing = visible < sp.plain.length();
+        // 1) el fondo solo (líneas de espacios con color de fondo): Minecraft lo pinta un poco por delante del texto
+        if (bgCol != 0) {
+            Matrix4f mb = matrices.peek().getPositionMatrix();
+            for (int i = 0; i < sp.lines.size(); i++) {
+                StringBuilder pad = new StringBuilder(" ");
+                while (tr.getWidth(pad.toString()) < target - 2) pad.append(' ');
+                tr.draw(pad.toString(), x0, y0 + padY + i * lineH, 0x01000000, false, mb, consumers, TextRenderer.TextLayerType.NORMAL, bgCol, 0xF000F0);
+            }
+            String tail = "▼";
+            tr.draw(tail, -tr.getWidth(tail) / 2f, y0 + padY + sp.lines.size() * lineH - 2, (Math.max(8, Math.round(alpha * 255)) << 24) | (bg & 0xFFFFFF),
+                    false, mb, consumers, TextRenderer.TextLayerType.NORMAL, 0, 0xF000F0);
+        }
+        // 2) el texto, adelantado hacia la cámara y con desplazamiento de profundidad
+        matrices.push();
+        matrices.translate(0, 0, 1.5f);
+        Matrix4f mt = matrices.peek().getPositionMatrix();
+        boolean shadow = bgCol == 0;
+        for (int i = 0; i < sp.lines.size(); i++) {
+            String l = sp.lines.get(i);
+            int show = Math.max(0, Math.min(l.length(), visible - used));
+            used += l.length() + 1;
+            if (show <= 0) continue;
+            String txt = " " + l.substring(0, show) + (typing && show < l.length() ? "_" : "");
+            tr.draw(txt, x0, y0 + padY + i * lineH, textCol, shadow, mt, consumers, TextRenderer.TextLayerType.POLYGON_OFFSET, 0, 0xF000F0);
+        }
+        matrices.pop();
+        matrices.pop();
+        return true;
     }
 }

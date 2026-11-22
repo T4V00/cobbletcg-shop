@@ -1,0 +1,53 @@
+{
+  "_comment": "#68 Combee en las flores de la entrada. Solo ambiente (de dia, despejado, con flores).",
+  "category": "neutral",
+  "tier": "common",
+  "template": "combee",
+  "duration": {
+    "ticks": [
+      4000,
+      7000
+    ]
+  },
+  "conditions": {
+    "requires": [
+      "door"
+    ],
+    "time": [
+      1000,
+      12000
+    ],
+    "weather": [
+      "clear"
+    ],
+    "biomes": [
+      "minecraft:flower_forest",
+      "minecraft:meadow",
+      "minecraft:sunflower_plains",
+      "minecraft:plains",
+      "minecraft:cherry_grove",
+      "#minecraft:is_forest"
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "combee",
+      "count": [
+        1,
+        2
+      ],
+      "level": [
+        5,
+        15
+      ],
+      "behaviour": "outside",
+      "particles": "nectar"
+    }
+  ],
+  "notify": {
+    "lines": "act_combee",
+    "count": 6,
+    "chance": 0.25
+  }
+}

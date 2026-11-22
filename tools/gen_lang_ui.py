@@ -14,9 +14,9 @@ T = {
     "item.tcgshop.personal_binder.tip": ("%s cartas · %s páginas", "%s cards · %s pages"),
     "item.tcgshop.scalper_spawn_egg": ("Huevo generador de Scalper", "Scalper Spawn Egg"),
     "entity.tcgshop.scalper": ("Scalper", "Scalper"),
-    "itemGroup.tcgshop": ("CobbleTCG Shop", "CobbleTCG Shop"),
+    "itemGroup.tcgshop": ("MasterBall Traders Co.", "MasterBall Traders Co."),
     "key.tcgshop.open_binder": ("Abrir Binder General", "Open General Binder"),
-    "key.categories.tcgshop": ("CobbleTCG Shop", "CobbleTCG Shop"),
+    "key.categories.tcgshop": ("MasterBall Traders Co.", "MasterBall Traders Co."),
 
     # Binder General
     "tcgshop.binder.general": ("Binder General", "General Binder"),
@@ -61,6 +61,8 @@ T = {
     "tcgshop.open.next_group": ("Siguiente rasgada (quedan %s)", "Next rip (%s left)"),
     "tcgshop.open.reveal_pack": ("Sobre %s/%s", "Pack %s/%s"),
     "tcgshop.open.to_binder": ("Guardadas en tu Binder General", "Stored in your General Binder"),
+    "tcgshop.open.to_binder_variants": ("Guardadas en tu Binder General (las variantes especiales, en tu inventario)",
+                                        "Stored in your General Binder (special print variants went to your inventory)"),
     "tcgshop.open.summary_group": ("¡%s sobres abiertos!", "%s packs opened!"),
     "tcgshop.open.tear_many": ("Corta los sobres por la línea punteada: un trazo puede cortar varios", "Cut the packs along the dotted line: one stroke can cut several"),
 

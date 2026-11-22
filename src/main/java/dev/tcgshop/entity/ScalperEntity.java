@@ -1,7 +1,7 @@
 package dev.tcgshop.entity;
 
 import dev.tcgshop.advancement.CardAdvancements;
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import dev.tcgshop.collection.CardCollection;
 import dev.tcgshop.collection.CollectionService;
 import dev.tcgshop.economy.CobbleDollarsBridge;

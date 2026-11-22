@@ -1,0 +1,662 @@
+{
+ "rarity_median_usd": {
+  "*": {
+   "common": 0.19,
+   "rare": 0.35,
+   "double_rare": 0.66,
+   "pikachu_rare": 0.51,
+   "illustration_rare": 8.72,
+   "special_illustration_rare": 27.32,
+   "futuristic_rare": 27.09,
+   "classic_collection": 6.24,
+   "rgb_rare": 4276.56,
+   "promo": 3.58,
+   "uncommon": 0.2,
+   "secret_rare": 6.42,
+   "holo_rare": 7.28,
+   "rare_holo_v": 0.87,
+   "rare_holo_vstar": 1.41,
+   "rare_holo_vmax": 2.16,
+   "radiant_rare": 1.04,
+   "ultra_rare": 3.6,
+   "rainbow_rare": 17.61,
+   "trainer_gallery": 6.49,
+   "mega_attack_rare": 4.12,
+   "mega_hyper_rare": 146.59,
+   "black_white_rare": 538.27,
+   "galarian_gallery": 11.09,
+   "lv_x": 141.75,
+   "hyper_rare": 7.76,
+   "rare_holo_ex": 15.04,
+   "rare_holo_gx": 6.05,
+   "shiny_rare": 5.56,
+   "shiny_rare_gx": 21.6,
+   "prime": 98.38,
+   "shiny_ultra_rare": 1.84,
+   "ace_spec": 0.48,
+   "pokemon_ex": 160.3,
+   "prism_star": 5.71,
+   "amazing_rare": 7.92
+  },
+  "ani30": {
+   "common": 0.21,
+   "rare": 0.2,
+   "double_rare": 0.62,
+   "pikachu_rare": 0.51,
+   "illustration_rare": 2.04,
+   "special_illustration_rare": 31.38,
+   "classic_collection": 6.25,
+   "rgb_rare": 4276.56,
+   "promo": 4.56
+  },
+  "aquapolis": {
+   "rare": 31.4,
+   "uncommon": 9.69,
+   "common": 11.63,
+   "secret_rare": 489.0,
+   "holo_rare": 188.99
+  },
+  "aradiance": {
+   "rare_holo_v": 0.99,
+   "common": 0.14,
+   "uncommon": 0.17,
+   "rare": 0.21,
+   "holo_rare": 0.32,
+   "rare_holo_vstar": 1.53,
+   "radiant_rare": 0.6,
+   "ultra_rare": 4.39,
+   "rainbow_rare": 10.71,
+   "secret_rare": 4.36,
+   "trainer_gallery": 5.5
+  },
+  "ascended": {
+   "common": 0.16,
+   "uncommon": 0.17,
+   "double_rare": 0.65,
+   "rare": 0.17,
+   "illustration_rare": 3.69,
+   "ultra_rare": 0.77,
+   "mega_attack_rare": 4.12,
+   "special_illustration_rare": 37.35
+  },
+  "baseset": {
+   "holo_rare": 57.92,
+   "rare": 8.06,
+   "uncommon": 2.58,
+   "common": 0.82
+  },
+  "bbolt": {
+   "common": 0.16,
+   "double_rare": 0.5,
+   "uncommon": 0.15,
+   "rare": 0.16,
+   "illustration_rare": 11.1,
+   "ultra_rare": 1.27,
+   "special_illustration_rare": 35.04
+  },
+  "bset2": {
+   "holo_rare": 41.29,
+   "rare": 4.72,
+   "uncommon": 1.35,
+   "common": 0.73
+  },
+  "bstars": {
+   "common": 0.14,
+   "uncommon": 0.14,
+   "rare": 0.21,
+   "holo_rare": 0.33,
+   "rare_holo_v": 0.84,
+   "rare_holo_vstar": 3.05,
+   "rare_holo_vmax": 1.7,
+   "ultra_rare": 2.3,
+   "rainbow_rare": 15.57,
+   "secret_rare": 3.17,
+   "trainer_gallery": 8.08
+  },
+  "bstyles": {
+   "common": 0.15,
+   "uncommon": 0.15,
+   "rare": 0.21,
+   "rare_holo_v": 0.79,
+   "holo_rare": 0.36,
+   "rare_holo_vmax": 1.8,
+   "ultra_rare": 5.39,
+   "rainbow_rare": 12.38,
+   "secret_rare": 6.57
+  },
+  "bwhite": {
+   "common": 0.34,
+   "uncommon": 0.39,
+   "holo_rare": 3.17,
+   "rare": 0.93
+  },
+  "celebr25": {
+   "holo_rare": 0.29,
+   "rare_holo_v": 1.59,
+   "classic_collection": 4.62
+  },
+  "creign": {
+   "common": 0.16,
+   "uncommon": 0.14,
+   "holo_rare": 0.3,
+   "rare_holo_v": 0.97,
+   "rare_holo_vmax": 1.72,
+   "rare": 0.21,
+   "ultra_rare": 12.36,
+   "rainbow_rare": 11.85,
+   "secret_rare": 6.79
+  },
+  "crising": {
+   "common": 0.14,
+   "double_rare": 0.52,
+   "rare": 0.17,
+   "uncommon": 0.12,
+   "illustration_rare": 2.05,
+   "ultra_rare": 1.83,
+   "special_illustration_rare": 19.87
+  },
+  "czenith": {
+   "common": 0.14,
+   "uncommon": 0.14,
+   "rare": 0.21,
+   "rare_holo_v": 0.81,
+   "rare_holo_vstar": 1.46,
+   "holo_rare": 0.34,
+   "radiant_rare": 0.68,
+   "rare_holo_vmax": 2.96,
+   "ultra_rare": 2.98,
+   "galarian_gallery": 11.09
+  },
+  "dpearl": {
+   "holo_rare": 19.49,
+   "rare": 2.72,
+   "uncommon": 0.57,
+   "common": 0.55,
+   "lv_x": 130.0
+  },
+  "dreign": {
+   "common": 0.13,
+   "rare": 0.15,
+   "uncommon": 0.15,
+   "double_rare": 0.65,
+   "illustration_rare": 5.01,
+   "ultra_rare": 2.07,
+   "special_illustration_rare": 29.6
+  },
+  "drivals": {
+   "uncommon": 0.18,
+   "common": 0.17,
+   "double_rare": 0.58,
+   "rare": 0.19,
+   "illustration_rare": 5.22,
+   "ultra_rare": 2.15,
+   "special_illustration_rare": 40.14,
+   "hyper_rare": 13.27
+  },
+  "epowers": {
+   "common": 0.31,
+   "rare": 0.78,
+   "uncommon": 0.38,
+   "holo_rare": 1.6
+  },
+  "eskies": {
+   "rare": 0.18,
+   "common": 0.14,
+   "uncommon": 0.12,
+   "holo_rare": 0.34,
+   "rare_holo_v": 1.09,
+   "rare_holo_vmax": 8.84,
+   "ultra_rare": 19.16,
+   "rainbow_rare": 36.64,
+   "secret_rare": 7.43
+  },
+  "expedition": {
+   "holo_rare": 155.37,
+   "rare": 28.3,
+   "uncommon": 7.55,
+   "common": 6.7
+  },
+  "ffire": {
+   "common": 0.26,
+   "uncommon": 0.3,
+   "rare": 0.5,
+   "holo_rare": 0.81,
+   "rare_holo_ex": 16.99,
+   "ultra_rare": 30.17,
+   "secret_rare": 298.62
+  },
+  "fossil": {
+   "holo_rare": 44.05,
+   "rare": 8.84,
+   "uncommon": 1.27,
+   "common": 0.52
+  },
+  "fstrike": {
+   "common": 0.16,
+   "uncommon": 0.15,
+   "holo_rare": 0.28,
+   "rare_holo_v": 0.82,
+   "rare": 0.21,
+   "rare_holo_vmax": 1.94,
+   "ultra_rare": 2.7,
+   "rainbow_rare": 10.45,
+   "secret_rare": 4.96
+  },
+  "gchallange": {
+   "holo_rare": 82.44,
+   "rare": 9.9,
+   "uncommon": 2.93,
+   "common": 1.48
+  },
+  "gheroes": {
+   "holo_rare": 50.15,
+   "rare": 11.94,
+   "uncommon": 2.91,
+   "common": 1.1
+  },
+  "grising": {
+   "common": 0.22,
+   "uncommon": 0.25,
+   "rare": 0.34,
+   "holo_rare": 0.63,
+   "rare_holo_gx": 2.95,
+   "ultra_rare": 5.92,
+   "rainbow_rare": 27.49,
+   "secret_rare": 18.14
+  },
+  "hfates": {
+   "common": 0.24,
+   "uncommon": 0.22,
+   "rare": 0.39,
+   "rare_holo_gx": 3.55,
+   "holo_rare": 1.16,
+   "ultra_rare": 41.86,
+   "shiny_rare": 6.96,
+   "shiny_rare_gx": 21.6
+  },
+  "hsilver": {
+   "holo_rare": 34.9,
+   "rare": 7.05,
+   "uncommon": 1.69,
+   "common": 2.46,
+   "prime": 98.38,
+   "ultra_rare": 266.15
+  },
+  "jtogether": {
+   "common": 0.18,
+   "rare": 0.19,
+   "uncommon": 0.15,
+   "double_rare": 0.65,
+   "illustration_rare": 3.75,
+   "ultra_rare": 1.28,
+   "special_illustration_rare": 28.82,
+   "hyper_rare": 7.76
+  },
+  "jungle": {
+   "holo_rare": 41.22,
+   "rare": 8.28,
+   "uncommon": 1.53,
+   "common": 0.57
+  },
+  "lorigin": {
+   "common": 0.14,
+   "uncommon": 0.14,
+   "holo_rare": 0.32,
+   "rare": 0.2,
+   "rare_holo_v": 0.72,
+   "rare_holo_vstar": 1.2,
+   "radiant_rare": 1.41,
+   "ultra_rare": 2.78,
+   "rainbow_rare": 9.55,
+   "secret_rare": 3.42,
+   "trainer_gallery": 8.09
+  },
+  "mevolution": {
+   "common": 0.15,
+   "double_rare": 0.61,
+   "uncommon": 0.16,
+   "rare": 0.22,
+   "illustration_rare": 3.1,
+   "ultra_rare": 3.21,
+   "special_illustration_rare": 46.26
+  },
+  "mew151": {
+   "common": 0.19,
+   "uncommon": 0.2,
+   "double_rare": 1.64,
+   "rare": 0.31,
+   "illustration_rare": 36.33,
+   "ultra_rare": 7.05,
+   "special_illustration_rare": 63.55,
+   "hyper_rare": 3.5,
+   "promo": 7.92
+  },
+  "mtreasoures": {
+   "holo_rare": 29.64,
+   "rare": 1.51,
+   "uncommon": 0.5,
+   "common": 0.46
+  },
+  "ndiscovery": {
+   "holo_rare": 57.27,
+   "rare": 11.32,
+   "uncommon": 1.67,
+   "common": 0.85
+  },
+  "ngenesis": {
+   "holo_rare": 61.82,
+   "rare": 4.33,
+   "uncommon": 1.87,
+   "common": 0.92
+  },
+  "oflames": {
+   "common": 0.15,
+   "uncommon": 0.17,
+   "double_rare": 0.76,
+   "rare": 0.17,
+   "illustration_rare": 9.25,
+   "ultra_rare": 1.19,
+   "special_illustration_rare": 4.89,
+   "hyper_rare": 2.99
+  },
+  "paldeanevolved": {
+   "common": 0.14,
+   "uncommon": 0.14,
+   "rare": 0.2,
+   "double_rare": 0.74,
+   "illustration_rare": 17.02,
+   "ultra_rare": 2.3,
+   "special_illustration_rare": 15.29,
+   "hyper_rare": 6.17
+  },
+  "pblack": {
+   "common": 0.15,
+   "double_rare": 0.58,
+   "uncommon": 0.14,
+   "rare": 0.24,
+   "illustration_rare": 1.61,
+   "ultra_rare": 2.83,
+   "special_illustration_rare": 30.6
+  },
+  "pfates": {
+   "common": 0.11,
+   "double_rare": 0.56,
+   "uncommon": 0.14,
+   "rare": 0.17,
+   "shiny_rare": 4.71,
+   "shiny_ultra_rare": 1.84,
+   "illustration_rare": 2.13,
+   "ultra_rare": 0.6,
+   "special_illustration_rare": 18.83,
+   "hyper_rare": 9.83
+  },
+  "pflames": {
+   "common": 0.14,
+   "rare": 0.14,
+   "double_rare": 0.53,
+   "uncommon": 0.13,
+   "illustration_rare": 3.03,
+   "ultra_rare": 1.21,
+   "special_illustration_rare": 15.16
+  },
+  "platinium": {
+   "holo_rare": 30.12,
+   "rare": 3.19,
+   "uncommon": 0.83,
+   "common": 0.61,
+   "lv_x": 153.49,
+   "ultra_rare": 100.75,
+   "secret_rare": 34.04,
+   "shiny_rare": 5.56
+  },
+  "porder": {
+   "common": 0.12,
+   "uncommon": 0.1,
+   "rare": 0.16,
+   "double_rare": 0.52,
+   "illustration_rare": 2.03,
+   "special_illustration_rare": 29.8,
+   "ultra_rare": 2.79
+  },
+  "prift": {
+   "common": 0.15,
+   "uncommon": 0.16,
+   "double_rare": 0.7,
+   "rare": 0.19,
+   "illustration_rare": 11.75,
+   "ultra_rare": 2.2,
+   "special_illustration_rare": 12.67,
+   "hyper_rare": 3.0
+  },
+  "prismaticevolutions": {
+   "common": 0.12,
+   "uncommon": 0.14,
+   "rare": 0.27,
+   "double_rare": 1.3,
+   "ace_spec": 0.38,
+   "ultra_rare": 0.59,
+   "special_illustration_rare": 38.51,
+   "hyper_rare": 7.42
+  },
+  "rclash": {
+   "common": 0.16,
+   "uncommon": 0.16,
+   "rare": 0.29,
+   "rare_holo_v": 0.94,
+   "rare_holo_vmax": 2.46,
+   "holo_rare": 0.46,
+   "ultra_rare": 4.89,
+   "rainbow_rare": 13.63,
+   "secret_rare": 7.7
+  },
+  "rrivals": {
+   "holo_rare": 14.08,
+   "rare": 3.0,
+   "uncommon": 0.57,
+   "common": 0.53,
+   "ultra_rare": 111.72,
+   "secret_rare": 394.74
+  },
+  "rsapphire": {
+   "holo_rare": 32.13,
+   "rare": 1.94,
+   "uncommon": 2.13,
+   "common": 0.9,
+   "pokemon_ex": 123.39
+  },
+  "rskies": {
+   "common": 0.24,
+   "uncommon": 0.29,
+   "holo_rare": 3.09,
+   "rare": 0.51,
+   "rare_holo_ex": 14.69
+  },
+  "scrown": {
+   "double_rare": 1.06,
+   "common": 0.17,
+   "rare": 0.2,
+   "uncommon": 0.16,
+   "ace_spec": 0.39,
+   "illustration_rare": 6.99,
+   "ultra_rare": 2.01,
+   "special_illustration_rare": 25.8,
+   "hyper_rare": 7.86
+  },
+  "sfable": {
+   "common": 0.15,
+   "uncommon": 0.18,
+   "rare": 0.17,
+   "double_rare": 0.62,
+   "ace_spec": 0.54,
+   "illustration_rare": 22.96,
+   "ultra_rare": 4.17,
+   "special_illustration_rare": 23.74,
+   "hyper_rare": 22.51
+  },
+  "silvertempest": {
+   "common": 0.14,
+   "uncommon": 0.13,
+   "holo_rare": 0.27,
+   "rare_holo_v": 0.83,
+   "rare_holo_vstar": 1.42,
+   "rare": 0.2,
+   "radiant_rare": 2.08,
+   "ultra_rare": 4.03,
+   "rainbow_rare": 7.59,
+   "secret_rare": 4.71,
+   "trainer_gallery": 6.4
+  },
+  "smoon": {
+   "common": 0.17,
+   "uncommon": 0.2,
+   "rare": 0.24,
+   "rare_holo_gx": 3.33,
+   "holo_rare": 0.47,
+   "ultra_rare": 7.79,
+   "rainbow_rare": 18.8,
+   "secret_rare": 11.53
+  },
+  "sridge": {
+   "rare": 68.45,
+   "uncommon": 11.24,
+   "common": 28.25,
+   "secret_rare": 7249.99,
+   "holo_rare": 276.05
+  },
+  "sshield": {
+   "rare_holo_v": 1.07,
+   "common": 0.17,
+   "rare": 0.27,
+   "uncommon": 0.17,
+   "holo_rare": 0.34,
+   "rare_holo_vmax": 5.46,
+   "ultra_rare": 4.86,
+   "rainbow_rare": 20.92,
+   "secret_rare": 4.8
+  },
+  "ssparks": {
+   "common": 0.15,
+   "uncommon": 0.15,
+   "double_rare": 0.57,
+   "rare": 0.15,
+   "ace_spec": 0.53,
+   "illustration_rare": 5.8,
+   "ultra_rare": 1.64,
+   "special_illustration_rare": 21.44,
+   "hyper_rare": 9.77
+  },
+  "sstorm": {
+   "holo_rare": 38.89,
+   "rare": 4.11,
+   "uncommon": 2.79,
+   "common": 1.55,
+   "pokemon_ex": 182.5
+  },
+  "sviolet": {
+   "common": 0.14,
+   "uncommon": 0.14,
+   "rare": 0.19,
+   "double_rare": 0.56,
+   "illustration_rare": 11.17,
+   "ultra_rare": 1.72,
+   "special_illustration_rare": 9.78,
+   "hyper_rare": 4.49
+  },
+  "teamup": {
+   "rare_holo_gx": 9.95,
+   "common": 0.26,
+   "uncommon": 0.25,
+   "rare": 0.47,
+   "prism_star": 5.71,
+   "holo_rare": 3.32,
+   "ultra_rare": 73.56,
+   "rainbow_rare": 148.01,
+   "secret_rare": 4.97
+  },
+  "tforces": {
+   "common": 0.16,
+   "uncommon": 0.16,
+   "double_rare": 0.77,
+   "rare": 0.18,
+   "ace_spec": 0.86,
+   "illustration_rare": 15.72,
+   "ultra_rare": 2.84,
+   "special_illustration_rare": 33.45,
+   "hyper_rare": 10.32
+  },
+  "tmasquerade": {
+   "common": 0.16,
+   "uncommon": 0.17,
+   "rare": 0.22,
+   "double_rare": 0.69,
+   "ace_spec": 1.82,
+   "illustration_rare": 8.44,
+   "ultra_rare": 2.66,
+   "special_illustration_rare": 27.04,
+   "hyper_rare": 6.53
+  },
+  "trocket": {
+   "holo_rare": 47.67,
+   "rare": 9.73,
+   "uncommon": 2.5,
+   "common": 0.82
+  },
+  "ubounds": {
+   "rare_holo_gx": 17.65,
+   "common": 0.27,
+   "uncommon": 0.24,
+   "rare": 0.52,
+   "holo_rare": 1.46,
+   "ultra_rare": 44.67,
+   "rainbow_rare": 46.86,
+   "secret_rare": 5.03
+  },
+  "uminds": {
+   "rare_holo_gx": 16.82,
+   "common": 0.24,
+   "uncommon": 0.28,
+   "holo_rare": 0.85,
+   "rare": 0.4,
+   "ultra_rare": 47.74,
+   "rainbow_rare": 72.01,
+   "secret_rare": 11.83
+  },
+  "unleashed": {
+   "holo_rare": 15.26,
+   "rare": 4.36,
+   "uncommon": 0.7,
+   "common": 0.46,
+   "prime": 108.15,
+   "ultra_rare": 257.52
+  },
+  "vvoltage": {
+   "common": 0.14,
+   "uncommon": 0.12,
+   "rare": 0.24,
+   "amazing_rare": 7.92,
+   "holo_rare": 0.34,
+   "rare_holo_v": 0.61,
+   "rare_holo_vmax": 1.29,
+   "ultra_rare": 3.79,
+   "rainbow_rare": 7.2,
+   "secret_rare": 4.53
+  },
+  "wflare": {
+   "common": 0.15,
+   "uncommon": 0.16,
+   "double_rare": 0.46,
+   "rare": 0.2,
+   "illustration_rare": 13.95,
+   "ultra_rare": 0.94,
+   "special_illustration_rare": 39.19
+  },
+  "xy": {
+   "rare_holo_ex": 13.41,
+   "common": 0.28,
+   "uncommon": 0.31,
+   "rare": 0.54,
+   "holo_rare": 2.35,
+   "ultra_rare": 109.44
+  }
+ }
+}

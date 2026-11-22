@@ -72,13 +72,25 @@ public final class League extends PersistentState {
         return delta;
     }
 
-    /** Partida de liga contra la IA (con su propia puntuación). Devuelve el cambio (positivo o negativo) del jugador. */
-    public int recordVsAi(UUID player, String name, int aiRating, boolean won) {
+    /**
+     * Puntos de liga contra la IA: tabla fija por nivel (ganar al Campeón vale mucho más que varias fáciles, y perder
+     * contra la fácil duele más que perder contra el Campeón).
+     */
+    public static final int[] AI_WIN = {4, 9, 16, 28};
+    public static final int[] AI_LOSS = {16, 12, 10, 10};
+    /** Rango mínimo (índice de RANK_AT) a partir del cual ya no se permite cada nivel en partidas de liga. */
+    public static final int[] AI_BLOCKED_FROM = {2, 3, 4, 99}; // Oro+ sin fácil, Platino+ sin normal, Diamante+ sólo Campeón
+
+    public static boolean aiLevelAllowed(int rating, int level) {
+        level = Math.max(0, Math.min(AI_WIN.length - 1, level));
+        return rank(rating) < AI_BLOCKED_FROM[level];
+    }
+
+    /** Partida de liga contra la IA. Devuelve el cambio (positivo o negativo) del jugador. */
+    public int recordVsAi(UUID player, String name, int level, boolean won) {
         Entry e = entry(player, name);
-        double expected = 1 / (1 + Math.pow(10, (aiRating - e.rating) / 400.0));
-        int delta = (int) Math.round(24 * ((won ? 1 : 0) - expected));
-        if (won) delta = Math.max(3, delta);
-        else delta = Math.min(-3, delta);
+        level = Math.max(0, Math.min(AI_WIN.length - 1, level));
+        int delta = won ? AI_WIN[level] : -AI_LOSS[level];
         e.rating = Math.max(100, e.rating + delta);
         if (won) { e.wins++; e.aiWins++; }
         else e.losses++;

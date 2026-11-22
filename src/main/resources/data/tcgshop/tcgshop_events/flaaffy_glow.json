@@ -1,0 +1,67 @@
+{
+  "_comment": "#39 Flaaffy luminoso: ilumina la tienda (+luz) y, si habia un apagon o un cortocircuito (plantilla 'power'), lo arregla al momento. De noche o en tiendas oscuras.",
+  "category": "positive",
+  "tier": "uncommon",
+  "template": "flaaffy",
+  "duration": {
+    "ticks": [
+      6000,
+      9000
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "flaaffy",
+      "level": [
+        10,
+        20
+      ],
+      "behaviour": "wander",
+      "pet": true,
+      "feed": true,
+      "particles": "glow",
+      "resolveEvents": [
+        "#power",
+        "tcgshop:power_failure"
+      ],
+      "reviewTag": "pkmn_glow"
+    },
+    {
+      "type": "modifier",
+      "lightDelta": 3,
+      "while": "always"
+    }
+  ],
+  "variants": [
+    {
+      "key": "night",
+      "weight": 1,
+      "conditions": {
+        "time": [
+          13000,
+          23000
+        ]
+      }
+    },
+    {
+      "key": "dark",
+      "weight": 1,
+      "conditions": {
+        "flags": [
+          "dark"
+        ]
+      }
+    }
+  ],
+  "review": {
+    "tag": "pkmn_cute",
+    "chance": 0.3,
+    "mood": 1
+  },
+  "notify": {
+    "lines": "act_flaaffy",
+    "count": 6,
+    "chance": 0.3
+  }
+}

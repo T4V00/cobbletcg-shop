@@ -1,0 +1,54 @@
+{
+  "_comment": "#20 (+85 inspección amistosa): se anuncia con antelación; la nota depende de cómo esté la tienda",
+  "category": "negative",
+  "tier": "uncommon",
+  "template": "inspection",
+  "duration": {
+    "ticks": [
+      10000,
+      12000
+    ]
+  },
+  "conditions": {
+    "rep": [
+      15,
+      100
+    ],
+    "minSales": 30
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "REGULAR",
+      "inspector": true,
+      "delay": [
+        3000,
+        5000
+      ],
+      "browses": [
+        3,
+        4
+      ],
+      "title": "tcgshop.role.ev_inspector",
+      "lines": "inspector",
+      "linesCount": 6,
+      "outcome": {
+        "grade": "inspection",
+        "goodAt": 5,
+        "badAt": 3,
+        "good": {
+          "rep": 4,
+          "ticks": 24000
+        },
+        "bad": {
+          "rep": -4,
+          "ticks": 12000
+        }
+      }
+    },
+    {
+      "type": "notify",
+      "particles": "crit"
+    }
+  ]
+}

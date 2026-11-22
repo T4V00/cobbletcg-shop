@@ -21,13 +21,16 @@ public class StoreScreen extends Screen {
     private final CardPickGrid sellGrid = new CardPickGrid();
     private final java.util.List<int[]> tabs = new java.util.ArrayList<>();
     private final java.util.List<Runnable> tabActions = new java.util.ArrayList<>();
+    /** Pestaña Muebles (CobbleFurnies / peluches): se crea al abrirla por primera vez. */
+    private boolean furnitureTab;
+    private FurnitureApp furniture;
 
     public StoreScreen(int source, List<ItemStack> goods, List<Long> prices) {
         super(Text.translatable("entity.tcgshop.wholesaler"));
         this.panel = new CatalogPanel(source, goods, prices);
         this.source = source;
         sellGrid.price = st -> dev.tcgshop.shop.CardSales.offer(st, dev.tcgshop.shop.CardSales.WHOLESALER_RATE);
-        sellGrid.accept = st -> dev.tcgshop.card.CardInfo.isCard(st) || dev.tcgshop.shop.VanillaPrices.sellable(st);
+        sellGrid.accept = st -> dev.masterball.api.card.CardInfo.isCard(st) || dev.tcgshop.shop.VanillaPrices.sellable(st);
         sellGrid.extra = dev.tcgshop.shop.VanillaPrices::price;
         sellGrid.includeBinder = true; // también las cartas del Binder
     }
@@ -112,10 +115,21 @@ public class StoreScreen extends Screen {
         ctx.drawText(textRenderer, Text.translatable("tcgshop.wholesaler.subtitle"), x + 10, y + 19, 0xFFE0C8A8, false);
         tabs.clear();
         tabActions.clear();
-        int tw0 = 70, tx0 = x + w / 2 - tw0 - 2;
-        tab(ctx, tx0, y + 9, tw0, Text.translatable("tcgshop.sell.tab_buy"), !selling, mouseX, mouseY, () -> selling = false);
-        tab(ctx, tx0 + tw0 + 4, y + 9, tw0, Text.translatable("tcgshop.sell.tab_sell"), selling, mouseX, mouseY, () -> { selling = true; sellGrid.restartAppear(); });
+        // el Mayorista no vende estatuas de lujo: sin CobbleFurnies/Pokéblocks no hay pestaña Muebles (como antes de 0.9)
+        boolean furn = dev.tcgshop.compat.CobbleFurniesCompat.available();
+        int tw0 = furn ? 60 : 70, tx0 = furn ? x + w / 2 - (tw0 * 3 + 8) / 2 : x + w / 2 - tw0 - 2;
+        tab(ctx, tx0, y + 9, tw0, Text.translatable("tcgshop.sell.tab_buy"), !selling && !furnitureTab, mouseX, mouseY, () -> { selling = false; furnitureTab = false; });
+        tab(ctx, tx0 + tw0 + 4, y + 9, tw0, Text.translatable("tcgshop.sell.tab_sell"), selling && !furnitureTab, mouseX, mouseY, () -> {
+            selling = true;
+            furnitureTab = false;
+            sellGrid.restartAppear();
+        });
+        if (furn) tab(ctx, tx0 + (tw0 + 4) * 2, y + 9, tw0, Text.translatable("tcgshop.furn.tab"), furnitureTab, mouseX, mouseY, this::openFurniture);
         ctx.fill(x + 6, y + 36, x + w - 6, y + h - 6, 0xFF1A1D2A);
+        if (furnitureTab && furniture != null) {
+            furniture.render(ctx, x + 10, y + 40, w - 20, h - 50, mouseX, mouseY, delta);
+            return;
+        }
         if (selling) {
             renderSell(ctx, x + 10, y + 40, w - 20, h - 50, mouseX, mouseY);
             return;
@@ -126,12 +140,22 @@ public class StoreScreen extends Screen {
         panel.render(ctx, x + 10, y + 42 + fh, w - 20, h - 52 - fh, mouseX, mouseY, System.nanoTime() / 1e9);
     }
 
+    /** Pestaña Muebles: pide al servidor el catálogo con los precios del Mayorista. */
+    private void openFurniture() {
+        if (furniture == null) furniture = new FurnitureApp(source, this);
+        furnitureTab = true;
+        selling = false; // que el arrastre de la venta de cartas no actúe en esta pestaña
+        search.setFocused(false);
+        furniture.request();
+    }
+
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         for (int i = tabs.size() - 1; i >= 0; i--) {
             int[] r = tabs.get(i);
             if (Ui.in(mouseX, mouseY, r[0], r[1], r[2], r[3])) { tabActions.get(i).run(); return true; }
         }
+        if (furnitureTab && furniture != null) return furniture.mouseClicked(mouseX, mouseY, button) || super.mouseClicked(mouseX, mouseY, button);
         if (selling) return sellGrid.click(mouseX, mouseY) || super.mouseClicked(mouseX, mouseY, button);
         if (search.mouseClicked(mouseX, mouseY, button)) { setFocused(search); return true; }
         search.setFocused(false);
@@ -140,6 +164,7 @@ public class StoreScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double h, double v) {
+        if (furnitureTab && furniture != null) { furniture.mouseScrolled(mouseX, mouseY, v); return true; }
         if (selling) { sellGrid.scroll(v); return true; }
         panel.scroll(v);
         return true;
@@ -147,11 +172,13 @@ public class StoreScreen extends Screen {
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
+        if (furnitureTab && furniture != null) return furniture.charTyped(chr, modifiers);
         return search.isFocused() && search.charTyped(chr, modifiers);
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (furnitureTab && furniture != null && furniture.keyPressed(keyCode, scanCode, modifiers)) return true;
         if (search.isFocused() && keyCode != GLFW.GLFW_KEY_ESCAPE) return search.keyPressed(keyCode, scanCode, modifiers) || true;
         return super.keyPressed(keyCode, scanCode, modifiers);
     }

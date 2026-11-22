@@ -1,7 +1,7 @@
 package dev.tcgshop.shop;
 
 import com.mojang.serialization.MapCodec;
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
@@ -81,7 +81,10 @@ public final class DecorBlocks {
             value = nbt.getInt("Value");
             board.clear();
             net.minecraft.nbt.NbtList b = nbt.getList("Board", net.minecraft.nbt.NbtElement.STRING_TYPE);
-            for (int i = 0; i < b.size(); i++) board.add(b.getString(i));
+            for (int i = 0; i < b.size(); i++) {
+                String id = dev.masterball.api.card.CardInfo.migrate(b.getString(i));
+                board.add(dev.masterball.api.card.CardCatalog.isRemovedId(id) ? "" : id); // TCG Pocket: quitado en la 0.9
+            }
         }
 
         @Override

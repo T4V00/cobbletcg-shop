@@ -1,0 +1,55 @@
+{
+  "_comment": "#54 (+119 mercado de coleccionistas) día de coleccionistas",
+  "category": "positive",
+  "tier": "uncommon",
+  "template": "collectors",
+  "duration": {
+    "ticks": [
+      8000,
+      11000
+    ]
+  },
+  "conditions": {
+    "rep": [
+      30,
+      100
+    ]
+  },
+  "effects": [
+    {
+      "type": "modifier",
+      "typeW": {
+        "whale": 2.0,
+        "trader": 1.5
+      }
+    }
+  ],
+  "variants": [
+    {
+      "key": "collectors",
+      "weight": 4
+    },
+    {
+      "key": "market",
+      "weight": 1,
+      "effects": [
+        {
+          "type": "modifier",
+          "typeW": {
+            "seller": 1.5
+          }
+        }
+      ]
+    }
+  ],
+  "review": {
+    "tag": "fun_event",
+    "chance": 0.2,
+    "mood": 1
+  },
+  "notify": {
+    "lines": "collectors",
+    "count": 6,
+    "chance": 0.3
+  }
+}

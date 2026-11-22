@@ -1,0 +1,29 @@
+{
+  "_comment": "#26 competencia agresiva (rival virtual): se arregla con 5 ventas a precio justo",
+  "category": "negative",
+  "tier": "uncommon",
+  "template": "competition",
+  "duration": "day",
+  "effects": [
+    {
+      "type": "modifier",
+      "spawnMult": 0.8,
+      "perceivedMult": 1.05
+    },
+    {
+      "type": "metric",
+      "metric": "fair_sales",
+      "count": 5
+    }
+  ],
+  "review": {
+    "tag": "competition",
+    "chance": 0.3,
+    "mood": -1
+  },
+  "notify": {
+    "lines": "competition",
+    "count": 6,
+    "chance": 0.3
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "_comment": "#59 tienda impecable (sin olor ni monstruos): +3 de reputación hoy",
+  "category": "positive",
+  "tier": "common",
+  "template": "clean",
+  "duration": "day",
+  "conditions": {
+    "requires": [
+      "clean"
+    ]
+  },
+  "effects": [
+    {
+      "type": "modifier",
+      "repDelta": 3,
+      "while": "always"
+    }
+  ],
+  "review": {
+    "tag": "clean",
+    "chance": 0.35,
+    "mood": 1
+  }
+}

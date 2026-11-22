@@ -1,0 +1,29 @@
+{
+  "_comment": "#104 celebración de expansión (más probable tras #84): más gente y ganas del set más nuevo",
+  "category": "positive",
+  "tier": "rare",
+  "template": "expansion",
+  "duration": "day",
+  "effects": [
+    {
+      "type": "modifier",
+      "spawnMult": 1.2,
+      "buy": [
+        {
+          "filter": "newest_set",
+          "mult": 1.3
+        }
+      ]
+    }
+  ],
+  "review": {
+    "tag": "fun_event",
+    "chance": 0.25,
+    "mood": 1
+  },
+  "notify": {
+    "lines": "expansion",
+    "count": 6,
+    "chance": 0.35
+  }
+}

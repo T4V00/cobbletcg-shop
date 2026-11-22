@@ -8,7 +8,7 @@ Busca el nombre de especie más largo contenido en el nombre de la carta (las ca
 no tienen especie).
 
 Escribe src/main/resources/data/tcgshop/tcgshop_species/cards.json  ->  {"cobbletcg:...": "pikachu", ...}
-Uso: python tools/gen_card_species.py <cobblemon.jar> <cobbletcg.jar>
+Uso: python tools/gen_card_species.py <cobblemon.jar>   (cartas: catálogo de ../masterball-api)
 """
 import json
 import re
@@ -37,26 +37,15 @@ def main():
                 species[norm(name)] = name.lower().replace(" ", "_")
     names = sorted(species, key=len, reverse=True)
 
-    tcg = zipfile.ZipFile(sys.argv[2])
-    lang = json.loads(tcg.read("assets/cobbletcg/lang/en_us.json").decode("utf-8"))
-    real = {}
-    for n in tcg.namelist():
-        if n.startswith("data/cobbletcg/loot_table/") and n.endswith(".json"):
-            for cid in re.findall(r'"(cobbletcg:[a-z0-9_]+/cards/[a-z0-9_]+)"', tcg.read(n).decode("utf-8", "ignore")):
-                real.setdefault(cid.rsplit("/", 1)[1], cid)
-
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from fetch_prices import load_cards  # catálogo de MasterBall Traders API
     out = {}
-    for key, value in lang.items():
-        m = re.match(r"^item\.cobbletcg\.([a-z0-9_]+)\.cards\.([a-z0-9_]+)$", key)
-        nm = re.match(r"^\s*[A-Z0-9]+\s+\d+\s+(.+?)\s*$", value)
-        if not m or not nm:
-            continue
-        cid = real.get(m.group(2), f"cobbletcg:{m.group(1)}/cards/{m.group(2)}")
-        text = norm(nm.group(1).replace("Mega ", "").replace("Radiant ", ""))
+    for c in load_cards():
+        text = norm(c["name"].replace("Mega ", "").replace("Radiant ", ""))
         for s in names:
             if len(s) >= 3 and s in text:
                 # evita falsos positivos con nombres muy cortos dentro de otras palabras (p.ej. "mew" en "mewtwo")
-                out[cid] = species[s]
+                out[c["id"]] = species[s]
                 break
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(dict(sorted(out.items())), indent=0), encoding="utf-8")

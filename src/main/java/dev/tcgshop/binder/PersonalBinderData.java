@@ -25,7 +25,22 @@ public record PersonalBinderData(List<String> slots, String background, String p
             Codec.STRING.optionalFieldOf("background", "none").forGetter(PersonalBinderData::background),
             Codec.STRING.optionalFieldOf("pattern", "none").forGetter(PersonalBinderData::pattern),
             Codec.STRING.optionalFieldOf("palette", "classic_red").forGetter(PersonalBinderData::palette)
-    ).apply(i, PersonalBinderData::new));
+    ).apply(i, (slots, bg, pat, pal) -> new PersonalBinderData(migrate(slots), bg, pat, pal)));
+
+    /**
+     * Huecos guardados con ids de ScalperTCG ("cobbletcg:..." o "wish:cobbletcg:...") -> MasterBall Traders API.
+     * Las cartas de TCG Pocket (quitadas en la 0.9) dejan el hueco vacío.
+     */
+    private static List<String> migrate(List<String> slots) {
+        List<String> out = new ArrayList<>(slots.size());
+        for (String s : slots) {
+            boolean wish = s.startsWith("wish:");
+            String id = dev.masterball.api.card.CardInfo.migrate(wish ? s.substring(5) : s);
+            if (dev.masterball.api.card.CardCatalog.isRemovedId(id)) out.add("");
+            else out.add(wish ? "wish:" + id : id);
+        }
+        return out;
+    }
 
     public static final PacketCodec<ByteBuf, PersonalBinderData> PACKET_CODEC = PacketCodec.tuple(
             PacketCodecs.STRING.collect(PacketCodecs.toList()), PersonalBinderData::slots,

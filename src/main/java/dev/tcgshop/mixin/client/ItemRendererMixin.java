@@ -1,6 +1,6 @@
 package dev.tcgshop.mixin.client;
 
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import dev.tcgshop.client.render.ShopRenderers;
 import dev.tcgshop.grading.Grading;
 import net.minecraft.client.render.VertexConsumerProvider;

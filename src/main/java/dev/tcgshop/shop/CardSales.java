@@ -1,7 +1,7 @@
 package dev.tcgshop.shop;
 
 import dev.tcgshop.TcgShopConfig;
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import dev.tcgshop.economy.CobbleDollarsBridge;
 import dev.tcgshop.entity.WholesalerEntity;
 import dev.tcgshop.item.TcgItems;
@@ -28,7 +28,8 @@ import java.util.List;
  */
 public final class CardSales {
     public static double PHONE_RATE = 0.5, WHOLESALER_RATE = 0.4; // EconomyConfig
-    private static final String STARTER_TAG = "tcgshop_starter";
+    /** Etiqueta del kit de inicio (la reutiliza Onboarding: quien ya recibió el kit antiguo no recibe más sobres). */
+    public static final String STARTER_TAG = "tcgshop_starter";
 
     private CardSales() {}
 
@@ -50,9 +51,9 @@ public final class CardSales {
     public static void handle(ServerPlayerEntity player, MarketPayloads.Sell p) {
         double rate;
         if (p.source() == -1) {
-            if (!player.getInventory().contains(new ItemStack(TcgItems.TCG_PHONE))) return;
+            if (!player.getInventory().contains(st -> st.isOf(TcgItems.TCG_PHONE))) return;
             if (p.mode() != MarketPayloads.SELL_CARDS) return;
-            rate = PHONE_RATE;
+            rate = PHONE_RATE + dev.tcgshop.phone.PhoneUpgrades.sellBonus(player);
         } else if (player.getWorld().getEntityById(p.source()) instanceof WholesalerEntity w && w.squaredDistanceTo(player) < 10 * 10) {
             rate = WHOLESALER_RATE;
         } else return;

@@ -1,0 +1,83 @@
+{
+  "_comment": "#19 almacén desordenado (+#5 Zubat de noche): cajas tiradas, el servicio va lento. Arreglo: fregona/recoger (2 golpes).",
+  "category": "negative",
+  "tier": "common",
+  "template": "mess",
+  "duration": {
+    "ticks": [
+      6000,
+      10000
+    ]
+  },
+  "effects": [
+    {
+      "type": "incident",
+      "kind": "mess",
+      "count": 2,
+      "near": "floor",
+      "fix": {
+        "items": "#tcgshop:fix/mess",
+        "hand": true,
+        "hits": 2
+      }
+    },
+    {
+      "type": "modifier",
+      "serviceMult": 1.4
+    }
+  ],
+  "variants": [
+    {
+      "key": "boxes",
+      "weight": 3
+    },
+    {
+      "key": "zubat",
+      "weight": 2,
+      "conditions": {
+        "requires": [
+          "cobblemon"
+        ],
+        "time": [
+          13000,
+          23000
+        ]
+      },
+      "effects": [
+        {
+          "type": "notify",
+          "message": "tcgshop.event.messy_stockroom.var.zubat"
+        },
+        {
+          "type": "actor",
+          "species": "zubat",
+          "level": [
+            4,
+            12
+          ],
+          "count": 1,
+          "behaviour": "wander",
+          "resolve": [
+            "shoo",
+            "feed",
+            "battle",
+            "expire"
+          ],
+          "shooHits": 2,
+          "reviewTag": "pkmn_zubat"
+        }
+      ]
+    }
+  ],
+  "review": {
+    "tag": "mess",
+    "chance": 0.4,
+    "mood": -1
+  },
+  "notify": {
+    "toast": true,
+    "lines": "inc_mess",
+    "count": 6,
+    "chance": 0.3
+  }
+}

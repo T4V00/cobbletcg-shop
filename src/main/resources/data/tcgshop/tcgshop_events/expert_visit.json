@@ -1,0 +1,26 @@
+{
+  "_comment": "#109 visita de un experto: descuento en el próximo envío a CobbleGrade",
+  "category": "positive",
+  "tier": "rare",
+  "template": "expert",
+  "duration": "day",
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "REGULAR",
+      "noBuy": true,
+      "browses": [
+        3,
+        4
+      ],
+      "title": "tcgshop.role.ev_expert",
+      "lines": "expert",
+      "linesCount": 6
+    },
+    {
+      "type": "supplier",
+      "perk": "grading_discount",
+      "factor": 0.8
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "_comment": "#22 rumor de sobrevaloración: se arregla con precios razonables mantenidos 3 minutos",
+  "category": "negative",
+  "tier": "common",
+  "template": "rumor",
+  "duration": "day",
+  "effects": [
+    {
+      "type": "modifier",
+      "perceivedMult": 1.1,
+      "repDelta": -4
+    },
+    {
+      "type": "metric",
+      "metric": "price_ok",
+      "count": 3
+    }
+  ],
+  "review": {
+    "tag": "rumor",
+    "chance": 0.4,
+    "mood": -1
+  },
+  "notify": {
+    "lines": "rumor",
+    "count": 6,
+    "chance": 0.3
+  }
+}

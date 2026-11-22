@@ -1,0 +1,47 @@
+{
+  "_comment": "#16 avería del aire acondicionado (biomas cálidos): chispas en el aparato, clientes acalorados e impacientes. Arreglo: kit de reparación.",
+  "category": "negative",
+  "tier": "uncommon",
+  "template": "ac",
+  "duration": {
+    "ticks": [
+      6000,
+      12000
+    ]
+  },
+  "conditions": {
+    "minTemp": 0.95,
+    "time": [
+      3000,
+      11000
+    ]
+  },
+  "effects": [
+    {
+      "type": "incident",
+      "kind": "sparks",
+      "count": 1,
+      "near": "core",
+      "fix": {
+        "items": "#tcgshop:fix/sparks",
+        "hits": 2
+      }
+    },
+    {
+      "type": "modifier",
+      "moodStart": -1,
+      "patienceMult": 0.8
+    }
+  ],
+  "review": {
+    "tag": "hot",
+    "chance": 0.5,
+    "mood": -1
+  },
+  "notify": {
+    "toast": true,
+    "lines": "inc_hot",
+    "count": 6,
+    "chance": 0.35
+  }
+}

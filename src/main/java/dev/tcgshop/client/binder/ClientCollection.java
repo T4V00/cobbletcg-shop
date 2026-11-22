@@ -47,7 +47,7 @@ public final class ClientCollection {
         return counts.getOrDefault(id, 0);
     }
 
-    /** Al pasar el cursor por una carta nueva: quita la notificación (se envía al servidor en lotes). */
+    /** Marca una carta nueva como vista: quita la notificación (se envía al servidor en lotes). El binder decide cuándo. */
     public static void markSeen(String id) {
         if (fresh.remove(id)) pendingSeen.add(id);
     }
@@ -58,6 +58,19 @@ public final class ClientCollection {
             lastSeenFlush = now;
             ClientPlayNetworking.send(new BinderActionPayload(BinderActionPayload.MARK_SEEN, String.join(",", pendingSeen), 0));
             pendingSeen.clear();
+        }
+    }
+
+    /** Envía ya las cartas vistas pendientes (al cerrar el binder o salir de «Nuevas»), sin esperar al lote. */
+    public static void flushSeen() {
+        if (pendingSeen.isEmpty()) return;
+        if (net.minecraft.client.MinecraftClient.getInstance().getNetworkHandler() == null) return; // desconectando
+        try {
+            ClientPlayNetworking.send(new BinderActionPayload(BinderActionPayload.MARK_SEEN, String.join(",", pendingSeen), 0));
+            pendingSeen.clear();
+            lastSeenFlush = System.currentTimeMillis();
+        } catch (IllegalStateException ignored) {
+            // sin conexión: el servidor seguirá teniéndolas como nuevas
         }
     }
 

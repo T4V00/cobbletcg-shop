@@ -1,0 +1,39 @@
+{
+  "_comment": "#18 vitrina rota: chispas junto a un expositor, que queda inutilizable (los productos NO se mueven). Arreglo: kit de reparación.",
+  "category": "negative",
+  "tier": "uncommon",
+  "template": "display",
+  "duration": {
+    "ticks": [
+      6000,
+      12000
+    ]
+  },
+  "conditions": {
+    "minDisplays": 3
+  },
+  "effects": [
+    {
+      "type": "incident",
+      "kind": "sparks",
+      "count": 1,
+      "near": "display",
+      "disable": "display",
+      "fix": {
+        "items": "#tcgshop:fix/sparks",
+        "hits": 2
+      }
+    }
+  ],
+  "review": {
+    "tag": "broken",
+    "chance": 0.45,
+    "mood": -1
+  },
+  "notify": {
+    "toast": true,
+    "lines": "inc_display",
+    "count": 6,
+    "chance": 0.3
+  }
+}

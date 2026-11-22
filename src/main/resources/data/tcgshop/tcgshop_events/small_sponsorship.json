@@ -1,0 +1,23 @@
+{
+  "_comment": "#60 (+115 patrocinio local) un pequeño patrocinio (dinero con tope + buena fama)",
+  "category": "positive",
+  "tier": "rare",
+  "template": "sponsorship",
+  "duration": 600,
+  "conditions": {
+    "rep": [
+      50,
+      100
+    ]
+  },
+  "effects": [
+    {
+      "type": "reward",
+      "money": [
+        2000,
+        5000
+      ],
+      "charity": 2
+    }
+  ]
+}

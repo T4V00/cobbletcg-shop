@@ -1,0 +1,25 @@
+{
+  "_comment": "#58 empleado sobresaliente: cobra más rápido",
+  "category": "positive",
+  "tier": "uncommon",
+  "template": "staff",
+  "duration": "day",
+  "conditions": {
+    "requires": [
+      "cashier"
+    ]
+  },
+  "effects": [
+    {
+      "type": "staff",
+      "serviceMult": 0.7,
+      "lines": "star_employee",
+      "count": 6
+    }
+  ],
+  "review": {
+    "tag": "staff_good",
+    "chance": 0.3,
+    "mood": 1
+  }
+}

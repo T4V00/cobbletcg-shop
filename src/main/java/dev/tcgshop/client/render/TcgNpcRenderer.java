@@ -81,7 +81,7 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
                 float f = wait / 1000f;
                 int col = f > 0.5f ? 0xFF5BD46B : f > 0.25f ? 0xFFFFC233 : 0xFFFF5050;
                 if (f <= 0.25f && ((int) (t / 4)) % 2 == 0) col = 0xFFFFFFFF;
-                textBar(tr, matrices, consumers, 0, 6.5f, 18f, f, col);
+                wheel(tr, matrices, consumers, 0, -0.5f, 9.5f, 1.8f, 3.4f, f, col); // rueda alrededor del "!"
             }
             matrices.pop();
             return;
@@ -96,7 +96,7 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
             matrices.translate(0, entity.getHeight() + 0.62f, 0);
             matrices.multiply(dispatcher.getRotation());
             matrices.scale(0.025f, -0.025f, 0.025f);
-            textBar(getTextRenderer(), matrices, consumers, 0, -2.5f, 22f, f, col);
+            wheel(getTextRenderer(), matrices, consumers, 0, -8f, 8f, 2.2f, 4.2f, f, col);
             matrices.pop();
         }
         int emote = entity.emote();
@@ -178,22 +178,27 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
      * Barra hecha con el fondo del TextRenderer (espacios con color de fondo): se ve igual de bien que los nombres
      * vanilla con cualquier configuración gráfica. width en unidades del texto; f de 0 a 1.
      */
-    private static void textBar(TextRenderer tr, MatrixStack matrices, VertexConsumerProvider consumers, float cx, float y, float width, float f, int col) {
+    /**
+     * Temporizador en forma de rueda: 24 segmentos en círculo que se van apagando en sentido horario desde arriba.
+     * Cada segmento es el fondo de un espacio de texto (se ve igual con o sin shaders, igual que los bocadillos).
+     */
+    private static void wheel(TextRenderer tr, MatrixStack matrices, VertexConsumerProvider consumers, float cx, float cy,
+                              float radius, float segW, float segH, float f, int col) {
         if (!dev.tcgshop.client.ClientSettings.INSTANCE.patienceBars) return;
-        int cells = 24;
-        matrices.push();
-        float sx = width / (cells * 4f); // un espacio mide 4 unidades
-        matrices.translate(cx - width / 2f, y, 0);
-        matrices.scale(sx, 1, 1);
-        Matrix4f m = matrices.peek().getPositionMatrix();
-        String bg = " ".repeat(cells);
-        tr.draw(bg, 0, 0, 0x01000000, false, m, consumers, TextRenderer.TextLayerType.NORMAL, 0xCC101018, 0xF000F0);
-        int fill = Math.round(Math.max(0, Math.min(1, f)) * cells);
-        if (fill > 0) {
-            matrices.translate(0, 0, 0.6f); // delante del fondo de la barra
-            tr.draw(" ".repeat(fill), 0, 0, 0x01000000, false, matrices.peek().getPositionMatrix(), consumers, TextRenderer.TextLayerType.NORMAL, col, 0xF000F0);
+        int n = 24;
+        int fill = Math.round(Math.max(0, Math.min(1, f)) * n);
+        for (int i = 0; i < n; i++) {
+            matrices.push();
+            matrices.translate(cx, cy, 0);
+            matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Z.rotationDegrees(i * 360f / n));
+            matrices.translate(0, -radius, 0);
+            matrices.scale(segW / 5f, segH / 10f, 1); // el fondo de " " mide 5 x 10
+            matrices.translate(-1.5f, -4f, 0);         // centrado en el punto del círculo
+            boolean lit = i < fill;
+            tr.draw(" ", 0, 0, 0x01000000, false, matrices.peek().getPositionMatrix(), consumers, TextRenderer.TextLayerType.NORMAL,
+                    lit ? col : 0xB0101018, 0xF000F0);
+            matrices.pop();
         }
-        matrices.pop();
     }
 
     /** Rectángulo de fondo (mismo orden de vértices que el fondo de texto vanilla). */

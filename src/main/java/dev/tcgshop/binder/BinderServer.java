@@ -1,7 +1,8 @@
 package dev.tcgshop.binder;
 
 import dev.tcgshop.advancement.CardAdvancements;
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardCatalog;
+import dev.masterball.api.card.CardInfo;
 import dev.tcgshop.collection.BinderData;
 import dev.tcgshop.collection.BinderRegistry;
 import dev.tcgshop.collection.BinderTag;
@@ -49,7 +50,7 @@ public final class BinderServer {
         }
         PersonalBinderData d = st.getOrDefault(TcgItems.PERSONAL_BINDER_DATA, PersonalBinderData.DEFAULT);
         List<String> ids = new ArrayList<>();
-        for (String s : d.slots()) if (!s.isEmpty() && !s.startsWith(WISH)) ids.add(s);
+        for (String s : d.slots()) if (!s.isEmpty() && !s.startsWith(WISH) && !CardCatalog.isRemovedId(s)) ids.add(s);
         CardAdvancements.credit(player, CollectionService.playerData(player), null, ids);
         CardAdvancements.grant(player, "first_binder");
         CollectionService.sync(player); // el cajón muestra las cartas de tu Binder General
@@ -105,14 +106,14 @@ public final class BinderServer {
                     if (general.remove(arg, 1) == 0) return; // no la tienes en el Binder General
                 }
                 String prev = d.slots().get(slot);
-                if (!prev.isEmpty() && !prev.startsWith(WISH) && general != null) general.add(prev, 1);
+                if (!prev.isEmpty() && !prev.startsWith(WISH) && !CardCatalog.isRemovedId(prev) && general != null) general.add(prev, 1);
                 d = d.withSlot(slot, arg);
             }
             case BinderActionPayload.PERSONAL_REMOVE -> {
                 int slot = p.amount();
                 if (slot < 0 || slot >= d.slots().size() || d.slots().get(slot).isEmpty()) return;
                 String prev = d.slots().get(slot);
-                if (!prev.startsWith(WISH)) {
+                if (!prev.startsWith(WISH) && !CardCatalog.isRemovedId(prev)) { // TCG Pocket (quitada): el hueco sólo se vacía
                     if (general == null) {
                         player.sendMessage(Text.translatable("tcgshop.binder.need").formatted(Formatting.RED), true);
                         return;

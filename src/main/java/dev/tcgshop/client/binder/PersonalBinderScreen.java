@@ -34,6 +34,7 @@ import static dev.tcgshop.client.screen.Draw.withAlpha;
  *  · Arrastra una carta a un bolsillo, o haz doble clic para ponerla en el primer hueco libre.
  *  · Las deseadas que no tienes se colocan como hueco velado con ♥ (no gastan cartas).
  *  · Clic en un bolsillo ocupado = devolver la carta al Binder General. Arrastrar entre bolsillos = mover.
+ *  · Shift+clic o clic derecho en una carta (bolsillo o cajón) = verla en grande.
  *  · Personaliza tapa (color + patrón) y fondo con lo que desbloqueas con logros.
  */
 public class PersonalBinderScreen extends Screen {
@@ -52,6 +53,8 @@ public class PersonalBinderScreen extends Screen {
     private String customizeTab = "palette";
     private String lastDrawerClick;
     private long lastDrawerClickTime;
+    /** Vista ampliada de una carta (superpuesta: el binder conserva página, pestaña y scroll). */
+    private final CardZoom zoom = new CardZoom();
 
     // arrastre
     private String dragCard;
@@ -112,6 +115,8 @@ public class PersonalBinderScreen extends Screen {
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        int realX = mouseX, realY = mouseY;
+        if (zoom.isOpen()) { mouseX = -10000; mouseY = -10000; } // debajo de la vista ampliada no hay hover ni tooltips
         ClientCollection.tick();
         areas.clear();
         double t = System.nanoTime() / 1e9;
@@ -149,6 +154,7 @@ public class PersonalBinderScreen extends Screen {
                 ctx.getMatrices().pop();
             }
         }
+        if (zoom.isOpen()) zoom.render(ctx, width, height, realX, realY);
     }
 
     // ------------------------------------------------------------------ libro
@@ -243,6 +249,7 @@ public class PersonalBinderScreen extends Screen {
                         if (wish) tip.add(Text.translatable(ClientCollection.count(cardKey) > 0 ? "tcgshop.personal.wish_owned" : "tcgshop.personal.wish_missing")
                                 .formatted(Formatting.GRAY).asOrderedText());
                         else tip.add(Text.translatable("tcgshop.personal.click_return").formatted(Formatting.DARK_GRAY).asOrderedText());
+                        tip.add(Text.translatable("tcgshop.binder.zoom_hint_personal").formatted(Formatting.DARK_GRAY).asOrderedText());
                         setTooltip(tip);
                     }
                 }
@@ -348,7 +355,8 @@ public class PersonalBinderScreen extends Screen {
             Ui.outline(ctx, x, y, cw, ch, hover ? 0xFFFFFFFF : 0xFF000000);
             if (n > 1) ctx.drawText(textRenderer, "x" + n, x + cw - textRenderer.getWidth("x" + n) - 1, y + ch - 8, 0xFFFFFFFF, true);
             if (wishTab) ctx.drawText(textRenderer, "♥", x + 2, y + 2, n > 0 ? 0xFF8BE08B : 0xFFFF6FA8, true);
-            if (hover) setTooltip(List.of(c.name().asOrderedText(), Text.translatable("tcgshop.personal.drawer_tip").formatted(Formatting.DARK_GRAY).asOrderedText()));
+            if (hover) setTooltip(List.of(c.name().asOrderedText(), Text.translatable("tcgshop.personal.drawer_tip").formatted(Formatting.DARK_GRAY).asOrderedText(),
+                    Text.translatable("tcgshop.binder.zoom_hint_personal").formatted(Formatting.DARK_GRAY).asOrderedText()));
         }
         ctx.disableScissor();
         if (cards.isEmpty()) {
@@ -421,11 +429,14 @@ public class PersonalBinderScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (zoom.isOpen()) return zoom.mouseClicked(mouseX, mouseY, button);
         if (search.mouseClicked(mouseX, mouseY, button)) {
             setFocused(search);
             return true;
         }
         search.setFocused(false);
+        // Shift+clic o clic derecho en una carta = verla en grande (el clic normal sigue devolviendo/arrastrando)
+        if (!customizing && (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT || hasShiftDown()) && tryZoom(mouseX, mouseY)) return true;
         pressX = mouseX;
         pressY = mouseY;
         dragging = false;
@@ -457,6 +468,7 @@ public class PersonalBinderScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+        if (zoom.isOpen()) return true;
         if (dragCard != null && Math.hypot(mouseX - pressX, mouseY - pressY) > 4) dragging = true;
         return true;
     }
@@ -500,6 +512,26 @@ public class PersonalBinderScreen extends Screen {
         return true;
     }
 
+    private boolean tryZoom(double mx, double my) {
+        String key;
+        boolean placed = false; // carta real colocada en un bolsillo (ya no cuenta en el Binder General, pero es tuya)
+        PersonalBinderData d = data();
+        int slot = pocketAt(mx, my);
+        if (slot >= 0 && slot < d.slots().size() && !d.slots().get(slot).isEmpty()) {
+            key = d.slots().get(slot);
+            placed = !key.startsWith(BinderServer.WISH);
+        } else key = drawerCardAt(mx, my);
+        if (key == null) return false;
+        if (key.startsWith(BinderServer.WISH)) key = key.substring(BinderServer.WISH.length());
+        Catalog.Card c = Catalog.card(key);
+        if (c == null) return false;
+        dragCard = null;
+        dragFromSlot = -1;
+        dragging = false;
+        zoom.open(c, placed || ClientCollection.count(key) > 0);
+        return true;
+    }
+
     private int pocketAt(double mx, double my) {
         for (int side = 0; side < 2; side++)
             for (int i = 0; i < 9; i++)
@@ -521,6 +553,7 @@ public class PersonalBinderScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double h, double v) {
+        if (zoom.isOpen()) return true;
         if (Ui.in(mouseX, mouseY, drawerX, drawerY, drawerW, drawerH)) drawerScroll -= v * 30;
         else if (v != 0 && !customizing) {
             int spreads = Math.max(1, (data().pages() + 1) / 2);
@@ -532,11 +565,13 @@ public class PersonalBinderScreen extends Screen {
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
+        if (zoom.isOpen()) return true;
         return search.isFocused() && search.charTyped(chr, modifiers);
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (zoom.isOpen()) return zoom.keyPressed(keyCode, scanCode);
         if (search.isFocused() && keyCode != GLFW.GLFW_KEY_ESCAPE) return search.keyPressed(keyCode, scanCode, modifiers) || true;
         if (customizing && keyCode == GLFW.GLFW_KEY_ESCAPE) {
             customizing = false;

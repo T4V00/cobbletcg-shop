@@ -1,0 +1,54 @@
+{
+  "_comment": "#9 Murkrow ladron: 'se lleva' lo mas barato de un expositor (robo VIRTUAL: la casilla queda vacia para los clientes, el objeto no se mueve). Espantalo o vencelo; un guardia lo recupera solo. Si no, pierdes su valor de la caja.",
+  "category": "negative",
+  "tier": "uncommon",
+  "template": "thief_pkmn",
+  "duration": {
+    "ticks": [
+      5000,
+      8000
+    ]
+  },
+  "conditions": {
+    "time": [
+      13000,
+      23000
+    ],
+    "minDisplays": 2
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "murkrow",
+      "level": [
+        8,
+        20
+      ],
+      "behaviour": "goto_display",
+      "resolve": [
+        "shoo",
+        "battle"
+      ],
+      "shooHits": 3,
+      "theft": {
+        "maxValue": 600,
+        "guardSeconds": [
+          30,
+          60
+        ]
+      },
+      "reviewTag": "pkmn_thief"
+    }
+  ],
+  "review": {
+    "tag": "theft",
+    "chance": 0.5,
+    "mood": -2,
+    "fixedChance": 0.3
+  },
+  "notify": {
+    "lines": "act_murkrow",
+    "count": 6,
+    "chance": 0.3
+  }
+}

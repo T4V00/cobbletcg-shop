@@ -109,6 +109,7 @@ public final class ShopClient {
         EntityRendererRegistry.register(TcgEntities.TRADER, dev.tcgshop.client.render.TcgNpcRenderer::new);
         EntityRendererRegistry.register(TcgEntities.BEGGAR, dev.tcgshop.client.render.TcgNpcRenderer::new);
         EntityRendererRegistry.register(TcgEntities.BLACK_MARKET, dev.tcgshop.client.render.TcgNpcRenderer::new);
+        EntityRendererRegistry.register(TcgEntities.FURNITURE_SELLER, dev.tcgshop.client.render.TcgNpcRenderer::new);
 
         // bordes de las tiendas con las Gafas de Gerente
         WorldRenderEvents.AFTER_TRANSLUCENT.register(ctx -> {

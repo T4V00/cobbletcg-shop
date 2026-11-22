@@ -31,8 +31,15 @@ public final class Grading {
     public record Band(int from, int to, double percent) {}
 
     public static final Band[] ODDS = {
-            new Band(100, 100, 2), new Band(95, 99, 10), new Band(90, 94, 20), new Band(80, 89, 30),
-            new Band(70, 79, 18), new Band(50, 69, 12), new Band(30, 49, 6), new Band(10, 29, 2)};
+    new Band(100, 100, 0.1),
+    new Band(95, 99, 0.9),
+    new Band(90, 94, 3),
+    new Band(80, 89, 8),
+    new Band(70, 79, 13),
+    new Band(50, 69, 30),
+    new Band(30, 49, 25),
+    new Band(10, 29, 20)
+};
 
     /** Servicios: días/horas de Minecraft que tarda y coste por carta (fijo + % del valor de la carta). */
     public enum Service {
@@ -71,7 +78,51 @@ public final class Grading {
 
     public static int cert(ItemStack st) { return st.getOrDefault(CERT, 0); }
 
-    /** Nota al azar según ODDS (en décimas). */
+    /**
+     * Grado al azar para esa carta: Grado 10 con probabilidad 0,45·e^(-1,7A) (A = antigüedad, ver GradeModel);
+     * si no, el resto de tramos de ODDS en la misma proporción. Cartas de OLD_YEAR o antes: OLD_CLUSTER_CHANCE de caer
+     * en 4.9/5.0/5.1 y, si no, castigo OLD_HIGH_FACTOR a todo Grado >= 5.0.
+     */
+    public static int roll(Random r, net.minecraft.util.Identifier card) {
+        boolean old = dev.tcgshop.pricing.GradeModel.year(card) <= OLD_YEAR; // impresión antigua: peor centrado y bordes
+        // Cartas antiguas: un tramo propio alrededor del 5 (4.9, 5.0 y 5.1, cada uno igual de probable). Este tramo
+        // no lleva OLD_HIGH_FACTOR: es la forma "realista" de que una carta vieja sobreviva bien conservada.
+        if (old && r.nextDouble() < OLD_CLUSTER_CHANCE) return OLD_CLUSTER_FROM + r.nextInt(OLD_CLUSTER_TO - OLD_CLUSTER_FROM + 1);
+        double p10 = dev.tcgshop.pricing.GradeModel.prob10(card) * (old ? OLD_HIGH_FACTOR : 1);
+        if (r.nextDouble() < p10) return 100;
+        double[] w = new double[100];
+        double total = 0;
+        for (Band b : ODDS) {
+            if (b.from >= 100) continue;
+            for (int g = b.from; g <= b.to; g++) {
+                // Para cartas antiguas se penaliza también el 5.0 exacto: todo Grado >= 5.0.
+                w[g] = b.percent / (b.to - b.from + 1) * (old && g >= 50 ? OLD_HIGH_FACTOR : 1);
+                total += w[g];
+            }
+        }
+        double x = r.nextDouble() * total;
+        for (int g = 10; g < 100; g++) { x -= w[g]; if (x < 0) return g; }
+        return 70;
+    }
+
+    /**
+     * Las impresiones de 2017 o anteriores tienen una probabilidad extremadamente baja
+     * de alcanzar Grado 5.0 o superior. El factor se aplica a cada resultado >= 5.0.
+     * 0.005 significa que esos resultados conservan solo el 0.5% de su peso original.
+     */
+    public static final int OLD_YEAR = 2017;
+    public static final double OLD_HIGH_FACTOR = 0.005;
+    /**
+     * Excepción para cartas antiguas: el 30% de sus tiradas cae directamente en 4.9, 5.0 o 5.1 (10% cada uno),
+     * sin el castigo OLD_HIGH_FACTOR. El 70% restante sigue la tabla ODDS con el castigo de siempre.
+     */
+    public static final double OLD_CLUSTER_CHANCE = 0.30;
+    public static final int OLD_CLUSTER_FROM = 49, OLD_CLUSTER_TO = 51;
+
+    /**
+     * Tirada genérica sin identificar la carta. No aplica el modificador por antigüedad.
+     * Para graduar cartas reales, usar siempre roll(Random, Identifier).
+     */
     public static int roll(Random r) {
         double x = r.nextDouble() * 100, acc = 0;
         for (Band b : ODDS) {
@@ -81,13 +132,10 @@ public final class Grading {
         return 80;
     }
 
-    /** Multiplicador del valor de mercado según la nota. 1.0 -> x0,4 · 7.0 -> x1 · 9.0 -> x2,2 · 9.9 -> x4 · 10 -> x8. */
+    /** Parte del salto hasta el Grado 10 que se alcanza con el Grado g: ((grado-1)/9)^3 (0 en Grado 1, 1 en Grado 10). */
     public static double multiplier(int g) {
-        double v = g / 10.0;
-        if (g >= 100) return 8.0;
-        if (v >= 9.0) return 2.2 + (v - 9.0) * 2.0;
-        if (v >= 7.0) return 1.0 + (v - 7.0) * 0.6;
-        return 0.4 + 0.6 * (v - 1.0) / 6.0;
+        double v = Math.max(1, Math.min(10, g / 10.0));
+        return Math.pow((v - 1) / 9.0, 3);
     }
 
     public static String format(int g) {

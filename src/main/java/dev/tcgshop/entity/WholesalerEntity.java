@@ -1,6 +1,6 @@
 package dev.tcgshop.entity;
 
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import dev.tcgshop.item.TcgItems;
 import dev.tcgshop.shop.BoosterBox;
 import dev.tcgshop.shop.ShopServer;

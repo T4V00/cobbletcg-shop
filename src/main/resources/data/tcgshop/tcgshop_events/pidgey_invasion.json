@@ -1,0 +1,58 @@
+{
+  "_comment": "#94 Invasion de Pidgey: tres Pidgey se cuelan y lo llenan todo de excrementos junto a la puerta. Hay que limpiar (espantarlos ayuda, pero los restos siguen ahi).",
+  "category": "negative",
+  "tier": "rare",
+  "template": "pidgey",
+  "duration": {
+    "ticks": [
+      6000,
+      9000
+    ]
+  },
+  "conditions": {
+    "time": [
+      1000,
+      12000
+    ],
+    "requires": [
+      "door"
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "pidgey",
+      "count": 3,
+      "level": [
+        3,
+        12
+      ],
+      "behaviour": "wander",
+      "resolve": [
+        "shoo"
+      ],
+      "shooHits": 1,
+      "reviewTag": "pkmn_pidgey"
+    },
+    {
+      "type": "incident",
+      "kind": "droppings",
+      "count": [
+        3,
+        5
+      ],
+      "near": "door"
+    }
+  ],
+  "review": {
+    "tag": "dirt",
+    "chance": 0.5,
+    "mood": -1,
+    "fixedChance": 0.3
+  },
+  "notify": {
+    "lines": "act_pidgey",
+    "count": 6,
+    "chance": 0.35
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "_comment": "#120 Pokemon protector: un Lucario (montana, taiga, nieve) o un Growlithe (resto) vigila la entrada todo el dia: hoy no viene ningun ladron.",
+  "category": "positive",
+  "tier": "rare",
+  "template": "guardian",
+  "duration": "day",
+  "conditions": {
+    "requires": [
+      "door"
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": [
+        "growlithe"
+      ],
+      "speciesByBiome": [
+        {
+          "biomes": [
+            "#minecraft:is_mountain",
+            "#minecraft:is_taiga",
+            "minecraft:snowy_plains",
+            "minecraft:snowy_slopes",
+            "minecraft:grove",
+            "minecraft:frozen_peaks",
+            "minecraft:jagged_peaks",
+            "minecraft:windswept_hills"
+          ],
+          "species": [
+            "lucario"
+          ]
+        },
+        {
+          "species": [
+            "growlithe"
+          ]
+        }
+      ],
+      "level": [
+        15,
+        30
+      ],
+      "behaviour": "outside",
+      "pet": true,
+      "feed": true,
+      "reviewTag": "pkmn_guard"
+    },
+    {
+      "type": "modifier",
+      "typeW": {
+        "thief": 0
+      },
+      "while": "always"
+    }
+  ],
+  "review": {
+    "tag": "pkmn_rare",
+    "chance": 0.3,
+    "mood": 1
+  },
+  "notify": {
+    "lines": "act_guardian",
+    "count": 6,
+    "chance": 0.3
+  }
+}

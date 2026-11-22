@@ -2,7 +2,7 @@ package dev.tcgshop.shop;
 
 import com.mojang.serialization.MapCodec;
 import dev.tcgshop.TcgSounds;
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
@@ -53,12 +53,28 @@ public final class BoosterBox {
 
     private BoosterBox() {}
 
+    /** set -> sobre sellado (Optional.empty si el set no tiene). El registro de ítems ya no cambia en partida. */
+    private static final java.util.Map<String, java.util.Optional<Item>> SEALED = new java.util.concurrent.ConcurrentHashMap<>();
+
     @Nullable
     public static Item sealedFor(String set) {
-        for (Identifier id : Registries.ITEM.getIds()) {
-            if (CardInfo.NS.equals(id.getNamespace()) && id.getPath().startsWith(set + "/sealed_")) return Registries.ITEM.get(id);
-        }
-        return null;
+        if (set == null || set.isEmpty()) return null;
+        return SEALED.computeIfAbsent(set, s -> {
+            for (Identifier id : Registries.ITEM.getIds()) {
+                if (CardInfo.NS.equals(id.getNamespace()) && id.getPath().startsWith(s + "/sealed_")) return java.util.Optional.of(Registries.ITEM.get(id));
+            }
+            return java.util.Optional.empty();
+        }).orElse(null);
+    }
+
+    /** ¿Set quitado (TCG Pocket, desde la 0.9) o sin sobres? Una caja así no se puede abrir ni vender. */
+    public static boolean isDeadSet(@Nullable String set) {
+        return set == null || dev.masterball.api.migrate.RemovedItems.isRemovedSet(set) || sealedFor(set) == null;
+    }
+
+    /** Caja de sobres de un set quitado o sin sobres: ShopServer no la acepta como producto ni le pone precio. */
+    public static boolean isRemovedBox(ItemStack st) {
+        return st.isOf(TcgBlocks.BOOSTER_BOX_ITEM) && isDeadSet(st.getOrDefault(TcgBlocks.BOX_SET, "mew151"));
     }
 
     public static ItemStack of(String set) {
@@ -137,7 +153,8 @@ public final class BoosterBox {
 
         @Override
         public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
-            if (!world.isClient && !player.isCreative() && world.getBlockEntity(pos) instanceof BoxEntity be && be.openStart < 0) {
+            if (!world.isClient && !player.isCreative() && world.getBlockEntity(pos) instanceof BoxEntity be && be.openStart < 0
+                    && !dev.masterball.api.migrate.RemovedItems.isRemovedSet(be.set)) {
                 dropStack(world, pos, of(be.set));
             }
             return super.onBreak(world, pos, state, player);
@@ -155,6 +172,12 @@ public final class BoosterBox {
         public java.util.UUID opener;
 
         void serverTick(net.minecraft.server.world.ServerWorld world) {
+            if (dev.masterball.api.migrate.RemovedItems.isRemovedSet(set)) {
+                // caja de TCG Pocket colocada antes de la 0.9: el set ya no existe (como sus cartas y sobres guardados)
+                dev.masterball.api.migrate.RemovedItems.noteDropped();
+                world.removeBlock(pos, false);
+                return;
+            }
             if (openStart < 0) return;
             long t = world.getTime() - openStart;
             if (t == 12) world.playSound(null, pos, net.minecraft.sound.SoundEvents.ITEM_BOOK_PAGE_TURN, SoundCategory.BLOCKS, 1f, 0.6f);
@@ -169,6 +192,13 @@ public final class BoosterBox {
                     else Block.dropStack(world, pos, st);
                 }
                 if (p != null) p.sendMessage(Text.translatable("tcgshop.box.opened", PACKS, sealed.getName()).formatted(Formatting.GOLD), true);
+            }
+            if (sealed == null) {
+                // set sin sobres: la caja no se gasta, se queda cerrada
+                openStart = -1;
+                markDirty();
+                world.updateListeners(pos, getCachedState(), getCachedState(), 3);
+                return;
             }
             world.spawnParticles(new net.minecraft.particle.BlockStateParticleEffect(net.minecraft.particle.ParticleTypes.BLOCK,
                     net.minecraft.block.Blocks.BROWN_WOOL.getDefaultState()), pos.getX() + 0.5, pos.getY() + 0.4, pos.getZ() + 0.5, 30, 0.3, 0.2, 0.3, 0.05);
@@ -205,12 +235,17 @@ public final class BoosterBox {
     // ------------------------------------------------------------------ ítem
 
     public static class BoxItem extends BlockItem {
+        static {
+            // cajas guardadas de un set de TCG Pocket: se descartan al cargar, como sus cartas y sobres (masterball-api)
+            dev.masterball.api.migrate.RemovedItems.registerSetComponent("tcgshop:booster_box", "tcgshop:box_set");
+        }
+
         public BoxItem(Block block, Settings settings) { super(block, settings); }
 
         @Override
         public Text getName(ItemStack stack) {
             String set = stack.getOrDefault(TcgBlocks.BOX_SET, "mew151");
-            return Text.translatable("item.tcgshop.booster_box.named", Text.translatable("tcgshop.set." + set));
+            return Text.translatable("item.tcgshop.booster_box.named", Text.translatableWithFallback("masterball.set." + set, set));
         }
 
         @Override

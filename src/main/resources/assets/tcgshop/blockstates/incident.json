@@ -1,0 +1,140 @@
+{
+  "variants": {
+    "kind=puddle": [
+      {
+        "model": "tcgshop:block/incident_puddle"
+      },
+      {
+        "model": "tcgshop:block/incident_puddle",
+        "y": 90
+      },
+      {
+        "model": "tcgshop:block/incident_puddle",
+        "y": 180
+      },
+      {
+        "model": "tcgshop:block/incident_puddle",
+        "y": 270
+      }
+    ],
+    "kind=debris": [
+      {
+        "model": "tcgshop:block/incident_debris"
+      },
+      {
+        "model": "tcgshop:block/incident_debris",
+        "y": 90
+      },
+      {
+        "model": "tcgshop:block/incident_debris",
+        "y": 180
+      },
+      {
+        "model": "tcgshop:block/incident_debris",
+        "y": 270
+      }
+    ],
+    "kind=dirt": [
+      {
+        "model": "tcgshop:block/incident_dirt"
+      },
+      {
+        "model": "tcgshop:block/incident_dirt",
+        "y": 90
+      },
+      {
+        "model": "tcgshop:block/incident_dirt",
+        "y": 180
+      },
+      {
+        "model": "tcgshop:block/incident_dirt",
+        "y": 270
+      }
+    ],
+    "kind=droppings": [
+      {
+        "model": "tcgshop:block/incident_droppings"
+      },
+      {
+        "model": "tcgshop:block/incident_droppings",
+        "y": 90
+      },
+      {
+        "model": "tcgshop:block/incident_droppings",
+        "y": 180
+      },
+      {
+        "model": "tcgshop:block/incident_droppings",
+        "y": 270
+      }
+    ],
+    "kind=scorch": [
+      {
+        "model": "tcgshop:block/incident_scorch"
+      },
+      {
+        "model": "tcgshop:block/incident_scorch",
+        "y": 90
+      },
+      {
+        "model": "tcgshop:block/incident_scorch",
+        "y": 180
+      },
+      {
+        "model": "tcgshop:block/incident_scorch",
+        "y": 270
+      }
+    ],
+    "kind=sparks": [
+      {
+        "model": "tcgshop:block/incident_sparks"
+      },
+      {
+        "model": "tcgshop:block/incident_sparks",
+        "y": 90
+      },
+      {
+        "model": "tcgshop:block/incident_sparks",
+        "y": 180
+      },
+      {
+        "model": "tcgshop:block/incident_sparks",
+        "y": 270
+      }
+    ],
+    "kind=mess": [
+      {
+        "model": "tcgshop:block/incident_mess"
+      },
+      {
+        "model": "tcgshop:block/incident_mess",
+        "y": 90
+      },
+      {
+        "model": "tcgshop:block/incident_mess",
+        "y": 180
+      },
+      {
+        "model": "tcgshop:block/incident_mess",
+        "y": 270
+      }
+    ],
+    "kind=package": [
+      {
+        "model": "tcgshop:block/incident_package"
+      },
+      {
+        "model": "tcgshop:block/incident_package",
+        "y": 90
+      },
+      {
+        "model": "tcgshop:block/incident_package",
+        "y": 180
+      },
+      {
+        "model": "tcgshop:block/incident_package",
+        "y": 270
+      }
+    ]
+  }
+}

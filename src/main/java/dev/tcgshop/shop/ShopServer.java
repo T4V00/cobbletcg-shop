@@ -1,7 +1,7 @@
 package dev.tcgshop.shop;
 
 import dev.tcgshop.advancement.CardAdvancements;
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import dev.tcgshop.economy.CobbleDollarsBridge;
 import dev.tcgshop.item.TcgItems;
 import dev.tcgshop.network.ShopActionPayload;
@@ -106,6 +106,8 @@ public final class ShopServer {
         FIXED.put(TcgItems.MANAGER_GOGGLES, 15_000L);
         FIXED.put(TcgItems.TCG_PHONE, 25_000L);
         FIXED.put(TcgItems.DEODORANT_SPRAY, 2_500L);
+        FIXED.put(TcgItems.MOP, 600L);
+        FIXED.put(TcgItems.REPAIR_KIT, 1_500L);
         FIXED.put(TcgItems.NERD_GLOVES, 3_000L);
         FIXED.put(TcgItems.GENERAL_BINDER, 6_000L);
         FIXED.put(TcgItems.PERSONAL_BINDER, 5_000L);
@@ -121,6 +123,7 @@ public final class ShopServer {
 
     /** ¿Se puede poner a la venta en un expositor? */
     public static boolean isProduct(ItemStack st) {
+        if (BoosterBox.isRemovedBox(st)) return false; // 0.9: cajas de sets de TCG Pocket
         return CardInfo.isCard(st) || CardInfo.isPack(st) || st.isOf(TcgBlocks.BOOSTER_BOX_ITEM) || st.isOf(TcgBlocks.MYSTERY_BOX) || isPokedoll(st);
     }
 
@@ -155,7 +158,7 @@ public final class ShopServer {
         for (Item it : TcgBlocks.HOME_DISPLAYS) g.add(new ItemStack(it));
         for (Item it : new Item[]{TcgBlocks.CARD_STAND_ITEM, TcgBlocks.DISPLAY_CASE_ITEM, TcgBlocks.PACK_SHELF_ITEM, TcgBlocks.GONDOLA_ITEM,
                 TcgBlocks.BOX_PALLET_ITEM, TcgBlocks.PEDESTAL_ITEM, TcgBlocks.CARD_WALL_ITEM, TcgBlocks.CASH_REGISTER_ITEM, TcgBlocks.POSTER_ITEM, TcgBlocks.PLAY_TABLE_ITEM,
-                TcgBlocks.THEFT_DETECTOR_ITEM, TcgItems.MANAGER_GOGGLES, TcgItems.TCG_PHONE, TcgItems.DEODORANT_SPRAY, TcgItems.NERD_GLOVES, TcgItems.GENERAL_BINDER, TcgItems.PERSONAL_BINDER})
+                TcgBlocks.THEFT_DETECTOR_ITEM, TcgItems.MANAGER_GOGGLES, TcgItems.TCG_PHONE, TcgItems.DEODORANT_SPRAY, TcgItems.NERD_GLOVES, TcgItems.GENERAL_BINDER, TcgItems.PERSONAL_BINDER, TcgItems.MOP, TcgItems.REPAIR_KIT})
             g.add(new ItemStack(it));
         List<Item> dolls = new ArrayList<>();
         for (Identifier id : Registries.ITEM.getIds())
@@ -279,11 +282,13 @@ public final class ShopServer {
         z.revenue += earned;
         z.sales++;
         z.customers++;
+        // 0.9 eventos: ingresos del día (topes de premios), objetivos de los eventos, propina y revenueMult (con tope por dueño)
+        long bonus = dev.tcgshop.events.EventManager.onNpcSale(world, z, bought, price, earned);
         ShopZones.get(world).markDirty();
         ringRegister(world, at);
         ServerPlayerEntity ownerP = world.getServer().getPlayerManager().getPlayer(z.owner);
         if (ownerP != null) saleAdvancements(ownerP, z);
-        return earned;
+        return earned + bonus;
     }
 
     public static void saleAdvancements(ServerPlayerEntity owner, ShopZones.Zone z) {
@@ -399,11 +404,13 @@ public final class ShopServer {
         boolean second = role.equals("cashier2");
         if (hire) {
             if (second ? z.cashier2 : cashier ? z.cashier : z.guard) return;
-            long cost = cashier ? CASHIER_HIRE : GUARD_HIRE;
+            double hf = dev.tcgshop.events.EventManager.hireFactor(player, false); // 0.9 eventos: "alguien busca trabajo"
+            long cost = Math.round((cashier ? CASHIER_HIRE : GUARD_HIRE) * hf);
             if (!CobbleDollarsBridge.tryCharge(player, cost)) {
                 player.sendMessage(Text.translatable("tcgshop.shop.no_money", PriceService.format(cost)).formatted(Formatting.RED), false);
                 return;
             }
+            if (hf < 1) dev.tcgshop.events.EventManager.hireFactor(player, true);
             zones.addCost(player.getUuid(), cost);
             String name = dev.tcgshop.entity.NpcIdentity.randomName(world.random);
             if (second) { z.cashier2 = true; z.cashier2Name = name; }
@@ -430,7 +437,8 @@ public final class ShopServer {
 
     /** ¿Hay alguien cobrando? Un cajero en su turno, o el dueño junto a una caja registradora de la tienda. */
     public static boolean cashierOnDuty(ServerWorld world, ShopZones.Zone z) {
-        if ((z.cashier || z.cashier2) && isDayShift(world)) return true;
+        // 0.9 eventos: con la caja averiada (registerDown) el CAJERO no puede cobrar; el dueño junto a una caja sí
+        if ((z.cashier || z.cashier2) && isDayShift(world) && !dev.tcgshop.events.EventManager.mods(z).registerDown) return true;
         ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
         if (owner == null || owner.getServerWorld() != world || !z.contains(owner.getBlockPos())) return false;
         for (BlockPos p : BlockPos.iterateOutwards(owner.getBlockPos(), 5, 2, 5))
@@ -542,26 +550,51 @@ public final class ShopServer {
 
     // ------------------------------------------------------------------ catálogo (Mayorista / teléfono)
 
+    /**
+     * Abre el catálogo (source = -1 teléfono, o id del Mayorista). Lo que ve el jugador y sus precios dependen del nivel
+     * de su teléfono (dev.tcgshop.phone): antes del catálogo se manda el nivel necesario de cada producto (candados).
+     * Abrir el teléfono es silencioso (0.9: ya no se avisa en el chat de los sets bloqueados cada vez).
+     */
     public static void openStore(ServerPlayerEntity player, int source, List<ItemStack> goods, double factor) {
-        List<ItemStack> all = goods;
-        goods = PackLock.visibleTo(player, goods);
-        if (goods.size() < all.size())
-            player.sendMessage(Text.translatable("tcgshop.lock.need_tier", Text.translatable("tcgshop.shop.tier." + PackLock.minTier().key)).formatted(Formatting.GOLD), false);
+        openStore(player, source, goods, factor, false);
+    }
+
+    /** refreshOnly: sólo refresca un teléfono que ya esté abierto (tras comprar una mejora); no lo vuelve a abrir. */
+    public static void openStore(ServerPlayerEntity player, int source, List<ItemStack> goods, double factor, boolean refreshOnly) {
+        // el aviso de PackLock compara con la lista YA ampliada con los sets extra del Mayorista (si no, en los niveles
+        // altos los sets añadidos tapaban los quitados y el aviso no salía nunca)
+        List<ItemStack> extended = dev.tcgshop.phone.PhoneUpgrades.withExtraSets(player, source, goods);
+        goods = dev.tcgshop.phone.PhoneUpgrades.applyPackLock(player, extended);
+        if (source != -1 && goods.size() < extended.size() && !PackLock.lockedSets().isEmpty() && !PackLock.canBuyLocked(player))
+            player.sendMessage(Text.translatable("tcgshop.lock.need_tier", Text.translatable("tcgshop.shop.tier." + PackLock.minTier().key)).formatted(Formatting.GOLD), true);
+        double f = dev.tcgshop.phone.PhoneUpgrades.priceFactor(player, source, factor)
+                * dev.tcgshop.events.EventManager.purchaseFactor(player, source, false); // 0.9 eventos: descuento / retraso del proveedor
         List<Long> prices = new ArrayList<>();
-        for (ItemStack st : goods) prices.add(priceOf(st, factor));
+        for (ItemStack st : goods) prices.add(priceOf(st, f));
+        dev.tcgshop.phone.PhoneUpgrades.sync(player, source, dev.tcgshop.phone.PhoneUpgrades.locks(goods, source), refreshOnly);
         send(player, new StoreOpenPayload(source, goods, prices));
     }
 
     public static void buy(StoreBuyPayload p, ServerPlayerEntity player, List<ItemStack> goods, double factor) {
-        goods = PackLock.visibleTo(player, goods);
+        goods = dev.tcgshop.phone.PhoneUpgrades.storeView(player, p.source(), goods);
         if (p.index() < 0 || p.index() >= goods.size()) return;
         int qty = Math.max(1, Math.min(64, p.qty()));
         ItemStack item = goods.get(p.index());
+        int need = dev.tcgshop.phone.PhoneUpgrades.requiredTier(item, p.source() == -1);
+        if (need > dev.tcgshop.phone.PhoneUpgrades.level(player)) {
+            player.sendMessage(Text.translatable("tcgshop.phoneup.requires", dev.tcgshop.phone.PhoneUpgrades.tierName(need)).formatted(Formatting.RED), true);
+            player.getWorld().playSound(null, player.getBlockPos(), SoundEvents.ENTITY_VILLAGER_NO, SoundCategory.PLAYERS, 0.6f, 1f);
+            return;
+        }
+        factor = dev.tcgshop.phone.PhoneUpgrades.priceFactor(player, p.source(), factor);
+        double evf = dev.tcgshop.events.EventManager.purchaseFactor(player, p.source(), false);
+        factor *= evf;
         long total = priceOf(item, factor) * qty;
         if (!CobbleDollarsBridge.tryCharge(player, total)) {
             player.sendMessage(Text.translatable("tcgshop.shop.no_money", PriceService.format(total)).formatted(Formatting.RED), true);
             return;
         }
+        if (evf < 1) dev.tcgshop.events.EventManager.purchaseFactor(player, p.source(), true); // gasta el descuento del evento
         for (int i = 0; i < qty; i++) player.getInventory().offerOrDrop(item.copyWithCount(1));
         ShopZones.get(player.getServerWorld()).addCost(player.getUuid(), total);
         player.sendMessage(Text.translatable("tcgshop.store.bought", qty, item.getName(),
@@ -600,6 +633,8 @@ public final class ShopServer {
                 ex.putBoolean("cashier2", z.cashier2);
                 ex.putString("cashier2_name", z.cashier2Name);
                 ex.putBoolean("day", isDayShift(player.getServerWorld()));
+                dev.tcgshop.shop.ShopMissions.writeSync(z, ex);
+                ex.put("ev", dev.tcgshop.events.EventManager.writeSync(player.getServerWorld(), z)); // 0.9: pestaña Eventos
                 c.put("ext", ex);
                 c.putLong("wages", z.wagesPaid);
                 c.putIntArray("metrics", new int[]{z.stolen, z.detained, z.recovered, z.customers, z.complaints, z.dealsAccepted, z.whales,

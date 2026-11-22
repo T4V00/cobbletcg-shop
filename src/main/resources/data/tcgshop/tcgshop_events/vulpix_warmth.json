@@ -1,0 +1,55 @@
+{
+  "_comment": "#66 Vulpix busca calor: se acurruca junto a la zona mas iluminada. En biomas frios o de noche.",
+  "category": "neutral",
+  "tier": "common",
+  "template": "vulpix",
+  "duration": {
+    "ticks": [
+      4000,
+      7000
+    ]
+  },
+  "effects": [
+    {
+      "type": "actor",
+      "species": "vulpix",
+      "level": [
+        5,
+        15
+      ],
+      "behaviour": "goto_light",
+      "pet": true,
+      "feed": true,
+      "particles": "flame"
+    }
+  ],
+  "variants": [
+    {
+      "key": "cold",
+      "weight": 1,
+      "conditions": {
+        "maxTemp": 0.3
+      }
+    },
+    {
+      "key": "night",
+      "weight": 1,
+      "conditions": {
+        "time": [
+          13000,
+          23000
+        ]
+      }
+    }
+  ],
+  "review": {
+    "tag": "pkmn_cute",
+    "chance": 0.15,
+    "mood": 1
+  },
+  "notify": {
+    "lines": "act_cute",
+    "count": 6,
+    "chance": 0.25
+  }
+}

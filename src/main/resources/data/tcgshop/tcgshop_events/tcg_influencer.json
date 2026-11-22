@@ -1,0 +1,49 @@
+{
+  "_comment": "#44 influencer TCG: si sale contento (4-5★) trae gente un día; si no (≤2★), mala fama",
+  "category": "positive",
+  "tier": "rare",
+  "template": "influencer",
+  "duration": {
+    "ticks": [
+      8000,
+      10000
+    ]
+  },
+  "conditions": {
+    "rep": [
+      40,
+      100
+    ]
+  },
+  "effects": [
+    {
+      "type": "visitor",
+      "customer": "REGULAR",
+      "buyMult": 0.8,
+      "browses": [
+        3,
+        4
+      ],
+      "title": "tcgshop.role.ev_influencer",
+      "lines": "influencer",
+      "linesCount": 6,
+      "selfTag": "influencer",
+      "outcome": {
+        "grade": "stars",
+        "goodAt": 4,
+        "badAt": 2,
+        "good": {
+          "spawn": 1.3,
+          "charity": 3,
+          "ticks": 24000
+        },
+        "bad": {
+          "charity": -3
+        }
+      }
+    }
+  ],
+  "notify": {
+    "toast": false
+  }
+}

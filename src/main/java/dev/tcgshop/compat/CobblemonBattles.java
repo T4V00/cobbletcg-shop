@@ -78,6 +78,7 @@ public final class CobblemonBattles {
             Vec3d dir = player.getPos().subtract(npc.getPos());
             Vec3d spot = dir.lengthSquared() < 1e-4 ? npc.getPos().add(1.5, 0, 0) : npc.getPos().add(dir.normalize().multiply(1.8));
             pokemon.refreshPositionAndAngles(spot.x, npc.getY(), spot.z, npc.getYaw(), 0);
+            TempPokemon.mark(pokemon); // 0.9: nunca se guarda en el mundo (sin huérfanos si se cierra a mitad)
             world.spawnEntity(pokemon);
 
             Class<?> builder = Class.forName("com.cobblemon.mod.common.battles.BattleBuilder");
@@ -87,6 +88,7 @@ public final class CobblemonBattles {
             Object result = pve == null ? null : pve.invoke(inst, player, pokemon);
             if (result == null || !result.getClass().getSimpleName().equals("SuccessfulBattleStart")) {
                 pokemon.discard();
+                TempPokemon.release(pokemon);
                 player.sendMessage(Text.translatable("tcgshop.battle.cant").formatted(Formatting.RED), true);
                 return false;
             }
@@ -150,6 +152,7 @@ public final class CobblemonBattles {
             if (!gone && !battling && age < 40) continue; // el combate aún se está montando
             boolean won = fainted(f.pokemon);
             if (!gone) f.pokemon.discard();
+            TempPokemon.release(f.pokemon);
             it.remove();
             f.npc.setAiDisabled(false);
             ServerPlayerEntity p = server.getPlayerManager().getPlayer(f.player);

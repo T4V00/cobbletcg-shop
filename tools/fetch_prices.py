@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Generador de precios reales para CobbleTCG Shop.
+Generador de precios reales para MasterBall Traders Co..
 
 Fuente: tcgcsv.com — espejo público y gratuito de la API de TCGplayer, actualizado a diario
-(~20:00 UTC), sin clave. Cubre los 41 sets de cobbletcg 1.6.0, incluidos los de 2026, y también
+(~20:00 UTC), sin clave. Cubre los 72 sets del catálogo de MasterBall Traders API y también
 productos sellados (sobres, cajas, ETB).
 
 Proceso:
-  1. Lee assets/cobbletcg/lang/en_us.json del jar de cobbletcg. Cada carta se llama
+  1. Lee el catálogo de MasterBall Traders API (../masterball-api). Cada carta se llama
      "<CÓDIGO> <número>  <nombre> [sufijo]"  p.ej. "PAL 269  Iono SIR".
   2. Para cada código descarga productos y precios de su(s) grupo(s) TCGplayer (tabla SET_GROUPS).
   3. Empareja por número + nombre, con varios respaldos (sólo nombre, nombre normalizado, promos).
@@ -15,10 +15,10 @@ Proceso:
 
 Formato de salida:
   { "source": "...", "generated": "YYYY-MM-DD",
-    "cards_usd":  { "cobbletcg:pal/cards/pal269": 92.5, ... },      # precio de mercado (USD)
+    "cards_usd":  { "masterball:paldeanevolved/cards/pal269": 92.5, ... },      # precio de mercado (USD)
     "sealed_usd": { "paldeanevolved": {"pack": 4.9, "box": 210.0, "etb": 55.0}, ... } }
 
-Uso:  python tools/fetch_prices.py <ruta a cobbletcg-1.6.0.jar> [--cache carpeta]
+Uso:  python tools/fetch_prices.py [--cache carpeta]   (cartas: catálogo de ../masterball-api)
 Sólo librería estándar.
 """
 import argparse
@@ -31,7 +31,6 @@ import statistics
 import sys
 import time
 import urllib.request
-import zipfile
 from pathlib import Path
 
 BASE = "https://tcgcsv.com/tcgplayer/3"  # categoría 3 = Pokémon
@@ -99,80 +98,37 @@ def clean_name(name):
     return n.strip()
 
 
-def real_card_ids(z):
-    """IDs reales de los ítems de carta, sacados de las loot tables (el lang a veces usa otro nombre de set,
-    p.ej. 'tforce' en el lang vs 'tforces' en el ítem). Devuelve hoja ('tef001') -> id completo."""
-    by_leaf = {}
-    for n in z.namelist():
-        if n.startswith("data/cobbletcg/loot_table/") and n.endswith(".json"):
-            for cid in re.findall(r'"(cobbletcg:[a-z0-9_]+/cards/[a-z0-9_]+)"', z.read(n).decode("utf-8", "ignore")):
-                by_leaf.setdefault(cid.rsplit("/", 1)[1], cid)
-    return by_leaf
+API = Path(__file__).resolve().parent.parent.parent / "masterball-api"
+API_CATALOG = API / "src/main/resources/data/masterball/cards/catalog.json"
+API_LANG = API / "src/main/resources/assets/masterball/lang/en_us.json"
+API_RARITY = API / "src/main/resources/data/masterball/rarity/cards.json"
 
 
-def load_cards(jar):
-    z = zipfile.ZipFile(jar)
-    lang = json.loads(z.read("assets/cobbletcg/lang/en_us.json").decode("utf-8"))
-    real = real_card_ids(z)
+def catalog_sets():
+    return json.loads(API_CATALOG.read_text(encoding="utf-8"))["sets"]
+
+
+def load_cards(_jar=None):
+    """Todas las cartas del catálogo de MasterBall Traders API (../masterball-api), con su nombre oficial
+    (el del lang de la API, ya corregido con TCGplayer). El argumento antiguo (jar de ScalperTCG) se ignora."""
+    lang = json.loads(API_LANG.read_text(encoding="utf-8"))
     out = []
-    for key, value in lang.items():
-        m = re.match(r"^item\.cobbletcg\.([a-z0-9_]+)\.cards\.([a-z0-9_]+)$", key)
-        n = re.match(r"^\s*([A-Z0-9]+)\s+(\d+)\s+(.+?)\s*$", value)
-        if m and n:
-            cid = real.get(m.group(2), f"cobbletcg:{m.group(1)}/cards/{m.group(2)}")
-            out.append({"id": cid, "set": cid.split(":")[1].split("/")[0],
-                        "code": n.group(1), "num": int(n.group(2)), "name": n.group(3),
-                        "promo": bool(PROMO_RE.search(n.group(3)))})
+    for set_id, s in catalog_sets().items():
+        for leaf, c in s["cards"].items():
+            disp = lang.get(f"item.masterball.{set_id}.cards.{leaf}", c.get("n") or leaf)
+            name = re.sub(r"\s*\([^()]*\)$", "", disp).strip()  # quita el " (BS 4)" final
+            no = c.get("no") or ""
+            d = re.search(r"\d+", no)
+            out.append({"id": f"masterball:{set_id}/cards/{leaf}", "set": set_id, "code": s["code"],
+                        "num": int(d.group()) if d else 0, "name": name,
+                        "promo": bool(PROMO_RE.search(name)) or bool(re.search(r"\b(ETB|UPC|DCK|Promo)\b", no))})
     return out
 
 
-# Mismos tags y claves que dev.tcgshop.card.Rarity
-RARITY_TAGS = {
-    "allcommons": "common", "alldoublerares": "double_rare", "allalternative": "ultra_rare",
-    "allilustrationrare": "illustration_rare", "allspecialilustrationrare": "special_illustration_rare",
-    "allhyperrare": "hyper_rare",
-}
-RARITY_ORDER = ["common", "double_rare", "ultra_rare", "illustration_rare", "hyper_rare", "special_illustration_rare"]
-
-
-def load_rarities(jar):
-    """id de carta -> clave de rareza, leyendo los tags all*.json (tags anidados con '#')."""
-    z = zipfile.ZipFile(jar)
-
-    def expand(tag, seen=None):
-        seen = seen or set()
-        if tag in seen:
-            return []
-        seen.add(tag)
-        ns, path = tag.split(":")
-        try:
-            values = json.loads(z.read(f"data/{ns}/tags/item/{path}.json"))["values"]
-        except KeyError:
-            return []
-        out = []
-        for v in values:
-            v = v["id"] if isinstance(v, dict) else v
-            out += expand(v[1:], seen) if v.startswith("#") else [v]
-        return out
-
-    result = {}
-    for tag, key in RARITY_TAGS.items():
-        for cid in expand(f"cobbletcg:{tag}"):
-            prev = result.get(cid)
-            if prev is None or RARITY_ORDER.index(key) > RARITY_ORDER.index(prev):
-                result[cid] = key
-    # Tags reparados por tools/fix_rarity_tags.py (los originales de algunos sets están rotos).
-    fixed_dir = Path(__file__).resolve().parent.parent / "src/main/resources/data/cobbletcg/tags/item"
-    per_set = {"double": "double_rare", "alternative": "ultra_rare", "ilustration": "illustration_rare",
-               "special": "special_illustration_rare", "hyper": "hyper_rare"}
-    for f in fixed_dir.glob("*/*.json"):
-        key = per_set.get(f.stem)
-        if key:
-            for cid in json.loads(f.read_text(encoding="utf-8"))["values"]:
-                prev = result.get(cid)
-                if prev is None or prev == "common" or RARITY_ORDER.index(key) > RARITY_ORDER.index(prev):
-                    result[cid] = key
-    return result
+def load_rarities(_jar=None):
+    """id de carta -> clave de rareza (MasterBall Traders API, rareza oficial)."""
+    cards = json.loads(API_RARITY.read_text(encoding="utf-8"))["cards"]
+    return {f"masterball:{k.split('/')[0]}/cards/{k.split('/')[1]}": v["r"] for k, v in cards.items()}
 
 
 # Variante preferida de cada carta: la normal/holo (y la Unlimited en los sets antiguos) antes que la reverse
@@ -215,7 +171,7 @@ def sealed_kind(name):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("jar")
+    ap.add_argument("jar", nargs="?", help="(ya no se usa: las cartas salen del catálogo de MasterBall Traders API)")
     ap.add_argument("--cache")
     args = ap.parse_args()
     fx = Fetcher(args.cache)
@@ -238,7 +194,11 @@ def main():
             for pr in fx.get(f"{g['groupId']}/prices"):
                 promo_prices.setdefault(pr["productId"], []).append(pr)
 
-    for code, group_ids in SET_GROUPS.items():
+    groups_by_code = dict(SET_GROUPS)
+    for st in catalog_sets().values():
+        if st.get("tcg_groups"):
+            groups_by_code[st["code"]] = st["tcg_groups"]
+    for code, group_ids in groups_by_code.items():
         prods, prices = [], {}
         for gid in group_ids:
             prods += fx.get(f"{gid}/products")
@@ -308,7 +268,7 @@ def main():
             estimates[set_id][r] = round(statistics.median(vals), 2)
     estimates["*"] = {r: round(statistics.median(v), 2) for r, v in global_buckets.items()}
 
-    unknown = sorted(set(by_code) - set(SET_GROUPS))
+    unknown = sorted(set(by_code) - set(groups_by_code))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps({
         "source": "TCGplayer market price via tcgcsv.com",

@@ -1,0 +1,175 @@
+{
+ "variants": {
+  "facing=north,level=1,tier=1": {
+   "model": "tcgshop:block/statue_bronze_part"
+  },
+  "facing=east,level=1,tier=1": {
+   "model": "tcgshop:block/statue_bronze_part"
+  },
+  "facing=south,level=1,tier=1": {
+   "model": "tcgshop:block/statue_bronze_part"
+  },
+  "facing=west,level=1,tier=1": {
+   "model": "tcgshop:block/statue_bronze_part"
+  },
+  "facing=north,level=2,tier=1": {
+   "model": "tcgshop:block/statue_bronze_part"
+  },
+  "facing=east,level=2,tier=1": {
+   "model": "tcgshop:block/statue_bronze_part"
+  },
+  "facing=south,level=2,tier=1": {
+   "model": "tcgshop:block/statue_bronze_part"
+  },
+  "facing=west,level=2,tier=1": {
+   "model": "tcgshop:block/statue_bronze_part"
+  },
+  "facing=north,level=1,tier=2": {
+   "model": "tcgshop:block/statue_silver_part"
+  },
+  "facing=east,level=1,tier=2": {
+   "model": "tcgshop:block/statue_silver_part"
+  },
+  "facing=south,level=1,tier=2": {
+   "model": "tcgshop:block/statue_silver_part"
+  },
+  "facing=west,level=1,tier=2": {
+   "model": "tcgshop:block/statue_silver_part"
+  },
+  "facing=north,level=2,tier=2": {
+   "model": "tcgshop:block/statue_silver_part"
+  },
+  "facing=east,level=2,tier=2": {
+   "model": "tcgshop:block/statue_silver_part"
+  },
+  "facing=south,level=2,tier=2": {
+   "model": "tcgshop:block/statue_silver_part"
+  },
+  "facing=west,level=2,tier=2": {
+   "model": "tcgshop:block/statue_silver_part"
+  },
+  "facing=north,level=1,tier=3": {
+   "model": "tcgshop:block/statue_gold_part"
+  },
+  "facing=east,level=1,tier=3": {
+   "model": "tcgshop:block/statue_gold_part"
+  },
+  "facing=south,level=1,tier=3": {
+   "model": "tcgshop:block/statue_gold_part"
+  },
+  "facing=west,level=1,tier=3": {
+   "model": "tcgshop:block/statue_gold_part"
+  },
+  "facing=north,level=2,tier=3": {
+   "model": "tcgshop:block/statue_gold_part"
+  },
+  "facing=east,level=2,tier=3": {
+   "model": "tcgshop:block/statue_gold_part"
+  },
+  "facing=south,level=2,tier=3": {
+   "model": "tcgshop:block/statue_gold_part"
+  },
+  "facing=west,level=2,tier=3": {
+   "model": "tcgshop:block/statue_gold_part"
+  },
+  "facing=north,level=1,tier=4": {
+   "model": "tcgshop:block/statue_emerald_part"
+  },
+  "facing=east,level=1,tier=4": {
+   "model": "tcgshop:block/statue_emerald_part"
+  },
+  "facing=south,level=1,tier=4": {
+   "model": "tcgshop:block/statue_emerald_part"
+  },
+  "facing=west,level=1,tier=4": {
+   "model": "tcgshop:block/statue_emerald_part"
+  },
+  "facing=north,level=2,tier=4": {
+   "model": "tcgshop:block/statue_emerald_part"
+  },
+  "facing=east,level=2,tier=4": {
+   "model": "tcgshop:block/statue_emerald_part"
+  },
+  "facing=south,level=2,tier=4": {
+   "model": "tcgshop:block/statue_emerald_part"
+  },
+  "facing=west,level=2,tier=4": {
+   "model": "tcgshop:block/statue_emerald_part"
+  },
+  "facing=north,level=1,tier=5": {
+   "model": "tcgshop:block/statue_diamond_part"
+  },
+  "facing=east,level=1,tier=5": {
+   "model": "tcgshop:block/statue_diamond_part"
+  },
+  "facing=south,level=1,tier=5": {
+   "model": "tcgshop:block/statue_diamond_part"
+  },
+  "facing=west,level=1,tier=5": {
+   "model": "tcgshop:block/statue_diamond_part"
+  },
+  "facing=north,level=2,tier=5": {
+   "model": "tcgshop:block/statue_diamond_part"
+  },
+  "facing=east,level=2,tier=5": {
+   "model": "tcgshop:block/statue_diamond_part"
+  },
+  "facing=south,level=2,tier=5": {
+   "model": "tcgshop:block/statue_diamond_part"
+  },
+  "facing=west,level=2,tier=5": {
+   "model": "tcgshop:block/statue_diamond_part"
+  },
+  "facing=north,level=1,tier=6": {
+   "model": "tcgshop:block/statue_netherite_part"
+  },
+  "facing=east,level=1,tier=6": {
+   "model": "tcgshop:block/statue_netherite_part"
+  },
+  "facing=south,level=1,tier=6": {
+   "model": "tcgshop:block/statue_netherite_part"
+  },
+  "facing=west,level=1,tier=6": {
+   "model": "tcgshop:block/statue_netherite_part"
+  },
+  "facing=north,level=2,tier=6": {
+   "model": "tcgshop:block/statue_netherite_part"
+  },
+  "facing=east,level=2,tier=6": {
+   "model": "tcgshop:block/statue_netherite_part"
+  },
+  "facing=south,level=2,tier=6": {
+   "model": "tcgshop:block/statue_netherite_part"
+  },
+  "facing=west,level=2,tier=6": {
+   "model": "tcgshop:block/statue_netherite_part"
+  },
+  "facing=north,level=1,tier=7": {
+   "model": "tcgshop:block/statue_masterball_part"
+  },
+  "facing=east,level=1,tier=7": {
+   "model": "tcgshop:block/statue_masterball_part"
+  },
+  "facing=south,level=1,tier=7": {
+   "model": "tcgshop:block/statue_masterball_part"
+  },
+  "facing=west,level=1,tier=7": {
+   "model": "tcgshop:block/statue_masterball_part"
+  },
+  "facing=north,level=2,tier=7": {
+   "model": "tcgshop:block/statue_masterball_top"
+  },
+  "facing=east,level=2,tier=7": {
+   "model": "tcgshop:block/statue_masterball_top",
+   "y": 90
+  },
+  "facing=south,level=2,tier=7": {
+   "model": "tcgshop:block/statue_masterball_top",
+   "y": 180
+  },
+  "facing=west,level=2,tier=7": {
+   "model": "tcgshop:block/statue_masterball_top",
+   "y": 270
+  }
+ }
+}

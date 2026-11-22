@@ -35,9 +35,14 @@ public final class TcgItems {
     public static final Item NERD_GLOVES = register("nerd_gloves", new NerdGlovesItem(new Item.Settings().maxCount(1)));
     public static final Item MANAGER_GOGGLES = register("manager_goggles", new ManagerGogglesItem(new Item.Settings().maxCount(1).rarity(Rarity.RARE)));
     public static final Item TCG_PHONE = register("tcg_phone", new PhoneItem(new Item.Settings().maxCount(1).rarity(Rarity.RARE)));
-    public static final Item DEODORANT_SPRAY = register("deodorant_spray", new DeodorantSprayItem(new Item.Settings().maxDamage(24)));
+    public static final Item DEODORANT_SPRAY = register("deodorant_spray", new DeodorantSprayItem(new Item.Settings().maxDamage(72)));
+    /** 0.9 eventos: fregona (charcos, excrementos, desorden) y kit de reparación (chispas, quemaduras, vitrinas). */
+    public static final Item MOP = register("mop", new dev.tcgshop.events.incident.IncidentToolItem(new Item.Settings().maxDamage(64), "mop"));
+    public static final Item REPAIR_KIT = register("repair_kit", new dev.tcgshop.events.incident.IncidentToolItem(new Item.Settings().maxDamage(12), "repair_kit"));
     public static final Item WHOLESALER_SPAWN_EGG = register("wholesaler_spawn_egg",
             new SpawnEggItem(TcgEntities.WHOLESALER, 0x5B3A1E, 0xF2C230, new Item.Settings()));
+    public static final Item FURNITURE_SELLER_SPAWN_EGG = register("furniture_seller_spawn_egg",
+            new SpawnEggItem(TcgEntities.FURNITURE_SELLER, 0x8D6E63, 0xFFD9A0, new Item.Settings()));
     public static final Item TRADER_SPAWN_EGG = register("trader_spawn_egg",
             new SpawnEggItem(TcgEntities.TRADER, 0x2E6B5A, 0xF5E6A8, new Item.Settings()));
     public static final Item SCALPER_SPAWN_EGG = register("scalper_spawn_egg",
@@ -54,6 +59,8 @@ public final class TcgItems {
                         e.add(MANAGER_GOGGLES);
                         e.add(TCG_PHONE);
                         e.add(DEODORANT_SPRAY);
+                        e.add(MOP);
+                        e.add(REPAIR_KIT);
                         for (dev.tcgshop.shop.ShopTier t : dev.tcgshop.shop.ShopTier.values()) e.add(dev.tcgshop.shop.TcgBlocks.CORE_ITEMS.get(t));
                         e.add(dev.tcgshop.shop.TcgBlocks.DISPLAY_CASE_ITEM);
                         e.add(dev.tcgshop.shop.TcgBlocks.CARD_STAND_ITEM);
@@ -70,9 +77,11 @@ public final class TcgItems {
                         e.add(dev.tcgshop.shop.TcgBlocks.THEFT_DETECTOR_ITEM);
                         e.add(dev.tcgshop.shop.TcgBlocks.ROULETTE_ITEM);
                         e.add(dev.tcgshop.shop.TcgBlocks.MYSTERY_BOX);
+                        for (Item it : dev.tcgshop.luxury.LuxuryBlocks.items()) e.add(it);
                         for (String set : new String[]{"mew151", "prismaticevolutions", "eskies", "baseset", "drivals", "crising"})
                             e.add(dev.tcgshop.shop.BoosterBox.of(set));
                         e.add(WHOLESALER_SPAWN_EGG);
+                        e.add(FURNITURE_SELLER_SPAWN_EGG);
                         e.add(TRADER_SPAWN_EGG);
                         e.add(SCALPER_SPAWN_EGG);
                     })

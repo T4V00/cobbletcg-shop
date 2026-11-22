@@ -128,6 +128,7 @@ public final class NpcSkins {
                 case "wholesaler" -> outfit(shade(0xFF6B4A2A, r.nextInt(20)), false, 0xFF3A2A1E);
                 case "beggar" -> outfit(shade(0xFF7A6A52, r.nextInt(16) - 8), r.nextBoolean(), 0xFF4A4038);
                 case "black_market" -> outfit(0xFF1A1A22, false, 0xFF121218);
+                case "furniture_seller" -> outfit(shade(0xFF8D6E63, r.nextInt(18)), r.nextBoolean(), 0xFF4E342E);
                 default -> outfit(shirt, r.nextFloat() < 0.6f, pants);
             }
             emblem();

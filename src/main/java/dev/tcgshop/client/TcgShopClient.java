@@ -1,8 +1,8 @@
 package dev.tcgshop.client;
 
 import dev.tcgshop.TcgShopConfig;
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.client.binder.ClientCollection;
 import dev.tcgshop.client.binder.GeneralBinderScreen;
 import dev.tcgshop.client.binder.PersonalBinderScreen;
@@ -40,6 +40,8 @@ public class TcgShopClient implements ClientModInitializer {
         dev.tcgshop.client.ClientSettings.load();
         EntityRendererRegistry.register(TcgEntities.SCALPER, dev.tcgshop.client.render.TcgNpcRenderer::new);
         dev.tcgshop.client.ShopClient.init();
+        dev.tcgshop.events.incident.IncidentModule.initClient(); // 0.9: eventos aleatorios (parte de cliente del módulo de incidentes)
+        dev.tcgshop.client.phone.PhoneClient.register();
         ClientPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.TradePayloads.Open.ID, (p, ctx) -> ctx.client().execute(() ->
                 ctx.client().setScreen(new dev.tcgshop.client.screen.TradeScreen(p.partner()))));
         ClientPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.TradePayloads.State.ID, (p, ctx) -> ctx.client().execute(() -> {
@@ -69,13 +71,18 @@ public class TcgShopClient implements ClientModInitializer {
                 ctx.client().setScreen(new dev.tcgshop.client.screen.GradeRevealScreen(p.cards(), p.valueBefore(), p.valueAfter()))));
         ClientPlayNetworking.registerGlobalReceiver(NpcSpeechPayload.ID, (p, ctx) -> ctx.client().execute(() ->
                 dev.tcgshop.client.ClientSpeech.say(p.entityId(), p.text())));
+        ClientPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.TutorialPayload.ID, (p, ctx) -> ctx.client().execute(() ->
+                dev.tcgshop.client.ClientSpeech.sayScripted(p.entityId(), p.text(), p.duration())));
         ClientTickEvents.END_CLIENT_TICK.register(dev.tcgshop.client.ClientSpeech::tick);
+        ClientPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.FurniturePayloads.Open.ID, (p, ctx) -> ctx.client().execute(() ->
+                dev.tcgshop.client.screen.FurnitureApp.receive(p)));
         ClientPlayNetworking.registerGlobalReceiver(BoxOpenPayload.ID, (p, ctx) -> ctx.client().execute(() ->
                 ctx.client().setScreen(new dev.tcgshop.client.screen.BoxOpenScreen(p.set(), p.packs()))));
         ClientPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.UiPayloads.Open.ID, (p, ctx) -> ctx.client().execute(() -> {
             switch (p.kind()) {
                 case "slot" -> ctx.client().setScreen(new dev.tcgshop.client.screen.SlotEditScreen(p.data()));
                 case "beggar" -> ctx.client().setScreen(new dev.tcgshop.client.screen.BeggarScreen(p.data()));
+                case "shop_status" -> ctx.client().setScreen(new dev.tcgshop.client.screen.ShopStatusScreen(p.data()));
                 case "black_market" -> ctx.client().setScreen(new dev.tcgshop.client.screen.BlackMarketScreen(p.data()));
                 case "binder_market" -> ctx.client().setScreen(new dev.tcgshop.client.screen.BinderMarketScreen(p.data()));
                 case "binder_market_update" -> {
@@ -101,7 +108,7 @@ public class TcgShopClient implements ClientModInitializer {
             else ctx.client().setScreen(new dev.tcgshop.client.screen.TraderScreen(p));
         }));
         ClientPlayNetworking.registerGlobalReceiver(StoreOpenPayload.ID, (p, ctx) -> ctx.client().execute(() -> {
-            if (p.source() == -1) ctx.client().setScreen(new dev.tcgshop.client.screen.PhoneScreen(p.goods(), p.prices()));
+            if (p.source() == -1) dev.tcgshop.client.screen.PhoneScreen.openOrRefresh(p.goods(), p.prices());
             else ctx.client().setScreen(new dev.tcgshop.client.screen.StoreScreen(p.source(), p.goods(), p.prices()));
         }));
 
@@ -142,7 +149,7 @@ public class TcgShopClient implements ClientModInitializer {
                 ctx.client().setScreen(new ScalperOfferScreen(p.entityId(), p.pack(), p.price(), p.market()))));
 
         ClientPlayNetworking.registerGlobalReceiver(PriceSyncPayload.ID, (p, ctx) -> ctx.client().execute(() -> {
-            PriceService.applySync(p.cardsUsd(), p.sealedUsd(), p.rarityMedianUsd(),
+            PriceService.applySync(p.cardsUsd(), p.sealedUsd(), p.rarityMedianUsd(), p.gradedUsd(),
                     p.market().cdPerUsd(), p.market().seed(), p.market().volatility(), p.market().day());
             if (!ctx.client().isIntegratedServerRunning()) dev.tcgshop.EconomyConfig.applyJson(p.economy());
         }));
@@ -156,9 +163,8 @@ public class TcgShopClient implements ClientModInitializer {
                 lines.add(2, Text.translatable("tcgshop.grade.cert", String.format(java.util.Locale.ROOT, "%06d",
                         dev.tcgshop.grading.Grading.cert(stack))).formatted(Formatting.DARK_GRAY));
             }
+            // rareza, variante y foil los añade MasterBall Traders API
             if (!TcgShopConfig.INSTANCE.showPriceInTooltip) return;
-            Rarity r = Rarity.of(stack);
-            lines.add(r.displayName().copy().withColor(r.color & 0xFFFFFF));
             lines.add(Text.translatable("tcgshop.price", Text.literal(PriceService.format(PriceService.priceCd(stack))).formatted(Formatting.GOLD))
                     .formatted(Formatting.GRAY));
         });

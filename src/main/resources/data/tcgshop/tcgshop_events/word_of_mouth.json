@@ -1,0 +1,26 @@
+{
+  "_comment": "#49 (+55 promoción espontánea) boca a boca: más clientes hoy",
+  "category": "positive",
+  "tier": "common",
+  "template": "word_of_mouth",
+  "duration": "day",
+  "conditions": {
+    "minStars": 4
+  },
+  "effects": [
+    {
+      "type": "modifier",
+      "spawnMult": 1.2
+    }
+  ],
+  "review": {
+    "tag": "crowd",
+    "chance": 0.1,
+    "mood": 0
+  },
+  "notify": {
+    "lines": "word_of_mouth",
+    "count": 6,
+    "chance": 0.3
+  }
+}

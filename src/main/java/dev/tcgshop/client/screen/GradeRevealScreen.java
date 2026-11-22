@@ -1,7 +1,7 @@
 package dev.tcgshop.client.screen;
 
-import dev.tcgshop.card.CardInfo;
-import dev.tcgshop.card.Rarity;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
 import dev.tcgshop.client.binder.Ui;
 import dev.tcgshop.grading.Grading;
 import dev.tcgshop.pricing.PriceService;
@@ -86,7 +86,7 @@ public class GradeRevealScreen extends Screen {
         // valor
         if (e > 1.7) {
             long v = PriceService.priceCd(st);
-            Draw.scaledCentered(ctx, Text.translatable("tcgshop.grade.value_now", PriceService.format(v), String.format("x%.1f", Grading.multiplier(g))),
+            Draw.scaledCentered(ctx, Text.translatable("tcgshop.grade.value_now", PriceService.format(v), String.format("x%.1f", PriceService.gradedMultiplier(CardInfo.id(st), r, g))),
                     width / 2f, sy + sh + 8, 1f, Ui.GOLD);
         }
         Draw.scaledCentered(ctx, Text.literal((index + 1) + " / " + cards.size()), width / 2f, height - 14, 1f, 0xFF8A8FA8);

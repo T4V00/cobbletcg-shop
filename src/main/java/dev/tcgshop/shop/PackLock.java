@@ -5,7 +5,7 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.tcgshop.EconomyConfig;
 import dev.tcgshop.TcgShop;
-import dev.tcgshop.card.CardInfo;
+import dev.masterball.api.card.CardInfo;
 import dev.tcgshop.pricing.PriceService;
 import net.minecraft.item.ItemStack;
 import net.minecraft.loot.condition.LootCondition;
@@ -45,11 +45,7 @@ public final class PackLock {
         for (Identifier id : Registries.ITEM.getIds())
             if (CardInfo.NS.equals(id.getNamespace()) && id.getPath().contains("/sealed_")) sets.add(CardInfo.setId(id));
         List<Map.Entry<String, Double>> ranked = new ArrayList<>();
-        for (String s : sets) {
-            Double usd = data.get(s + "|pack");
-            if (usd == null && data.get(s + "|box") != null) usd = data.get(s + "|box") / 36.0;
-            if (usd != null) ranked.add(Map.entry(s, usd));
-        }
+        for (String s : sets) ranked.add(Map.entry(s, PriceService.sealedUsd(s, PriceService.Sealed.PACK)));
         ranked.sort(Collections.reverseOrder(Map.Entry.comparingByValue()));
         Set<String> out = new LinkedHashSet<>();
         for (int i = 0; i < Math.min(n, ranked.size()); i++) out.add(ranked.get(i).getKey());

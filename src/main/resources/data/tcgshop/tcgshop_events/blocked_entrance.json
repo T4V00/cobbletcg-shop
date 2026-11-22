@@ -1,0 +1,132 @@
+{
+  "_comment": "#4 Snorlax dormilon bloquea la entrada (+#61 familia de Psyduck, +#65 Wobbuffet). Se queda DENTRO de la zona junto a la puerta (nunca en el hueco ni delante: nadie se queda encerrado); los clientes no entran por esa puerta.",
+  "category": "negative",
+  "tier": "uncommon",
+  "template": "blocked",
+  "duration": {
+    "ticks": [
+      6000,
+      10000
+    ]
+  },
+  "conditions": {
+    "requires": [
+      "door"
+    ],
+    "exclusiveGroup": "door"
+  },
+  "effects": [
+    {
+      "type": "modifier",
+      "patienceMult": 0.85,
+      "while": "unresolved"
+    }
+  ],
+  "variants": [
+    {
+      "key": "snorlax",
+      "weight": 3,
+      "effects": [
+        {
+          "type": "actor",
+          "species": "snorlax",
+          "level": [
+            15,
+            30
+          ],
+          "behaviour": "block_door",
+          "resolve": [
+            "shoo",
+            "feed",
+            "battle"
+          ],
+          "shooHits": 8,
+          "particles": "cloud",
+          "reviewTag": "pkmn_snorlax"
+        }
+      ]
+    },
+    {
+      "key": "psyduck_family",
+      "weight": 2,
+      "conditions": {
+        "biomes": [
+          "#minecraft:is_river",
+          "#minecraft:is_beach",
+          "#minecraft:is_ocean",
+          "minecraft:swamp",
+          "minecraft:mangrove_swamp"
+        ]
+      },
+      "effects": [
+        {
+          "type": "actor",
+          "species": "golduck",
+          "level": [
+            15,
+            25
+          ],
+          "behaviour": "block_door",
+          "resolve": [
+            "shoo",
+            "feed",
+            "battle"
+          ],
+          "shooHits": 4,
+          "reviewTag": "pkmn_door"
+        },
+        {
+          "type": "actor",
+          "species": "psyduck",
+          "count": [
+            1,
+            2
+          ],
+          "level": [
+            5,
+            15
+          ],
+          "behaviour": "outside",
+          "resolve": [
+            "shoo",
+            "feed"
+          ],
+          "shooHits": 2
+        }
+      ]
+    },
+    {
+      "key": "wobbuffet",
+      "weight": 2,
+      "effects": [
+        {
+          "type": "actor",
+          "species": "wobbuffet",
+          "level": [
+            10,
+            25
+          ],
+          "behaviour": "block_door",
+          "resolve": [
+            "shoo",
+            "feed",
+            "battle"
+          ],
+          "shooHits": 5,
+          "reviewTag": "pkmn_door"
+        }
+      ]
+    }
+  ],
+  "review": {
+    "tag": "blocked",
+    "chance": 0.5,
+    "mood": -2,
+    "fixedChance": 0.3
+  },
+  "notify": {
+    "lines": "act_blocked",
+    "count": 6,
+    "chance": 0.35
+  }
+}
