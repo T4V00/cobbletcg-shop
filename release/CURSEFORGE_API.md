@@ -4,7 +4,7 @@
 
 > ✅ **Compatible with COBBLEVERSE 1.8.0** (Cobblemon 1.8.4, Fabric, Minecraft 1.21.1).
 
-This is a **library mod**. On its own it only adds the card and pack items. Install it together with **[MasterBall Traders Co.](https://www.curseforge.com/minecraft/mc-mods/cobbletcg-shop)**, the Pokémon TCG shop simulator that requires it.
+This is a **library mod**. On its own it only adds the card and pack items. Install it together with **[MasterBall Traders Co.](https://www.curseforge.com/minecraft/mc-mods/masterball-traders-co)**, the Pokémon TCG shop simulator that requires it.
 
 ---
 
