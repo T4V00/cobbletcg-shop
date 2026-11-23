@@ -51,6 +51,7 @@ public final class PhoneUpgrades {
         PhoneConfig.load();
         PayloadTypeRegistry.playS2C().register(PhonePayloads.Sync.ID, PhonePayloads.Sync.CODEC);
         PayloadTypeRegistry.playC2S().register(PhonePayloads.Act.ID, PhonePayloads.Act.CODEC);
+        PayloadTypeRegistry.playS2C().register(PhonePayloads.Result.ID, PhonePayloads.Result.CODEC); // 1.0: purchase notices
         ServerPlayNetworking.registerGlobalReceiver(PhonePayloads.Act.ID, (p, ctx) -> ctx.server().execute(() -> handle(ctx.player(), p.data())));
         // runs before the Onboarding starter kit (deferred with server.execute): a new player doesn't have the tag yet
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
@@ -98,16 +99,21 @@ public final class PhoneUpgrades {
     }
 
     /**
-     * League actions only the League app grants: ranked matches against the AI, the online queue and the
-     * high-level AI. A table match rematch (casual, level 1), challenges and cosmetics are not locked.
+     * 1.0: every TCG League app action needs the League app (phone tier 2, PhoneTier.APP_TIER): sync, deck editing,
+     * cosmetics, ranked matches, the online queue and the AI above level 1. Only what does not come from the app is
+     * always allowed: friendly challenges (Cobblemon wheel), leaving the queue and a play-table rematch (casual, level <= 1).
      */
     public static boolean leagueActionAllowed(ServerPlayerEntity p, String json) {
+        if (appUnlocked(p, "league")) return true;
         try {
             com.google.gson.JsonObject o = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
-            if (!o.has("a") || !"play".equals(o.get("a").getAsString())) return true;
-            String mode = o.has("mode") ? o.get("mode").getAsString() : "casual";
-            int lvl = o.has("level") ? o.get("level").getAsInt() : 1;
-            if (mode.equals("cancel_queue") || (!mode.equals("ranked_ai") && !mode.equals("queue") && lvl <= 1)) return true;
+            String a = o.has("a") ? o.get("a").getAsString() : "sync";
+            if (a.equals("challenge")) return true;
+            if (a.equals("play")) {
+                String mode = o.has("mode") ? o.get("mode").getAsString() : "casual";
+                int lvl = o.has("level") ? o.get("level").getAsInt() : 1;
+                if (mode.equals("cancel_queue") || (!mode.equals("ranked_ai") && !mode.equals("queue") && lvl <= 1)) return true;
+            }
         } catch (Exception ex) {
             return true; // PtcgDuels.league discards the malformed packet
         }
@@ -197,8 +203,9 @@ public final class PhoneUpgrades {
     public static int requiredTier(ItemStack st, boolean phone) {
         if (!PhoneConfig.INSTANCE.enabled) return 0;
         if (st.isOf(TcgBlocks.BOOSTER_BOX_ITEM)) {
+            // 1.0: a box needs the same tier as its pack (the pack's market price); boxMinTier can raise it on the phone
             int t = tierForPackUsd(PriceService.sealedUsd(st.getOrDefault(TcgBlocks.BOX_SET, "mew151"), PriceService.Sealed.PACK));
-            return phone ? Math.max(PhoneTier.PHONE_BOX_TIER, t) : t;
+            return phone ? Math.max(PhoneConfig.INSTANCE.boxMinTier, t) : t;
         }
         if (CardInfo.isPack(st)) return tierForPackUsd(PriceService.sealedUsd(CardInfo.setId(CardInfo.id(st)), PriceService.Sealed.PACK));
         if (st.isOf(TcgBlocks.ROULETTE_ITEM)) return PhoneTier.ROULETTE_TIER;
@@ -216,8 +223,12 @@ public final class PhoneUpgrades {
         return applyPackLock(p, withExtraSets(p, source, goods));
     }
 
-    /** First step of storeView: the catalog with the Wholesaler's extra set boxes (without applying PackLock). */
+    /**
+     * First step of storeView: the catalog with the Wholesaler's extra set boxes (without applying PackLock).
+     * Phone (source -1): one x36 box for every pack it sells (see {@link #phoneBoxes}).
+     */
     public static List<ItemStack> withExtraSets(ServerPlayerEntity p, int source, List<ItemStack> goods) {
+        if (source == -1) return phoneBoxes(goods);
         int lv = perkLevel(p);
         List<ItemStack> g = goods;
         int extra = PhoneTier.EXTRA_BOX_SETS[lv];
@@ -236,6 +247,35 @@ public final class PhoneUpgrades {
             for (int i = 0; i < Math.min(extra, all.size()); i++) g.add(BoosterBox.of(all.get(i)));
         }
         return g;
+    }
+
+    /**
+     * 1.0: the phone Market sells the x36 booster box of EVERY pack it sells. Boxes of removed sets (or sets without packs)
+     * and duplicated boxes are dropped, and a missing box is appended at the end. The tier lock is the pack's one
+     * (requiredTier) and PackLock applies to boxes too. Deterministic: opening and buying see the same list (same indices).
+     */
+    static List<ItemStack> phoneBoxes(List<ItemStack> goods) {
+        Set<String> boxed = new HashSet<>();
+        boolean changed = false;
+        List<ItemStack> out = new ArrayList<>(goods.size() + 8);
+        for (ItemStack st : goods) {
+            if (st.isOf(TcgBlocks.BOOSTER_BOX_ITEM)) {
+                String set = st.getOrDefault(TcgBlocks.BOX_SET, "");
+                if (BoosterBox.isDeadSet(set) || !boxed.add(set)) {
+                    changed = true;
+                    continue;
+                }
+            }
+            out.add(st);
+        }
+        for (ItemStack st : goods) {
+            if (!CardInfo.isPack(st)) continue;
+            String set = CardInfo.setId(CardInfo.id(st));
+            if (set == null || BoosterBox.isDeadSet(set) || !boxed.add(set)) continue;
+            out.add(BoosterBox.of(set));
+            changed = true;
+        }
+        return changed ? out : goods;
     }
 
     /** Second step of storeView: removes sets locked by shop level (except at the top tier). */
@@ -283,16 +323,20 @@ public final class PhoneUpgrades {
         if (target != e.tier + 1 || target > PhoneTier.MAX_LEVEL) { sync(p, null, null); return; }
         if (!CobbleDollarsBridge.isAvailable()) {
             p.sendMessage(Text.translatable("tcgshop.sell.no_bank").formatted(Formatting.RED), true);
+            PhoneStore.sendResult(p, PhoneStore.NO_BANK, -1, ItemStack.EMPTY, 0, 0, target);
             return;
         }
         long cost = c.cost(target);
+        long balance = CobbleDollarsBridge.getBalance(p);
         if (!CobbleDollarsBridge.tryCharge(p, cost)) {
             p.sendMessage(Text.translatable("tcgshop.shop.no_money", PriceService.format(cost)).formatted(Formatting.RED), true);
             p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.ENTITY_VILLAGER_NO, SoundCategory.PLAYERS, 0.6f, 1f);
+            PhoneStore.sendResult(p, PhoneStore.NO_MONEY, -1, ItemStack.EMPTY, 0, cost, target, balance);
             return;
         }
         e.tier = target;
         PhoneState.get(p.getServer()).markDirty();
+        PhoneStore.sendResult(p, PhoneStore.UPGRADED, -1, ItemStack.EMPTY, 0, cost, target);
         p.sendMessage(Text.translatable("tcgshop.phoneup.bought", tierName(target).copy().formatted(Formatting.BOLD),
                 Text.literal(PriceService.format(cost)).formatted(Formatting.GOLD)).formatted(Formatting.GREEN), false);
         p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.PLAYERS, 0.7f, 1.2f);

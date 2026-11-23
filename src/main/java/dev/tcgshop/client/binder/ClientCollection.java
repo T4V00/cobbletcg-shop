@@ -14,6 +14,11 @@ import java.util.Set;
 /** Client-side copy of the General Binder (sent by the server). */
 public final class ClientCollection {
     public static Map<String, Integer> counts = new HashMap<>();
+    /** 1.0: print variants and graded cards (full stacks) and how many copies of each. */
+    public static List<net.minecraft.item.ItemStack> specials = new ArrayList<>();
+    public static List<Integer> specialCounts = new ArrayList<>();
+    /** Does the player have a General Binder of their own? (false = only a Personal Binder, e.g. the starter one) */
+    public static boolean hasGeneral = true;
     public static Set<String> fresh = new HashSet<>();
     public static long totalObtained, packsOpened, packsRuined, godPacks, credited;
     public static List<String> unlockedStyles = new ArrayList<>();
@@ -41,9 +46,25 @@ public final class ClientCollection {
         wishlist = new HashSet<>(p.wishlist());
         titles = new ArrayList<>(p.titles());
         title = p.title();
+        specials = new ArrayList<>(p.specials());
+        specialCounts = new ArrayList<>(p.specialCounts());
+        while (specialCounts.size() < specials.size()) specialCounts.add(1);
+        Map<String, Integer> bySig = new HashMap<>();
+        for (int i = 0; i < specials.size(); i++)
+            bySig.merge(dev.tcgshop.collection.BinderData.signature(specials.get(i)), specialCounts.get(i), Integer::sum);
+        specialBySig = bySig;
+        hasGeneral = p.hasGeneral();
     }
 
+    /** Copies per special-card signature (built once per sync: count() is called for every cell every frame). */
+    private static Map<String, Integer> specialBySig = new HashMap<>();
+
+    /** Changes whenever the set of special cards or their copies change (screens use it to rebuild their layout). */
+    public static int specialsHash() { return specialBySig.hashCode(); }
+
+    /** Copies of a card: id of a plain card, or "#" + signature of a special card (see BinderData.signature). */
     public static int count(String id) {
+        if (id.startsWith("#")) return specialBySig.getOrDefault(id.substring(1), 0);
         return counts.getOrDefault(id, 0);
     }
 

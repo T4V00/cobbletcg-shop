@@ -1,21 +1,27 @@
 package dev.tcgshop.client.binder;
 
+import dev.masterball.api.card.CardInfo;
 import dev.masterball.api.card.Rarity;
 import dev.tcgshop.client.screen.Draw;
+import dev.tcgshop.collection.BinderData;
 import dev.tcgshop.collection.Titles;
 import dev.tcgshop.network.BinderActionPayload;
 import dev.tcgshop.pricing.PriceService;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.MathHelper;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -26,8 +32,11 @@ import static dev.tcgshop.client.screen.Draw.withAlpha;
 
 /**
  * General Binder: all your cards in a single inventory.
- *  · Side tabs: ★ All, ♥ Wishlist, ✦ New and one per pack (with progress).
+ *  · Side tabs: ★ All, ♥ Wishlist, ✦ New, ◆ Variants & graded and one per pack (with progress).
  *  · Top tabs by rarity (global or within the selected pack), search box and placeholders for missing cards.
+ *  · Price row (1.0): preset ranges, min / max and sort by price; combined with pack, rarity, search and missing filters.
+ *  · Multi-select (1.0): Ctrl+click (or Ctrl+drag) toggles cards, Shift+click selects a range, Ctrl+A / «Select all»
+ *    picks every card shown; «Take 1 of each» / «Take all» withdraws the selection in one go (only what fits).
  *  · ★ notifications: cleared after ~1.5 s of hovering, or when leaving «New» / closing (the ones you looked at);
  *    new cards stay in «New» while the binder is open. Double-clicking a tab clears all of its notifications.
  *  · Detail panel (price, 7-day trend, wishlist, withdraw cards) and title picker.
@@ -37,12 +46,18 @@ public class GeneralBinderScreen extends Screen {
     private static final int CELL_W = 36, CELL_H = 50, GAP = 5, HEADER_H = 20;
     /** Hover time needed to count a new card as seen, and duration of the glow fade-out. */
     private static final long SEEN_HOVER_MS = 1500, FADE_MS = 700;
+    /** Price filter presets (in the shop currency): any, < 100, 100-1K, 1K-10K, 10K-100K, 100K+. */
+    private static final long[][] PRICE_PRESETS = {
+            {0, Long.MAX_VALUE}, {0, 99}, {100, 999}, {1_000, 9_999}, {10_000, 99_999}, {100_000, Long.MAX_VALUE}};
+    /** Batch withdraw: max entries / characters per packet (the server caps entries too). */
+    private static final int BATCH_ENTRIES = 300, BATCH_CHARS = 30_000;
 
-    private enum Mode { SET, WISH, NEW }
+    private enum Mode { SET, WISH, NEW, SPECIAL }
 
     private record Area(int x, int y, int w, int h, Runnable action) {}
 
-    private record Row(Catalog.CardSet set, List<Catalog.Card> cards, int y, int h) {}
+    /** cards == null: set header; matched / value = cards shown in that set and their value (price filter summary). */
+    private record Row(Catalog.CardSet set, List<Catalog.Card> cards, int y, int h, int matched, long value) {}
 
     private final List<Area> areas = new ArrayList<>();
     private Mode mode = Mode.SET;
@@ -50,7 +65,7 @@ public class GeneralBinderScreen extends Screen {
     private Rarity.Family selectedRarity;
     private boolean showMissing = true;
     private String selectedCard;
-    private TextFieldWidget search;
+    private TextFieldWidget search, minField, maxField;
     private double scroll, sideScroll;
     private List<Row> rows = new ArrayList<>();
     private int contentHeight;
@@ -69,7 +84,23 @@ public class GeneralBinderScreen extends Screen {
     private final CardZoom zoom = new CardZoom();
     private long hoverSince;
 
-    private int px, py, pw, ph, sideX, sideY, sideW, sideH, gridX, gridY, gridW, gridH, detX, detW;
+    // price filter / sort (1.0)
+    private int pricePreset;
+    /** 0 = card number, 1 = price high to low, 2 = price low to high. */
+    private int sortMode;
+    private final Map<String, Long> priceCache = new HashMap<>();
+    /** Special cards (variants / graded) as catalog entries, key "#" + signature. Rebuilt on every layout. */
+    private final Map<String, Catalog.Card> specialCards = new LinkedHashMap<>();
+
+    // multi-select (1.0)
+    private final Set<String> selection = new LinkedHashSet<>();
+    /** Cards shown, in display order (for Shift ranges and «Select all»). */
+    private List<Catalog.Card> visible = new ArrayList<>();
+    private String anchorKey;
+    /** Ctrl+drag over cells: true = adding, false = removing, null = not painting. */
+    private Boolean paintSelect;
+
+    private int px, py, pw, ph, sideX, sideY, sideW, sideH, gridX, gridY, gridW, gridH, detX, detW, priceY;
 
     public GeneralBinderScreen() {
         super(Text.translatable("tcgshop.binder.general"));
@@ -89,7 +120,8 @@ public class GeneralBinderScreen extends Screen {
         detW = Math.min(140, pw / 5);
         detX = px + pw - detW - 8;
         gridX = sideX + sideW + 8;
-        gridY = py + 60;
+        priceY = py + 58;
+        gridY = py + 77;
         gridW = detX - 8 - gridX;
         gridH = py + ph - 8 - gridY;
         String prev = search == null ? "" : search.getText();
@@ -99,8 +131,25 @@ public class GeneralBinderScreen extends Screen {
         search.setText(prev);
         search.setChangedListener(s -> { dirty = true; scroll = 0; });
         addSelectableChild(search);
+        // price row: [preset] [min] [max] [sort]
+        String prevMin = minField == null ? "" : minField.getText(), prevMax = maxField == null ? "" : maxField.getText();
+        int fieldW = Math.max(26, gridW * 15 / 100);
+        minField = priceField(gridX + presetW() + 3, fieldW, "tcgshop.binder.price_min", prevMin);
+        maxField = priceField(gridX + presetW() + 6 + fieldW, fieldW, "tcgshop.binder.price_max", prevMax);
         dirty = true;
     }
+
+    private TextFieldWidget priceField(int x, int w, String key, String text) {
+        TextFieldWidget f = new TextFieldWidget(textRenderer, x, priceY, w, 14, Text.translatable(key));
+        f.setPlaceholder(Text.translatable(key).formatted(Formatting.DARK_GRAY));
+        f.setTextPredicate(s -> s.matches("\\d{0,12}"));
+        f.setText(text);
+        f.setChangedListener(s -> { dirty = true; scroll = 0; });
+        addSelectableChild(f);
+        return f;
+    }
+
+    private int presetW() { return Math.max(56, gridW * 34 / 100); }
 
     @Override
     public boolean shouldPause() {
@@ -115,25 +164,79 @@ public class GeneralBinderScreen extends Screen {
         if (mode == Mode.WISH && !ClientCollection.wishlist.contains(c.key())) return false;
         if (mode == Mode.NEW && !sessionNew.contains(c.key())) return false;
         if (mode == Mode.SET && !owned && !showMissing) return false;
+        if (priceFiltered()) {
+            long p = price(c);
+            if (p < priceMin() || p > priceMax()) return false;
+        }
         String q = search.getText().trim().toLowerCase(Locale.ROOT);
         return q.isEmpty() || c.name().getString().toLowerCase(Locale.ROOT).contains(q);
     }
 
+    /** Current price of that card (its own variant / grade for special cards), cached per layout. */
+    private long price(Catalog.Card c) {
+        Long p = priceCache.get(c.key());
+        if (p == null) {
+            p = PriceService.priceCd(c.stack());
+            priceCache.put(c.key(), p);
+        }
+        return p;
+    }
+
+    private static long parse(TextFieldWidget f, long fallback) {
+        String s = f == null ? "" : f.getText().trim();
+        if (s.isEmpty()) return fallback;
+        try { return Long.parseLong(s); } catch (NumberFormatException e) { return fallback; }
+    }
+
+    private long priceMin() { return Math.max(PRICE_PRESETS[pricePreset][0], parse(minField, 0)); }
+
+    private long priceMax() { return Math.min(PRICE_PRESETS[pricePreset][1], parse(maxField, Long.MAX_VALUE)); }
+
+    private boolean priceFiltered() { return priceMin() > 0 || priceMax() < Long.MAX_VALUE; }
+
+    private void rebuildSpecials() {
+        specialCards.clear();
+        for (ItemStack st : ClientCollection.specials) {
+            if (st.isEmpty() || !CardInfo.isCard(st)) continue;
+            Catalog.Card base = Catalog.card(CardInfo.id(st).toString());
+            if (base == null) continue;
+            String key = "#" + BinderData.signature(st);
+            specialCards.putIfAbsent(key, new Catalog.Card(base.id(), key, st, base.rarity(), base.number(), base.texture(), base.set()));
+        }
+    }
+
+    /** Catalog entry of a key (plain card id, or "#" + signature for a special card). */
+    private Catalog.Card cardFor(String key) {
+        if (key == null) return null;
+        return key.startsWith("#") ? specialCards.get(key) : Catalog.card(key);
+    }
+
     private void layout() {
         rows = new ArrayList<>();
+        visible = new ArrayList<>();
+        priceCache.clear();
+        rebuildSpecials();
+        Map<String, List<Catalog.Card>> specialsBySet = new HashMap<>();
+        if (mode == Mode.SPECIAL) for (Catalog.Card c : specialCards.values()) specialsBySet.computeIfAbsent(c.set(), k -> new ArrayList<>()).add(c);
         int cols = Math.max(1, (gridW - 10 + GAP) / (CELL_W + GAP));
         int y = 0;
         for (Catalog.CardSet set : Catalog.sets()) {
-            if (mode == Mode.SET && selectedSet != null && !selectedSet.equals(set.id())) continue;
+            if ((mode == Mode.SET || mode == Mode.SPECIAL) && selectedSet != null && !selectedSet.equals(set.id())) continue;
+            List<Catalog.Card> source = mode == Mode.SPECIAL ? specialsBySet.getOrDefault(set.id(), List.of()) : set.cards();
             List<Catalog.Card> list = new ArrayList<>();
-            for (Catalog.Card c : set.cards()) if (matches(c)) list.add(c);
+            for (Catalog.Card c : source) if (matches(c)) list.add(c);
             if (list.isEmpty()) continue;
-            rows.add(new Row(set, null, y, HEADER_H));
+            if (sortMode == 1) list.sort(Comparator.<Catalog.Card>comparingLong(this::price).reversed().thenComparing(Catalog.Card::key));
+            else if (sortMode == 2) list.sort(Comparator.<Catalog.Card>comparingLong(this::price).thenComparing(Catalog.Card::key));
+            long value = 0;
+            for (Catalog.Card c : list) value += price(c) * Math.max(0, ClientCollection.count(c.key()));
+            rows.add(new Row(set, null, y, HEADER_H, list.size(), value));
             y += HEADER_H;
             for (int i = 0; i < list.size(); i += cols) {
-                rows.add(new Row(set, list.subList(i, Math.min(list.size(), i + cols)), y, CELL_H + GAP));
+                rows.add(new Row(set, list.subList(i, Math.min(list.size(), i + cols)), y, CELL_H + GAP, 0, 0));
                 y += CELL_H + GAP;
             }
+            visible.addAll(list);
             y += 6;
         }
         contentHeight = y;
@@ -154,9 +257,11 @@ public class GeneralBinderScreen extends Screen {
         if (zoom.isOpen()) { mouseX = -10000; mouseY = -10000; } // no hover or tooltips underneath the zoomed view
         ClientCollection.tick();
         sessionNew.addAll(ClientCollection.fresh); // cards that arrive while the binder is open stay too
-        int hash = ClientCollection.counts.hashCode() * 31 + ClientCollection.wishlist.hashCode() + (mode == Mode.NEW ? sessionNew.hashCode() : 0);
+        int hash = ClientCollection.counts.hashCode() * 31 + ClientCollection.wishlist.hashCode() + (mode == Mode.NEW ? sessionNew.hashCode() : 0)
+                + ClientCollection.specialsHash() * 17 + ClientCollection.specials.size();
         if (hash != lastHash) { lastHash = hash; dirty = true; }
         if (dirty) layout();
+        selection.removeIf(k -> ClientCollection.count(k) <= 0); // taken out / no longer owned
         areas.clear();
         double t = System.nanoTime() / 1e9;
 
@@ -176,10 +281,13 @@ public class GeneralBinderScreen extends Screen {
         }
         renderSidebar(ctx, mouseX, mouseY, freshBySet);
         renderRarityTabs(ctx, mouseX, mouseY, freshByRarity);
+        renderPriceRow(ctx, mouseX, mouseY);
         Catalog.Card hovered = titlesOpen ? null : renderGrid(ctx, mouseX, mouseY, t);
         if (titlesOpen) { renderGridFrameOnly(ctx); trackHover(null); }
         renderDetail(ctx, mouseX, mouseY, hovered, t);
         search.render(ctx, mouseX, mouseY, delta);
+        minField.render(ctx, mouseX, mouseY, delta);
+        maxField.render(ctx, mouseX, mouseY, delta);
         if (titlesOpen) renderTitles(ctx, mouseX, mouseY);
         if (zoom.isOpen()) zoom.render(ctx, width, height, realX, realY);
     }
@@ -203,6 +311,8 @@ public class GeneralBinderScreen extends Screen {
             owned++;
             value += PriceService.priceCd(c.stack()) * e.getValue();
         }
+        for (int i = 0; i < ClientCollection.specials.size(); i++)
+            value += PriceService.priceCd(ClientCollection.specials.get(i)) * ClientCollection.specialCounts.get(i);
         // title button
         Text tb = Text.translatable("tcgshop.binder.title_button");
         int tbw = Ui.chipWidth(tb) + 4, tbx = px + pw - tbw - 10;
@@ -231,7 +341,7 @@ public class GeneralBinderScreen extends Screen {
         Ui.round(ctx, sideX, sideY, sideW, sideH, 0xFF12141F);
         int rowH = 26;
         List<Catalog.CardSet> sets = Catalog.sets();
-        int specials = 3;
+        int specials = 4;
         int total = (sets.size() + specials) * rowH + 6;
         sideScroll = MathHelper.clamp(sideScroll, 0, Math.max(0, total - sideH + 4));
         ctx.enableScissor(sideX, sideY + 2, sideX + sideW, sideY + sideH - 2);
@@ -244,6 +354,13 @@ public class GeneralBinderScreen extends Screen {
         y += rowH;
         drawSpecialTab(ctx, Mode.NEW, null, Text.translatable("tcgshop.binder.new_cards"), 0xFFFFE066, sideX + 3, y, sideW - 6, rowH - 3,
                 mouseX, mouseY, ClientCollection.fresh.size());
+        y += rowH;
+        int specialCopies = 0;
+        for (int n : ClientCollection.specialCounts) specialCopies += n;
+        drawSpecialTab(ctx, Mode.SPECIAL, null, Text.translatable("tcgshop.binder.specials", specialCopies), 0xFF7FE3FF, sideX + 3, y, sideW - 6, rowH - 3,
+                mouseX, mouseY, 0);
+        if (Ui.in(mouseX, mouseY, sideX + 3, y, sideW - 6, rowH - 3) && mouseY >= sideY && mouseY < sideY + sideH)
+            setTooltip(Text.translatable("tcgshop.binder.specials_tip"));
         y += rowH + 6;
         for (Catalog.CardSet s : sets) {
             if (y + rowH >= sideY && y <= sideY + sideH) {
@@ -263,9 +380,14 @@ public class GeneralBinderScreen extends Screen {
         Ui.outline(ctx, x, y, w, h, sel ? accent : 0xFF2B3045);
         Ui.text(ctx, label, x, y, w, h, 0xFFFFFFFF, true);
         if (fresh > 0 && m == Mode.SET) Ui.badge(ctx, x + w - 6, y + 1, fresh);
-        String key = m == Mode.SET ? "all" : m == Mode.NEW ? "new" : "wish";
+        String key = switch (m) {
+            case SET -> "all";
+            case NEW -> "new";
+            case SPECIAL -> "special";
+            default -> "wish";
+        };
         areas.add(new Area(x, Math.max(y, sideY), w, h, () -> {
-            if (isDoubleClick(key) && m != Mode.WISH) clearFresh("all");
+            if (isDoubleClick(key) && m != Mode.WISH && m != Mode.SPECIAL) clearFresh("all");
             else { switchMode(m); selectedSet = null; selectedRarity = null; scroll = 0; dirty = true; }
         }));
     }
@@ -337,6 +459,43 @@ public class GeneralBinderScreen extends Screen {
         }
     }
 
+    /** Price row (1.0): preset range, min / max fields (drawn by the widgets) and sort. */
+    private void renderPriceRow(DrawContext ctx, int mouseX, int mouseY) {
+        int h = 14, pw0 = presetW();
+        Text label = Text.translatable("tcgshop.binder.price", presetLabel(pricePreset));
+        boolean hoverP = Ui.in(mouseX, mouseY, gridX, priceY, pw0, h);
+        Ui.chip(ctx, gridX, priceY, pw0, h, label, pricePreset != 0, hoverP, 0xFFE0B33C, 0);
+        areas.add(new Area(gridX, priceY, pw0, h, () -> {
+            pricePreset = Math.floorMod(pricePreset + (hasShiftDown() ? -1 : 1), PRICE_PRESETS.length);
+            dirty = true;
+            scroll = 0;
+        }));
+        if (hoverP) setTooltip(Text.translatable("tcgshop.binder.price_tip"));
+        int sx = maxField.getX() + maxField.getWidth() + 3, sw = gridX + gridW - sx;
+        if (sw >= 24) {
+            Text sort = Text.translatable("tcgshop.binder.sort", Text.translatable("tcgshop.binder.sort." + sortMode));
+            boolean hoverS = Ui.in(mouseX, mouseY, sx, priceY, sw, h);
+            Ui.chip(ctx, sx, priceY, sw, h, sort, sortMode != 0, hoverS, 0xFF3A7BD5, 0);
+            areas.add(new Area(sx, priceY, sw, h, () -> { sortMode = (sortMode + 1) % 3; dirty = true; }));
+        }
+        if (Ui.in(mouseX, mouseY, minField.getX(), priceY, maxField.getX() + maxField.getWidth() - minField.getX(), h))
+            setTooltip(Text.translatable("tcgshop.binder.price_minmax_tip"));
+    }
+
+    private static Text presetLabel(int i) {
+        if (i == 0) return Text.translatable("tcgshop.binder.price_any");
+        long lo = PRICE_PRESETS[i][0], hi = PRICE_PRESETS[i][1];
+        if (lo == 0) return Text.literal("< " + shortNum(hi + 1));
+        if (hi == Long.MAX_VALUE) return Text.literal(shortNum(lo) + "+");
+        return Text.literal(shortNum(lo) + "–" + shortNum(hi + 1));
+    }
+
+    private static String shortNum(long v) {
+        if (v >= 1_000_000 && v % 1_000_000 == 0) return v / 1_000_000 + "M";
+        if (v >= 1_000 && v % 1_000 == 0) return v / 1_000 + "K";
+        return String.valueOf(v);
+    }
+
     private void renderGridFrameOnly(DrawContext ctx) {
         Ui.round(ctx, gridX, gridY, gridW, gridH, 0xFF10121B);
     }
@@ -344,7 +503,8 @@ public class GeneralBinderScreen extends Screen {
     private Catalog.Card renderGrid(DrawContext ctx, int mouseX, int mouseY, double t) {
         Ui.round(ctx, gridX, gridY, gridW, gridH, 0xFF10121B);
         if (rows.isEmpty()) {
-            String key = mode == Mode.WISH ? "tcgshop.binder.empty_wish" : mode == Mode.NEW ? "tcgshop.binder.empty_new" : "tcgshop.binder.empty";
+            String key = mode == Mode.WISH ? "tcgshop.binder.empty_wish" : mode == Mode.NEW ? "tcgshop.binder.empty_new"
+                    : mode == Mode.SPECIAL ? "tcgshop.binder.empty_special" : "tcgshop.binder.empty";
             int y = gridY + gridH / 2 - 10;
             for (var line : textRenderer.wrapLines(Text.translatable(key), gridW - 30)) {
                 ctx.drawCenteredTextWithShadow(textRenderer, line, gridX + gridW / 2, y, Ui.MUTED);
@@ -361,11 +521,17 @@ public class GeneralBinderScreen extends Screen {
             int y = baseY + row.y;
             if (y + row.h < gridY || y > gridY + gridH) continue;
             if (row.cards == null) {
+                Ui.roundGradient(ctx, gridX + 4, y + 1, gridW - 8, HEADER_H - 4, 0xFF2A2F44, 0xFF1F2333);
+                ctx.drawTextWithShadow(textRenderer, row.set.name().copy().formatted(Formatting.BOLD), gridX + 9, y + 5, Ui.GOLD);
+                if (priceFiltered() || mode == Mode.SPECIAL) { // summary of what the filter shows within this pack
+                    Text sum = Text.translatable("tcgshop.binder.price_summary", row.matched, PriceService.format(row.value));
+                    int sw = textRenderer.getWidth(sum);
+                    ctx.drawTextWithShadow(textRenderer, sum, gridX + gridW - sw - 10, y + 5, Ui.MUTED);
+                    continue;
+                }
                 int own = 0;
                 for (Catalog.Card c : row.set.cards()) if (ClientCollection.count(c.key()) > 0) own++;
                 int total = row.set.cards().size();
-                Ui.roundGradient(ctx, gridX + 4, y + 1, gridW - 8, HEADER_H - 4, 0xFF2A2F44, 0xFF1F2333);
-                ctx.drawTextWithShadow(textRenderer, row.set.name().copy().formatted(Formatting.BOLD), gridX + 9, y + 5, Ui.GOLD);
                 String prog = own + " / " + total;
                 int pwd = textRenderer.getWidth(prog);
                 ctx.drawTextWithShadow(textRenderer, prog, gridX + gridW - pwd - 76, y + 5, own == total ? 0xFF43C463 : Ui.MUTED);
@@ -379,7 +545,7 @@ public class GeneralBinderScreen extends Screen {
                 else drawCell(ctx, c, x, y, false, t);
                 String key = c.key();
                 if (y >= gridY - CELL_H && y <= gridY + gridH)
-                    areas.add(new Area(x, Math.max(y, gridY), CELL_W, Math.min(CELL_H, gridY + gridH - Math.max(y, gridY)), () -> selectedCard = key));
+                    areas.add(new Area(x, Math.max(y, gridY), CELL_W, Math.min(CELL_H, gridY + gridH - Math.max(y, gridY)), () -> clickCell(key)));
                 x += CELL_W + GAP;
             }
         }
@@ -400,11 +566,13 @@ public class GeneralBinderScreen extends Screen {
         float freshA = fresh ? 1f : fadeAlpha(c.key()); // «new» glow (fades out after it is seen)
         boolean selected = c.key().equals(selectedCard);
         boolean wish = ClientCollection.wishlist.contains(c.key());
+        boolean picked = selection.contains(c.key());
         if (count > 0) {
             if (freshA > 0) Draw.glow(ctx, x + CELL_W / 2f, y + CELL_H / 2f, CELL_W, CELL_H, 0xFFFFE066, (0.35f + 0.25f * (float) Math.sin(t * 5)) * freshA);
             ctx.fill(x + 2, y + 3, x + CELL_W + 2, y + CELL_H + 3, 0x77000000);
             Draw.cardFace(ctx, c.texture(), c.stack(), x, y, CELL_W, CELL_H, 1f);
             if (hover && c.rarity().tier > 0) Draw.holo(ctx, x, y, CELL_W, CELL_H, c.rarity().tier, c.rarity().color, t, x + CELL_W / 2);
+            if (c.key().startsWith("#")) SpecialCards.badge(ctx, textRenderer, c.stack(), x, y, CELL_W);
             Ui.outline(ctx, x, y, CELL_W, CELL_H, selected ? 0xFFFFFFFF : c.rarity().tier > 0 ? c.rarity().color : 0xFF000000);
             if (count > 1) {
                 String s = "x" + count;
@@ -416,6 +584,12 @@ public class GeneralBinderScreen extends Screen {
             if (fresh && hover && c.key().equals(hoverKey)) { // «seen» bar while you keep hovering
                 float p = Math.min(1f, (System.currentTimeMillis() - hoverSince) / (float) SEEN_HOVER_MS);
                 ctx.fill(x + 1, y + CELL_H - 3, x + 1 + Math.round((CELL_W - 2) * p), y + CELL_H - 1, 0xFFFFE066);
+            }
+            if (picked) { // multi-select mark
+                ctx.fill(x, y, x + CELL_W, y + CELL_H, 0x403A7BD5);
+                Ui.outline(ctx, x - 1, y - 1, CELL_W + 2, CELL_H + 2, Ui.GOLD);
+                ctx.fill(x + CELL_W - 10, y + 1, x + CELL_W - 1, y + 10, 0xE0101018);
+                ctx.drawText(textRenderer, "✔", x + CELL_W - 9, y + 2, Ui.GOLD, false);
             }
         } else {
             Ui.roundGradient(ctx, x, y, CELL_W, CELL_H, 0xFF22263A, 0xFF181B28);
@@ -430,22 +604,25 @@ public class GeneralBinderScreen extends Screen {
 
     private void renderDetail(DrawContext ctx, int mouseX, int mouseY, Catalog.Card hovered, double t) {
         Ui.round(ctx, detX, sideY, detW, sideH, 0xFF12141F);
-        Catalog.Card c = hovered != null ? hovered : selectedCard == null ? null : Catalog.card(selectedCard);
+        Catalog.Card c = hovered != null ? hovered : cardFor(selectedCard);
         int x = detX + 6, w = detW - 12;
+        int bottomH = selection.isEmpty() ? 20 : 48; // multi-select controls above the deposit button
         if (c == null) {
             int y = sideY + 12;
-            for (String k : List.of("tcgshop.binder.tip1", "tcgshop.binder.tip2", "tcgshop.binder.tip3", "tcgshop.binder.tip4")) {
+            for (String k : List.of("tcgshop.binder.tip1", "tcgshop.binder.tip2", "tcgshop.binder.tip3", "tcgshop.binder.tip4", "tcgshop.binder.tip5")) {
                 for (var line : textRenderer.wrapLines(Text.translatable(k), w)) {
+                    if (y > sideY + sideH - 30 - bottomH) break;
                     ctx.drawTextWithShadow(textRenderer, line, x, y, Ui.MUTED);
                     y += 10;
                 }
                 y += 6;
             }
         } else {
+            boolean special = c.key().startsWith("#");
             int count = ClientCollection.count(c.key());
             int cw = Math.min(w, 100), ch = Math.round(cw / Draw.CARD_RATIO);
-            int maxH = sideH - 128; // 8 px for the «Click to view larger» hint
-            if (ch > maxH) { ch = maxH; cw = Math.round(ch * Draw.CARD_RATIO); }
+            int maxH = sideH - 128 - bottomH - (special ? 10 : 0); // 8 px for the «Click to view larger» hint
+            if (ch > maxH) { ch = Math.max(20, maxH); cw = Math.round(ch * Draw.CARD_RATIO); }
             int cx = detX + (detW - cw) / 2, cy = sideY + 8;
             if (count > 0) {
                 if (c.rarity().tier > 0) Draw.glow(ctx, cx + cw / 2f, cy + ch / 2f, cw, ch, c.rarity().color, 0.3f);
@@ -474,9 +651,14 @@ public class GeneralBinderScreen extends Screen {
             y += 10;
             ctx.drawTextWithShadow(textRenderer, c.rarity().displayName(), x, y, c.rarity().color);
             y += 10;
+            if (special) for (Text line : SpecialCards.lines(c.stack())) {
+                ctx.drawTextWithShadow(textRenderer, line, x, y, 0xFFFFFFFF);
+                y += 10;
+            }
             long now = PriceService.priceCd(c.stack());
             long week = PriceService.priceCdOnDay(c.id(), c.rarity(), Math.max(0, PriceService.marketDay() - 7));
-            double ch7 = week == 0 ? 0 : (now - week) * 100.0 / week;
+            long weekNow = PriceService.priceCd(c.id(), c.rarity());
+            double ch7 = week == 0 ? 0 : (weekNow - week) * 100.0 / week; // trend of the card itself (variants follow it)
             ctx.drawTextWithShadow(textRenderer, Text.literal(PriceService.format(now)), x, y, Ui.GOLD);
             String trend = String.format(Locale.ROOT, "%+.1f%%", ch7);
             ctx.drawTextWithShadow(textRenderer, trend, x + w - textRenderer.getWidth(trend), y, ch7 >= 0 ? 0xFF6BE07B : 0xFFFF6B6B);
@@ -484,11 +666,13 @@ public class GeneralBinderScreen extends Screen {
             ctx.drawTextWithShadow(textRenderer, Text.translatable("tcgshop.binder.have", count), x, y, count > 0 ? 0xFF8BE08B : Ui.MUTED);
             y += 13;
             String key = c.key();
-            boolean wished = ClientCollection.wishlist.contains(key);
-            Text wl = Text.translatable(wished ? "tcgshop.binder.wished" : "tcgshop.binder.wish");
-            Ui.button(ctx, x, y, w, 15, wl, mouseX, mouseY, true, wished ? 0xFFB0306A : 0xFF4A3550);
-            areas.add(new Area(x, y, w, 15, () -> ClientCollection.action(BinderActionPayload.WISH_TOGGLE, key, 0)));
-            y += 18;
+            if (!special) { // the wishlist is per card, not per variant / slab
+                boolean wished = ClientCollection.wishlist.contains(key);
+                Text wl = Text.translatable(wished ? "tcgshop.binder.wished" : "tcgshop.binder.wish");
+                Ui.button(ctx, x, y, w, 15, wl, mouseX, mouseY, true, wished ? 0xFFB0306A : 0xFF4A3550);
+                areas.add(new Area(x, y, w, 15, () -> ClientCollection.action(BinderActionPayload.WISH_TOGGLE, key, 0)));
+                y += 18;
+            }
             int bw = (w - 4) / 2;
             Ui.button(ctx, x, y, bw, 15, Text.translatable("tcgshop.binder.take1"), mouseX, mouseY, count > 0, 0xFF2F6FB0);
             if (count > 0) areas.add(new Area(x, y, bw, 15, () -> ClientCollection.action(BinderActionPayload.WITHDRAW, key, 1)));
@@ -496,9 +680,34 @@ public class GeneralBinderScreen extends Screen {
             if (count > 0) areas.add(new Area(x + bw + 4, y, bw, 15, () -> ClientCollection.action(BinderActionPayload.WITHDRAW, key, count)));
         }
         int by = sideY + sideH - 22;
+        renderSelectionControls(ctx, mouseX, mouseY, x, w, by);
         Ui.button(ctx, x, by, w, 18, Text.translatable("tcgshop.binder.deposit"), mouseX, mouseY, true, 0xFF3C8A4A);
         areas.add(new Area(x, by, w, 18, () -> ClientCollection.action(BinderActionPayload.DEPOSIT_ALL, "", 0)));
         if (Ui.in(mouseX, mouseY, x, by, w, 18)) setTooltip(Text.translatable("tcgshop.binder.deposit_tip"));
+    }
+
+    /** Multi-select controls (1.0), stacked above the deposit button at y = by. */
+    private void renderSelectionControls(DrawContext ctx, int mouseX, int mouseY, int x, int w, int by) {
+        int bw = (w - 4) / 2, h = 15;
+        int y = by - h - 4;
+        Ui.button(ctx, x, y, bw, h, Text.translatable("tcgshop.binder.sel_all"), mouseX, mouseY, !visible.isEmpty(), 0xFF444A60);
+        if (!visible.isEmpty()) areas.add(new Area(x, y, bw, h, this::selectAllVisible));
+        if (Ui.in(mouseX, mouseY, x, y, bw, h)) setTooltip(Text.translatable("tcgshop.binder.sel_all_tip"));
+        boolean any = !selection.isEmpty();
+        Ui.button(ctx, x + bw + 4, y, bw, h, Text.translatable("tcgshop.binder.sel_clear"), mouseX, mouseY, any, 0xFF444A60);
+        if (any) areas.add(new Area(x + bw + 4, y, bw, h, selection::clear));
+        if (!any) return;
+        y -= h + 3;
+        Ui.button(ctx, x, y, bw, h, Text.translatable("tcgshop.binder.sel_take1"), mouseX, mouseY, true, 0xFF2F6FB0);
+        areas.add(new Area(x, y, bw, h, () -> takeSelected(false)));
+        if (Ui.in(mouseX, mouseY, x, y, bw, h)) setTooltip(Text.translatable("tcgshop.binder.sel_take1_tip"));
+        Ui.button(ctx, x + bw + 4, y, bw, h, Text.translatable("tcgshop.binder.sel_take_all"), mouseX, mouseY, true, 0xFF2F6FB0);
+        areas.add(new Area(x + bw + 4, y, bw, h, () -> takeSelected(true)));
+        if (Ui.in(mouseX, mouseY, x + bw + 4, y, bw, h)) setTooltip(Text.translatable("tcgshop.binder.sel_take_all_tip"));
+        int copies = 0;
+        for (String k : selection) copies += ClientCollection.count(k);
+        Text info = Text.translatable("tcgshop.binder.sel_info", selection.size(), copies);
+        Draw.scaledCentered(ctx, info, x + w / 2f, y - 10, Math.min(1f, (w - 2f) / Math.max(1, textRenderer.getWidth(info))), Ui.GOLD);
     }
 
     private void renderTitles(DrawContext ctx, int mouseX, int mouseY) {
@@ -526,6 +735,82 @@ public class GeneralBinderScreen extends Screen {
         }
         Ui.button(ctx, x + w - 58, y + h - 20, 50, 15, Text.translatable("gui.done"), mouseX, mouseY, true, 0xFF3C8A4A);
         areas.add(new Area(x + w - 58, y + h - 20, 50, 15, () -> titlesOpen = false));
+    }
+
+    // ------------------------------------------------------------------ multi-select
+
+    /** Click on a cell: Shift = select the range from the last clicked card; otherwise show it in the detail panel. */
+    private void clickCell(String key) {
+        if (hasShiftDown() && anchorKey != null && !anchorKey.equals(key)) {
+            selectRange(anchorKey, key);
+            return;
+        }
+        selectedCard = key;
+        anchorKey = key;
+    }
+
+    private void toggle(String key) {
+        if (ClientCollection.count(key) <= 0) return; // only cards you have can be taken out
+        if (!selection.remove(key)) selection.add(key);
+    }
+
+    private void selectRange(String from, String to) {
+        int a = -1, b = -1;
+        for (int i = 0; i < visible.size(); i++) {
+            String k = visible.get(i).key();
+            if (k.equals(from)) a = i;
+            if (k.equals(to)) b = i;
+        }
+        if (a < 0 || b < 0) { toggle(to); anchorKey = to; return; }
+        for (int i = Math.min(a, b); i <= Math.max(a, b); i++) {
+            String k = visible.get(i).key();
+            if (ClientCollection.count(k) > 0) selection.add(k);
+        }
+        anchorKey = to;
+    }
+
+    private void selectAllVisible() {
+        for (Catalog.Card c : visible) if (ClientCollection.count(c.key()) > 0) selection.add(c.key());
+    }
+
+    /** Sends the selection to the server in batches: 1 copy of each card, or every copy. */
+    private void takeSelected(boolean all) {
+        List<String> parts = new ArrayList<>();
+        for (String k : selection) {
+            int n = ClientCollection.count(k);
+            if (n > 0) parts.add(k + "=" + (all ? n : 1));
+        }
+        StringBuilder sb = new StringBuilder();
+        int entries = 0;
+        for (String part : parts) {
+            if (entries > 0 && (entries >= BATCH_ENTRIES || sb.length() + part.length() + 1 > BATCH_CHARS)) {
+                ClientCollection.action(BinderActionPayload.WITHDRAW_MANY, sb.toString(), 0);
+                sb.setLength(0);
+                entries = 0;
+            }
+            if (entries > 0) sb.append(';');
+            sb.append(part);
+            entries++;
+        }
+        if (entries > 0) ClientCollection.action(BinderActionPayload.WITHDRAW_MANY, sb.toString(), 0);
+        if (all) selection.clear();
+    }
+
+    /** Card cell under the mouse, or null. */
+    private String cellAt(double mx, double my) {
+        if (titlesOpen || !Ui.in(mx, my, gridX, gridY, gridW, gridH)) return null;
+        int baseY = gridY + 5 - (int) scroll;
+        for (Row row : rows) {
+            if (row.cards == null) continue;
+            int y = baseY + row.y;
+            if (my < y || my >= y + CELL_H) continue;
+            int x = gridX + 7;
+            for (Catalog.Card c : row.cards) {
+                if (Ui.in(mx, my, x, y, CELL_W, CELL_H)) return c.key();
+                x += CELL_W + GAP;
+            }
+        }
+        return null;
     }
 
     // ------------------------------------------------------------------ input
@@ -609,14 +894,36 @@ public class GeneralBinderScreen extends Screen {
         super.removed();
     }
 
+    private TextFieldWidget focusedField() {
+        if (search != null && search.isFocused()) return search;
+        if (minField != null && minField.isFocused()) return minField;
+        if (maxField != null && maxField.isFocused()) return maxField;
+        return null;
+    }
+
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (zoom.isOpen()) return zoom.mouseClicked(mouseX, mouseY, button);
-        if (search.mouseClicked(mouseX, mouseY, button)) {
-            setFocused(search);
-            return true;
+        for (TextFieldWidget f : List.of(search, minField, maxField)) {
+            if (f.mouseClicked(mouseX, mouseY, button)) {
+                for (TextFieldWidget o : List.of(search, minField, maxField)) if (o != f) o.setFocused(false);
+                setFocused(f);
+                return true;
+            }
         }
         search.setFocused(false);
+        minField.setFocused(false);
+        maxField.setFocused(false);
+        paintSelect = null;
+        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && hasControlDown()) { // Ctrl+click / Ctrl+drag: multi-select
+            String key = cellAt(mouseX, mouseY);
+            if (key != null && ClientCollection.count(key) > 0) {
+                paintSelect = !selection.contains(key);
+                toggle(key);
+                anchorKey = key;
+                return true;
+            }
+        }
         for (int i = areas.size() - 1; i >= 0; i--) {
             Area a = areas.get(i);
             if (Ui.in(mouseX, mouseY, a.x, a.y, a.w, a.h)) {
@@ -625,6 +932,29 @@ public class GeneralBinderScreen extends Screen {
             }
         }
         return false;
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+        if (zoom.isOpen()) return true;
+        if (paintSelect != null) {
+            String key = cellAt(mouseX, mouseY);
+            if (key != null && ClientCollection.count(key) > 0) {
+                if (paintSelect) selection.add(key);
+                else selection.remove(key);
+            }
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, dx, dy);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (paintSelect != null) {
+            paintSelect = null;
+            return true;
+        }
+        return super.mouseReleased(mouseX, mouseY, button);
     }
 
     @Override
@@ -638,14 +968,18 @@ public class GeneralBinderScreen extends Screen {
     @Override
     public boolean charTyped(char chr, int modifiers) {
         if (zoom.isOpen()) return true;
-        return search.isFocused() && search.charTyped(chr, modifiers);
+        TextFieldWidget f = focusedField();
+        return f != null && f.charTyped(chr, modifiers);
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (zoom.isOpen()) return zoom.keyPressed(keyCode, scanCode);
-        if (search.isFocused() && keyCode != GLFW.GLFW_KEY_ESCAPE) return search.keyPressed(keyCode, scanCode, modifiers) || true;
+        TextFieldWidget f = focusedField();
+        if (f != null && keyCode != GLFW.GLFW_KEY_ESCAPE) return f.keyPressed(keyCode, scanCode, modifiers) || true;
         if (titlesOpen && keyCode == GLFW.GLFW_KEY_ESCAPE) { titlesOpen = false; return true; }
+        if (keyCode == GLFW.GLFW_KEY_A && hasControlDown()) { selectAllVisible(); return true; }
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE && !selection.isEmpty()) { selection.clear(); return true; }
         if (dev.tcgshop.client.TcgShopClient.OPEN_BINDER.matchesKey(keyCode, scanCode)) {
             close();
             return true;

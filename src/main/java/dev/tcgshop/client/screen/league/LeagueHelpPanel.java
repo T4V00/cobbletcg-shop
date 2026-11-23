@@ -140,14 +140,16 @@ public final class LeagueHelpPanel {
             return;
         }
 
-        // dark backdrop over the whole app
+        // dark backdrop over the whole app. 1.0: flush the app first (its batched text showed through the panel) and
+        // draw the panel fully opaque on its own layer
+        ctx.draw();
         MatrixStack m = ctx.getMatrices();
         m.push();
         m.translate(0, 0, 300);
-        ctx.fill(sx, sy + 13, sx + sw, sy + sh - 8, 0xC0060810);
+        ctx.fill(sx, sy + 13, sx + sw, sy + sh - 8, 0xD8060810);
         int x0 = sx + 12, y0 = sy + 18, w = sw - 24, h = sh - 30;
-        Ui.rounded(ctx, x0 + 2, y0 + 3, w, h, 8, 0x80000000);
-        Ui.roundedGradient(ctx, x0, y0, w, h, 8, 0xFA1C2030, 0xFA11131D);
+        Ui.rounded(ctx, x0 + 2, y0 + 3, w, h, 8, 0xFF030408);
+        Ui.roundedGradient(ctx, x0, y0, w, h, 8, 0xFF1C2030, 0xFF11131D);
         Ui.roundedOutline(ctx, x0, y0, w, h, 8, 0xFF3A4060);
         // header
         ctx.fillGradient(x0 + 1, y0 + 1, x0 + w - 1, y0 + 19, 0x60C62828, 0x10C62828);
@@ -227,6 +229,7 @@ public final class LeagueHelpPanel {
             Ui.button(ctx, nx, fy, nw, 14, next, mx, my, true, 0xFF4A5470);
             hits.add(new Hit(nx, fy, nw, 14, () -> { click(); section++; scroll = 0; }));
         }
+        ctx.draw();
         m.pop();
     }
 

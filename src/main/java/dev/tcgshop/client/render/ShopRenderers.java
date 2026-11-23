@@ -457,12 +457,13 @@ public final class ShopRenderers {
             if (mc.crosshairTarget instanceof BlockHitResult bhr && mc.world != null) {
                 BlockState hs = mc.world.getBlockState(bhr.getBlockPos());
                 if (hs.getBlock() instanceof ShopDisplayBlock hb && hb.master(hs, bhr.getBlockPos()).equals(master))
-                    hovered = kind.slotAt(facing, bhr.getPos().subtract(master.getX(), master.getY(), master.getZ()));
+                    hovered = block.slotFor(state, master, bhr, mc.player == null ? null : mc.player.getEyePos(), be); // same ray math as the server
             }
             float time = (be.getWorld() == null ? 0 : be.getWorld().getTime()) + tickDelta;
             SlotAnim anim = SlotAnim.of(be, time);
-            // holding a product and allowed to place it here? -> marked slots and preview
+            // holding a product and allowed to place it here? -> marked slots and preview (off hand counts with the main hand empty)
             ItemStack held = mc.player == null ? ItemStack.EMPTY : mc.player.getMainHandStack();
+            if (held.isEmpty() && mc.player != null && ShopServer.isProduct(mc.player.getOffHandStack())) held = mc.player.getOffHandStack();
             boolean canPlace = !held.isEmpty() && ShopServer.isProduct(held) && mc.player != null && mayPlace(be, mc.player.getUuid(), master);
             m.push();
             rotateToFacing(m, facing);

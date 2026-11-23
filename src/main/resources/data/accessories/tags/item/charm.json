@@ -1,1 +1,1 @@
-{ "replace": false, "values": ["tcgshop:general_binder"] }
+{ "replace": false, "values": ["tcgshop:general_binder", "tcgshop:personal_binder"] }

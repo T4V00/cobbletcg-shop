@@ -30,4 +30,17 @@ public final class PhonePayloads {
         @Override
         public Id<? extends CustomPayload> getId() { return ID; }
     }
+
+    /**
+     * 1.0, server -> client: result of a purchase made from the phone Market, the Wholesaler or the Upgrades app, shown
+     * as a notice inside the open phone / stall. Keys: "k" (bought, no_money, locked, no_bank, upgraded), "src" (catalog
+     * source), "item" (encoded stack, optional), "qty", "amount" (paid or needed), "bal" (balance), "tier".
+     */
+    public record Result(NbtCompound data) implements CustomPayload {
+        public static final Id<Result> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "phone_result"));
+        public static final PacketCodec<RegistryByteBuf, Result> CODEC = PacketCodec.tuple(PacketCodecs.NBT_COMPOUND, Result::data, Result::new);
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
 }

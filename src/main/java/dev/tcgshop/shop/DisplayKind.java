@@ -6,6 +6,9 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.function.IntToDoubleFunction;
 
 /**
  * Blueprint of each display fixture. They are multi-block structures (width W x height H x depth D): the
@@ -220,5 +223,77 @@ public enum DisplayKind {
             if (d2 < bestD) { best = i; bestD = d2; }
         }
         return best;
+    }
+
+    /**
+     * Targeted slot along the player's view ray (1.0): eye and hit point relative to the master block. The products
+     * sit deeper than the outline's front face (shelves, gondolas, box shelves...), so the hit point on the outline
+     * alone picks the wrong row (or none) when looking up or down at them. Here the ray is extended through the
+     * fixture and tested against each product's own card plane (tilt included) or box volume; the nearest one wins.
+     * Falls back to {@link #slotAt(Direction, Vec3d)} when the ray crosses no product (or without an eye position).
+     * scale: per-slot look scale chosen by the owner (null = 1); it only ever enlarges the clickable area.
+     */
+    public int slotAt(Direction facing, @Nullable Vec3d relEye, Vec3d relHit, @Nullable IntToDoubleFunction scale) {
+        if (layout == Layout.SPIN) return 0;
+        if (relEye == null) return slotAt(facing, relHit);
+        Vec3d o = toLocal(facing, relEye), p = toLocal(facing, relHit);
+        Vec3d dir = p.subtract(o);
+        double len = dir.length();
+        if (len < 1e-6) return slotAt(facing, relHit);
+        dir = dir.multiply(1 / len);
+        int best = -1;
+        double bestT = Double.MAX_VALUE, bestC = Double.MAX_VALUE;
+        for (int i = 0; i < slots.length; i++) {
+            Slot s = slots[i];
+            double k = scale == null ? 1 : Math.max(1, Math.min(ShopDisplayBlockEntity.MAX_SCALE, scale.applyAsDouble(i)));
+            double t, c;
+            if (layout == Layout.BOXES) {
+                // box resting on its base, centered on (x, z): width = size, height 0.62, depth 0.8 (as drawn)
+                double bw = s.size * k, bh = bw * 0.62, bd = bw * 0.8, m = 0.04;
+                t = rayBox(o, dir, s.x - bw / 2 - m, s.y - m, s.z - bd / 2 - m, s.x + bw / 2 + m, s.y + bh + m, s.z + bd / 2 + m);
+                if (t < 0) continue;
+                double qx = o.x + dir.x * t, qy = o.y + dir.y * t;
+                c = Math.abs(qx - s.x) / bw + Math.abs(qy - (s.y + bh / 2)) / bh;
+            } else {
+                // card plane through (x, y, z) facing -Z (+Z on the back of a gondola), tilted back by `tilt`
+                double th = Math.toRadians(s.tilt), fz = s.face < 0 ? 1 : -1;
+                double ny = Math.sin(th), nz = fz * Math.cos(th); // normal (towards the viewer)
+                double uy = Math.cos(th), uz = -fz * Math.sin(th); // "up" of the card
+                double den = dir.y * ny + dir.z * nz;
+                if (den > -1e-4) continue; // seen from behind or edge-on
+                t = ((s.y - o.y) * ny + (s.z - o.z) * nz) / den;
+                if (t <= 0) continue;
+                double qx = o.x + dir.x * t - s.x, qy = o.y + dir.y * t - s.y, qz = o.z + dir.z * t - s.z;
+                double halfW = s.size * k * 0.38 + 0.04, halfH = s.size * k * 0.52 + 0.04;
+                double u = Math.abs(qx), v = Math.abs(qy * uy + qz * uz);
+                if (u > halfW || v > halfH) continue;
+                c = u / halfW + v / halfH;
+            }
+            // nearest along the ray; on the same plane (same t), the closest to its center
+            if (t < bestT - 1e-3 || (Math.abs(t - bestT) <= 1e-3 && c < bestC)) {
+                best = i;
+                bestT = Math.min(t, bestT);
+                bestC = c;
+            }
+        }
+        return best >= 0 ? best : slotAt(facing, relHit);
+    }
+
+    /** Distance along the (unit) ray to the box, 0 if it starts inside, or -1 if it misses. */
+    private static double rayBox(Vec3d o, Vec3d d, double x0, double y0, double z0, double x1, double y1, double z1) {
+        double tMin = 0, tMax = Double.MAX_VALUE;
+        double[] os = {o.x, o.y, o.z}, ds = {d.x, d.y, d.z}, lo = {x0, y0, z0}, hi = {x1, y1, z1};
+        for (int a = 0; a < 3; a++) {
+            if (Math.abs(ds[a]) < 1e-9) {
+                if (os[a] < lo[a] || os[a] > hi[a]) return -1;
+                continue;
+            }
+            double t1 = (lo[a] - os[a]) / ds[a], t2 = (hi[a] - os[a]) / ds[a];
+            if (t1 > t2) { double tmp = t1; t1 = t2; t2 = tmp; }
+            tMin = Math.max(tMin, t1);
+            tMax = Math.min(tMax, t2);
+            if (tMin > tMax) return -1;
+        }
+        return tMin;
     }
 }

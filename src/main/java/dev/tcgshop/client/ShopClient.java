@@ -110,6 +110,8 @@ public final class ShopClient {
         EntityRendererRegistry.register(TcgEntities.BEGGAR, dev.tcgshop.client.render.TcgNpcRenderer::new);
         EntityRendererRegistry.register(TcgEntities.BLACK_MARKET, dev.tcgshop.client.render.TcgNpcRenderer::new);
         EntityRendererRegistry.register(TcgEntities.FURNITURE_SELLER, dev.tcgshop.client.render.TcgNpcRenderer::new);
+        // Manager Goggles in the Accessories face slot (the head slot uses the item model's "head" transform)
+        dev.tcgshop.client.render.GogglesFeatureRenderer.register();
 
         // shop borders with the Manager Goggles
         WorldRenderEvents.AFTER_TRANSLUCENT.register(ctx -> {

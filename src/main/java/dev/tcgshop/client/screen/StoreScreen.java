@@ -108,6 +108,16 @@ public class StoreScreen extends Screen {
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        // 1.0: purchase notices (bought / not enough money / locked) on their own opaque layer; under one, the stall ignores the mouse
+        boolean overNotice = dev.tcgshop.client.phone.PhoneNotices.contains(mouseX, mouseY);
+        renderStall(ctx, overNotice ? -9999 : mouseX, overNotice ? -9999 : mouseY, delta);
+        int w = Math.min(width - 20, 460), h = height - 20, x = (width - w) / 2, y = 10, nw = Math.min(w - 24, 260);
+        ctx.enableScissor(x + 6, y + 36, x + w - 6, y + h - 6);
+        dev.tcgshop.client.phone.PhoneNotices.render(ctx, (width - nw) / 2, y + 40, nw, mouseX, mouseY);
+        ctx.disableScissor();
+    }
+
+    private void renderStall(DrawContext ctx, int mouseX, int mouseY, float delta) {
         ctx.fillGradient(0, 0, width, height, 0xB0101018, 0xD0050508);
         int w = Math.min(width - 20, 460), h = height - 20, x = (width - w) / 2, y = 10;
         Ui.leather(ctx, x, y, w, h, 0xFF5B3A1E, 0xFF331F0E);
@@ -151,6 +161,7 @@ public class StoreScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (dev.tcgshop.client.phone.PhoneNotices.click(mouseX, mouseY)) return true; // 1.0: the notice swallows the click
         for (int i = tabs.size() - 1; i >= 0; i--) {
             int[] r = tabs.get(i);
             if (Ui.in(mouseX, mouseY, r[0], r[1], r[2], r[3])) { tabActions.get(i).run(); return true; }
@@ -164,6 +175,7 @@ public class StoreScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double h, double v) {
+        if (dev.tcgshop.client.phone.PhoneNotices.contains(mouseX, mouseY)) return true;
         if (furnitureTab && furniture != null) { furniture.mouseScrolled(mouseX, mouseY, v); return true; }
         if (selling) { sellGrid.scroll(v); return true; }
         panel.scroll(v);

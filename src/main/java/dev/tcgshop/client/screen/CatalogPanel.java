@@ -33,6 +33,12 @@ public class CatalogPanel {
     public String filter = "";
     public String category = "all";
     public int sort; // 0 = catalog, 1 = price ascending, 2 = descending
+    /** 1.0 (phone Market): 0 = all, 1 = only what your phone tier can buy, 2 = only locked products. */
+    public int lockFilter;
+
+    private boolean passesLock(int i) {
+        return lockFilter == 0 || (lockFilter == 1) != locked(i);
+    }
 
     public static final String[] CATEGORIES = {"all", "boxes", "packs", "shop", "furniture", "plush", "tools", "special"};
 
@@ -106,6 +112,7 @@ public class CatalogPanel {
         for (int i = 0; i < goods.size(); i++) {
             ItemStack st = goods.get(i);
             if (!category.equals("all") && !categoryOf(st).equals(category)) continue;
+            if (!passesLock(i)) continue;
             if (q.isEmpty() || st.getName().getString().toLowerCase(Locale.ROOT).contains(q)) out.add(i);
         }
         if (sort == 1) out.sort(java.util.Comparator.comparingLong(prices::get));
@@ -115,9 +122,9 @@ public class CatalogPanel {
 
     /** Products in a category (for the counters on the phone's rail). */
     public int count(String cat) {
-        if (cat.equals("all")) return goods.size();
+        if (cat.equals("all") && lockFilter == 0) return goods.size();
         int n = 0;
-        for (ItemStack st : goods) if (categoryOf(st).equals(cat)) n++;
+        for (int i = 0; i < goods.size(); i++) if (passesLock(i) && (cat.equals("all") || categoryOf(goods.get(i)).equals(cat))) n++;
         return n;
     }
 

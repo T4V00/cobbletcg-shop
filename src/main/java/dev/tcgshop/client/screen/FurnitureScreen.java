@@ -1,10 +1,16 @@
 package dev.tcgshop.client.screen;
 
 import dev.tcgshop.client.binder.Ui;
+import dev.tcgshop.network.FurniturePayloads;
+import dev.tcgshop.pricing.PriceService;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.tooltip.HoveredTooltipPositioner;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+
+import java.util.List;
 
 /**
  * Furniture Seller's stall: CobbleFurnies furniture and plushies, buying and selling to him (FurnitureApp panel), and the
@@ -15,6 +21,10 @@ public class FurnitureScreen extends Screen {
     private final int source;
     /** "★ Exclusives" header button (jumps to the luxury statues); x, y, w, h from the last frame. */
     private int exX, exY, exW, exH;
+    /** 1.0: "Sell Mega Stones" header button (mgW = 0: hidden), what it showed, and when it was armed (2nd click confirms). */
+    private int mgX, mgY, mgW, mgH, megaCount;
+    private long megaUnit;
+    private double megaArmedAt = -10;
 
     public FurnitureScreen(int source) {
         super(Text.translatable("entity.tcgshop.furniture_seller"));
@@ -50,13 +60,46 @@ public class FurnitureScreen extends Screen {
             exY = y + 8;
             Ui.chip(ctx, exX, exY, exW, exH, ex, false, Ui.in(mouseX, mouseY, exX, exY, exW, exH), 0xFFD15CFF, 0);
         }
+        megaStoneButton(ctx, x, y, w, mouseX, mouseY);
         app.render(ctx, x + 6, y + 36, w - 12, h - 42, mouseX, mouseY, delta);
     }
+
+    /** 1.0: "Sell N Mega Stone(s) · total" in the header (left of Exclusives), only while you carry any; 2 clicks to confirm. */
+    private void megaStoneButton(DrawContext ctx, int x, int y, int w, int mouseX, int mouseY) {
+        mgW = 0;
+        if (client == null || client.player == null) return;
+        megaCount = dev.tcgshop.shop.TraderGoods.countMegaStones(client.player);
+        megaUnit = dev.tcgshop.shop.TraderGoods.megaStonePrice();
+        if (megaCount <= 0 || megaUnit <= 0) return;
+        boolean armed = now() - megaArmedAt < 3;
+        Text label = armed ? Text.translatable("tcgshop.sell.confirm")
+                : Text.translatable("tcgshop.sell.mega_btn", megaCount, PriceService.format(megaUnit * megaCount));
+        int right = exW > 0 ? exX - 6 : x + w - 8;
+        int titleEnd = x + 36 + Math.max(textRenderer.getWidth(title.copy().formatted(Formatting.BOLD)),
+                textRenderer.getWidth(Text.translatable("tcgshop.furn.subtitle")));
+        mgW = Math.min(textRenderer.getWidth(label) + 12, right - titleEnd);
+        if (mgW < 40) { mgW = 0; return; }
+        mgH = 16;
+        mgX = right - mgW;
+        mgY = y + 8;
+        Ui.button(ctx, mgX, mgY, mgW, mgH, Text.literal(Ui.ellipsis(label.getString(), mgW - 8)), mouseX, mouseY, true, armed ? 0xFFB02020 : 0xFF7B4FD0);
+        if (Ui.in(mouseX, mouseY, mgX, mgY, mgW, mgH))
+            setTooltip(List.of(Text.translatable("tcgshop.sell.mega_hint", PriceService.format(megaUnit)).asOrderedText()),
+                    HoveredTooltipPositioner.INSTANCE, true);
+    }
+
+    private static double now() { return System.nanoTime() / 1e9; }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0 && exW > 0 && Ui.in(mouseX, mouseY, exX, exY, exW, exH)) {
             app.showCategory("luxury");
+            return true;
+        }
+        if (button == 0 && mgW > 0 && Ui.in(mouseX, mouseY, mgX, mgY, mgW, mgH)) {
+            if (now() - megaArmedAt >= 3) { megaArmedAt = now(); return true; } // first click arms it
+            megaArmedAt = -10;
+            ClientPlayNetworking.send(new FurniturePayloads.Trade(source, dev.tcgshop.shop.TraderGoods.MEGA_TRADE_ID, megaCount, true, megaUnit));
             return true;
         }
         return app.mouseClicked(mouseX, mouseY, button) || super.mouseClicked(mouseX, mouseY, button);

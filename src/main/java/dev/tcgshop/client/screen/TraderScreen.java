@@ -21,9 +21,9 @@ import java.util.List;
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
 /**
- * Wandering Collector's stall: his cards on the left, yours on the right. Pick one from each side and,
- * if yours is worth at least 85% of his, he accepts the trade. At the top, the card of yours he loves and what
- * he pays you for it (more than market).
+ * Wandering Collector's stall: his cards on the left, yours on the right. Pick one of his and one or several of yours
+ * (1.0: up to TraderEntity.MAX_OFFER) and, if yours add up to at least 85% of his, he accepts the trade. At the top, the
+ * card of yours he loves and what he pays you for it (more than market).
  */
 public class TraderScreen extends Screen {
     private record Area(int x, int y, int w, int h, Runnable action) {}
@@ -34,11 +34,13 @@ public class TraderScreen extends Screen {
     private int pick = -1;
     private final double openedAt = System.nanoTime() / 1e9;
     private double swapAt = -10;
+    /** When the Mega Stone sale button was armed (second click within 3 s confirms). */
+    private double megaArmedAt = -10;
 
     public TraderScreen(MarketPayloads.TraderOpen data) {
         super(Text.translatable("entity.tcgshop.trader"));
         this.data = data;
-        mine.multi = false;
+        mine.multi = true; // 1.0: several of your cards for one of his
         mine.includeBinder = true; // you can trade or sell cards from your Binder
         mine.price = CardSales::unitValue;
         mine.highlight = data.wishSlot();
@@ -76,6 +78,7 @@ public class TraderScreen extends Screen {
         int lw = w * 46 / 100, lx = x + 8, ly = y + 34, lh = h - 84;
         Ui.round(ctx, lx, ly, lw, lh, 0xAA0B1512);
         ctx.drawText(textRenderer, Text.translatable("tcgshop.trader.his").formatted(Formatting.BOLD), lx + 6, ly + 5, 0xFFFFFFFF, false);
+        megaStoneButton(ctx, lx, ly, lw, mouseX, mouseY, t); // 1.0: he also buys Mega Stones
         int n = data.stock().size(), cols = 3, rowsN = Math.max(1, (n + cols - 1) / cols);
         int ch = Math.min((lh - 24) / rowsN - 14, Math.round(((lw - 16) / cols - 8) / Draw.CARD_RATIO)), cw = Math.round(ch * Draw.CARD_RATIO);
         int gx0 = lx + (lw - (cols * (cw + 8) - 8)) / 2;
@@ -112,34 +115,49 @@ public class TraderScreen extends Screen {
             if (!hm.isEmpty()) hovered = hm;
         }
 
-        // ---- bottom bar: comparison and buttons
+        // ---- bottom bar: comparison and buttons (1.0: one or several of your cards against one of his)
         int by = y + h - 46;
         ItemStack his = pick >= 0 && pick < n ? data.stock().get(pick) : ItemStack.EMPTY;
-        int mySlot = mine.sel.isEmpty() ? -1 : mine.sel.iterator().next();
-        ItemStack my = mySlot >= 0 && client != null && client.player != null ? CardPickGrid.stackAt(client.player, mySlot) : ItemStack.EMPTY;
-        long hv = his.isEmpty() ? 0 : data.prices().get(pick), mv = my.isEmpty() ? 0 : CardSales.unitValue(my);
+        List<Integer> mySlots = new ArrayList<>();
+        ItemStack my = ItemStack.EMPTY;
+        long mv = 0;
+        if (client != null && client.player != null) for (int s : mine.sel) {
+            ItemStack st = CardPickGrid.stackAt(client.player, s);
+            if (!CardInfo.isCard(st)) continue;
+            if (my.isEmpty()) my = st;
+            mySlots.add(s);
+            mv += CardSales.unitValue(st); // one card per slot
+        }
+        long hv = his.isEmpty() ? 0 : data.prices().get(pick);
         Ui.round(ctx, x + 8, by, w - 16, 38, 0xAA0B1512);
         String a = his.isEmpty() ? Text.translatable("tcgshop.trader.pick_his").getString() : Ui.ellipsis(his.getName().getString(), w / 3 - 20);
-        String b = my.isEmpty() ? Text.translatable("tcgshop.trader.pick_yours").getString() : Ui.ellipsis(my.getName().getString(), w / 3 - 20);
+        String b = mySlots.isEmpty() ? Text.translatable("tcgshop.trader.pick_yours").getString()
+                : mySlots.size() == 1 ? Ui.ellipsis(my.getName().getString(), w / 3 - 20)
+                : Ui.ellipsis(Text.translatable("tcgshop.trader.n_cards", mySlots.size()).getString(), w / 3 - 20);
         ctx.drawText(textRenderer, a, x + 14, by + 5, his.isEmpty() ? Ui.MUTED : 0xFFFFFFFF, false);
         if (!his.isEmpty()) ctx.drawText(textRenderer, PriceService.format(hv), x + 14, by + 16, Ui.GOLD, false);
         ctx.drawText(textRenderer, "⇄", x + w / 3 + 4, by + 10, 0xFFFFFFFF, true);
-        ctx.drawText(textRenderer, b, x + w / 3 + 18, by + 5, my.isEmpty() ? Ui.MUTED : 0xFFFFFFFF, false);
-        if (!my.isEmpty()) ctx.drawText(textRenderer, PriceService.format(mv), x + w / 3 + 18, by + 16, Ui.GOLD, false);
-        boolean both = !his.isEmpty() && !my.isEmpty();
-        boolean ok = both && mv >= hv * 0.85 && data.tradesLeft() > 0;
-        if (both) { // meter: your card versus his
+        ctx.drawText(textRenderer, b, x + w / 3 + 18, by + 5, mySlots.isEmpty() ? Ui.MUTED : 0xFFFFFFFF, false);
+        boolean tooMany = mySlots.size() > dev.tcgshop.entity.TraderEntity.MAX_OFFER;
+        if (tooMany) ctx.drawText(textRenderer, Ui.ellipsis(Text.translatable("tcgshop.trader.too_many", dev.tcgshop.entity.TraderEntity.MAX_OFFER).getString(),
+                w / 3 - 20), x + w / 3 + 18, by + 16, 0xFFFF8A8A, false);
+        else if (!mySlots.isEmpty()) ctx.drawText(textRenderer, PriceService.format(mv), x + w / 3 + 18, by + 16, Ui.GOLD, false);
+        boolean both = !his.isEmpty() && !mySlots.isEmpty();
+        boolean ok = both && !tooMany && mv >= hv * dev.tcgshop.entity.TraderEntity.MIN_RATIO && data.tradesLeft() > 0;
+        if (both) { // meter: your cards (sum) versus his
             float ratio = hv <= 0 ? 2 : mv / (float) hv;
             int mw = w / 3 - 12, mxp = x + 14;
             Ui.progress(ctx, mxp, by + 28, mw * 2 + 10, 4, Math.min(1f, ratio / 1.5f), ok ? (ratio > 1.3f ? 0xFFFFB347 : 0xFF5BD68A) : 0xFFE05050);
-            String verdict = Text.translatable(!ok ? "tcgshop.trader.v_low" : ratio > 1.3f ? "tcgshop.trader.v_generous" : "tcgshop.trader.v_fair").getString();
+            boolean enough = mv >= hv * dev.tcgshop.entity.TraderEntity.MIN_RATIO;
+            String verdict = Text.translatable(!enough ? "tcgshop.trader.v_low" : ratio > 1.3f ? "tcgshop.trader.v_generous" : "tcgshop.trader.v_fair").getString();
             ctx.drawText(textRenderer, verdict, mxp + mw * 2 + 16, by + 26, ok ? (ratio > 1.3f ? 0xFFFFB347 : 0xFF8BE08B) : 0xFFFF8A8A, false);
         }
         int bw = 96, bx = x + w - bw - 14;
         Ui.button(ctx, bx, by + 9, bw, 20, Text.translatable("tcgshop.trader.trade"), mouseX, mouseY, ok, 0xFF2E9C5A);
         if (ok) {
-            int fp = pick, fs = mySlot;
-            areas.add(new Area(bx, by + 9, bw, 20, () -> ClientPlayNetworking.send(new MarketPayloads.TraderAction(data.entity(), MarketPayloads.TRADE, fp, fs))));
+            int fp = pick;
+            List<Integer> fs = List.copyOf(mySlots);
+            areas.add(new Area(bx, by + 9, bw, 20, () -> ClientPlayNetworking.send(new dev.tcgshop.network.CollectorOfferPayload(data.entity(), fp, fs))));
         }
 
         // ---- the card he wants
@@ -161,6 +179,33 @@ public class TraderScreen extends Screen {
         if (sw < 0.5) ctx.fill(x, y, x + w, y + h, withAlpha(0xFFFFFFFF, 0.25f * (float) (1 - sw / 0.5)));
         if (!hovered.isEmpty()) ctx.drawTooltip(textRenderer, List.of(hovered.getName(), Rarity.of(hovered).displayName(),
                 Text.literal(PriceService.format(CardSales.unitValue(hovered))).formatted(Formatting.GOLD)), mouseX, mouseY);
+    }
+
+    /**
+     * 1.0: "Sell N Mega Stone(s) · total" in the header of his panel (right side), only while you carry any. They are worth
+     * a lot, so it needs a second click within 3 s. Selling them does not use up one of his deals.
+     */
+    private void megaStoneButton(DrawContext ctx, int px, int py, int pw, int mouseX, int mouseY, double t) {
+        if (client == null || client.player == null) return;
+        int count = dev.tcgshop.shop.TraderGoods.countMegaStones(client.player);
+        long unit = dev.tcgshop.shop.TraderGoods.megaStonePrice();
+        if (count <= 0 || unit <= 0) return;
+        boolean armed = t - megaArmedAt < 3;
+        Text label = armed ? Text.translatable("tcgshop.sell.confirm")
+                : Text.translatable("tcgshop.sell.mega_btn", count, PriceService.format(unit * count));
+        int hisW = textRenderer.getWidth(Text.translatable("tcgshop.trader.his").formatted(Formatting.BOLD));
+        int bw = Math.min(pw - hisW - 18, textRenderer.getWidth(label) + 12), bx = px + pw - bw - 4, by = py + 3;
+        if (bw < 40) return;
+        Ui.button(ctx, bx, by, bw, 12, Text.literal(Ui.ellipsis(label.getString(), bw - 8)), mouseX, mouseY, true, armed ? 0xFFB02020 : 0xFF7B4FD0);
+        if (Ui.in(mouseX, mouseY, bx, by, bw, 12))
+            setTooltip(List.of(Text.translatable("tcgshop.sell.mega_hint", PriceService.format(unit)).asOrderedText()),
+                    net.minecraft.client.gui.tooltip.HoveredTooltipPositioner.INSTANCE, true);
+        areas.add(new Area(bx, by, bw, 12, () -> {
+            double now = System.nanoTime() / 1e9;
+            if (now - megaArmedAt >= 3) { megaArmedAt = now; click(); return; }
+            megaArmedAt = -10;
+            ClientPlayNetworking.send(new MarketPayloads.TraderAction(data.entity(), dev.tcgshop.entity.TraderEntity.SELL_MEGA_STONES, -1, -1));
+        }));
     }
 
     private void click() {

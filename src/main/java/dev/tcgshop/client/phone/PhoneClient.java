@@ -21,7 +21,38 @@ public final class PhoneClient {
     /** Call ONCE from TcgShopClient.onInitializeClient. */
     public static void register() {
         ClientPlayNetworking.registerGlobalReceiver(PhonePayloads.Sync.ID, (p, ctx) -> ctx.client().execute(() -> apply(p.data())));
+        ClientPlayNetworking.registerGlobalReceiver(PhonePayloads.Result.ID, (p, ctx) -> ctx.client().execute(() -> onResult(p.data())));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(PhoneClient::reset));
+    }
+
+    /** 1.0: purchase result (phone Market, Wholesaler, Upgrades) -> notice inside the open phone / stall. */
+    private static void onResult(NbtCompound d) {
+        var mc = net.minecraft.client.MinecraftClient.getInstance();
+        net.minecraft.item.ItemStack icon = net.minecraft.item.ItemStack.EMPTY;
+        if (d.contains("item") && mc.world != null)
+            icon = net.minecraft.item.ItemStack.fromNbt(mc.world.getRegistryManager(), d.get("item")).orElse(net.minecraft.item.ItemStack.EMPTY);
+        int qty = Math.max(1, d.getInt("qty")), lv = d.getInt("tier");
+        long amount = d.getLong("amount"), bal = d.getLong("bal");
+        Text name = icon.isEmpty() ? Text.translatable("tcgshop.phone.notice.item") : icon.getName();
+        String fa = dev.tcgshop.pricing.PriceService.format(amount), fb = dev.tcgshop.pricing.PriceService.format(bal);
+        switch (d.getString("k")) {
+            case "bought" -> PhoneNotices.push(PhoneNotices.Kind.SUCCESS, Text.translatable("tcgshop.phone.notice.bought.title"),
+                    Text.translatable("tcgshop.phone.notice.bought", qty, name, fa, fb), icon);
+            case "no_money" -> {
+                String missing = dev.tcgshop.pricing.PriceService.format(Math.max(0, amount - bal));
+                Text body = icon.isEmpty() && lv > 0
+                        ? Text.translatable("tcgshop.phone.notice.no_money_upgrade", tierName(lv), fa, fb, missing)
+                        : Text.translatable("tcgshop.phone.notice.no_money", qty, name, fa, fb, missing);
+                PhoneNotices.push(PhoneNotices.Kind.ERROR, Text.translatable("tcgshop.phone.notice.no_money.title"), body, icon);
+            }
+            case "locked" -> PhoneNotices.push(PhoneNotices.Kind.ERROR, Text.translatable("tcgshop.phone.notice.locked.title"),
+                    Text.translatable("tcgshop.phone.notice.locked", name, tierName(lv)), icon);
+            case "no_bank" -> PhoneNotices.push(PhoneNotices.Kind.ERROR, Text.translatable("tcgshop.phone.notice.no_bank.title"),
+                    Text.translatable("tcgshop.phone.notice.no_bank"), icon);
+            case "upgraded" -> PhoneNotices.push(PhoneNotices.Kind.SUCCESS, Text.translatable("tcgshop.phone.notice.upgraded.title"),
+                    Text.translatable("tcgshop.phone.notice.upgraded", tierName(lv), fa), new net.minecraft.item.ItemStack(dev.tcgshop.item.TcgItems.TCG_PHONE));
+            default -> {}
+        }
     }
 
     private static void reset() {
@@ -33,6 +64,7 @@ public final class PhoneClient {
         costs = PhoneTier.DEFAULT_COSTS.clone();
         locksSource = Integer.MIN_VALUE;
         locks = new int[0];
+        PhoneNotices.clear();
     }
 
     private static void apply(NbtCompound d) {

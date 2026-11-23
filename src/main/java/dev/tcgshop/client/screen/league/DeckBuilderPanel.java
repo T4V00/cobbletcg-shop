@@ -550,6 +550,7 @@ public final class DeckBuilderPanel {
             int pwid = Math.min(96, sh / 2), phgt = Math.round(pwid / Draw.CARD_RATIO);
             int prx = mx < px + pw / 2 ? Math.min(sx + sw - pwid - 6, mx + 14) : Math.max(sx + 6, mx - 14 - pwid);
             int pry = MathHelper.clamp(my - phgt / 2 - 6, sy + 16, sy + sh - phgt - 22);
+            ctx.draw(); // 1.0: flush the lists first so their batched text can't end up on top of the preview
             MatrixStack m = ctx.getMatrices();
             m.push();
             m.translate(0, 0, 400);
@@ -562,7 +563,7 @@ public final class DeckBuilderPanel {
                     : Text.translatable("tcgshop.league.db.copies", s.card(f), owned(f)).getString();
             int cw = Math.max(pwid, Math.max(tr().getWidth(name(f)), Math.max(tr().getWidth(line2), tr().getWidth(line3))) + 8);
             int cx = Math.min(prx, sx + sw - cw - 6), cy = pry + phgt + 3;
-            Ui.rounded(ctx, cx, cy, cw, 31, 4, 0xF0101420);
+            Ui.rounded(ctx, cx, cy, cw, 31, 4, 0xFF101420);
             Ui.roundedOutline(ctx, cx, cy, cw, 31, 4, 0xFF3A4060);
             ctx.drawText(tr(), name(f), cx + 4, cy + 3, 0xFFFFFFFF, false);
             ctx.drawText(tr(), line2, cx + 4, cy + 12, 0xFFAEB6CC, false);

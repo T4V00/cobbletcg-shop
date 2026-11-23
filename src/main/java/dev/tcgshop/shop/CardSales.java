@@ -24,7 +24,8 @@ import java.util.List;
 
 /**
  * Quick card selling: from the phone at 50% of their value (to get rid of them instantly) or to the Mysterious
- * Wholesaler at 40%. The Wholesaler also buys emeralds for CobbleDollars. Plus the starter kit (5 random packs).
+ * Wholesaler at 40%. The Wholesaler also buys emeralds and almost any vanilla item ({@link VanillaPrices}), plus Cobblemon
+ * Poké Balls and Mega Stones ({@link TraderGoods}) for CobbleDollars. Plus the starter kit (5 random packs).
  */
 public final class CardSales {
     public static double PHONE_RATE = 0.5, WHOLESALER_RATE = 0.4; // EconomyConfig
@@ -33,8 +34,12 @@ public final class CardSales {
 
     private CardSales() {}
 
-    /** Market value of one unit. */
+    /** Market value of one unit. Items the Wholesaler buys by table (vanilla, Poké Balls, Mega Stones): what he pays. */
     public static long unitValue(ItemStack st) {
+        if (!st.isEmpty() && !CardInfo.isCard(st) && !ShopServer.isProduct(st)) {
+            double v = VanillaPrices.price(st);
+            if (v > 0) return Math.max(1, (long) Math.floor(v));
+        }
         return ShopServer.priceOf(st.copyWithCount(1), 1.0);
     }
 

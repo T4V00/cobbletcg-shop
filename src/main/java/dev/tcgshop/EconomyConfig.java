@@ -40,6 +40,13 @@ public class EconomyConfig {
     public double wholesalerBuyFactor = 0.6, phoneBuyFactor = 0.8;
     /** Quick-sell of cards: % of the value paid by the phone and the Wholesaler. */
     public double phoneSellRate = 0.5, wholesalerSellRate = 0.4;
+    // ---- 1.0 (traders): Cobblemon items the traders buy (see shop.TraderGoods); 0 = not bought
+    /** Wholesaler: CobbleDollars per Cobblemon Poké Ball (any kind). Any trader: per Mega Stone. */
+    public long pokeBallSellPrice = 200, megaStoneSellPrice = 50_000;
+    /** 1.0 migration marker for the traders' fixed prices (cash register = 2,000). Absent in old files = 0. */
+    public int traderPricesVersion = 0;
+    /** 1.0 migration marker for the Manager Goggles price (2,000). Absent in old files = 0. */
+    public int gogglesPriceVersion = 0;
     // ---- 0.3: furniture (CobbleFurnies / plushies) and reputation
     public double furniturePriceMultiplier = 1.0, furnitureSellerFactor = 0.9, furnitureWholesalerFactor = 1.0, furniturePhoneFactor = 1.15;
     public double furnitureSellerBuyback = 0.5, furnitureOtherBuyback = 0.35;
@@ -122,6 +129,7 @@ public class EconomyConfig {
         _help.put("itemPrices", "Fixed price of each furniture piece/tool/shop core (shop_core_*) in CobbleDollars.");
         _help.put("wholesalerBuyFactor/phoneBuyFactor", "What packs, boxes and cards cost when bought from the Wholesaler / on the phone, relative to market price (0.6 = 60%).");
         _help.put("phoneSellRate/wholesalerSellRate", "What they pay for your cards in quick-sell (0.5 = 50% of the value).");
+        _help.put("pokeBallSellPrice/megaStoneSellPrice", "What the Wholesaler pays per Cobblemon Poke Ball, and what any trader (Wholesaler, Wandering Collector, Furniture Vendor) pays per Mega Stone. 0 = not bought. Vanilla items are priced in tcgshop-vanilla-prices.json.");
         _help.put("customerDemand", "Multiplier for customers arriving at your shop.");
         _help.put("houseDuelRewards/houseDuelPenalties", "Reward and penalty of duels against the house per level: easy, normal, hard, expert.");
         _help.put("lockTopPackSets", "The N sets with the most expensive sealed pack (e.g. Base Set) cannot be obtained: not from shops, chests, the starter kit, the Mystery Box or NPCs. 0 = off. Ones you already own are not touched.");
@@ -154,6 +162,15 @@ public class EconomyConfig {
         }
         if (c == null) c = new EconomyConfig();
         c.sanitize();
+        // 1.0 price migrations: only replace the OLD default, so a price an admin customized is kept (same rule as PhoneConfig)
+        if (c.traderPricesVersion < 1) { // the cash register costs 2,000 (phone store and Wholesaler); old default 12,000
+            if (c.itemPrices.getOrDefault("tcgshop:cash_register", 12_000L) == 12_000L) c.itemPrices.put("tcgshop:cash_register", 2_000L);
+            c.traderPricesVersion = 1;
+        }
+        if (c.gogglesPriceVersion < 1) { // the Manager Goggles cost 2,000 wherever they are sold; old default 15,000
+            if (c.itemPrices.getOrDefault("tcgshop:manager_goggles", 15_000L) == 15_000L) c.itemPrices.put("tcgshop:manager_goggles", 2_000L);
+            c.gogglesPriceVersion = 1;
+        }
         INSTANCE = c;
         c.fillHelp();
         save();
@@ -174,6 +191,8 @@ public class EconomyConfig {
         phoneBuyFactor = clamp(phoneBuyFactor, 0.01, 100);
         phoneSellRate = clamp(phoneSellRate, 0, 10);
         wholesalerSellRate = clamp(wholesalerSellRate, 0, 10);
+        pokeBallSellPrice = Math.max(0, pokeBallSellPrice);
+        megaStoneSellPrice = Math.max(0, megaStoneSellPrice);
         customerDemand = clamp(customerDemand, 0, 20);
         chestPackChance = clamp(chestPackChance, 0, 1);
         lootCoinChancePerPack = clamp(lootCoinChancePerPack, 0, 1);

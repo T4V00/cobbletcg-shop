@@ -36,6 +36,10 @@ import static dev.tcgshop.client.screen.Draw.withAlpha;
  *  · Click an occupied pocket = return the card to the General Binder. Drag between pockets = move.
  *  · Shift+click or right-click a card (pocket or drawer) = view it large.
  *  · Customize the cover (color + pattern) and background with what you unlock through advancements.
+ *  · 1.0: Ctrl+click pockets (or Ctrl+drag over them) to select several cards; «Select pages» picks every card on the
+ *    open spread and «Take out selected» returns them all at once (to the General Binder, or the inventory without one).
+ *    «File inventory cards» puts the cards you carry into free pockets. Fixed-size binders (25-card starter) lock the
+ *    pockets past their capacity.
  */
 public class PersonalBinderScreen extends Screen {
     private record Area(int x, int y, int w, int h, Runnable action) {}
@@ -55,6 +59,10 @@ public class PersonalBinderScreen extends Screen {
     private long lastDrawerClickTime;
     /** Zoomed view of a card (overlay: the binder keeps page, tab and scroll). */
     private final CardZoom zoom = new CardZoom();
+    /** Multi-select: selected pocket indexes. */
+    private final Set<Integer> selected = new HashSet<>();
+    /** Ctrl+drag over pockets: true = adding to the selection, false = removing, null = not painting. */
+    private Boolean paintSelect;
 
     // dragging
     private String dragCard;
@@ -72,8 +80,8 @@ public class PersonalBinderScreen extends Screen {
 
     private PersonalBinderData data() {
         if (client == null || client.player == null) return PersonalBinderData.DEFAULT;
-        ItemStack st = client.player.getStackInHand(hand);
-        return st.getOrDefault(TcgItems.PERSONAL_BINDER_DATA, PersonalBinderData.DEFAULT);
+        ItemStack st = dev.tcgshop.binder.PersonalBinders.ownedOrUnbound(client.player, hand);
+        return st.isEmpty() ? PersonalBinderData.DEFAULT : st.getOrDefault(TcgItems.PERSONAL_BINDER_DATA, PersonalBinderData.DEFAULT);
     }
 
     @Override
@@ -123,6 +131,7 @@ public class PersonalBinderScreen extends Screen {
         PersonalBinderData d = data();
         int spreads = Math.max(1, (d.pages() + 1) / 2);
         spread = MathHelper.clamp(spread, 0, spreads - 1);
+        selected.removeIf(i -> !isCardPocket(d, i));
 
         renderBackground(ctx, mouseX, mouseY, delta);
         renderBook(ctx, d, mouseX, mouseY, t, spreads);
@@ -136,7 +145,8 @@ public class PersonalBinderScreen extends Screen {
         Ui.text(ctx, Text.translatable("item.tcgshop.personal_binder").formatted(Formatting.BOLD), bookX + bookW / 2 - 70, 6, 140, 18, Ui.GOLD, true);
 
         // help bar
-        Text help = Text.translatable(dragCard != null && dragging ? "tcgshop.personal.help_drag" : "tcgshop.personal.help");
+        Text help = Text.translatable(dragCard != null && dragging ? "tcgshop.personal.help_drag"
+                : !selected.isEmpty() ? "tcgshop.personal.help_select" : "tcgshop.personal.help");
         int hw = Math.min(width - 20, textRenderer.getWidth(help) + 16);
         Ui.roundGradient(ctx, (width - hw) / 2, height - 20, hw, 15, 0xCC12141F, 0xCC0A0B12);
         Ui.text(ctx, help, (width - hw) / 2, height - 20, hw, 15, 0xFFDDDDDD, false);
@@ -150,7 +160,8 @@ public class PersonalBinderScreen extends Screen {
                 ctx.getMatrices().push();
                 ctx.getMatrices().translate(0, 0, 400);
                 Draw.glow(ctx, mouseX, mouseY, cw, ch, Ui.GOLD, 0.4f);
-                Draw.cardFace(ctx, c.texture(), c.stack(), mouseX - cw / 2f, mouseY - ch / 2f, cw, ch, 0.95f);
+                ItemStack sp = dragFromSlot >= 0 ? data().special(dragFromSlot) : null;
+                Draw.cardFace(ctx, c.texture(), sp != null ? sp : c.stack(), mouseX - cw / 2f, mouseY - ch / 2f, cw, ch, 0.95f);
                 ctx.getMatrices().pop();
             }
         }
@@ -201,12 +212,14 @@ public class PersonalBinderScreen extends Screen {
         if (spread < spreads - 1) {
             Ui.button(ctx, bookX + bookW + 6, ay, 18, 24, Text.literal("▶"), mouseX, mouseY, true, 0xFF444A60);
             areas.add(new Area(bookX + bookW + 6, ay, 18, 24, () -> turn(1)));
-        } else if (d.pages() < PersonalBinderData.MAX_PAGES) {
+        } else if (!d.fixedSize() && d.pages() < PersonalBinderData.MAX_PAGES) {
             Ui.button(ctx, bookX + bookW + 6, ay, 18, 24, Text.literal("+"), mouseX, mouseY, true, 0xFF3C8A4A);
             areas.add(new Area(bookX + bookW + 6, ay, 18, 24, () -> ClientCollection.action(BinderActionPayload.PERSONAL_ADD_PAGE, "", 0)));
             if (Ui.in(mouseX, mouseY, bookX + bookW + 6, ay, 18, 24)) setTooltip(Text.translatable("tcgshop.personal.add_pages"));
         }
-        Text pages = Text.translatable("tcgshop.personal.pages", spread * 2 + 1, spread * 2 + 2, d.pages(), d.filled());
+        Text pages = d.fixedSize()
+                ? Text.translatable("tcgshop.personal.pages_capacity", spread * 2 + 1, spread * 2 + 2, d.pages(), d.cards(), d.limit())
+                : Text.translatable("tcgshop.personal.pages", spread * 2 + 1, spread * 2 + 2, d.pages(), d.filled());
         int pw = textRenderer.getWidth(pages) + 12;
         Ui.roundGradient(ctx, bookX + bookW / 2 - pw / 2, bookY + bookH + 4, pw, 13, 0xCC12141F, 0xCC0A0B12);
         Ui.text(ctx, pages, bookX + bookW / 2 - pw / 2, bookY + bookH + 4, pw, 13, 0xFFFFFFFF, false);
@@ -224,6 +237,15 @@ public class PersonalBinderScreen extends Screen {
             int px = pocketX(side, i), py = pocketY(i);
             boolean hover = Ui.in(mouseX, mouseY, px, py, pw, ph) && !customizing;
             String id = slot < d.slots().size() ? d.slots().get(slot) : "";
+            if (d.isLocked(slot)) { // fixed-size binder (starter): no pocket here
+                ctx.fill(px, py, px + pw, py + ph, 0x40303038);
+                Ui.outline(ctx, px, py, pw, ph, 0x40505060);
+                Ui.outline(ctx, px + pw / 2 - 3, py + ph / 2 - 6, 6, 5, 0x80707080);
+                ctx.fill(px + pw / 2 - 5, py + ph / 2 - 1, px + pw / 2 + 5, py + ph / 2 + 6, 0x80707080);
+                if (hover) setTooltip(Text.translatable("tcgshop.personal.locked_pocket", d.capacity()));
+                continue;
+            }
+            boolean sel = selected.contains(slot);
             int bg = hover && placing ? 0x5543C463 : hover ? 0x40A0C8FF : 0x2090A0B0;
             ctx.fill(px, py, px + pw, py + ph, bg);
             Ui.outline(ctx, px, py, pw, ph, hover && placing ? 0xFF43C463 : 0x7070788A);
@@ -233,9 +255,17 @@ public class PersonalBinderScreen extends Screen {
                 Catalog.Card c = Catalog.card(cardKey);
                 int cw = Math.min(pw - 4, Math.round((ph - 4) * Draw.CARD_RATIO)), ch = Math.round(cw / Draw.CARD_RATIO);
                 int cx = px + (pw - cw) / 2, cy = py + (ph - ch) / 2;
+                ItemStack special = wish ? null : d.special(slot);
+                ItemStack face = special != null ? special : c != null ? c.stack() : ItemStack.EMPTY;
                 if (c != null) {
                     ctx.fill(cx + 1, cy + 2, cx + cw + 1, cy + ch + 2, 0x55000000);
-                    Draw.cardFace(ctx, c.texture(), c.stack(), cx, cy, cw, ch, 1f);
+                    Draw.cardFace(ctx, c.texture(), face, cx, cy, cw, ch, 1f);
+                    if (special != null) SpecialCards.badge(ctx, textRenderer, special, cx, cy, cw);
+                    if (sel) {
+                        ctx.fill(cx, cy, cx + cw, cy + ch, 0x403A7BD5);
+                        Ui.outline(ctx, cx - 1, cy - 1, cw + 2, ch + 2, Ui.GOLD);
+                        ctx.drawText(textRenderer, "✔", cx + cw - 8, cy + 2, Ui.GOLD, true);
+                    }
                     if (wish) {
                         boolean owned = ClientCollection.count(cardKey) > 0;
                         ctx.fill(cx, cy, cx + cw, cy + ch, owned ? 0x8010301A : 0xB0101018);
@@ -245,10 +275,15 @@ public class PersonalBinderScreen extends Screen {
                         List<OrderedText> tip = new ArrayList<>();
                         tip.add(c.name().asOrderedText());
                         tip.add(c.rarity().displayName().copy().withColor(c.rarity().color & 0xFFFFFF).asOrderedText());
-                        tip.add(Text.literal(PriceService.format(PriceService.priceCd(c.stack()))).withColor(0xFFD34D).asOrderedText());
+                        if (special != null) for (Text line : SpecialCards.lines(special)) tip.add(line.asOrderedText());
+                        tip.add(Text.literal(PriceService.format(PriceService.priceCd(face))).withColor(0xFFD34D).asOrderedText());
                         if (wish) tip.add(Text.translatable(ClientCollection.count(cardKey) > 0 ? "tcgshop.personal.wish_owned" : "tcgshop.personal.wish_missing")
                                 .formatted(Formatting.GRAY).asOrderedText());
-                        else tip.add(Text.translatable("tcgshop.personal.click_return").formatted(Formatting.DARK_GRAY).asOrderedText());
+                        else {
+                            tip.add(Text.translatable(ClientCollection.hasGeneral ? "tcgshop.personal.click_return" : "tcgshop.personal.click_return_inv")
+                                    .formatted(Formatting.DARK_GRAY).asOrderedText());
+                            tip.add(Text.translatable("tcgshop.personal.ctrl_select").formatted(Formatting.DARK_GRAY).asOrderedText());
+                        }
                         tip.add(Text.translatable("tcgshop.binder.zoom_hint_personal").formatted(Formatting.DARK_GRAY).asOrderedText());
                         setTooltip(tip);
                     }
@@ -281,12 +316,13 @@ public class PersonalBinderScreen extends Screen {
     /** Places the card in the first free pocket (current spread first; otherwise, any). */
     private void autoPlace(String card) {
         PersonalBinderData d = data();
-        int start = spread * 18;
+        int start = spread * 18, lim = d.limit();
         int target = -1;
-        for (int i = start; i < Math.min(d.slots().size(), start + 18); i++) if (d.slots().get(i).isEmpty()) { target = i; break; }
-        if (target < 0) for (int i = 0; i < d.slots().size(); i++) if (d.slots().get(i).isEmpty()) { target = i; break; }
+        for (int i = start; i < Math.min(lim, start + 18); i++) if (d.slots().get(i).isEmpty()) { target = i; break; }
+        if (target < 0) for (int i = 0; i < lim; i++) if (d.slots().get(i).isEmpty()) { target = i; break; }
         if (target < 0) {
-            if (client != null && client.player != null) client.player.sendMessage(Text.translatable("tcgshop.personal.full"), true);
+            if (client != null && client.player != null)
+                client.player.sendMessage(d.fixedSize() ? Text.translatable("tcgshop.personal.full_fixed", d.limit()) : Text.translatable("tcgshop.personal.full"), true);
             return;
         }
         place(card, target);
@@ -328,6 +364,49 @@ public class PersonalBinderScreen extends Screen {
 
     private int drawerTop() { return drawerY + 40; }
 
+    /** Height of the drawer card list (the bottom of the drawer holds the file / select / take out buttons). */
+    private int drawerListH() { return Math.max(30, drawerH - 44 - 56); }
+
+    /** Pocket holding a real card (not empty, not a wish, inside the usable pockets). */
+    private static boolean isCardPocket(PersonalBinderData d, int i) {
+        return i >= 0 && i < d.slots().size() && !d.slots().get(i).isEmpty() && !d.slots().get(i).startsWith(BinderServer.WISH);
+    }
+
+    private void renderDrawerButtons(DrawContext ctx, int mouseX, int mouseY) {
+        PersonalBinderData d = data();
+        int x = drawerX + 5, w = drawerW - 10, bh = 15;
+        int y = drawerY + drawerH - 4 - 3 * (bh + 3);
+        Ui.button(ctx, x, y, w, bh, Text.translatable("tcgshop.personal.deposit"), mouseX, mouseY, true, 0xFF3C8A4A);
+        areas.add(new Area(x, y, w, bh, () -> {
+            ClientCollection.action(BinderActionPayload.PERSONAL_DEPOSIT, "", 0);
+            play(1.2f);
+        }));
+        if (Ui.in(mouseX, mouseY, x, y, w, bh)) setTooltip(Text.translatable("tcgshop.personal.deposit_tip"));
+        y += bh + 3;
+        int hw = (w - 3) / 2;
+        Ui.button(ctx, x, y, hw, bh, Text.translatable("tcgshop.personal.select_pages"), mouseX, mouseY, true, 0xFF444A60);
+        areas.add(new Area(x, y, hw, bh, () -> {
+            for (int i = spread * 18; i < spread * 18 + 18; i++) if (isCardPocket(d, i)) selected.add(i);
+        }));
+        boolean any = !selected.isEmpty();
+        Ui.button(ctx, x + hw + 3, y, w - hw - 3, bh, Text.translatable("tcgshop.binder.sel_clear"), mouseX, mouseY, any, 0xFF444A60);
+        if (any) areas.add(new Area(x + hw + 3, y, w - hw - 3, bh, selected::clear));
+        y += bh + 3;
+        Ui.button(ctx, x, y, w, bh, Text.translatable("tcgshop.personal.take_selected", selected.size()), mouseX, mouseY, any, 0xFF2F6FB0);
+        if (any) areas.add(new Area(x, y, w, bh, this::takeSelected));
+        if (Ui.in(mouseX, mouseY, x, y, w, bh)) setTooltip(Text.translatable(ClientCollection.hasGeneral ? "tcgshop.personal.take_selected_tip"
+                : "tcgshop.personal.take_selected_tip_inv"));
+    }
+
+    private void takeSelected() {
+        if (selected.isEmpty()) return;
+        List<String> idx = new ArrayList<>();
+        for (int i : selected) idx.add(String.valueOf(i));
+        ClientCollection.action(BinderActionPayload.PERSONAL_REMOVE_MANY, String.join(",", idx), 0);
+        selected.clear();
+        play(0.9f);
+    }
+
     private void renderDrawer(DrawContext ctx, int mouseX, int mouseY, double t) {
         Ui.leather(ctx, drawerX, drawerY, drawerW, drawerH, 0xFF2B2F42, 0xFF1A1D2B);
         int tw = (drawerW - 12) / 2;
@@ -340,7 +419,7 @@ public class PersonalBinderScreen extends Screen {
 
         List<Catalog.Card> cards = drawerCards();
         int cols = 3, cw = (drawerW - 14) / cols - 2, ch = Math.round(cw / Draw.CARD_RATIO);
-        int top = drawerTop(), h = drawerH - 44;
+        int top = drawerTop(), h = drawerListH();
         int rows = (cards.size() + cols - 1) / cols;
         drawerScroll = MathHelper.clamp(drawerScroll, 0, Math.max(0, rows * (ch + 3) - h));
         ctx.enableScissor(drawerX + 2, top, drawerX + drawerW - 2, top + h);
@@ -361,11 +440,13 @@ public class PersonalBinderScreen extends Screen {
         ctx.disableScissor();
         if (cards.isEmpty()) {
             int y = top + 10;
-            for (var line : textRenderer.wrapLines(Text.translatable(wishTab ? "tcgshop.personal.wish_empty" : "tcgshop.personal.drawer_empty"), drawerW - 12)) {
+            String empty = wishTab ? "tcgshop.personal.wish_empty" : ClientCollection.hasGeneral ? "tcgshop.personal.drawer_empty" : "tcgshop.personal.drawer_no_general";
+            for (var line : textRenderer.wrapLines(Text.translatable(empty), drawerW - 12)) {
                 ctx.drawTextWithShadow(textRenderer, line, drawerX + 6, y, Ui.MUTED);
                 y += 10;
             }
         }
+        renderDrawerButtons(ctx, mouseX, mouseY);
     }
 
     // ------------------------------------------------------------------ customization
@@ -442,6 +523,18 @@ public class PersonalBinderScreen extends Screen {
         dragging = false;
         dragCard = null;
         dragFromSlot = -1;
+        paintSelect = null;
+        if (!customizing && button == GLFW.GLFW_MOUSE_BUTTON_LEFT && hasControlDown()) { // multi-select
+            PersonalBinderData d = data();
+            int slot = pocketAt(mouseX, mouseY);
+            if (isCardPocket(d, slot)) {
+                paintSelect = !selected.contains(slot);
+                if (paintSelect) selected.add(slot);
+                else selected.remove(slot);
+                play(1.5f);
+                return true;
+            }
+        }
         if (!customizing) {
             PersonalBinderData d = data();
             int slot = pocketAt(mouseX, mouseY);
@@ -469,12 +562,24 @@ public class PersonalBinderScreen extends Screen {
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
         if (zoom.isOpen()) return true;
+        if (paintSelect != null) { // Ctrl+drag: paint the selection over the pockets you cross
+            int slot = pocketAt(mouseX, mouseY);
+            if (isCardPocket(data(), slot)) {
+                if (paintSelect) selected.add(slot);
+                else selected.remove(slot);
+            }
+            return true;
+        }
         if (dragCard != null && Math.hypot(mouseX - pressX, mouseY - pressY) > 4) dragging = true;
         return true;
     }
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (paintSelect != null) {
+            paintSelect = null;
+            return true;
+        }
         if (dragCard == null) return false;
         String card = dragCard;
         int from = dragFromSlot;
@@ -501,12 +606,13 @@ public class PersonalBinderScreen extends Screen {
             if (target < 0 && Ui.in(mouseX, mouseY, drawerX, drawerY, drawerW, drawerH)) {
                 ClientCollection.action(BinderActionPayload.PERSONAL_REMOVE, "", from);
                 play(0.9f);
-            } else if (target >= 0 && target != from) {
-                ClientCollection.action(BinderActionPayload.PERSONAL_REMOVE, "", from);
-                ClientCollection.action(BinderActionPayload.PERSONAL_PLACE, card, target);
+            } else if (target >= 0 && target != from && !data().isLocked(target)) {
+                // one server action: works without a General Binder and keeps variants / graded cards intact
+                ClientCollection.action(BinderActionPayload.PERSONAL_MOVE, String.valueOf(from), target);
+                if (selected.remove(from)) selected.add(target);
                 play(1.1f);
             }
-        } else if (target >= 0) {
+        } else if (target >= 0 && !data().isLocked(target)) {
             place(card, target);
         }
         return true;
@@ -542,7 +648,7 @@ public class PersonalBinderScreen extends Screen {
     private String drawerCardAt(double mx, double my) {
         List<Catalog.Card> cards = drawerCards();
         int cols = 3, cw = (drawerW - 14) / cols - 2, ch = Math.round(cw / Draw.CARD_RATIO);
-        int top = drawerTop(), h = drawerH - 44;
+        int top = drawerTop(), h = drawerListH();
         if (!Ui.in(mx, my, drawerX, top, drawerW, h)) return null;
         for (int i = 0; i < cards.size(); i++) {
             int x = drawerX + 6 + (i % cols) * (cw + 2), y = top + (i / cols) * (ch + 3) - (int) drawerScroll;
@@ -575,6 +681,15 @@ public class PersonalBinderScreen extends Screen {
         if (search.isFocused() && keyCode != GLFW.GLFW_KEY_ESCAPE) return search.keyPressed(keyCode, scanCode, modifiers) || true;
         if (customizing && keyCode == GLFW.GLFW_KEY_ESCAPE) {
             customizing = false;
+            return true;
+        }
+        if (!customizing && keyCode == GLFW.GLFW_KEY_A && hasControlDown()) { // Ctrl+A: select the open spread
+            PersonalBinderData d = data();
+            for (int i = spread * 18; i < spread * 18 + 18; i++) if (isCardPocket(d, i)) selected.add(i);
+            return true;
+        }
+        if (!selected.isEmpty() && keyCode == GLFW.GLFW_KEY_ESCAPE) {
+            selected.clear();
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);

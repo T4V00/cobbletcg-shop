@@ -119,7 +119,7 @@ public final class PackOpener {
         List<Pending> group = PENDING.remove(player.getUuid());
         if (group == null) return;
         touch(player);
-        boolean toBinder = CollectionService.ownedBinderId(player) != null;
+        boolean toBinder = CollectionService.hasCardStorage(player); // 1.0: General Binder or, failing that, the Personal (starter) one
         CardCollection col = CollectionService.playerData(player);
         List<List<ItemStack>> cards = new ArrayList<>();
         List<List<Long>> prices = new ArrayList<>();

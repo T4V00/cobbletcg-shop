@@ -77,7 +77,7 @@ public class TcgShopClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.FurniturePayloads.Open.ID, (p, ctx) -> ctx.client().execute(() ->
                 dev.tcgshop.client.screen.FurnitureApp.receive(p)));
         ClientPlayNetworking.registerGlobalReceiver(BoxOpenPayload.ID, (p, ctx) -> ctx.client().execute(() ->
-                ctx.client().setScreen(new dev.tcgshop.client.screen.BoxOpenScreen(p.set(), p.packs()))));
+                ctx.client().setScreen(new dev.tcgshop.client.screen.BoxOpenScreen(p))));
         ClientPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.UiPayloads.Open.ID, (p, ctx) -> ctx.client().execute(() -> {
             switch (p.kind()) {
                 case "slot" -> ctx.client().setScreen(new dev.tcgshop.client.screen.SlotEditScreen(p.data()));

@@ -45,7 +45,9 @@ public final class NpcLines {
             Map.entry("beg_polite_no", 5), Map.entry("beg_rude", 5), Map.entry("beg_gift", 4), Map.entry("bm_hello", 16),
             Map.entry("bm_ambient", 15), Map.entry("bm_deal", 5), Map.entry("bm_no", 4), Map.entry("bm_leave", 4),
             Map.entry("furn_hello", 25), Map.entry("furn_ambient", 25), Map.entry("furn_buy", 20), Map.entry("furn_sell", 20),
-            Map.entry("furn_no_money", 10), Map.entry("furn_bye", 15), Map.entry("overpay_happy", 38));
+            Map.entry("furn_no_money", 10), Map.entry("furn_bye", 15), Map.entry("overpay_happy", 38),
+            // 1.0 tips (tools/gen_lang_10_deals.py; %s = the tip): offer above your price, accepted deal and checkout
+            Map.entry("tip_offer", 14), Map.entry("tip_accept", 14), Map.entry("tip_checkout", 16));
 
     private NpcLines() {}
 

@@ -2,8 +2,10 @@ package dev.tcgshop.collection;
 
 import com.mojang.serialization.Codec;
 import dev.tcgshop.TcgShop;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
@@ -44,6 +46,23 @@ public class BinderRegistry extends PersistentState {
                     .resultOrPartial(e -> TcgShop.LOGGER.error("Corrupted binders: {}", e))
                     .ifPresent(r.binders::putAll);
         }
+        // 1.0: print variants and graded cards, kept as full stacks (absent in older saves = none)
+        if (nbt.contains("specials", NbtElement.COMPOUND_TYPE)) {
+            NbtCompound sp = nbt.getCompound("specials");
+            for (String key : sp.getKeys()) {
+                BinderData d;
+                try { d = r.binders.get(UUID.fromString(key)); } catch (IllegalArgumentException e) { d = null; }
+                if (d == null) continue;
+                NbtList list = sp.getList(key, NbtElement.COMPOUND_TYPE);
+                for (int i = 0; i < list.size(); i++) {
+                    NbtCompound e = list.getCompound(i);
+                    int n = e.getInt("n");
+                    if (n <= 0 || !e.contains("item")) continue;
+                    BinderData target = d;
+                    ItemStack.fromNbt(lookup, e.get("item")).ifPresent(st -> target.addSpecial(st, n));
+                }
+            }
+        }
         return r;
     }
 
@@ -51,6 +70,24 @@ public class BinderRegistry extends PersistentState {
     public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         NbtElement el = CODEC.encodeStart(NbtOps.INSTANCE, binders).getOrThrow();
         nbt.put("binders", el);
+        NbtCompound sp = new NbtCompound();
+        for (Map.Entry<UUID, BinderData> b : binders.entrySet()) {
+            if (b.getValue().specials.isEmpty()) continue;
+            NbtList list = new NbtList();
+            for (BinderData.Special s : b.getValue().specials) {
+                if (s.count <= 0 || s.stack.isEmpty()) continue;
+                try {
+                    NbtCompound e = new NbtCompound();
+                    e.put("item", s.stack.encode(lookup));
+                    e.putInt("n", s.count);
+                    list.add(e);
+                } catch (Exception ex) {
+                    TcgShop.LOGGER.error("Could not save a special binder card", ex);
+                }
+            }
+            sp.put(b.getKey().toString(), list);
+        }
+        nbt.put("specials", sp);
         return nbt;
     }
 }

@@ -149,6 +149,7 @@ public class PhoneScreen extends Screen {
     private void refreshMarket(List<ItemStack> goods, List<Long> prices) {
         CatalogPanel fresh = new CatalogPanel(-1, goods, prices);
         fresh.copyStateFrom(market);
+        fresh.lockFilter = market.lockFilter; // 1.0: keep the locked/unlocked filter after an upgrade
         market = fresh;
     }
 
@@ -256,6 +257,9 @@ public class PhoneScreen extends Screen {
 
         if (morphing()) { Ui.cornerMask(ctx, sx, sy, sw, sh, 16, 0xFF0A0B0E); return; } // while rotating only the background is shown
         float fade = (float) MathHelper.clamp((t - Math.max(appOpened, morphStart + 0.38)) / 0.18, 0, 1);
+        // 1.0: with the mouse over a notice, the app underneath does not react (no hover, no tooltips)
+        int realMouseX = mouseX, realMouseY = mouseY;
+        if (dev.tcgshop.client.phone.PhoneNotices.contains(mouseX, mouseY)) { mouseX = -9999; mouseY = -9999; }
         ctx.enableScissor(sx, sy + 13, sx + sw, sy + sh - 8);
         switch (app) {
             case HOME -> home(ctx, mouseX, mouseY, t);
@@ -276,6 +280,9 @@ public class PhoneScreen extends Screen {
             case FURNITURE -> furnitureApp(ctx, mouseX, mouseY, delta);
             case UPGRADES -> upgradesApp(ctx, mouseX, mouseY, t);
         }
+        // 1.0: notices (purchase done, not enough money...) on their own opaque layer above the app
+        int nw = Math.min(sw - 16, 260);
+        dev.tcgshop.client.phone.PhoneNotices.render(ctx, sx + (sw - nw) / 2, sy + 16, nw, realMouseX, realMouseY);
         ctx.disableScissor();
         if (fade < 1) ctx.fill(sx, sy + 13, sx + sw, sy + sh - 8, withAlpha(0xFF0B0D16, 1 - fade));
         Ui.cornerMask(ctx, sx, sy, sw, sh, 16, 0xFF0A0B0E);
@@ -917,6 +924,19 @@ public class PhoneScreen extends Screen {
         Text sl = Text.literal(market.sort == 0 ? "⇅" : market.sort == 1 ? "₽ ↑" : "₽ ↓");
         Ui.chip(ctx, sx + sw - 44, barY + 4, 34, 15, sl, market.sort != 0, Ui.in(mouseX, mouseY, sx + sw - 44, barY + 4, 34, 15), 0xFFFFE680, 0);
         areas.add(new Area(sx + sw - 44, barY + 4, 34, 15, () -> market.sort = (market.sort + 1) % 3));
+        // 1.0: locked / unlocked filter (products of a higher phone tier), only with the upgrade system on
+        if (dev.tcgshop.client.phone.PhoneClient.enabled) {
+            Text ll = Text.translatable("tcgshop.phone.market.lock." + market.lockFilter);
+            int lcw = Ui.chipWidth(ll) + 12, lcx = sx + sw - 206 - lcw;
+            boolean lh = Ui.in(mouseX, mouseY, lcx, barY + 4, lcw, 15);
+            Ui.chip(ctx, lcx, barY + 4, lcw, 15, Text.empty(), market.lockFilter != 0, lh, 0xFFFFE680, 0);
+            int lockCol = market.lockFilter == 0 ? 0xFFB8BCCB : market.lockFilter == 1 ? 0xFF2E7D45 : 0xFF8A2A2A;
+            dev.tcgshop.client.phone.LockIcon.draw(ctx, lcx + 5, barY + 7, 9, lockCol);
+            Ui.text(ctx, ll, lcx + 14, barY + 4, lcw - 16, 15, market.lockFilter != 0 ? 0xFF15151C : Ui.TEXT, market.lockFilter == 0);
+            areas.add(new Area(lcx, barY + 4, lcw, 15, () -> { market.lockFilter = (market.lockFilter + 1) % 3; market.resetScroll(); }));
+            if (lh) setTooltip(textRenderer.wrapLines(Text.translatable("tcgshop.phone.market.lock.tip"), 200),
+                    net.minecraft.client.gui.tooltip.HoveredTooltipPositioner.INSTANCE, true);
+        }
         String[] keys = CatalogPanel.CATEGORIES;
         String[] labels = new String[keys.length];
         int[] counts = new int[keys.length];
@@ -1169,6 +1189,7 @@ public class PhoneScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double h, double v) {
+        if (dev.tcgshop.client.phone.PhoneNotices.contains(mouseX, mouseY)) return true;
         if (app == App.LEAGUE && leagueHelp.mouseScrolled(mouseX, mouseY, v)) return true;
         if (app == App.LEAGUE && leagueTab.equals("deck") && deckPanel.mouseScrolled(mouseX, mouseY, v)) return true;
         if (app == App.FURNITURE) { furniture.mouseScrolled(mouseX, mouseY, v); return true; }
@@ -1951,6 +1972,7 @@ public class PhoneScreen extends Screen {
             int pwid = Math.min(96, sh / 2), phgt = Math.round(pwid / Draw.CARD_RATIO);
             int prx = mouseX < px + pw / 2 ? Math.min(sx + sw - pwid - 6, mouseX + 14) : Math.max(sx + 6, mouseX - 14 - pwid);
             int pry = MathHelper.clamp(mouseY - phgt / 2, sy + 4, sy + sh - phgt - 4);
+            ctx.draw(); // 1.0: flush the list first, so its batched text does not end up on top of the preview
             var m = ctx.getMatrices();
             m.push();
             m.translate(0, 0, 400);
@@ -2093,6 +2115,7 @@ public class PhoneScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (morphing()) return true;
+        if (dev.tcgshop.client.phone.PhoneNotices.click(mouseX, mouseY)) return true; // 1.0: the notice is on top and swallows the click
         if (app == App.LEAGUE && leagueHelp.mouseClicked(mouseX, mouseY, button)) return true;
         if (app == App.LEAGUE && leagueTab.equals("deck") && deckPanel.mouseClicked(mouseX, mouseY, button)) return true;
         if (app == App.GRADE && gradeTab.equals("send") && gradePanel.mouseClicked(mouseX, mouseY, button)) return true;

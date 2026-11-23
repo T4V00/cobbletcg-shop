@@ -124,6 +124,13 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     private long floorPrice;
     /** Haggling customer (buys something from you): the most they would pay (hidden from you). Rises with shop reputation. */
     private long ceilPrice;
+    /**
+     * 1.0 tips: your asking price in a BUY deal (the display price, then your latest counteroffer). What the customer pays
+     * above it is a tip. 0 = unknown (no tip is counted).
+     */
+    private long askPrice;
+    /** 1.0: the biggest tip a customer leaves voluntarily at checkout (on top of the price). */
+    private static final long CHECKOUT_TIP_CAP = 25_000;
     /** Haggling customer's lines when YOU sell to them (tcgshop.haggle.buy.<cat>.<n>, tools/gen_lang_haggle_rep.py). */
     public static final java.util.Map<String, Integer> BUY_LINES = java.util.Map.ofEntries(
             java.util.Map.entry("counter", 8), java.util.Map.entry("hold", 6), java.util.Map.entry("insulted", 6), java.util.Map.entry("walkaway", 6),
@@ -608,6 +615,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             maxPatience = patience = Math.max(1, (int) Math.round((pat[persona] + random.nextInt(2)) * EconomyConfig.INSTANCE.merchantPatience * mods.patienceMult));
             thinks = 0;
             dealMode = DealOpenPayload.BUY;
+            askPrice = Math.max(0, price); // 1.0: if its offer is above your price, the difference is a tip
             goDeal(world, z, "haggle");
             return;
         }
@@ -842,9 +850,21 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     private void pay(ServerWorld world, ShopZones.Zone z) {
         if (bought.isEmpty()) { leave(world, z, null); return; }
         long earned = ShopServer.payFromNpc(world, z, bought, payPrice, register != null ? register : getBlockPos());
-        if (register != null && random.nextFloat() < 0.5f) NpcLines.sayNear(this, "checkout");
-        notifyOwner(world, z, Text.translatable("tcgshop.customer.bought", getDisplayName(), bought.toHoverableText(),
-                Text.literal(PriceService.format(earned)).formatted(Formatting.GOLD)));
+        long tip = rollCheckoutTip(world, z);
+        if (tip > 0) { // 1.0: pays more than your price: the difference is a tip (into the same till)
+            z.balance += tip;
+            z.revenue += tip;
+            dev.tcgshop.shop.TipLedger.record(world.getServer(), z.owner, tip, world.getTimeOfDay() / 24000);
+            ShopZones.get(world).markDirty();
+            NpcLines.speak(this, NpcLines.random(random, "tip_checkout", PriceService.format(tip)));
+            world.playSound(null, getBlockPos(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.NEUTRAL, 0.6f, 1.6f);
+            notifyOwner(world, z, Text.translatable("tcgshop.customer.bought_tip", getDisplayName(), bought.toHoverableText(),
+                    Text.literal(PriceService.format(earned)).formatted(Formatting.GOLD), Text.literal(PriceService.format(tip)).formatted(Formatting.YELLOW)));
+        } else {
+            if (register != null && random.nextFloat() < 0.5f) NpcLines.sayNear(this, "checkout");
+            notifyOwner(world, z, Text.translatable("tcgshop.customer.bought", getDisplayName(), bought.toHoverableText(),
+                    Text.literal(PriceService.format(earned)).formatted(Formatting.GOLD)));
+        }
         bought = ItemStack.EMPTY;
         register = null;
         boughtAny = true;
@@ -857,6 +877,36 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         }
         if (trySit(world, z, true)) return; // 0.9.5: sometimes sits down to admire its purchase before leaving
         leave(world, z, null);
+    }
+
+    /**
+     * 1.0 tips: a customer happy with the price (bargain or fair) sometimes pays a bit more than your asking price.
+     * More likely in a well-reputed shop, for regulars and for whales (who also tip more). Returns 0 = no tip.
+     */
+    /** True when the haggled price of the current purchase already included a tip (then no checkout tip). Not saved. */
+    private boolean dealTipped;
+
+    private long rollCheckoutTip(ServerWorld world, ShopZones.Zone z) {
+        if (dealTipped) { dealTipped = false; return 0; }
+        if (payPrice <= 0 || type() == Type.THIEF) return 0;
+        boolean bargain = "bargain".equals(reviewKey);
+        if (!bargain && !"fair".equals(reviewKey)) return 0;
+        int rep = Math.max(0, Math.min(100, dev.tcgshop.shop.ShopLife.effectiveRep(z)));
+        double chance = 0.04 + 0.06 * rep / 100.0 + (bargain ? 0.04 : 0) + (returning ? 0.04 : 0) + (type() == Type.WHALE ? 0.05 : 0)
+                + dev.tcgshop.shop.TipLedger.chanceBonus.applyAsDouble(world.getServer(), z.owner);
+        if (random.nextDouble() >= chance) return 0;
+        double pct = type() == Type.WHALE ? 0.10 + random.nextDouble() * 0.15 : 0.05 + random.nextDouble() * 0.10;
+        return Math.max(1, Math.min(CHECKOUT_TIP_CAP, Math.round(payPrice * pct)));
+    }
+
+    /** 1.0 tips: in a BUY deal, what the customer currently offers above your asking price. */
+    private long currentTip() {
+        return dealMode == DealOpenPayload.BUY && askPrice > 0 && dealPrice > askPrice ? dealPrice - askPrice : 0;
+    }
+
+    /** Your asking price as sent to the deal window (only BUY deals have one). */
+    private long askForPayload() {
+        return dealMode == DealOpenPayload.BUY ? askPrice : 0;
     }
 
     private void steal(ServerWorld world, ShopZones.Zone z, ShopDisplayBlockEntity be) {
@@ -979,7 +1029,9 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         dataTracker.set(WAIT, 1000);
         emote(EMOTE_NONE);
         dataTracker.set(WANTS, true);
-        NpcLines.sayNear(this, line);
+        long tip = currentTip();
+        if (tip > 0) NpcLines.speak(this, NpcLines.random(random, "tip_offer", PriceService.format(tip))); // 1.0: offers above your price
+        else NpcLines.sayNear(this, line);
         ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
         if (owner != null && owner.squaredDistanceTo(this) < 64 * 64)
             owner.sendMessage(Text.translatable("tcgshop.deal.waiting", getDisplayName()).formatted(Formatting.YELLOW), true);
@@ -1090,12 +1142,13 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             Text line = switch (dealMode) {
                 case DealOpenPayload.SELL -> motive.isEmpty() ? Text.translatable("tcgshop.npc.reason." + reasonKey) : Text.translatable("tcgshop.motive." + motive, dealItem.getName());
                 case DealOpenPayload.TRADE -> NpcLines.random(random, "trader_hello");
-                default -> NpcLines.random(random, "haggle_offer");
+                default -> currentTip() > 0 ? NpcLines.random(random, "tip_offer", PriceService.format(currentTip())) // 1.0: tip on top of your price
+                        : NpcLines.random(random, "haggle_offer");
             };
             long wantMarket = dealWant.isEmpty() ? 0 : ShopServer.priceOf(dealWant, 1.0);
             if (ServerPlayNetworking.canSend(sp, DealOpenPayload.ID))
                 ServerPlayNetworking.send(sp, new DealOpenPayload(getId(), getDisplayName(), line, dealItem, dealPrice, market, dealMode, dealWant, wantMarket,
-                        dealMode == DealOpenPayload.SELL || dealMode == DealOpenPayload.BUY ? persona : -1, patience, maxPatience));
+                        dealMode == DealOpenPayload.SELL || dealMode == DealOpenPayload.BUY ? persona : -1, patience, maxPatience, askForPayload()));
         } else if (state == State.SIT) {
             NpcLines.speak(this, dev.tcgshop.shop.ShopSeats.talkLine(random)); // 0.9.5: seated, resting
         } else {
@@ -1227,7 +1280,10 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     private void negotiateBuy(ServerPlayerEntity owner, ServerWorld world, ShopZones.Zone z, int action, long counter) {
         long market = Math.max(1, ShopServer.priceOf(dealItem, 1.0));
         counter = Math.max(1, counter);
-        if (counter <= dealPrice) { acceptDeal(owner); return; } // you ask for what it offers: done
+        // you ask for what it offers (or less): done. The asking price is NOT lowered here, so a counter below its offer
+        // (only possible from a modified client) cannot inflate the recorded tip
+        if (counter <= dealPrice) { acceptDeal(owner); return; }
+        askPrice = counter; // 1.0: your new asking price (whatever it pays above this is a tip)
         int pi = Math.max(0, Math.min(PERSONAS.length - 1, persona));
         double prem = z.premiumFor(dealItem);
         double mod = 1;
@@ -1284,7 +1340,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         double[] raise = {0.35, 0.45, 0.2, 0.25, 0.6, 0.4};
         if (random.nextDouble() < raise[Math.max(0, Math.min(5, persona))] && dealPrice < ceilPrice) {
             dealPrice = Math.min(ceilPrice, Math.round(dealPrice * (1.03 + random.nextDouble() * 0.05)));
-            updateDeal(owner, buyLine("think_raise", PriceService.format(dealPrice)));
+            long tip = currentTip(); // 1.0: now above your asking price: it says the extra is a tip
+            updateDeal(owner, tip > 0 ? NpcLines.random(random, "tip_offer", PriceService.format(tip)) : buyLine("think_raise", PriceService.format(dealPrice)));
         } else updateDeal(owner, buyLine("think_same"));
     }
 
@@ -1313,7 +1370,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         if (!ServerPlayNetworking.canSend(owner, DealOpenPayload.ID)) return;
         long market = ShopServer.priceOf(dealItem, 1.0);
         ServerPlayNetworking.send(owner, new DealOpenPayload(getId(), getDisplayName(), line, dealItem, dealPrice, market, dealMode, dealWant,
-                dealWant.isEmpty() ? 0 : ShopServer.priceOf(dealWant, 1.0), persona, patience, maxPatience));
+                dealWant.isEmpty() ? 0 : ShopServer.priceOf(dealWant, 1.0), persona, patience, maxPatience, askForPayload()));
     }
 
     /** Closes the deal window on the client showing the last line. */
@@ -1326,8 +1383,9 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     private void sendClosed(ServerPlayerEntity owner, Text line, int outcome, long finalPrice) {
         if (!ServerPlayNetworking.canSend(owner, DealOpenPayload.ID)) return;
         // in a closed deal, patience carries the outcome (OUT_*) and price the final price, so the window can show it
+        // ask: your asking price, so the window can show the tip included in the final price (BUY deals only)
         ServerPlayNetworking.send(owner, new DealOpenPayload(getId(), getDisplayName(), line, ItemStack.EMPTY, finalPrice, 0, DealOpenPayload.CLOSED,
-                ItemStack.EMPTY, 0, persona, outcome, maxPatience));
+                ItemStack.EMPTY, 0, persona, outcome, maxPatience, outcome == OUT_DEAL ? askForPayload() : 0));
     }
 
     private void acceptDeal(ServerPlayerEntity owner) {
@@ -1335,6 +1393,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         ShopZones.Zone z = ShopZones.get(world).byId(zoneId);
         if (state != State.WAIT_DEAL || z == null || !z.owner.equals(owner.getUuid()) || dealItem.isEmpty()) return;
         long market = ShopServer.priceOf(dealItem, 1.0);
+        long tip = currentTip(); // 1.0: BUY deal above your asking price
         switch (dealMode) {
             case DealOpenPayload.SELL -> { // you buy from it
                 if (!CobbleDollarsBridge.tryCharge(owner, dealPrice)) {
@@ -1373,6 +1432,12 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                 equipStack(EquipmentSlot.MAINHAND, sold);
                 setEquipmentDropChance(EquipmentSlot.MAINHAND, 0f);
                 if (dealPrice > market) CardAdvancements.grant(owner, "deal_above_market");
+                if (tip > 0) { // the tip is already inside dealPrice (paid into the till): only recorded and announced
+                    dealTipped = true; // no second, voluntary tip at checkout for this purchase
+                    dev.tcgshop.shop.TipLedger.record(world.getServer(), owner.getUuid(), tip, world.getTimeOfDay() / 24000);
+                    owner.sendMessage(Text.translatable("tcgshop.tip.received", getDisplayName(),
+                            Text.literal(PriceService.format(tip)).formatted(Formatting.GOLD)).formatted(Formatting.YELLOW), false);
+                }
             }
         }
         z.dealsAccepted++;
@@ -1382,6 +1447,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         CardAdvancements.grant(owner, "first_deal");
         Text done;
         if (persona >= 0 && dealMode == DealOpenPayload.SELL) done = NpcLines.random(random, "neg_accept_" + pk());
+        else if (persona >= 0 && dealMode == DealOpenPayload.BUY && tip > 0)
+            done = NpcLines.random(random, "tip_accept", PriceService.format(tip)); // 1.0: pays above your price: says it's a tip
         else if (persona >= 0 && dealMode == DealOpenPayload.BUY)
             // pays you above market and happily thanks to the shop's reputation
             done = dealPrice > market * 1.02 && z.premiumFor(dealItem) > 0.01 && random.nextFloat() < 0.75f

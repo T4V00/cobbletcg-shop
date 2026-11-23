@@ -159,45 +159,154 @@ public final class CollectionService {
             OPEN.put(player.getUuid(), id);
             d = BinderRegistry.get(player.getServer()).get(id);
         }
-        CardAdvancements.credit(player, playerData(player), d, new ArrayList<>(d.counts.keySet()));
+        List<String> ids = new ArrayList<>(d.counts.keySet());
+        for (BinderData.Special s : d.specials) { // print variants count toward the collection too (graded slabs don't)
+            String id = CardInfo.id(s.stack).toString();
+            if (!dev.tcgshop.grading.Grading.isGraded(s.stack) && !ids.contains(id)) ids.add(id);
+        }
+        CardAdvancements.credit(player, playerData(player), d, ids);
         sync(player);
         return true;
     }
 
-    /** Stores cards in the player's own binder. false if the player carries no binder of their own. */
+    /**
+     * Can {@link #store} file cards for this player? (an own/unbound General Binder, or failing that an own/unbound
+     * Personal Binder such as the 1.0 starter binder). Pack opening should use this instead of only checking the
+     * General Binder, so starter players' pack cards go into their Personal Binder.
+     */
+    public static boolean hasCardStorage(ServerPlayerEntity player) {
+        return ownedBinderId(player) != null || !dev.tcgshop.binder.PersonalBinders.ownedOrUnbound(player, null).isEmpty();
+    }
+
+    /**
+     * Stores cards in the player's own General Binder or, if they carry none, in their Personal Binder (1.0: the
+     * starter binder in the accessory slot). Every card item can be filed: plain cards by id, print variants and graded
+     * cards as full stacks (before 1.0 those two were silently handed back, which is why "some cards stayed in your hand").
+     * Anything that does not fit (full Personal Binder) or is not a card goes to the inventory, with a message.
+     * false only if the player carries no binder at all (the caller then gives the cards itself).
+     */
     public static boolean store(ServerPlayerEntity player, List<ItemStack> cards) {
         BinderData d = ownedBinder(player);
-        if (d == null) return false;
+        if (d == null) return dev.tcgshop.binder.BinderServer.storePersonal(player, cards);
         CardCollection pd = playerData(player);
+        List<String> newVariants = new ArrayList<>();
         for (ItemStack st : cards) {
-            if (!CardInfo.isCard(st)) continue;
-            if (dev.tcgshop.grading.Grading.isGraded(st)) { player.getInventory().offerOrDrop(st.copy()); continue; } // graded cards don't go into the binder
-            if (dev.masterball.api.card.PrintVariant.isSpecial(st)) { // neither do variants (reverse, 1st edition...), but they count toward the collection
-                player.getInventory().offerOrDrop(st.copy());
-                pd.totalObtained += st.getCount();
-                String vid = CardInfo.id(st).toString();
-                if (!pd.credited.contains(vid)) CardAdvancements.credit(player, pd, d, List.of(vid));
-                continue;
-            }
-            String id = CardInfo.id(st).toString();
-            if (d.count(id) == 0 && !pd.credited.contains(id)) d.fresh.add(id);
-            d.add(id, st.getCount());
-            pd.totalObtained += st.getCount();
+            if (st.isEmpty()) continue;
+            if (!CardInfo.isCard(st)) { player.getInventory().offerOrDrop(st.copy()); continue; } // never lose a non-card
+            file(d, pd, st, newVariants);
+            if (!dev.tcgshop.grading.Grading.isGraded(st)) pd.totalObtained += st.getCount();
         }
+        if (!newVariants.isEmpty()) CardAdvancements.credit(player, pd, d, newVariants);
         dirty(player);
         sync(player);
         return true;
     }
 
+    /**
+     * Files one stack into a General Binder: plain cards by id (marked as new if never seen), variants and graded cards
+     * as special stacks. Variant ids not yet counted for advancements are added to creditLater.
+     */
+    private static void file(BinderData d, CardCollection pd, ItemStack st, List<String> creditLater) {
+        String id = CardInfo.id(st).toString();
+        if (BinderData.isSpecial(st)) {
+            d.addSpecial(st, st.getCount());
+            if (!dev.tcgshop.grading.Grading.isGraded(st) && !pd.credited.contains(id) && !creditLater.contains(id)) creditLater.add(id);
+            return;
+        }
+        if (d.count(id) == 0 && !pd.credited.contains(id)) d.fresh.add(id);
+        d.add(id, st.getCount());
+    }
+
+    /** Upper bound of cards per withdraw request (a full inventory of stacks). */
+    private static final int MAX_WITHDRAW = 64 * 36;
+    /** Upper bound of entries per batch request (the client splits bigger selections into several packets). */
+    private static final int MAX_BATCH = 400;
+
+    /** Withdraws copies of one card. id = card id, or "#" + signature for a special card (variant / graded). */
     public static void withdraw(ServerPlayerEntity player, String id, int amount) {
         BinderData d = openBinder(player);
-        Identifier ident = Identifier.tryParse(id);
-        Item item = ident == null ? null : CardInfo.item(ident);
-        if (d == null || item == null || !CardInfo.isCard(ident)) return;
-        int got = d.remove(id, Math.max(1, Math.min(amount, 64)));
-        if (got > 0) player.getInventory().offerOrDrop(new ItemStack(item, got));
+        if (d == null) return;
+        ItemStack out = takeOut(d, id, Math.max(1, Math.min(amount, 64)));
+        if (!out.isEmpty()) player.getInventory().offerOrDrop(out);
         dirty(player);
         sync(player);
+    }
+
+    /** Takes up to n copies of that entry out of the binder (validated). EMPTY if there is nothing valid to take. */
+    private static ItemStack takeOut(BinderData d, String key, int n) {
+        if (n <= 0) return ItemStack.EMPTY;
+        if (key.startsWith("#")) {
+            BinderData.Special s = d.findSpecial(key.substring(1));
+            return s == null ? ItemStack.EMPTY : d.removeSpecial(s, n);
+        }
+        Identifier ident = Identifier.tryParse(key);
+        Item item = ident == null ? null : CardInfo.item(ident);
+        if (item == null || !CardInfo.isCard(ident)) return ItemStack.EMPTY;
+        int got = d.remove(key, n);
+        return got > 0 ? new ItemStack(item, got) : ItemStack.EMPTY;
+    }
+
+    /**
+     * Multi-select: takes several cards out at once. arg = "key=amount;key=amount..." (key as in {@link #withdraw}).
+     * Only what fits in the inventory is taken (nothing is dropped on the ground); the rest stays in the binder.
+     */
+    public static void withdrawMany(ServerPlayerEntity player, String arg) {
+        BinderData d = openBinder(player);
+        if (d == null || arg == null || arg.isEmpty()) return;
+        String[] parts = arg.split(";");
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        int taken = 0, stayed = 0;
+        for (int i = 0; i < parts.length && i < MAX_BATCH; i++) {
+            String part = parts[i];
+            int eq = part.lastIndexOf('=');
+            if (eq <= 0) continue;
+            String key = part.substring(0, eq);
+            int n;
+            try { n = Integer.parseInt(part.substring(eq + 1)); } catch (NumberFormatException e) { continue; }
+            if (n <= 0 || !seen.add(key)) continue;
+            ItemStack out = takeOut(d, key, Math.min(n, MAX_WITHDRAW));
+            if (out.isEmpty()) continue;
+            int total = out.getCount();
+            int left = giveToInventory(player, out);
+            if (left > 0) { // no room: put the rest back where it was
+                ItemStack back = out.copyWithCount(left);
+                if (BinderData.isSpecial(back)) d.addSpecial(back, left);
+                else d.add(CardInfo.id(back).toString(), left);
+                stayed += left;
+            }
+            taken += total - left;
+        }
+        if (taken > 0) player.sendMessage(Text.translatable("tcgshop.binder.took_many", taken).formatted(Formatting.GREEN), true);
+        if (stayed > 0) player.sendMessage(Text.translatable("tcgshop.binder.inv_full", stayed).formatted(Formatting.RED), false);
+        dirty(player);
+        sync(player);
+    }
+
+    /**
+     * Puts the stack in the inventory without dropping anything. Returns how many did not fit (the stack is not
+     * modified). In creative the vanilla insert would delete what does not fit, so the free space is checked first.
+     */
+    public static int giveToInventory(ServerPlayerEntity player, ItemStack stack) {
+        if (stack.isEmpty()) return 0;
+        int room = roomFor(player.getInventory(), stack);
+        int put = Math.min(room, stack.getCount());
+        if (put > 0) {
+            ItemStack in = stack.copyWithCount(put);
+            player.getInventory().insertStack(in);
+            if (!in.isEmpty()) { put -= in.getCount(); } // should not happen: room was checked
+        }
+        return stack.getCount() - put;
+    }
+
+    /** How many more of this exact item fit in the main inventory (36 slots). */
+    private static int roomFor(PlayerInventory inv, ItemStack stack) {
+        int room = 0, max = stack.getMaxCount();
+        for (int i = 0; i < inv.main.size(); i++) {
+            ItemStack s = inv.main.get(i);
+            if (s.isEmpty()) room += max;
+            else if (ItemStack.areItemsAndComponentsEqual(s, stack)) room += Math.max(0, Math.min(max, s.getMaxCount()) - s.getCount());
+        }
+        return room;
     }
 
     public static void depositAll(ServerPlayerEntity player) {
@@ -205,14 +314,18 @@ public final class CollectionService {
         if (d == null) return;
         PlayerInventory inv = player.getInventory();
         CardCollection pd = playerData(player);
+        List<String> newVariants = new ArrayList<>();
+        int filed = 0;
         for (int i = 0; i < inv.size(); i++) {
             ItemStack st = inv.getStack(i);
-            if (!CardInfo.isCard(st) || dev.tcgshop.grading.Grading.isGraded(st) || dev.masterball.api.card.PrintVariant.isSpecial(st)) continue;
-            String id = CardInfo.id(st).toString();
-            if (d.count(id) == 0 && !pd.credited.contains(id)) d.fresh.add(id);
-            d.add(id, st.getCount());
+            if (!CardInfo.isCard(st)) continue;
+            file(d, pd, st, newVariants);
+            filed += st.getCount();
             inv.setStack(i, ItemStack.EMPTY);
         }
+        if (!newVariants.isEmpty()) CardAdvancements.credit(player, pd, d, newVariants);
+        player.sendMessage(filed > 0 ? Text.translatable("tcgshop.binder.deposited", filed).formatted(Formatting.GREEN)
+                : Text.translatable("tcgshop.binder.nothing_to_deposit").formatted(Formatting.GRAY), true);
         dirty(player);
         sync(player);
     }
@@ -253,12 +366,22 @@ public final class CollectionService {
         if (!ServerPlayNetworking.canSend(player, CollectionSyncPayload.ID)) return;
         BinderData d = activeBinder(player);
         CardCollection pd = playerData(player);
+        List<ItemStack> specials = new ArrayList<>();
+        List<Integer> specialCounts = new ArrayList<>();
+        if (d != null) for (BinderData.Special s : d.specials) {
+            if (s.count <= 0 || s.stack.isEmpty()) continue;
+            specials.add(s.stack.copy());
+            specialCounts.add(s.count);
+        }
         ServerPlayNetworking.send(player, new CollectionSyncPayload(
                 d == null ? Map.of() : d.counts,
                 d == null ? List.of() : List.copyOf(d.fresh),
                 List.of(pd.totalObtained, (long) pd.packsOpened, (long) pd.packsRuined, (long) pd.godPacks, (long) pd.credited.size()),
                 List.copyOf(pd.wishlist),
                 Titles.available(pd),
-                pd.title == null ? "" : pd.title));
+                pd.title == null ? "" : pd.title,
+                specials,
+                specialCounts,
+                d != null));
     }
 }

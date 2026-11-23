@@ -28,16 +28,25 @@ import java.util.TreeMap;
  * What the Wholesaler pays for vanilla Minecraft items (CobbleDollars per unit, with decimals:
  * everything you sell is summed and rounded down). Full, editable table in
  * config/tcgshop-vanilla-prices.json; generated the first time with reference prices:
- * basic materials ≈ 0.5, iron/copper ≈ 1, the rarest at most 1,000. Easy-to-farm items pay very little
+ * basic materials ≈ 0.5, iron/copper ≈ 1; since 1.0 emeralds and gold ingots pay 300 and diamonds 500
+ * (their compact blocks 9×, hence MAX = 5,000). Easy-to-farm items pay very little
  * and compact blocks are worth exactly the same as their pieces (no profit from crafting).
  * 0 = the Wholesaler does not buy it.
+ * Non-vanilla items: Cobblemon Poké Balls and Mega Stones (prices in tcgshop-economy.json, see {@link TraderGoods}).
  */
 public final class VanillaPrices {
     private VanillaPrices() {}
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("tcgshop-vanilla-prices.json");
-    public static final double MAX = 1000;
+    public static final double MAX = 5000;
+    /**
+     * Version of the reference prices, stored in the file as "_version" (files from before 1.0 have none = 1).
+     * v2 (1.0): emerald / gold ingot 300, diamond 500 (and their nuggets/blocks, raw gold) are overwritten in old files.
+     */
+    private static final int VERSION = 2;
+    private static final String[] V2_KEYS = {"emerald", "emerald_block", "gold_ingot", "gold_nugget", "gold_block", "raw_gold", "raw_gold_block",
+            "diamond", "diamond_block"};
 
     private static Map<String, Double> table = new TreeMap<>();
 
@@ -47,7 +56,7 @@ public final class VanillaPrices {
     public static double price(ItemStack st) {
         if (st.isEmpty()) return 0;
         Identifier id = Registries.ITEM.getId(st.getItem());
-        if (!id.getNamespace().equals("minecraft")) return 0;
+        if (!id.getNamespace().equals("minecraft")) return TraderGoods.unitPrice(st); // 1.0: Poké Balls and Mega Stones
         Double v = table.get(id.getPath());
         if (v == null || v <= 0) return 0;
         double p = v;
@@ -75,14 +84,24 @@ public final class VanillaPrices {
             table = defaults();
             return;
         }
+        Double ver = user.get("_version");
+        if (ver == null || ver < VERSION) { // 1.0 migration: the new reference prices replace the old values of these items
+            for (String k : V2_KEYS) {
+                user.remove(k);
+                user.remove("minecraft:" + k);
+            }
+        }
         Map<String, Double> t = defaults();
         for (Map.Entry<String, Double> e : user.entrySet()) {
             String k = e.getKey().startsWith("minecraft:") ? e.getKey().substring(10) : e.getKey();
             if (e.getValue() != null && !k.startsWith("_")) t.put(k, Math.max(0, Math.min(MAX, e.getValue())));
         }
         table = t;
+        Map<String, Double> out = new LinkedHashMap<>();
+        out.put("_version", (double) VERSION);
+        out.putAll(table);
         try (Writer w = Files.newBufferedWriter(FILE)) {
-            GSON.toJson(table, w);
+            GSON.toJson(out, w);
         } catch (Exception e) {
             TcgShop.LOGGER.error("Could not save {}", FILE, e);
         }
@@ -107,24 +126,24 @@ public final class VanillaPrices {
         f(0.5, "coal", "charcoal", "flint");
         f(1, "raw_iron", "iron_ingot", "raw_copper", "copper_ingot");
         f(0.11, "iron_nugget");
-        f(3, "raw_gold", "gold_ingot");
-        f(0.33, "gold_nugget");
+        f(300, "raw_gold", "gold_ingot"); // 1.0: the Wholesaler buys gold, emeralds (300) and diamonds (500) at a premium (raw = ingot, like iron/copper)
+        f(33.33, "gold_nugget");
         f(0.3, "redstone");
         f(0.4, "lapis_lazuli", "quartz", "amethyst_shard", "glowstone_dust", "prismarine_shard");
         f(0.6, "prismarine_crystals");
-        f(25, "diamond");
-        f(8, "emerald");
+        f(500, "diamond");
+        f(300, "emerald");
         f(120, "netherite_scrap", "ancient_debris");
         f(500, "netherite_ingot");
         f(4, "echo_shard");
         // compact blocks = 9 pieces (no profit from crafting)
         f(4.5, "coal_block");
         f(9, "iron_block", "raw_iron_block", "copper_block", "raw_copper_block");
-        f(27, "gold_block", "raw_gold_block");
+        f(2700, "gold_block", "raw_gold_block");
         f(2.7, "redstone_block");
         f(3.6, "lapis_block");
-        f(225, "diamond_block");
-        f(72, "emerald_block");
+        f(4500, "diamond_block");
+        f(2700, "emerald_block");
         f(1000, "netherite_block");
         f(1.6, "quartz_block", "glowstone", "amethyst_block");
         // mob loot

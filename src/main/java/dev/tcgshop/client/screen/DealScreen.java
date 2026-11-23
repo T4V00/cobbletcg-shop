@@ -58,6 +58,8 @@ public class DealScreen extends Screen {
     private double closeAt, closingSince;
     private int outcome;
     private long finalPrice;
+    /** 1.0 tips: your asking price sent with the close (final price above it = tip); 0 = none. */
+    private long closedAsk;
     private final List<Btn> buttons = new ArrayList<>();
     private double flashAt = -10, shakeAt = -10;
     private final List<Hist> history = new ArrayList<>();
@@ -116,6 +118,7 @@ public class DealScreen extends Screen {
             closing = p.line();
             outcome = p.patience();
             finalPrice = p.price();
+            closedAsk = p.ask();
             closingSince = now();
             closeAt = closingSince + 3.4;
             int kind = switch (outcome) {
@@ -229,8 +232,16 @@ public class DealScreen extends Screen {
         closing = Text.translatable("tcgshop.deal.gone");
         outcome = CustomerEntity.OUT_UNKNOWN;
         finalPrice = 0;
+        closedAsk = 0;
         closingSince = now();
         closeAt = closingSince + 2.5;
+    }
+
+    /** 1.0 tips: the tip in the current offer or, once closed with a deal, the one included in the final price. */
+    private long tipShown() {
+        if (closing != null)
+            return outcome == CustomerEntity.OUT_DEAL && closedAsk > 0 && finalPrice > closedAsk ? finalPrice - closedAsk : 0;
+        return youBuy() ? 0 : deal.tip();
     }
 
     @Override
@@ -399,7 +410,11 @@ public class DealScreen extends Screen {
         float fl = (float) MathHelper.clamp(1 - (t - flashAt) / 0.8, 0, 1);
         int priceCol = fl > 0 ? Ui.lerpC(Ui.GOLD, 0xFF6BFF8A, fl) : Ui.GOLD;
         long price = closing != null && outcome == CustomerEntity.OUT_DEAL && finalPrice > 0 ? finalPrice : deal.price();
-        line(ctx, Text.translatable(youBuy() ? "tcgshop.deal.asks" : "tcgshop.deal.offer", PriceService.format(price)).formatted(Formatting.BOLD), tx, ty, tw, priceCol);
+        long tipAmt = tipShown();
+        Text first = tipAmt > 0 // 1.0: offer = your asking price + tip
+                ? Text.translatable("tcgshop.deal.offer_tip", PriceService.format(price), PriceService.format(price - tipAmt), PriceService.format(tipAmt))
+                : Text.translatable(youBuy() ? "tcgshop.deal.asks" : "tcgshop.deal.offer", PriceService.format(price));
+        line(ctx, first.copy().formatted(Formatting.BOLD), tx, ty, tw, priceCol);
         ty += 10;
         if (ty + 9 > y + h) return;
         double diff = deal.market() == 0 ? 0 : (price - deal.market()) * 100.0 / deal.market();
@@ -583,7 +598,8 @@ public class DealScreen extends Screen {
         int rep = shopRep();
         double prem = rep < 0 ? 0 : ShopZones.repPremium(rep, ShopZones.isSealed(deal.item()));
         Object[][] grid = {
-                {Text.translatable("tcgshop.haggle.a.accept", PriceService.format(deal.price())), 0xFF2E8A4A, DealAnswerPayload.ACCEPT, "accept"},
+                {tipShown() > 0 ? Text.translatable("tcgshop.haggle.a.accept_tip", PriceService.format(deal.price()), PriceService.format(tipShown()))
+                        : Text.translatable("tcgshop.haggle.a.accept", PriceService.format(deal.price())), 0xFF2E8A4A, DealAnswerPayload.ACCEPT, "accept"},
                 {Text.translatable(buy ? "tcgshop.haggle.a.counter_buy" : "tcgshop.haggle.a.counter_sell", pc), 0xFF3A6FD8, DealAnswerPayload.COUNTER, "counter"},
                 {Text.translatable("tcgshop.haggle.a.max", pc), 0xFF8A5A1A, DealAnswerPayload.ARG_MAX, "max"},
                 {Text.translatable(buy ? "tcgshop.haggle.a.market_buy" : "tcgshop.haggle.a.market_sell"), 0xFF39415E, DealAnswerPayload.ARG_MARKET, "market"},
@@ -646,7 +662,9 @@ public class DealScreen extends Screen {
         if (outcome == CustomerEntity.OUT_DEAL && deal.market() > 0) {
             double diff = (finalPrice - deal.market()) * 100.0 / deal.market();
             boolean good = youBuy() ? diff <= 0 : diff >= 0;
-            sub = Text.translatable(good ? "tcgshop.haggle.out.good" : "tcgshop.haggle.out.bad", String.format(Locale.ROOT, "%+.0f%%", diff));
+            long tipAmt = tipShown();
+            sub = tipAmt > 0 ? Text.translatable("tcgshop.haggle.out.tip", PriceService.format(tipAmt), String.format(Locale.ROOT, "%+.0f%%", diff)) // 1.0
+                    : Text.translatable(good ? "tcgshop.haggle.out.good" : "tcgshop.haggle.out.bad", String.format(Locale.ROOT, "%+.0f%%", diff));
         } else sub = Text.translatable("tcgshop.haggle.out.sub." + Math.max(0, Math.min(4, outcome)));
         line(ctx, sub, tx, y + h / 2 - 2, tw, 0xFFE8E8F0);
         float left = (float) MathHelper.clamp((closeAt - t) / Math.max(0.1, closeAt - closingSince), 0, 1);
@@ -695,7 +713,11 @@ public class DealScreen extends Screen {
         int py = Math.max(ty + 6, y + 108);
         ctx.drawTextWithShadow(textRenderer, Text.literal(Ui.ellipsis(deal.item().getName().getString(), textW)), x + 12, py, 0xFFFFFFFF);
         double diff = deal.market() == 0 ? 0 : (deal.price() - deal.market()) * 100.0 / deal.market();
-        ctx.drawTextWithShadow(textRenderer, Text.translatable("tcgshop.deal.offer", PriceService.format(deal.price())).formatted(Formatting.BOLD), x + 12, py + 12, Ui.GOLD);
+        long tipAmt = tipShown();
+        Text offer = tipAmt > 0 // 1.0: offer = your asking price + tip
+                ? Text.translatable("tcgshop.deal.offer_tip", PriceService.format(deal.price()), PriceService.format(deal.price() - tipAmt), PriceService.format(tipAmt))
+                : Text.translatable("tcgshop.deal.offer", PriceService.format(deal.price()));
+        ctx.drawTextWithShadow(textRenderer, offer.copy().formatted(Formatting.BOLD), x + 12, py + 12, Ui.GOLD);
         ctx.drawTextWithShadow(textRenderer, Text.translatable("tcgshop.deal.market", PriceService.format(deal.market())), x + 12, py + 24, Ui.MUTED);
         boolean good = deal.sellToYou() ? diff < 0 : diff > 0;
         ctx.drawTextWithShadow(textRenderer, Text.literal(String.format(Locale.ROOT, "%+.0f%% ", diff)).append(Text.translatable(good ? "tcgshop.deal.good" : "tcgshop.deal.bad")),

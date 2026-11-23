@@ -105,7 +105,7 @@ public final class UpgradesPanel {
             ctx.drawText(tr, Text.translatable("tcgshop.phoneup.next", PhoneClient.tierName(next)).formatted(Formatting.BOLD), x + 8, by, 0xFFDDE3F0, false);
             long cost = PhoneClient.cost(next);
             long bal = balance();
-            ctx.drawText(tr, Text.literal("₽ " + PriceService.format(cost)), x + 8, by + 11, bal >= cost ? Ui.GOLD : 0xFFFF7070, false);
+            ctx.drawText(tr, Text.literal(PriceService.format(cost)), x + 8, by + 11, bal >= cost ? Ui.GOLD : 0xFFFF7070, false);
             Ui.progress(ctx, x + 8, by + 23, lw - 16, 5, cost <= 0 ? 1f : (float) Math.min(1.0, bal / (double) cost), PhoneTier.of(next).color);
         }
 
@@ -155,6 +155,15 @@ public final class UpgradesPanel {
                             armedAt = now();
                         }
                     });
+                } else if (!afford && Ui.in(mouseX, mouseY, rx, y, rw, h)) {
+                    // 1.0: clicking an upgrade you can't afford explains why, as a notice inside the phone
+                    sink.add(bx, Math.max(bby, y), bwBtn, Math.min(20, y + h - Math.max(bby, y)), () -> {
+                        long bal = balance();
+                        PhoneNotices.push(PhoneNotices.Kind.ERROR, Text.translatable("tcgshop.phone.notice.no_money.title"),
+                                Text.translatable("tcgshop.phone.notice.no_money_upgrade", PhoneClient.tierName(i), PriceService.format(cost),
+                                        PriceService.format(bal), PriceService.format(Math.max(0, cost - bal))),
+                                new net.minecraft.item.ItemStack(dev.tcgshop.item.TcgItems.TCG_PHONE));
+                    });
                 }
                 if (Ui.in(mouseX, mouseY, bx, bby, bwBtn, 20))
                     tooltip(List.of(Text.translatable(afford ? "tcgshop.phoneup.buy_tip" : "tcgshop.phoneup.cant_afford",
@@ -181,7 +190,8 @@ public final class UpgradesPanel {
     static String compact(long v) {
         long a = Math.abs(v);
         String s = a >= 1_000_000 ? String.format(java.util.Locale.ROOT, "%.1fM", a / 1e6).replace(".0M", "M")
-                : a >= 10_000 ? String.format(java.util.Locale.ROOT, "%.0fk", a / 1e3) : PriceService.format(a);
+                : a >= 10_000 ? String.format(java.util.Locale.ROOT, "%.0fk", a / 1e3)
+                : java.text.NumberFormat.getIntegerInstance(java.util.Locale.ROOT).format(a).replace(',', '.'); // callers add "₽ "
         return (v < 0 ? "-" : "") + s;
     }
 
@@ -198,15 +208,20 @@ public final class UpgradesPanel {
         TextRenderer tr = MinecraftClient.getInstance().textRenderer;
         int need = PhoneTier.appTier(appKey);
         PhoneTier nt = PhoneTier.of(need);
-        ctx.fill(sx, sy, sx + sw, sy + sh, 0xB0060710);
+        // 1.0: own opaque layer: flush the home screen first and raise the card, so its batched text can't show through
+        ctx.draw();
+        var mat = ctx.getMatrices();
+        mat.push();
+        mat.translate(0, 0, PhoneNotices.Z);
+        ctx.fill(sx, sy, sx + sw, sy + sh, 0xD8060710);
         sink.add(sx, sy, sw, sh, onClose); // click outside = close
         int cw = sw - 24, cx = sx + 12;
         Text body = Text.translatable("tcgshop.phoneup.app_locked_body", Text.translatable("tcgshop.phone." + appKey), PhoneClient.tierName(need));
         List<OrderedText> lines = tr.wrapLines(body, cw - 16);
         int chh = 64 + lines.size() * 10 + 30;
         int cy = sy + (sh - chh) / 2;
-        Ui.rounded(ctx, cx + 2, cy + 3, cw, chh, 10, 0x80000000);
-        Ui.roundedGradient(ctx, cx, cy, cw, chh, 10, SURF2, SURF);
+        Ui.rounded(ctx, cx + 2, cy + 3, cw, chh, 10, 0xFF030408);
+        Ui.roundedGradient(ctx, cx, cy, cw, chh, 10, 0xFF1F2333, 0xFF171A26); // opaque (SURF/SURF2 are slightly translucent)
         Ui.roundedOutline(ctx, cx, cy, cw, chh, 10, withAlpha(nt.color, 0.9f));
         sink.add(cx, cy, cw, chh, () -> {}); // the card does not close
         LockIcon.badge(ctx, cx + cw / 2, cy + 18, 14, nt.color);
@@ -216,11 +231,14 @@ public final class UpgradesPanel {
             ctx.drawText(tr, l, cx + cw / 2 - tr.getWidth(l) / 2, ly, 0xFFC8CCDA, false);
             ly += 10;
         }
-        ctx.drawText(tr, Text.literal("₽ " + PriceService.format(PhoneClient.cost(need))), cx + cw / 2 - tr.getWidth("₽ " + PriceService.format(PhoneClient.cost(need))) / 2, ly + 2, Ui.GOLD, false);
+        String price = PriceService.format(PhoneClient.cost(need)); // already carries the currency suffix
+        ctx.drawText(tr, Text.literal(price), cx + cw / 2 - tr.getWidth(price) / 2, ly + 2, Ui.GOLD, false);
         int bw = (cw - 24) / 2, by = cy + chh - 26;
         Ui.button(ctx, cx + 8, by, bw, 18, Text.translatable("tcgshop.phoneup.see_upgrades"), mouseX, mouseY, true, nt.color);
         Ui.button(ctx, cx + 16 + bw, by, bw, 18, Text.translatable("tcgshop.phoneup.close"), mouseX, mouseY, true, 0xFF39415E);
         sink.add(cx + 8, by, bw, 18, onUpgrades);
         sink.add(cx + 16 + bw, by, bw, 18, onClose);
+        ctx.draw();
+        mat.pop();
     }
 }

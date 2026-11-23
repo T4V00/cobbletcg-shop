@@ -43,6 +43,13 @@ import java.util.UUID;
  */
 public class TraderEntity extends PathAwareEntity implements TcgNpc {
     public static final double MIN_RATIO = 0.85, WISH_BONUS = 1.15;
+    /**
+     * TraderAction.action (besides MarketPayloads.TRADE / SELL_WISH): 1.0, sell him every Mega Stone (does not use up a deal).
+     * A high value so it never collides with new MarketPayloads action codes.
+     */
+    public static final int SELL_MEGA_STONES = 100;
+    /** 1.0: most of your cards that can go into one trade (several of yours for one of his). */
+    public static final int MAX_OFFER = 10;
     private static final int STOCK = 6, TRADES = 4;
     private static final long MAX_STOCK_VALUE = 150_000;
     private static List<Identifier> cardPool;
@@ -172,6 +179,11 @@ public class TraderEntity extends PathAwareEntity implements TcgNpc {
 
     public void action(ServerPlayerEntity player, MarketPayloads.TraderAction a) {
         if (squaredDistanceTo(player) > 10 * 10) return;
+        if (a.action() == SELL_MEGA_STONES) { // 1.0: every trader buys Mega Stones
+            if (dev.tcgshop.shop.TraderGoods.sellMegaStones(player) > 0) playSound(SoundEvents.ENTITY_VILLAGER_CELEBRATE, 1f, 1.1f);
+            open(player);
+            return;
+        }
         if (tradesLeft <= 0) {
             player.sendMessage(Text.translatable("tcgshop.trader.no_more").formatted(Formatting.GRAY), true);
             return;
@@ -196,23 +208,73 @@ public class TraderEntity extends PathAwareEntity implements TcgNpc {
             player.sendMessage(Text.translatable("tcgshop.trader.sold", name, Text.literal(PriceService.format(price)).formatted(Formatting.GOLD)), false);
             playSound(SoundEvents.ENTITY_VILLAGER_CELEBRATE, 1f, 1.1f);
         } else if (a.action() == MarketPayloads.TRADE) {
-            if (a.index() < 0 || a.index() >= stock.size() || stock.get(a.index()).isEmpty()) return;
-            ItemStack his = stock.get(a.index());
-            long hv = CardSales.unitValue(his), mv = CardSales.unitValue(mine);
-            if (mv < hv * MIN_RATIO) {
-                player.sendMessage(Text.translatable("tcgshop.trader.too_low").formatted(Formatting.RED), true);
-                playSound(SoundEvents.ENTITY_VILLAGER_NO, 1f, 1f);
+            offer(player, a.index(), List.of(a.slot())); // 1.0: one card is just an offer of one (same rules)
+            return;
+        }
+        open(player);
+    }
+
+    /**
+     * 1.0: you offer one or several of your cards (inventory slots or Binder slots) for one of his cards. Accepted when the
+     * sum of their values reaches MIN_RATIO of his card's value. Everything is validated before anything moves; the cards
+     * are then taken one by one and, if any of them cannot be taken, the ones already taken go back to you (no loss, no
+     * duplication). He keeps the most valuable of your cards on his stall in place of the one he gave you.
+     */
+    public void offer(ServerPlayerEntity player, int index, List<Integer> rawSlots) {
+        if (squaredDistanceTo(player) > 10 * 10 || rawSlots == null) return;
+        if (tradesLeft <= 0) {
+            player.sendMessage(Text.translatable("tcgshop.trader.no_more").formatted(Formatting.GRAY), true);
+            return;
+        }
+        if (index < 0 || index >= stock.size() || stock.get(index).isEmpty()) return;
+        List<Integer> slots = new ArrayList<>(new java.util.LinkedHashSet<>(rawSlots)); // one unit per slot, no repeats
+        if (slots.isEmpty()) return;
+        if (slots.size() > MAX_OFFER) {
+            player.sendMessage(Text.translatable("tcgshop.trader.too_many", MAX_OFFER).formatted(Formatting.RED), true);
+            return;
+        }
+        long total = 0;
+        for (int s : slots) {
+            if (s < 0 || (s >= 36 && !dev.tcgshop.collection.BinderSlots.isBinder(s))) return;
+            ItemStack st = dev.tcgshop.collection.BinderSlots.peek(player, s);
+            if (!CardInfo.isCard(st)) return;
+            total += CardSales.unitValue(st);
+        }
+        ItemStack his = stock.get(index);
+        long hv = CardSales.unitValue(his);
+        if (total < hv * MIN_RATIO) {
+            player.sendMessage((slots.size() == 1 ? Text.translatable("tcgshop.trader.too_low")
+                    : Text.translatable("tcgshop.trader.too_low_multi", PriceService.format(total), PriceService.format((long) Math.ceil(hv * MIN_RATIO))))
+                    .formatted(Formatting.RED), true);
+            playSound(SoundEvents.ENTITY_VILLAGER_NO, 1f, 1f);
+            return;
+        }
+        // highest slot first: taking the last copy of a Binder card removes it from the list and shifts the Binder slots after it
+        slots.sort(java.util.Comparator.reverseOrder());
+        List<ItemStack> given = new ArrayList<>();
+        for (int s : slots) {
+            ItemStack g = dev.tcgshop.collection.BinderSlots.take(player, s, 1);
+            if (g.isEmpty() || !CardInfo.isCard(g)) { // should not happen (validated this same tick): undo and stop
+                if (!g.isEmpty()) player.getInventory().offerOrDrop(g);
+                for (ItemStack back : given) player.getInventory().offerOrDrop(back);
+                dev.tcgshop.collection.BinderSlots.sync(player);
+                open(player);
                 return;
             }
-            ItemStack given = dev.tcgshop.collection.BinderSlots.take(player, a.slot(), 1);
-            if (given.isEmpty()) return;
-            dev.tcgshop.collection.BinderSlots.sync(player);
-            inv.offerOrDrop(his.copy());
-            stock.set(a.index(), given);
-            tradesLeft--;
-            player.sendMessage(Text.translatable("tcgshop.trader.traded", given.getName(), his.getName()).formatted(Formatting.GREEN), false);
-            playSound(SoundEvents.ENTITY_VILLAGER_TRADE, 1f, 1f);
+            given.add(g);
         }
+        dev.tcgshop.collection.BinderSlots.sync(player);
+        player.getInventory().offerOrDrop(his.copy());
+        ItemStack keep = given.get(0);
+        for (ItemStack g : given) if (CardSales.unitValue(g) > CardSales.unitValue(keep)) keep = g;
+        stock.set(index, keep.copyWithCount(1));
+        tradesLeft--;
+        if (given.size() == 1)
+            player.sendMessage(Text.translatable("tcgshop.trader.traded", keep.getName(), his.getName()).formatted(Formatting.GREEN), false);
+        else
+            player.sendMessage(Text.translatable("tcgshop.trader.traded_multi", given.size(), his.getName(),
+                    Text.literal(PriceService.format(total)).formatted(Formatting.GOLD)).formatted(Formatting.GREEN), false);
+        playSound(SoundEvents.ENTITY_VILLAGER_TRADE, 1f, 1f);
         open(player);
     }
 

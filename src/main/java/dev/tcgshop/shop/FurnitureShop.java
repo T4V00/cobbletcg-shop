@@ -47,6 +47,8 @@ import java.util.Set;
  *       at a fixed price (config/tcgshop-luxury.json) and with no buyback.</li>
  *   <li>Everything is validated on the server (distance to the NPC, phone in the inventory, item
  *       in the catalog, balance and units you actually have).</li>
+ *   <li>1.0: the Furniture Vendor (and the Wholesaler) also buy Mega Stones: Trade with item {@link TraderGoods#MEGA_TRADE_ID}
+ *       and sell = true sells every one you carry ({@link TraderGoods#sellMegaStones}).</li>
  * </ul>
  */
 public final class FurnitureShop {
@@ -267,6 +269,15 @@ public final class FurnitureShop {
         if (kind == KIND_NONE) {
             // a click must never do nothing silently: explain why (without clearing the catalog already shown)
             player.sendMessage(Text.translatable(deniedReason(p.source())).formatted(Formatting.RED), true);
+            return;
+        }
+        if (TraderGoods.MEGA_TRADE_ID.equals(p.item())) { // 1.0: any trader buys Mega Stones (not the phone: it isn't a trader)
+            if (p.sell() && kind != KIND_PHONE && TraderGoods.sellMegaStones(player) > 0
+                    && player.getWorld().getEntityById(p.source()) instanceof FurnitureSellerEntity s) {
+                NpcLines.say(s, player, "furn_sell");
+                s.flashEmote(TcgNpc.EMOTE_DEAL);
+            }
+            send(player, new FurniturePayloads.Open(p.source(), false, false, balance(player), List.of(), List.of(), List.of(), ""));
             return;
         }
         Identifier id = Identifier.tryParse(p.item());

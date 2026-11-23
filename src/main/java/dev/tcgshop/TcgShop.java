@@ -182,14 +182,19 @@ public class TcgShop implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.MarketPayloads.TraderAction.ID, (p, ctx) -> ctx.server().execute(() -> {
             if (ctx.player().getWorld().getEntityById(p.entity()) instanceof dev.tcgshop.entity.TraderEntity tr) tr.action(ctx.player(), p);
         }));
+        // 1.0: several of your cards for one of the wandering Collector's cards
+        PayloadTypeRegistry.playC2S().register(dev.tcgshop.network.CollectorOfferPayload.ID, dev.tcgshop.network.CollectorOfferPayload.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.CollectorOfferPayload.ID, (p, ctx) -> ctx.server().execute(() -> {
+            if (ctx.player().getWorld().getEntityById(p.entity()) instanceof dev.tcgshop.entity.TraderEntity tr) tr.offer(ctx.player(), p.index(), p.slots());
+        }));
         ServerPlayNetworking.registerGlobalReceiver(ShopActionPayload.ID, (p, ctx) -> ctx.server().execute(() -> dev.tcgshop.shop.ShopServer.handleAction(p, ctx.player())));
         ServerPlayNetworking.registerGlobalReceiver(StoreBuyPayload.ID, (p, ctx) -> ctx.server().execute(() -> {
             ServerPlayerEntity pl = ctx.player();
             if (p.source() == -1) {
-                if (pl.getInventory().contains(st -> st.isOf(dev.tcgshop.item.TcgItems.TCG_PHONE)))
-                    dev.tcgshop.shop.ShopServer.buy(p, pl, dev.tcgshop.shop.ShopServer.phoneCatalog(), dev.tcgshop.shop.ShopServer.PHONE_FACTOR);
+                if (pl.getInventory().contains(st -> st.isOf(dev.tcgshop.item.TcgItems.TCG_PHONE))) // 1.0: PhoneStore adds the result notice
+                    dev.tcgshop.phone.PhoneStore.buy(p, pl, dev.tcgshop.shop.ShopServer.phoneCatalog(), dev.tcgshop.shop.ShopServer.PHONE_FACTOR);
             } else if (pl.getWorld().getEntityById(p.source()) instanceof dev.tcgshop.entity.WholesalerEntity w && w.squaredDistanceTo(pl) < 10 * 10) {
-                dev.tcgshop.shop.ShopServer.buy(p, pl, w.goods(), dev.tcgshop.shop.ShopServer.WHOLESALE_FACTOR);
+                dev.tcgshop.phone.PhoneStore.buy(p, pl, w.goods(), dev.tcgshop.shop.ShopServer.WHOLESALE_FACTOR);
             }
         }));
         net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents.AFTER_RESPAWN.register((o, n, alive) -> dev.tcgshop.shop.ShopServer.syncZones(n));
@@ -413,7 +418,7 @@ public class TcgShop implements ModInitializer {
                             // creates shop entities and blocks in the Overworld and logs any error
                             var world = ctx.getSource().getServer().getOverworld();
                             var base = world.getSpawnPos().up(2);
-                            String[] steps = {"scalper", "wholesaler", "trader", "display_case", "booster_box", "multiblock", "customer", "scalper_brawl", "grading", "rarity", "masterball_api", "duel", "chest_loot", "home_display", "mansion", "shop_core_wood"};
+                            String[] steps = {"scalper", "wholesaler", "trader", "display_case", "booster_box", "multiblock", "customer", "scalper_brawl", "grading", "rarity", "masterball_api", "duel", "chest_loot", "home_display", "display_slots", "mansion", "shop_core_wood"};
                             for (String step : steps) {
                                 try {
                                     switch (step) {
@@ -600,23 +605,30 @@ public class TcgShop implements ModInitializer {
                                             dev.masterball.api.migrate.LegacyRescue.place(world, at, rescued);
                                             if (!(world.getBlockEntity(at) instanceof net.minecraft.block.entity.BarrelBlockEntity barrel) || barrel.getStack(0).isEmpty())
                                                 throw new IllegalStateException("the rescue did not leave a barrel with the cards");
-                                            // packs: always 5 cards from the set; god pack without commons; sealed -> 96/3/1
+                                            // packs: always 5 cards from the set; god pack = only full art (old sets without full arts: no commons); sealed -> 96/3/1
                                             var rnd = net.minecraft.util.math.random.Random.create(11);
-                                            int sets = 0;
+                                            int sets = 0, godFullArtSets = 0;
                                             for (var si : dev.masterball.api.card.CardCatalog.sets()) {
                                                 sets++;
+                                                boolean godFa = dev.masterball.api.pack.PackContents.godIsFullArt(si.id());
+                                                if (godFa) godFullArtSets++;
                                                 for (int k = 0; k < 40; k++) {
                                                     for (int tier = 1; tier <= 3; tier++) {
                                                         var got = dev.masterball.api.pack.PackContents.open(si.id(), tier, rnd);
                                                         if (got.size() != 5) throw new IllegalStateException(si.id() + " type " + tier + ": " + got.size() + " cards");
                                                         for (ItemStack c : got) {
                                                             if (!CardInfo.setId(CardInfo.id(c)).equals(si.id())) throw new IllegalStateException(si.id() + ": card from another set " + CardInfo.id(c));
+                                                            if (tier == 3 && godFa && !dev.masterball.api.card.FullArt.isFullArt(c))
+                                                                throw new IllegalStateException(si.id() + ": non-full-art card in god pack " + CardInfo.id(c));
                                                             if (tier == 3 && dev.masterball.api.card.Rarity.of(c).family == dev.masterball.api.card.Rarity.Family.COMMON
                                                                     && si.cards().size() > 60 && !si.pocket()) throw new IllegalStateException(si.id() + ": common in god pack " + CardInfo.id(c));
                                                         }
                                                     }
                                                 }
                                             }
+                                            // every set from Black & White (2011) onwards has full arts: ~48 of the 68 sets
+                                            LOGGER.info("[selftest] god packs: {} of {} sets full art only (the rest use their highest rarities)", godFullArtSets, sets);
+                                            if (godFullArtSets < 40) throw new IllegalStateException("too few sets with full-art god packs: " + godFullArtSets + "/" + sets);
                                             int[] tiers = new int[4];
                                             for (int k = 0; k < 100_000; k++) tiers[dev.masterball.api.pack.PackContents.rollTier(rnd)]++;
                                             if (Math.abs(tiers[1] - 96_000) > 800 || Math.abs(tiers[2] - 3_000) > 400 || Math.abs(tiers[3] - 1_000) > 250)
@@ -663,6 +675,8 @@ public class TcgShop implements ModInitializer {
                                             if (packs < 8 || packs > 70) throw new IllegalStateException("pack chance out of range: " + packs);
                                         }
                                         case "mansion" -> dev.tcgshop.luxury.house.MansionService.selfTest(); // dry run of the generator
+                                        case "display_slots" -> LOGGER.info("[selftest] display_slots: {} aim checks", // 1.0: every display/facing/slot is clickable
+                                                dev.tcgshop.shop.ShopDisplayBlock.selfTest(world, base.add(6, 10, 8)));
                                         case "home_display" -> {
                                             var b = dev.tcgshop.shop.TcgBlocks.HOME_FRAME;
                                             if (b.shopOnly() || !dev.tcgshop.shop.TcgBlocks.CARD_FRAME.shopOnly()) throw new IllegalStateException("shopOnly wrong");

@@ -291,13 +291,26 @@ public final class PtcgDuels {
         return poolCache;
     }
 
-    /** Your cards playable in the real TCG: engine name -> copies (General Binder you carry + inventory). */
+    /** Your cards playable in the real TCG: engine name -> copies (General Binder you carry, your Personal Binders + inventory). */
     public static Map<String, Integer> pool(ServerPlayerEntity p) {
         Map<String, Integer> out = new LinkedHashMap<>();
         BinderData d = CollectionService.ownedBinder(p);
         if (d != null) for (var e : d.counts.entrySet()) {
             String f = PtcgCards.engineName(e.getKey());
             if (f != null) out.merge(f, e.getValue(), Integer::sum);
+        }
+        // 1.0: print variants and graded cards are filed in the General Binder as full stacks, and cards can live in a
+        // Personal Binder (the starter one); before 1.0 both stayed in the inventory, so they must still count as owned
+        if (d != null) for (BinderData.Special s : d.specials) {
+            String f = PtcgCards.engineName(CardInfo.id(s.stack).toString());
+            if (f != null && s.count > 0) out.merge(f, s.count, Integer::sum);
+        }
+        for (ItemStack pb : personalBinders(p)) {
+            for (String id : pb.getOrDefault(dev.tcgshop.item.TcgItems.PERSONAL_BINDER_DATA, dev.tcgshop.binder.PersonalBinderData.DEFAULT).slots()) {
+                if (id.isEmpty() || id.startsWith("wish:")) continue;
+                String f = PtcgCards.engineName(id);
+                if (f != null) out.merge(f, 1, Integer::sum);
+            }
         }
         for (int i = 0; i < p.getInventory().size(); i++) {
             ItemStack st = p.getInventory().getStack(i);
@@ -319,6 +332,30 @@ public final class PtcgDuels {
             int[] g = out.computeIfAbsent(f, k -> new int[2]);
             g[0] += st.getCount();
             g[1] = Math.max(g[1], Grading.grade(st));
+        }
+        // 1.0: graded slabs filed in the General Binder (specials) or in a Personal Binder pocket
+        List<ItemStack> slabs = new ArrayList<>();
+        BinderData d = CollectionService.ownedBinder(p);
+        if (d != null) for (BinderData.Special s : d.specials) if (s.count > 0) slabs.add(s.stack.copyWithCount(s.count));
+        for (ItemStack pb : personalBinders(p))
+            slabs.addAll(pb.getOrDefault(dev.tcgshop.item.TcgItems.PERSONAL_BINDER_DATA, dev.tcgshop.binder.PersonalBinderData.DEFAULT).extra().values());
+        for (ItemStack st : slabs) {
+            if (!CardInfo.isCard(st) || !Grading.isGraded(st)) continue;
+            String f = PtcgCards.engineName(CardInfo.id(st).toString());
+            if (f == null) continue;
+            int[] g = out.computeIfAbsent(f, k -> new int[2]);
+            g[0] += st.getCount();
+            g[1] = Math.max(g[1], Grading.grade(st));
+        }
+        return out;
+    }
+
+    /** Personal Binders the player carries that are bound to them (their pockets hold real cards). */
+    private static List<ItemStack> personalBinders(ServerPlayerEntity p) {
+        List<ItemStack> out = new ArrayList<>();
+        for (ItemStack st : dev.tcgshop.binder.PersonalBinders.carried(p, null)) {
+            dev.tcgshop.collection.BinderTag tag = st.get(dev.tcgshop.item.TcgItems.BINDER_TAG);
+            if (tag != null && tag.owner().equals(p.getUuid())) out.add(st);
         }
         return out;
     }

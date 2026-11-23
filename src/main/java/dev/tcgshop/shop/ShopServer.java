@@ -97,14 +97,14 @@ public final class ShopServer {
         FIXED.put(TcgBlocks.HOME_SHOWCASE_ITEM, 12_000L);
         FIXED.put(TcgBlocks.HOME_CARD_WALL_ITEM, 18_000L);
         FIXED.put(TcgBlocks.HOME_PEDESTAL_ITEM, 24_000L);
-        FIXED.put(TcgBlocks.CASH_REGISTER_ITEM, 12_000L);
+        FIXED.put(TcgBlocks.CASH_REGISTER_ITEM, 2_000L); // 1.0 (EconomyConfig.traderPricesVersion migrates old files)
         FIXED.put(TcgBlocks.POSTER_ITEM, 1_500L);
         FIXED.put(TcgBlocks.PLAY_TABLE_ITEM, 9_000L);
         FIXED.put(TcgBlocks.THEFT_DETECTOR_ITEM, 20_000L);
         FIXED.put(TcgBlocks.ROULETTE_ITEM, 150_000L);
         FIXED.put(TcgBlocks.MYSTERY_BOX, MYSTERY_PRICE);
-        FIXED.put(TcgItems.MANAGER_GOGGLES, 15_000L);
-        FIXED.put(TcgItems.TCG_PHONE, 25_000L);
+        FIXED.put(TcgItems.MANAGER_GOGGLES, 2_000L); // 1.0 (EconomyConfig.gogglesPriceVersion migrates old files)
+        FIXED.put(TcgItems.TCG_PHONE, 5_000L); // 1.0 (PhoneConfig.configVersion 2 migrates old economy files)
         FIXED.put(TcgItems.DEODORANT_SPRAY, 2_500L);
         FIXED.put(TcgItems.MOP, 600L);
         FIXED.put(TcgItems.REPAIR_KIT, 1_500L);

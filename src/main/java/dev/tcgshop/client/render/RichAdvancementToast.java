@@ -52,7 +52,9 @@ public class RichAdvancementToast implements Toast {
         AdvancementFrame frame = d.getFrame();
         int accent = frame == AdvancementFrame.CHALLENGE ? 0xFFD66BFF : frame == AdvancementFrame.GOAL ? 0xFF6BC5FF : 0xFFFFD34D;
         int h = getHeight();
-        Ui.roundGradient(ctx, 0, 0, WIDTH, h, 0xF0262A3C, 0xF0161925);
+        // Fully opaque background (it used to be 94% alpha and the text under it showed through). The ToastManager
+        // mixin flushes the HUD/screen batch and clears depth before the toasts, so this panel really covers it.
+        Ui.roundGradient(ctx, 0, 0, WIDTH, h, 0xFF262A3C, 0xFF161925);
         Ui.outline(ctx, 0, 0, WIDTH, h, accent);
         ctx.fill(1, 1, 4, h - 1, accent);
         // icon
@@ -67,6 +69,7 @@ public class RichAdvancementToast implements Toast {
             ctx.drawText(tr, line, 36, y, 0xFFB8BCCC, false);
             y += 9;
         }
+        ctx.draw(); // this toast is complete before the next one (or anything else) is drawn
         if (!soundPlayed && startTime > 0L) {
             soundPlayed = true;
             if (frame == AdvancementFrame.CHALLENGE) {
