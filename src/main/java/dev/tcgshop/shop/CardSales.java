@@ -73,7 +73,7 @@ public final class CardSales {
         double sum = 0;
         int cards = 0;
         boolean wholesaler = p.source() != -1;
-        boolean fromBinder = false;
+        boolean fromBinder = false, hot = false;
         // from highest to lowest slot: removing a card from the Binder doesn't change the index of the ones still to process
         java.util.List<Integer> order = new java.util.ArrayList<>(new LinkedHashSet<>(p.slots()));
         order.sort((x, y) -> Integer.compare(y, x));
@@ -89,6 +89,8 @@ public final class CardSales {
             }
             if (slot < 0 || slot >= 36) continue;
             ItemStack st = player.getInventory().getStack(slot);
+            // 1.0 beta 3: a card stolen from a collector who is still hunting for it is not bought
+            if (CardInfo.isCard(st) && dev.tcgshop.entity.CollectorTheft.isHot(player.getServer(), st)) { hot = true; continue; }
             if (CardInfo.isCard(st)) sum += offer(st, rate) * (double) st.getCount();
             else if (wholesaler && VanillaPrices.sellable(st)) sum += VanillaPrices.price(st) * st.getCount(); // the Wholesaler buys almost everything
             else continue;
@@ -96,6 +98,7 @@ public final class CardSales {
             player.getInventory().setStack(slot, ItemStack.EMPTY);
         }
         if (fromBinder) dev.tcgshop.collection.BinderSlots.sync(player);
+        if (hot) dev.tcgshop.entity.CollectorTheft.sayHot(player);
         if (cards == 0) return;
         long total = (long) Math.floor(sum);
         CobbleDollarsBridge.add(player, total);

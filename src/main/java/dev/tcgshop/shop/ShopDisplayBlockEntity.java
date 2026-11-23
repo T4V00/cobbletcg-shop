@@ -174,5 +174,9 @@ public class ShopDisplayBlockEntity extends BlockEntity implements Inventory {
         changed();
     }
     @Override public boolean canPlayerUse(PlayerEntity player) { return false; }
+    /** 1.0 beta 3: hoppers can't sneak in a card stolen from a collector who is still hunting for it. */
+    @Override public boolean isValid(int slot, ItemStack stack) {
+        return world == null || world.isClient || !dev.tcgshop.entity.CollectorTheft.isHot(world.getServer(), stack);
+    }
     @Override public void clear() { items.clear(); }
 }

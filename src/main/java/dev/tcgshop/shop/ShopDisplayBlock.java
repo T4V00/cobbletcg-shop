@@ -231,6 +231,7 @@ public class ShopDisplayBlock extends BlockWithEntity implements ShopFurniture {
                 player.sendMessage(Text.translatable("tcgshop.home.not_yours").formatted(Formatting.RED), true);
                 return Put.FAIL;
             }
+            if (dev.tcgshop.entity.CollectorTheft.refuseHot(player, stack)) return Put.FAIL; // 1.0 beta 3: no hiding a hunted card
             if (slot >= 0 && ShopServer.canMerge(be.getStack(slot), stack)) {
                 ItemStack cur = be.getStack(slot).copy();
                 int add = Math.min(stack.getCount(), cur.getMaxCount() - cur.getCount());
@@ -260,6 +261,7 @@ public class ShopDisplayBlock extends BlockWithEntity implements ShopFurniture {
         }
         if (!z.owner.equals(player.getUuid())) return Put.PASS;
         if (slot >= 0 && !be.getStack(slot).isEmpty() && !ShopServer.canMerge(be.getStack(slot), stack)) return Put.PASS; // buy / edit what's there
+        if (dev.tcgshop.entity.CollectorTheft.refuseHot(player, stack)) return Put.FAIL; // 1.0 beta 3: a hunted card is not put up for sale
         ShopServer.stock(player, be, stack, slot);
         return Put.DONE;
     }

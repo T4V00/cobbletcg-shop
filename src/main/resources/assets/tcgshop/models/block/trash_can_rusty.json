@@ -1,0 +1,9 @@
+{
+ "parent": "tcgshop:block/trash_can",
+ "textures": {
+  "particle": "tcgshop:block/trash_can_rust",
+  "metal": "tcgshop:block/trash_can_rust",
+  "rim": "tcgshop:block/trash_can_rust_rim",
+  "lid": "tcgshop:block/trash_can_rust_lid"
+ }
+}

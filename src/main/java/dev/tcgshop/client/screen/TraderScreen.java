@@ -36,6 +36,8 @@ public class TraderScreen extends Screen {
     private double swapAt = -10;
     /** When the Mega Stone sale button was armed (second click within 3 s confirms). */
     private double megaArmedAt = -10;
+    /** 1.0 beta 3: when the Steal button was armed (second click within 3 s steals). */
+    private double stealArmedAt = -10;
 
     public TraderScreen(MarketPayloads.TraderOpen data) {
         super(Text.translatable("entity.tcgshop.trader"));
@@ -70,6 +72,7 @@ public class TraderScreen extends Screen {
         Entity e = client != null && client.world != null ? client.world.getEntityById(data.entity()) : null;
         String who = e != null ? e.getName().getString() : title.getString();
         ctx.drawTextWithShadow(textRenderer, Text.literal(who).formatted(Formatting.BOLD), x + 10, y + 8, Ui.GOLD);
+        stealButton(ctx, x + 16 + textRenderer.getWidth(Text.literal(who).formatted(Formatting.BOLD)), y + 6, mouseX, mouseY, t); // 1.0 beta 3
         ctx.drawText(textRenderer, Text.translatable("tcgshop.trader.subtitle"), x + 10, y + 19, 0xFFCDEBDD, false);
         String tl = Text.translatable("tcgshop.trader.trades_left", data.tradesLeft()).getString();
         ctx.drawTextWithShadow(textRenderer, tl, x + w - 10 - textRenderer.getWidth(tl), y + 8, data.tradesLeft() > 0 ? 0xFF8BE08B : 0xFFFF8A8A);
@@ -205,6 +208,33 @@ public class TraderScreen extends Screen {
             if (now - megaArmedAt >= 3) { megaArmedAt = now; click(); return; }
             megaArmedAt = -10;
             ClientPlayNetworking.send(new MarketPayloads.TraderAction(data.entity(), dev.tcgshop.entity.TraderEntity.SELL_MEGA_STONES, -1, -1));
+        }));
+    }
+
+    /**
+     * 1.0 beta 3: "Steal" next to his name. Pockets one random card from his stall; he then hunts you (see
+     * entity/CollectorTheft). The tooltip spells out the consequences and it needs a second click within 3 s.
+     */
+    private void stealButton(DrawContext ctx, int bx, int by, int mouseX, int mouseY, double t) {
+        boolean any = false;
+        for (ItemStack st : data.stock()) if (!st.isEmpty()) { any = true; break; }
+        if (!any) return;
+        boolean armed = t - stealArmedAt < 3;
+        Text label = Text.translatable(armed ? "tcgshop.collector_theft.steal_confirm" : "tcgshop.collector_theft.steal_btn");
+        int bw = textRenderer.getWidth(label) + 12;
+        Ui.button(ctx, bx, by, bw, 12, label, mouseX, mouseY, true, armed ? 0xFFB02020 : 0xFF6E2A2A);
+        if (Ui.in(mouseX, mouseY, bx, by, bw, 12)) {
+            List<net.minecraft.text.OrderedText> tip = new ArrayList<>();
+            tip.add(Text.translatable("tcgshop.collector_theft.hint.title").formatted(Formatting.RED, Formatting.BOLD).asOrderedText());
+            for (int i = 0; i < 4; i++) tip.addAll(textRenderer.wrapLines(Text.translatable("tcgshop.collector_theft.hint." + i).formatted(Formatting.GRAY), 220));
+            setTooltip(tip, net.minecraft.client.gui.tooltip.HoveredTooltipPositioner.INSTANCE, true);
+        }
+        areas.add(new Area(bx, by, bw, 12, () -> {
+            double now = System.nanoTime() / 1e9;
+            if (now - stealArmedAt >= 3) { stealArmedAt = now; click(); return; }
+            stealArmedAt = -10;
+            ClientPlayNetworking.send(new MarketPayloads.TraderAction(data.entity(), dev.tcgshop.entity.TraderEntity.STEAL, -1, -1));
+            close(); // he is not trading anymore
         }));
     }
 

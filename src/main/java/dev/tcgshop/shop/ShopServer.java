@@ -113,6 +113,7 @@ public final class ShopServer {
         FIXED.put(TcgItems.PERSONAL_BINDER, 5_000L);
         for (ShopTier t : ShopTier.values()) FIXED.put(TcgBlocks.CORE_ITEMS.get(t), t.price);
         FIXED.putAll(RgbDisplays.PRICES); // 1.0 RGB displays (25,000 - 500,000; itemPrices in tcgshop-economy.json override them)
+        FIXED.putAll(dev.tcgshop.casino.CasinoBlocks.PRICES); // 1.0 beta 3 casino machines (60,000 - 500,000) and scratch tickets
     }
 
     // ------------------------------------------------------------------ products and prices
@@ -167,6 +168,7 @@ public final class ShopServer {
         for (Item it : TcgBlocks.NEW_SHOP_DISPLAYS) g.add(new ItemStack(it));
         for (Item it : TcgBlocks.HOME_DISPLAYS) g.add(new ItemStack(it));
         for (Item it : RgbDisplays.ITEMS) g.add(new ItemStack(it)); // 1.0 RGB displays
+        for (Item it : dev.tcgshop.casino.CasinoBlocks.ITEMS) g.add(new ItemStack(it)); // 1.0 beta 3 casino
         for (Item it : new Item[]{TcgBlocks.CARD_STAND_ITEM, TcgBlocks.DISPLAY_CASE_ITEM, TcgBlocks.PACK_SHELF_ITEM, TcgBlocks.GONDOLA_ITEM,
                 TcgBlocks.BOX_PALLET_ITEM, TcgBlocks.PEDESTAL_ITEM, TcgBlocks.CARD_WALL_ITEM, TcgBlocks.CASH_REGISTER_ITEM, TcgBlocks.POSTER_ITEM, TcgBlocks.PLAY_TABLE_ITEM,
                 TcgBlocks.THEFT_DETECTOR_ITEM, TcgItems.MANAGER_GOGGLES, TcgItems.TCG_PHONE, TcgItems.DEODORANT_SPRAY, TcgItems.NERD_GLOVES, TcgItems.GENERAL_BINDER, TcgItems.PERSONAL_BINDER, TcgItems.MOP, TcgItems.REPAIR_KIT})
@@ -407,6 +409,8 @@ public final class ShopServer {
 
     /** Hire / fire from the phone. role: "cashier" or "guard". */
     public static void manageStaff(ServerPlayerEntity player, UUID zoneId, String role, boolean hire) {
+        // 1.0 beta 3: guard upgrades from the phone (role "guard_up_<armor|weapon|training|detection>")
+        if (role.startsWith("guard_up_")) { GuardUpgrades.buy(player, zoneId, role.substring("guard_up_".length())); return; }
         ServerWorld world = player.getServerWorld();
         ShopZones zones = ShopZones.get(world);
         ShopZones.Zone z = zones.byId(zoneId);

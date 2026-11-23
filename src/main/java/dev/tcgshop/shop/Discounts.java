@@ -259,6 +259,8 @@ public final class Discounts extends PersistentState {
             // Pokédolls: the Furniture Vendor buys them back at up to 50 % of their base price (a 50 % sale would be free
             // money), and there are hundreds of them, so they would take almost every sale
             if (ShopServer.isPokedoll(st)) continue;
+            // 1.0 beta 3: scratch tickets pay multiples of their face value (59-70% return): at 30-50 % off they would pay back over 100 %
+            if (st.getItem() instanceof dev.tcgshop.casino.ScratchCardItem) continue;
             unique.putIfAbsent(st.getItem(), st.copyWithCount(1));
         }
         List<ItemStack> items = new ArrayList<>();

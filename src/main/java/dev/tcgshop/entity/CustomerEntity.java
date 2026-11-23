@@ -12,6 +12,8 @@ import dev.tcgshop.EconomyConfig;
 import dev.tcgshop.pricing.PriceService;
 import dev.tcgshop.shop.BoosterBox;
 import dev.tcgshop.shop.DecorBlocks;
+import dev.tcgshop.shop.GuardUpgrades;
+import dev.tcgshop.shop.SecurityLedger;
 import dev.tcgshop.shop.ShopDisplayBlock;
 import dev.tcgshop.shop.ShopDisplayBlockEntity;
 import dev.tcgshop.shop.ShopServer;
@@ -96,6 +98,26 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     private static final TrackedData<Integer> WAIT = DataTracker.registerData(CustomerEntity.class, TrackedDataHandlerRegistry.INTEGER);
     /** 0.9 events: role shown above an event visitor's head (language key; empty = the one for its type). */
     private static final TrackedData<String> EV_ROLE = DataTracker.registerData(CustomerEntity.class, TrackedDataHandlerRegistry.STRING);
+    /** 1.0 beta 3: unique customer id (FixedCustomers, 0-9; -1 = an ordinary customer). Synced for the rainbow name. */
+    private static final TrackedData<Integer> FIXED = DataTracker.registerData(CustomerEntity.class, TrackedDataHandlerRegistry.INTEGER);
+    /** 1.0 beta 3: thief tier (ThiefTiers, 0 = pickpocket ... 4 = heist boss). */
+    private static final TrackedData<Integer> TIER = DataTracker.registerData(CustomerEntity.class, TrackedDataHandlerRegistry.INTEGER);
+
+    /** 1.0 beta 3: an extra item taken by a skilled thief, robber or heist crew (besides {@link #loot}), with where it was. */
+    private record Stolen(BlockPos pos, int slot, ItemStack stack) {}
+
+    /** Extra items carried by a tier 1+ thief (the first one is {@link #loot}). */
+    private final List<Stolen> haul = new ArrayList<>();
+    /** What this theft added to the shop's theft counter (given back as "recovered" if it is foiled). */
+    private int theftWeight = 1;
+    /** Times a skilled thief may still slip out of a guard's grip. */
+    private int slipsLeft;
+    /** Ticks until an armed thief swings its sword again. */
+    private int attackCd;
+    /** Hit by a player before striking: an armed thief strikes at once. */
+    private boolean provoked;
+    /** Armed theft outcome already reported (foiled / got away). */
+    private boolean outcomeSent;
 
     private UUID zoneId;
     private State state = State.ENTER;
@@ -199,7 +221,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
 
     public static DefaultAttributeContainer.Builder createAttributes() {
         return MobEntity.createMobAttributes().add(EntityAttributes.GENERIC_MAX_HEALTH, 16.0).add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.27)
-                .add(EntityAttributes.GENERIC_FOLLOW_RANGE, 96.0);
+                .add(EntityAttributes.GENERIC_FOLLOW_RANGE, 96.0)
+                .add(EntityAttributes.GENERIC_ATTACK_DAMAGE, 3.0); // 1.0 beta 3: armed thieves (ThiefTiers) fight with it
     }
 
     @Override
@@ -213,6 +236,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         builder.add(SMELLY, false);
         builder.add(WAIT, -1);
         builder.add(EV_ROLE, "");
+        builder.add(FIXED, -1);
+        builder.add(TIER, 0);
     }
 
     @Override
@@ -251,6 +276,53 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     public boolean isFleeingThief() { return type() == Type.THIEF && state == State.FLEE && !loot.isEmpty(); }
     public boolean isDetected() { return detected; }
 
+    /** 1.0 beta 3: unique customer id (0-9) or -1. */
+    public int fixedId() { return dataTracker.get(FIXED); }
+
+    /** 1.0 beta 3: thief tier (ThiefTiers; 0 for anyone who isn't a thief). */
+    public int thiefTier() { return type() == Type.THIEF ? ThiefTiers.clamp(dataTracker.get(TIER)) : 0; }
+
+    /** An armed robber or heist boss (ThiefTiers 3-4). */
+    public boolean isArmedThief() { return type() == Type.THIEF && ThiefTiers.armed(thiefTier()); }
+
+    /** An armed thief that has struck (or been provoked) and now fights its way out. */
+    public boolean isArmedAndHostile() { return isArmedThief() && state == State.FLEE; }
+
+    /** Speaks a line of its own if it is a unique customer with that category; otherwise the generic NpcLines one. */
+    private void sayOwn(String fixedCat, @Nullable String genericCat, Object... args) {
+        int f = fixedId();
+        if (FixedCustomers.has(f, fixedCat)) NpcLines.speak(this, FixedCustomers.line(random, f, fixedCat, args));
+        else if (genericCat != null) NpcLines.sayNear(this, genericCat);
+    }
+
+    private void setThiefTier(int tier) {
+        tier = ThiefTiers.clamp(tier);
+        dataTracker.set(TIER, tier);
+        slipsLeft = ThiefTiers.slips(tier);
+        ThiefTiers.equip(this, tier);
+        if (tier > 0 && fixedId() < 0 && dataTracker.get(EV_ROLE).isEmpty()) dataTracker.set(EV_ROLE, ThiefTiers.roleKey(tier));
+    }
+
+    /** Makes this customer unique customer `id`: fixed name, skin and title, its own mood and habits. */
+    private void applyFixed(ServerWorld world, int id) {
+        FixedCustomers.Def d = FixedCustomers.def(id);
+        dataTracker.set(FIXED, id);
+        // skin "fixed_<id>" through the shared skin mechanism (NpcIdentity fixed flag); the role "fixed" + raw id is the fallback
+        int skin = NpcIdentity.fixedSkin(FixedCustomers.skinId(id));
+        dataTracker.set(SKIN, skin >= 0 ? skin : id);
+        dataTracker.set(TITLE, "");
+        dataTracker.set(EV_ROLE, "tcgshop.role.fixed");
+        dataTracker.set(SMELLY, d.smelly());
+        setCustomName(Text.literal(d.name()));
+        returning = false;
+        mood += d.mood();
+        if (id == FixedCustomers.EXCELLENT) { // buys several of the priciest things
+            browsesLeft = 4 + random.nextInt(2);
+            visitorBuys = 2 + random.nextInt(2);
+        }
+        if (d.type() == Type.SELLER) prepareSellOffer(world, true); // Madame Noir: a rare card at a stiff price
+    }
+
     // ------------------------------------------------------------------ spawning
 
     public static CustomerEntity spawn(ServerWorld world, ShopZones.Zone z, Type type, Vec3d pos, Vec3d exit, @Nullable ShopZones.Regular regular) {
@@ -265,6 +337,15 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     /** 0.9: with VisitorSpec = visitor of a random event (ShopLife.forceSpawnVisitor). */
     public static CustomerEntity spawn(ServerWorld world, ShopZones.Zone z, Type type, Vec3d pos, Vec3d exit, @Nullable ShopZones.Regular regular,
                                        @Nullable BlockPos door, @Nullable Vec3d doorOutside, @Nullable dev.tcgshop.events.VisitorSpec spec) {
+        return spawn(world, z, type, pos, exit, regular, door, doorOutside, spec, -1);
+    }
+
+    /**
+     * 1.0 beta 3: fixedId = one of the 10 unique customers (FixedCustomers; -1 = ordinary). Its type must be the unique
+     * customer's own (ShopLife passes FixedCustomers.def(id).type()). Thieves get their tier here (ThiefTiers.roll).
+     */
+    public static CustomerEntity spawn(ServerWorld world, ShopZones.Zone z, Type type, Vec3d pos, Vec3d exit, @Nullable ShopZones.Regular regular,
+                                       @Nullable BlockPos door, @Nullable Vec3d doorOutside, @Nullable dev.tcgshop.events.VisitorSpec spec, int fixedId) {
         CustomerEntity c = TcgEntities.CUSTOMER.create(world);
         if (c == null) return null;
         c.arrivedAt = world.getTime();
@@ -297,14 +378,37 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         }
         if (type == Type.SELLER) c.prepareSellOffer(world);
         if (type != Type.WHALE && spec == null && world.random.nextFloat() < 0.12f) c.dataTracker.set(SMELLY, true);
+        boolean fixed = spec == null && FixedCustomers.valid(fixedId) && FixedCustomers.def(fixedId).type() == type;
+        if (fixed) c.applyFixed(world, fixedId); // 1.0 beta 3: unique customer
+        int tier = 0;
+        if (type == Type.THIEF && spec == null) { // 1.0 beta 3: thief tier by the shop's popularity (the known thief is a pro)
+            tier = fixed && fixedId == FixedCustomers.THIEF ? ThiefTiers.PRO : ThiefTiers.roll(world, z);
+            c.setThiefTier(tier);
+        }
         world.spawnEntity(c);
+        if (ThiefTiers.armed(tier)) ThiefTiers.onArmedSpawn(world, z, c, tier);
         dev.tcgshop.events.EventManager.onCustomerSpawn(world, z);
         return c;
     }
 
     /** What it brings to sell you: almost always a card, sometimes a pack and very occasionally a box. */
     private void prepareSellOffer(ServerWorld world) {
+        prepareSellOffer(world, false);
+    }
+
+    /** rare (1.0 beta 3, Madame Noir): always a card, the rarest of a dozen picks, and an expert's or negotiator's prices. */
+    private void prepareSellOffer(ServerWorld world, boolean rare) {
         float r = random.nextFloat();
+        if (rare) {
+            dealItem = ItemStack.EMPTY;
+            List<Item> cards = allCards();
+            for (int tries = 0; tries < 12 && !cards.isEmpty(); tries++) {
+                ItemStack pick = new ItemStack(cards.get(random.nextInt(cards.size())));
+                if (dealItem.isEmpty() || Rarity.of(pick).tier > Rarity.of(dealItem).tier) dealItem = pick;
+            }
+            if (dealItem.isEmpty()) return;
+            r = 1f; // skips the pack / box branches below
+        }
         if (r < 0.08f) {
             List<String> sets = new ArrayList<>();
             for (Identifier id : Registries.ITEM.getIds())
@@ -325,7 +429,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             dealItem = pick;
         }
         long market = Math.max(1, ShopServer.priceOf(dealItem, 1.0));
-        persona = weighted(PERSONA_W);
+        persona = rare ? (random.nextBoolean() ? P_EXPERT : P_NEGOTIATOR) : weighted(PERSONA_W);
         int cat = weighted(MOTIVE_W[persona]);
         motive = switch (cat) {
             case 0 -> "cash." + random.nextInt(MOTIVES_CASH);
@@ -435,11 +539,15 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             Text evLine = visitor != null && visitor.linesCount > 0 && random.nextFloat() < 0.8f
                     ? Text.translatable("tcgshop.evline." + visitor.lines + "." + random.nextInt(visitor.linesCount))
                     : dev.tcgshop.events.EventManager.enterLine(z, random); // 0.9 events: they comment on what is happening
-            if (evLine != null) NpcLines.speak(this, evLine);
+            if (fixedId() >= 0) fixedArrives(world, z); // 1.0 beta 3: unique customer: greets you (by name if it knows you)
+            else if (evLine != null) NpcLines.speak(this, evLine);
             else if (returning) NpcLines.sayNear(this, type() == Type.SELLER ? "seller_back" : "regular_back");
             else if (!z.flags.isEmpty() && random.nextFloat() < 0.35f) commentOnShop(z);
             else if (random.nextFloat() < 0.3f) NpcLines.sayNear(this, "greet");
         }
+        if (attackCd > 0) attackCd -= 5;
+        // 1.0 beta 3: an armed thief hit before it struck goes loud right away
+        if (provoked && isArmedThief() && state != State.FLEE && state != State.LEAVE) { provoked = false; strikeNow(world, z); return; }
         switch (state) {
             case ENTER -> {
                 if (!entered) { // 0.9: capacity -> with the shop full it waits outside in the queue (ShopLife.queueGate)
@@ -622,6 +730,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             double[] cl = {1.05, 1.25, 0.95, 1.05, 0.95, 1.1, 1.0, 1.2, 0.95, 1.15, 0.95, 1.15};
             double cm = cl[persona * 2] + random.nextDouble() * (cl[persona * 2 + 1] - cl[persona * 2]);
             ceilPrice = Math.max(dealPrice, Math.round(market * cm * (1 + prem) * mods.haggleMult));
+            if (fixedId() == 6) dealPrice = Math.max(10, Math.round(dealPrice * 0.7)); // 1.0 beta 3: Chad opens with an insulting lowball
             if (visitor != null && visitor.priceCap > 0) ceilPrice = Math.max(dealPrice, Math.min(ceilPrice, Math.round(market * Math.max(visitor.priceCap, 1.0))));
             int[] pat = {3, 4, 3, 5, 2, 3};
             maxPatience = patience = Math.max(1, (int) Math.round((pat[persona] + random.nextInt(2)) * EconomyConfig.INSTANCE.merchantPatience * mods.patienceMult));
@@ -638,6 +747,10 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             default -> 0;
         };
         if (returning) p = Math.min(0.95, p + 0.15);
+        // 1.0 beta 3: unique customers. Don Aurelio buys almost anything (even a bit pricey); the friendly ones are easier
+        // (bounded by the perceived price, so an absurd price tag never pays off: he tips on top of what he pays)
+        if (fixedId() == FixedCustomers.EXCELLENT) p = adj <= 2.5 ? Math.max(p, 0.9) : 0;
+        else if (fixedId() >= 0 && !FixedCustomers.def(fixedId()).nasty() && p > 0 && adj <= 1.3) p = Math.min(0.95, p + 0.12);
         // 1.0: luck from completed shop missions (up to +15 % with all of them)
         if (p > 0 && p < 0.95) p = Math.min(0.95, p * (1 + dev.tcgshop.shop.ShopMissions.acceptBonus(z)));
         // 0.9 events: desire to buy (modifiers) and visitors: price cap over market and "just looking"
@@ -676,7 +789,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                 ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
                 if (owner != null) CardAdvancements.grant(owner, "whale_customer");
             }
-            NpcLines.sayNear(this, overpay && random.nextFloat() < 0.7f ? "overpay_happy" : type() == Type.WHALE ? "whale" : "buy");
+            if (fixedId() >= 0) sayOwn("buy", null); // 1.0 beta 3: its own line
+            else NpcLines.sayNear(this, overpay && random.nextFloat() < 0.7f ? "overpay_happy" : type() == Type.WHALE ? "whale" : "buy");
             playSound(SoundEvents.ENTITY_VILLAGER_YES, 0.8f, 1.1f);
             register = nearestRegister(world, z);
             if (register == null) {
@@ -696,7 +810,10 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             z.complaints++;
             mood -= 1;
             reviewKey = "expensive";
-            NpcLines.sayNear(this, "expensive");
+            if (fixedId() >= 0) sayOwn(FixedCustomers.has(fixedId(), "complain") ? "complain" : "nobuy", null);
+            else NpcLines.sayNear(this, "expensive");
+        } else if (fixedId() >= 0) {
+            if (random.nextFloat() < 0.6f) sayOwn(FixedCustomers.has(fixedId(), "complain") && random.nextBoolean() ? "complain" : "nobuy", null);
         } else if (random.nextFloat() < 0.4f) NpcLines.sayNear(this, "nobuy");
         ShopZones.get(world).markDirty();
         state = State.ENTER;
@@ -870,7 +987,11 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             z.revenue += tip;
             dev.tcgshop.shop.TipLedger.record(world.getServer(), z.owner, tip, world.getTimeOfDay() / 24000);
             ShopZones.get(world).markDirty();
-            NpcLines.speak(this, NpcLines.random(random, "tip_checkout", PriceService.format(tip)));
+            if (FixedCustomers.has(fixedId(), "tip")) { // 1.0 beta 3: Don Aurelio / Nana Rosa tip with their own words
+                NpcLines.speak(this, FixedCustomers.line(random, fixedId(), "tip", PriceService.format(tip)));
+                ServerPlayerEntity o = world.getServer().getPlayerManager().getPlayer(z.owner);
+                if (o != null && fixedId() == FixedCustomers.EXCELLENT) CardAdvancements.grant(o, "aurelio_tip");
+            } else NpcLines.speak(this, NpcLines.random(random, "tip_checkout", PriceService.format(tip)));
             world.playSound(null, getBlockPos(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.NEUTRAL, 0.6f, 1.6f);
             notifyOwner(world, z, Text.translatable("tcgshop.customer.bought_tip", getDisplayName(), bought.toHoverableText(),
                     Text.literal(PriceService.format(earned)).formatted(Formatting.GOLD), Text.literal(PriceService.format(tip)).formatted(Formatting.YELLOW)));
@@ -883,7 +1004,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         register = null;
         boughtAny = true;
         ShopServer.syncZones(world.getServer());
-        if (visitor != null && --visitorBuys > 0 && browsesLeft > 0) { // 0.9: the event visitor keeps buying
+        // 0.9: the event visitor keeps buying (1.0 beta 3: so does Don Aurelio)
+        if ((visitor != null || fixedId() == FixedCustomers.EXCELLENT) && --visitorBuys > 0 && browsesLeft > 0) {
             equipStack(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
             dataTracker.set(WAIT, -1);
             state = State.ENTER;
@@ -903,6 +1025,9 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     private long rollCheckoutTip(ServerWorld world, ShopZones.Zone z) {
         if (dealTipped) { dealTipped = false; return 0; }
         if (payPrice <= 0 || type() == Type.THIEF) return 0;
+        // 1.0 beta 3: Don Aurelio always tips big (15-30 %, up to 50,000); Nana Rosa often leaves a little something
+        if (fixedId() == FixedCustomers.EXCELLENT) return Math.max(1, Math.min(50_000, Math.round(payPrice * (0.15 + random.nextDouble() * 0.15))));
+        if (fixedId() == 2 && random.nextFloat() < 0.6f) return Math.max(1, Math.min(CHECKOUT_TIP_CAP, Math.round(payPrice * (0.05 + random.nextDouble() * 0.07))));
         boolean bargain = "bargain".equals(reviewKey);
         if (!bargain && !"fair".equals(reviewKey)) return 0;
         int rep = Math.max(0, Math.min(100, dev.tcgshop.shop.ShopLife.effectiveRep(z)));
@@ -923,19 +1048,35 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         return dealMode == DealOpenPayload.BUY ? askPrice : 0;
     }
 
+    /**
+     * Takes the product. 1.0 beta 3: by tier (ThiefTiers) a skilled thief also takes 1-2 more items, an armed robber up
+     * to 8 of the priciest ones at sword point and a heist crew boss empties EVERY display of the shop.
+     */
     private void steal(ServerWorld world, ShopZones.Zone z, ShopDisplayBlockEntity be) {
+        int tier = thiefTier();
+        boolean armed = ThiefTiers.armed(tier);
         loot = be.removeStack(targetSlot, 1);
         if (loot.isEmpty()) { state = State.ENTER; return; }
-        equipStack(EquipmentSlot.MAINHAND, loot.copy());
-        setEquipmentDropChance(EquipmentSlot.MAINHAND, 0f);
-        z.stolen++;
+        haul.clear();
+        if (ThiefTiers.maxItems(tier) > 1) grabMore(world, z, ThiefTiers.maxItems(tier) - 1, tier);
+        int items = 1 + haul.size();
+        long value = ShopServer.priceOf(loot, 1.0) * Math.max(1, loot.getCount());
+        for (Stolen s : haul) value += ShopServer.priceOf(s.stack(), 1.0) * Math.max(1, s.stack().getCount());
+        // armed thieves keep the sword in the main hand and the loot in the other one
+        EquipmentSlot hand = armed ? EquipmentSlot.OFFHAND : EquipmentSlot.MAINHAND;
+        equipStack(hand, loot.copy());
+        setEquipmentDropChance(hand, 0f);
+        theftWeight = ThiefTiers.incidentWeight(tier, items);
+        z.stolen += theftWeight;
         ShopZones.get(world).markDirty();
         state = State.FLEE;
         fleePhaseTicks = 60;
         admiring = false;
+        lostTicks = 0;
         setPersistent();
-        emote(EMOTE_MONEY);
-        boolean guard = guardOf(world, z) != null;
+        emote(armed ? EMOTE_ANGRY : EMOTE_MONEY);
+        EmployeeEntity guardE = guardOf(world, z);
+        boolean guard = guardE != null;
         for (BlockPos p : BlockPos.iterateOutwards(getBlockPos(), 12, 3, 12)) {
             if (world.getBlockState(p).isOf(TcgBlocks.THEFT_DETECTOR)) {
                 DecorBlocks.TheftDetectorBlock.trigger(world, p);
@@ -943,45 +1084,100 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                 break;
             }
         }
-        if (guard) detected = true; // the guard sees everything
+        // the guard sees every pickpocket; skilled thieves may slip by unless its detection is upgraded
+        if (guard && random.nextDouble() < GuardUpgrades.spotChance(GuardUpgrades.levels(world.getServer(), z.id), tier)) detected = true;
+        if (armed) detected = true; // a robbery is anything but quiet
         if (detected) {
             dev.tcgshop.shop.ShopSeats.alarm(z.id, world.getTime()); // 0.9.5: with the alarm, those seated stand up
-            addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 20 * 40, 0, false, false));
-            addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 20 * 30, guard ? 1 : 0, false, false));
+            addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 20 * (armed ? 120 : 40), 0, false, false));
+            if (!armed) addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 20 * 30, guard && tier == 0 ? 1 : 0, false, false));
         }
-        notifyOwner(world, z, Text.translatable(detected ? "tcgshop.thief.alarm" : "tcgshop.thief.stole", getDisplayName(), loot.toHoverableText())
+        // a crew carrying the whole shop is slow: you and your guards can catch up
+        if (tier == ThiefTiers.HEIST) addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 20 * 90, 0, false, false));
+        if (armed) {
+            NpcLines.speak(this, Text.translatable("tcgshop." + (tier == ThiefTiers.HEIST ? "heist" : "robbery") + ".shout." + random.nextInt(ROBBERY_LINES)));
+            ThiefTiers.onStrike(world, z, this, tier, items, value);
+            // everyone else runs for the door
+            for (CustomerEntity c : world.getEntitiesByClass(CustomerEntity.class, z.box().expand(4), c -> c != this && c.isAlive() && c.type() != Type.THIEF))
+                c.leaveForEvent("ev_theft");
+            return;
+        }
+        if (fixedId() == FixedCustomers.THIEF) sayOwn("steal", null);
+        Text what = haul.isEmpty() ? loot.toHoverableText() : Text.translatable("tcgshop.thief.loot_more", loot.toHoverableText(), haul.size());
+        notifyOwner(world, z, Text.translatable(detected ? "tcgshop.thief.alarm" : "tcgshop.thief.stole", getDisplayName(), what)
                 .formatted(Formatting.RED));
         ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
         if (owner != null && !guard) owner.sendMessage(Text.translatable(CobblemonBattles.available() ? "tcgshop.thief.chase_hint_battle" : "tcgshop.thief.chase_hint")
                 .formatted(Formatting.YELLOW), false);
+        else if (owner != null && !detected && tier > 0) // a skilled thief the guard didn't notice
+            owner.sendMessage(Text.translatable("tcgshop.thief.unseen", z.guardName).formatted(Formatting.GOLD), false);
+    }
+
+    /** Shouts of an armed robber / heist crew when it strikes (tcgshop.robbery|heist.shout.<n>). */
+    private static final int ROBBERY_LINES = 4;
+
+    /**
+     * Takes up to `extra` more items from the shop's displays: the priciest ones for pros and robbers, random ones for
+     * shoplifters, and every last one (whole stacks) for a heist.
+     */
+    private void grabMore(ServerWorld world, ShopZones.Zone z, int extra, int tier) {
+        record Cand(ShopDisplayBlockEntity d, int slot, long price) {}
+        List<Cand> cands = new ArrayList<>();
+        forDisplays(world, z, (d, i) -> cands.add(new Cand(d, i, ShopServer.priceOf(d.getStack(i), 1.0))));
+        if (cands.isEmpty()) return;
+        if (tier == ThiefTiers.SHOPLIFTER) java.util.Collections.shuffle(cands, new java.util.Random(random.nextLong()));
+        else cands.sort((a, b) -> Long.compare(b.price(), a.price()));
+        boolean all = tier == ThiefTiers.HEIST;
+        for (Cand c : cands) {
+            if (!all && haul.size() >= extra) break;
+            ItemStack st = c.d().getStack(c.slot());
+            if (st.isEmpty()) continue;
+            ItemStack took = c.d().removeStack(c.slot(), all ? st.getCount() : 1);
+            if (!took.isEmpty()) haul.add(new Stolen(c.d().getPos().toImmutable(), c.slot(), took));
+        }
     }
 
     @Nullable
     private EmployeeEntity guardOf(ServerWorld world, ShopZones.Zone z) {
         if (!z.guard) return null;
-        List<EmployeeEntity> g = world.getEntitiesByClass(EmployeeEntity.class, z.box().expand(48), e -> e.isGuard() && z.id.equals(e.zoneId()));
+        List<EmployeeEntity> g = world.getEntitiesByClass(EmployeeEntity.class, z.box().expand(48), e -> e.isAlive() && e.isGuard() && z.id.equals(e.zoneId()));
         return g.isEmpty() ? null : g.get(0);
     }
 
-    /** Thief escape: with a guard it is always caught; without a guard it flees like a Scalper until you catch it or move away. */
+    /**
+     * Thief escape. A pickpocket with a guard around is always caught; skilled thieves (tier 1-2) escape if they get out
+     * of the guard's detection radius; without a guard they all flee like a Scalper until you catch them or move away.
+     * Armed thieves fight their way out (armedFleeTick).
+     */
     private void fleeTick(ServerWorld world, ShopZones.Zone z) {
+        if (isArmedThief()) { armedFleeTick(world, z); return; }
         EmployeeEntity guard = guardOf(world, z);
         ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
         double escape = Math.pow(z.size() / 2.0 + 8, 2);
+        int tier = thiefTier();
         if (guard != null) {
             if (getNavigation().isIdle() || age % 20 == 0) {
-                Vec3d away = getPos().subtract(z.core.toCenterPos()).normalize().multiply(14);
-                getNavigation().startMovingTo(getX() + away.x, getY(), getZ() + away.z, 1.0);
+                Vec3d from = tier > 0 && squaredDistanceTo(guard) < 24 * 24 ? guard.getPos() : z.core.toCenterPos();
+                Vec3d away = getPos().subtract(from).multiply(1, 0, 1);
+                if (away.lengthSquared() < 1e-3) away = new Vec3d(random.nextDouble() - 0.5, 0, random.nextDouble() - 0.5);
+                away = away.normalize().multiply(14);
+                getNavigation().startMovingTo(getX() + away.x, getY(), getZ() + away.z, tier > 0 ? 1.15 : 1.0);
             }
-            // if it gets out, the guard radios it in and it's detained anyway
-            if (squaredDistanceTo(z.core.toCenterPos()) > escape) detain(world, z, guard);
+            if (squaredDistanceTo(z.core.toCenterPos()) > escape) {
+                // a pickpocket: the guard radios it in and it's detained anyway
+                if (tier == 0) { detain(world, z, guard); return; }
+                // a skilled thief only gets away once it is out of the guard's sight
+                int r = GuardUpgrades.radius(world.getServer(), z.id);
+                lostTicks = squaredDistanceTo(guard) > (double) r * r ? lostTicks + 5 : 0;
+                if (lostTicks > 100) escapeWithLoot(world, z);
+            }
             return;
         }
         fleePhaseTicks -= 5;
         if (fleePhaseTicks <= 0) {
             admiring = !admiring;
             if (admiring) {
-                fleePhaseTicks = 50 + random.nextInt(30);
+                fleePhaseTicks = (50 + random.nextInt(30)) / (tier + 1); // skilled thieves barely stop to look
                 emote(1 + random.nextInt(2));
                 playSound(SoundEvents.ENTITY_PIGLIN_ADMIRING_ITEM, 1f, 1.2f);
             } else {
@@ -999,11 +1195,126 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             getNavigation().startMovingTo(getX() + away.x, getY(), getZ() + away.z, detected ? 1.15 : 1.35);
         }
         lostTicks = (owner == null || owner.getServerWorld() != world || squaredDistanceTo(owner) > 64 * 64) ? lostTicks + 5 : 0;
-        if (lostTicks > 600) {
-            NpcLines.sayNear(this, "thief_escape");
-            if (owner != null) owner.sendMessage(Text.translatable("tcgshop.thief.escaped", getDisplayName(), loot.toHoverableText()).formatted(Formatting.RED), false);
-            discard();
+        if (lostTicks > 600) escapeWithLoot(world, z);
+    }
+
+    /**
+     * 1.0 beta 3: an armed robber / heist boss on the way out. It fights whoever comes close (the shop's guards, the
+     * owner, anyone who hit it) and otherwise runs. It gets away once it is far from the shop with nobody on its heels
+     * for 10 seconds (or the owner left / is far away for good).
+     */
+    private void armedFleeTick(ServerWorld world, ShopZones.Zone z) {
+        ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
+        net.minecraft.entity.LivingEntity foe = pickFoe(world, z, owner);
+        if (foe != null) {
+            if (getNavigation().isIdle() || age % 10 == 0) getNavigation().startMovingTo(foe, 1.25);
+            getLookControl().lookAt(foe);
+            if (attackCd <= 0 && squaredDistanceTo(foe) < 2.4 * 2.4) {
+                swingHand(Hand.MAIN_HAND);
+                tryAttack(foe);
+                attackCd = ThiefTiers.attackCooldown(thiefTier());
+                if (!foe.isAlive()) {
+                    NpcLines.speak(this, Text.translatable("tcgshop.robbery.kill." + random.nextInt(ROBBERY_LINES)));
+                    if (foe instanceof ServerPlayerEntity p && owner != null && p == owner)
+                        owner.sendMessage(Text.translatable("tcgshop.robbery.owner_down", getDisplayName()).formatted(Formatting.DARK_RED), false);
+                }
+            }
+        } else if (getNavigation().isIdle() || age % 20 == 0) {
+            Vec3d from = owner != null && owner.getServerWorld() == world && owner.squaredDistanceTo(this) < 40 * 40 ? owner.getPos() : z.core.toCenterPos();
+            Vec3d away = getPos().subtract(from).multiply(1, 0, 1);
+            if (away.lengthSquared() < 1e-3) away = new Vec3d(random.nextDouble() - 0.5, 0, random.nextDouble() - 0.5);
+            away = away.normalize().multiply(14);
+            getNavigation().startMovingTo(getX() + away.x, getY(), getZ() + away.z, 1.1);
         }
+        if (age % 60 == 0 && foe != null && random.nextFloat() < 0.35f)
+            NpcLines.speak(this, Text.translatable("tcgshop.robbery.threat." + random.nextInt(ROBBERY_LINES)));
+        double far = z.size() / 2.0 + 40;
+        boolean away = squaredDistanceTo(z.core.toCenterPos()) > far * far;
+        boolean chased = foe != null || (owner != null && owner.getServerWorld() == world && owner.isAlive() && squaredDistanceTo(owner) < 20 * 20)
+                || !world.getEntitiesByClass(EmployeeEntity.class, getBoundingBox().expand(20), e -> e.isAlive() && e.isGuard() && z.id.equals(e.zoneId())).isEmpty();
+        boolean ownerGone = owner == null || owner.getServerWorld() != world || squaredDistanceTo(owner) > 96 * 96;
+        lostTicks = (away && !chased) || ownerGone ? lostTicks + 5 : 0;
+        if (lostTicks > 200) escapeWithLoot(world, z);
+    }
+
+    /** Who an armed thief fights: the closest guard of the shop, the owner or whoever hit it, if close enough. */
+    @Nullable
+    private net.minecraft.entity.LivingEntity pickFoe(ServerWorld world, ShopZones.Zone z, @Nullable ServerPlayerEntity owner) {
+        net.minecraft.entity.LivingEntity best = null;
+        double bd = 6.5 * 6.5;
+        for (EmployeeEntity g : world.getEntitiesByClass(EmployeeEntity.class, getBoundingBox().expand(7), e -> e.isAlive() && e.isGuard() && z.id.equals(e.zoneId()))) {
+            double d = squaredDistanceTo(g);
+            if (d < bd) { bd = d; best = g; }
+        }
+        if (owner != null && owner.getServerWorld() == world && fightable(owner) && squaredDistanceTo(owner) < bd) { bd = squaredDistanceTo(owner); best = owner; }
+        if (getAttacker() instanceof PlayerEntity p && p != best && fightable(p) && squaredDistanceTo(p) < Math.max(bd, 10 * 10)) best = p;
+        return best;
+    }
+
+    private static boolean fightable(PlayerEntity p) {
+        return p.isAlive() && !p.isCreative() && !p.isSpectator();
+    }
+
+    /** An armed thief hit before it struck goes loud: grabs what is at hand (if close to a display) and fights its way out. */
+    private void strikeNow(ServerWorld world, ShopZones.Zone z) {
+        getNavigation().stop();
+        dataTracker.set(WANTS, false);
+        dataTracker.set(WAIT, -1);
+        standUp(world);
+        ShopDisplayBlockEntity be = targetDisplay(world);
+        if (be == null || be.getStack(targetSlot).isEmpty()) {
+            browsesLeft = Math.max(1, browsesLeft);
+            if (pickTarget(world, z)) be = targetDisplay(world);
+        }
+        if (be != null && !be.getStack(targetSlot).isEmpty() && squaredDistanceTo(target.toCenterPos()) < 8 * 8) {
+            steal(world, z, be);
+            return;
+        }
+        state = State.FLEE; // nothing within reach: just fights its way out empty-handed
+        detected = true;
+        setPersistent();
+        emote(EMOTE_ANGRY);
+        NpcLines.speak(this, Text.translatable("tcgshop.robbery.threat." + random.nextInt(ROBBERY_LINES)));
+    }
+
+    /** Got away: whatever it carried is lost (the shop's theft counter keeps it). */
+    private void escapeWithLoot(ServerWorld world, ShopZones.Zone z) {
+        ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
+        int items = loot.isEmpty() ? 0 : 1 + haul.size();
+        long value = carriedValue();
+        if (fixedId() == FixedCustomers.THIEF) sayOwn("escape", null);
+        else if (isArmedThief()) NpcLines.speak(this, Text.translatable("tcgshop.robbery.escape." + random.nextInt(ROBBERY_LINES)));
+        else NpcLines.sayNear(this, "thief_escape");
+        if (isArmedThief()) {
+            if (!outcomeSent && items > 0) ThiefTiers.onOutcome(world, z, this, thiefTier(), false, items, value, null);
+            outcomeSent = true;
+        } else if (owner != null && items > 0) {
+            Text what = haul.isEmpty() ? loot.toHoverableText() : Text.translatable("tcgshop.thief.loot_more", loot.toHoverableText(), haul.size());
+            owner.sendMessage(Text.translatable("tcgshop.thief.escaped", getDisplayName(), what).formatted(Formatting.RED), false);
+        }
+        loot = ItemStack.EMPTY;
+        haul.clear();
+        discard();
+    }
+
+    /**
+     * A guard grabs this thief (1.0 beta 3). Pickpockets are detained; skilled thieves may wriggle free (fewer times
+     * against an upgraded guard); armed thieves cannot be detained at all, only defeated. true = detained.
+     */
+    public boolean tryDetain(ServerWorld world, ShopZones.Zone z, EmployeeEntity guard) {
+        if (loot.isEmpty() || isArmedThief()) return false;
+        int tier = thiefTier();
+        if (slipsLeft > 0 && random.nextDouble() < GuardUpgrades.slipChance(GuardUpgrades.levels(world.getServer(), z.id), tier)) {
+            slipsLeft--;
+            addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 20 * 4, 1, false, false));
+            removeStatusEffect(StatusEffects.SLOWNESS);
+            NpcLines.speak(this, Text.translatable("tcgshop.thief.slip." + random.nextInt(ROBBERY_LINES)));
+            guard.announce(Text.translatable("tcgshop.thief.slipped_guard." + random.nextInt(ROBBERY_LINES), getDisplayName()));
+            world.spawnParticles(ParticleTypes.CLOUD, getX(), getY() + 0.8, getZ(), 8, 0.3, 0.4, 0.3, 0.02);
+            return false;
+        }
+        detain(world, z, guard);
+        return true;
     }
 
     /** Detained: the product goes back to its display (or is credited to the register). guard may be null (caught by the owner). */
@@ -1013,26 +1324,82 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         z.detained++;
         ShopZones.get(world).markDirty();
         if (guard != null) guard.announce(Text.translatable("tcgshop.thief.caught", getDisplayName(), Text.translatable("tcgshop.thief.loot_back")));
-        NpcLines.sayNear(this, "thief_caught");
+        if (fixedId() == FixedCustomers.THIEF) sayOwn("caught", null);
+        else NpcLines.sayNear(this, "thief_caught");
         world.spawnParticles(ParticleTypes.ANGRY_VILLAGER, getX(), getY() + 1.8, getZ(), 6, 0.3, 0.3, 0.3, 0);
         playSound(SoundEvents.ENTITY_VILLAGER_HURT, 1f, 0.8f);
         ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
         if (owner != null) {
             CardAdvancements.grant(owner, "catch_thief");
             if (z.detained >= 10) CardAdvancements.grant(owner, "catch_thief_10");
+            if (fixedId() == FixedCustomers.THIEF) CardAdvancements.grant(owner, "catch_vinnie");
         }
         discard();
     }
 
+    /**
+     * Gives back everything it carried: each item to its slot (or a free slot of the same display); the first item, if its
+     * slot is taken, is credited to the register as before; the rest drop on the floor where the thief is.
+     */
     private void returnLoot(ServerWorld world, ShopZones.Zone z) {
         if (loot.isEmpty()) return;
         ShopDisplayBlockEntity be = targetDisplay(world);
         if (be != null && be.getStack(targetSlot).isEmpty()) be.setStack(targetSlot, loot);
         else z.balance += ShopServer.priceOf(loot, 1.0); // the slot is no longer free: its value is credited to the register
-        z.recovered++;
+        for (Stolen s : haul) {
+            boolean placed = false;
+            if (world.getBlockEntity(s.pos()) instanceof ShopDisplayBlockEntity d && z.contains(s.pos())) {
+                if (s.slot() < d.size() && d.getStack(s.slot()).isEmpty()) { d.setStack(s.slot(), s.stack()); placed = true; }
+                else for (int i = 0; i < d.size() && !placed; i++)
+                    if (d.getStack(i).isEmpty()) { d.setStack(i, s.stack()); placed = true; }
+            }
+            if (!placed) dropStack(s.stack());
+        }
+        haul.clear();
+        z.recovered += theftWeight;
         loot = ItemStack.EMPTY;
-        equipStack(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+        equipStack(isArmedThief() ? EquipmentSlot.OFFHAND : EquipmentSlot.MAINHAND, ItemStack.EMPTY);
         ShopZones.get(world).markDirty();
+    }
+
+    /** Value and count of everything it carries (for the armed theft reports). */
+    private long carriedValue() {
+        long v = loot.isEmpty() ? 0 : ShopServer.priceOf(loot, 1.0) * Math.max(1, loot.getCount());
+        for (Stolen s : haul) v += ShopServer.priceOf(s.stack(), 1.0) * Math.max(1, s.stack().getCount());
+        return v;
+    }
+
+    /** 1.0 beta 3: a unique customer walks in: greets (by name if it remembers the owner) and is remembered; a sharp guard may recognize the known thief. */
+    private void fixedArrives(ServerWorld world, ShopZones.Zone z) {
+        int id = fixedId();
+        net.minecraft.server.MinecraftServer server = world.getServer();
+        SecurityLedger.Memory m = SecurityLedger.memory(server, id, z.owner);
+        ServerPlayerEntity owner = server.getPlayerManager().getPlayer(z.owner);
+        String ownerName = owner != null ? owner.getName().getString() : z.ownerName;
+        boolean known = m.visits > 0;
+        NpcLines.speak(this, known ? FixedCustomers.line(random, id, "back", ownerName) : FixedCustomers.line(random, id, "hello"));
+        m.visits++;
+        m.lastDay = world.getTimeOfDay() / 24000;
+        SecurityLedger.dirty(server);
+        if (owner != null) {
+            owner.sendMessage(Text.translatable(known ? "tcgshop.fixed.arrived_back" : "tcgshop.fixed.arrived", FixedCustomers.rainbow(getName().getString()), m.visits)
+                    .formatted(Formatting.LIGHT_PURPLE), false);
+            CardAdvancements.grant(owner, "meet_fixed");
+            boolean all = true;
+            for (int i = 0; i < FixedCustomers.COUNT && all; i++) all = SecurityLedger.met(server, i, z.owner);
+            if (all) CardAdvancements.grant(owner, "meet_all_fixed");
+        }
+        if (id == FixedCustomers.THIEF) {
+            EmployeeEntity g = guardOf(world, z);
+            int d = GuardUpgrades.level(server, z.id, GuardUpgrades.Stat.DETECTION);
+            if (g != null && (d >= 3 || (d == 2 && random.nextBoolean()))) { // "I know you, Vinnie": he gives up and leaves
+                g.announce(Text.translatable("tcgshop.fixed.guard_spot." + random.nextInt(FixedCustomers.GUARD_SPOT_LINES), getDisplayName()));
+                NpcLines.speak(this, FixedCustomers.line(random, id, "spotted"));
+                emote(EMOTE_ANGRY);
+                if (owner != null) owner.sendMessage(Text.translatable("tcgshop.fixed.thief_spotted", z.guardName, getDisplayName()).formatted(Formatting.GREEN), false);
+                leave(world, z, null);
+            }
+        }
     }
 
     private void goDeal(ServerWorld world, ShopZones.Zone z, String line) {
@@ -1046,6 +1413,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         dataTracker.set(WANTS, true);
         long tip = currentTip();
         if (tip > 0) NpcLines.speak(this, NpcLines.random(random, "tip_offer", PriceService.format(tip))); // 1.0: offers above your price
+        else if (FixedCustomers.has(fixedId(), "deal")) sayOwn("deal", null); // 1.0 beta 3: unique customer's own pitch
         else NpcLines.sayNear(this, line);
         ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
         if (owner != null && owner.squaredDistanceTo(this) < 64 * 64)
@@ -1122,8 +1490,12 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         int stars = stars();
         long day = world.getTimeOfDay() / 24000;
         z.addReview(getName().getString(), stars, reviewKey, day);
-        if (stars >= 4) z.remember(getName().getString(), npcSkin(), npcTitle());
-        if (random.nextFloat() < 0.35f) NpcLines.sayNear(this, stars >= 4 ? "leave_happy" : stars <= 2 ? "leave_sad" : "nothing");
+        // 1.0 beta 3: unique customers come back on their own (never as an ordinary "regular") and always say goodbye
+        if (fixedId() >= 0) sayOwn(stars >= 3 ? "bye_happy" : "bye_sad", null);
+        else {
+            if (stars >= 4) z.remember(getName().getString(), npcSkin(), npcTitle());
+            if (random.nextFloat() < 0.35f) NpcLines.sayNear(this, stars >= 4 ? "leave_happy" : stars <= 2 ? "leave_sad" : "nothing");
+        }
         ShopZones.get(world).markDirty();
         ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
         if (owner != null && owner.squaredDistanceTo(this) < 96 * 96)
@@ -1144,6 +1516,10 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         if (!(player instanceof ServerPlayerEntity sp) || getWorld().isClient) return ActionResult.success(getWorld().isClient);
         ShopZones.Zone z = ShopZones.get(sp.getServerWorld()).byId(zoneId);
         if (visitor != null && z != null && dev.tcgshop.events.EventManager.onVisitorInteract(sp, z, this, visitor)) return ActionResult.SUCCESS;
+        if (isArmedThief()) { // 1.0 beta 3: no talking (nor Pokémon battles) with an armed robber
+            NpcLines.speak(this, Text.translatable("tcgshop.robbery.threat." + random.nextInt(ROBBERY_LINES)));
+            return ActionResult.SUCCESS;
+        }
         if (type() == Type.THIEF && state == State.FLEE && !loot.isEmpty()) {
             if (CobblemonBattles.available() && CobblemonBattles.challenge(sp, this)) {
                 NpcLines.sayNear(this, "thief_battle");
@@ -1166,6 +1542,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                         dealMode == DealOpenPayload.SELL || dealMode == DealOpenPayload.BUY ? persona : -1, patience, maxPatience, askForPayload()));
         } else if (state == State.SIT) {
             NpcLines.speak(this, dev.tcgshop.shop.ShopSeats.talkLine(random)); // 0.9.5: seated, resting
+        } else if (fixedId() >= 0) {
+            sayOwn("talk", null); // 1.0 beta 3: unique customer's own small talk
         } else {
             NpcLines.say(this, sp, switch (type()) { case PICKY -> "picky"; case WHALE -> "whale_talk"; case THIEF -> "thief_talk"; default -> "greet"; });
         }
@@ -1527,9 +1905,15 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             damage(world.getDamageSources().playerAttack(player), 1000f);
         } else {
             ShopZones.Zone z = ShopZones.get(world).byId(zoneId);
+            if (z != null) { // 1.0 beta 3: same path as any escape (lines, extra items, reports)
+                ShopZones.get(world).markDirty();
+                if (!z.owner.equals(player.getUuid()) && !loot.isEmpty())
+                    player.sendMessage(Text.translatable("tcgshop.thief.escaped", getDisplayName(), loot.toHoverableText()).formatted(Formatting.RED), false);
+                escapeWithLoot(world, z);
+                return;
+            }
             NpcLines.sayNear(this, "thief_escape");
             player.sendMessage(Text.translatable("tcgshop.thief.escaped", getDisplayName(), loot.toHoverableText()).formatted(Formatting.RED), false);
-            if (z != null) ShopZones.get(world).markDirty();
             discard();
         }
     }
@@ -1545,6 +1929,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             standUp(sw);
             if (z != null) leave(sw, z, null);
         }
+        // 1.0 beta 3: an armed thief hit by a player before it struck goes loud (strikes and fights back)
+        if (type() == Type.THIEF && isArmedThief() && state != State.FLEE && source.getAttacker() instanceof PlayerEntity) provoked = true;
         if (type() != Type.THIEF && source.getAttacker() instanceof PlayerEntity p && !p.isCreative()) {
             if (!getWorld().isClient && age % 2 == 0) {
                 NpcLines.sayNear(this, "ouch");
@@ -1562,15 +1948,29 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         if (!(getWorld() instanceof ServerWorld world) || loot.isEmpty()) return;
         ShopZones.Zone z = zoneId == null ? null : ShopZones.get(world).byId(zoneId);
         if (z != null) {
+            // 1.0 beta 3: killed before escaping: everything it carried goes back (or drops); armed thefts are reported as foiled
+            int items = 1 + haul.size();
+            long value = carriedValue();
+            boolean armed = isArmedThief();
+            int tier = thiefTier();
             returnLoot(world, z);
             z.detained++;
             ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
             if (owner != null) {
-                owner.sendMessage(Text.translatable("tcgshop.thief.recovered", getDisplayName()).formatted(Formatting.GREEN), false);
+                if (!armed) owner.sendMessage(Text.translatable("tcgshop.thief.recovered", getDisplayName()).formatted(Formatting.GREEN), false);
                 CardAdvancements.grant(owner, "catch_thief");
                 if (z.detained >= 10) CardAdvancements.grant(owner, "catch_thief_10");
+                if (fixedId() == FixedCustomers.THIEF) CardAdvancements.grant(owner, "catch_vinnie");
             }
-        } else dropStack(loot);
+            if (armed && !outcomeSent) {
+                outcomeSent = true;
+                ThiefTiers.onOutcome(world, z, this, tier, true, items, value, source.getAttacker() instanceof ServerPlayerEntity k ? k : null);
+            }
+        } else {
+            dropStack(loot);
+            for (Stolen s : haul) dropStack(s.stack());
+            haul.clear();
+        }
         loot = ItemStack.EMPTY;
     }
 
@@ -1804,6 +2204,28 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         if (!bought.isEmpty()) nbt.put("Bought", bought.encode(getRegistryManager()));
         nbt.putLong("PayPrice", payPrice);
         nbt.putInt("Type", dataTracker.get(TYPE));
+        // 1.0 beta 3: unique customer, thief tier and extra loot (new keys; older saves simply lack them)
+        if (fixedId() >= 0) nbt.putInt("FixedId", fixedId());
+        if (dataTracker.get(TIER) > 0) nbt.putInt("ThiefTier", dataTracker.get(TIER));
+        nbt.putInt("NpcSkin", npcSkin());
+        nbt.putString("NpcTitle", npcTitle());
+        if (!dataTracker.get(EV_ROLE).isEmpty() && visitor == null) nbt.putString("NpcRole", dataTracker.get(EV_ROLE));
+        if (!haul.isEmpty()) {
+            net.minecraft.nbt.NbtList hl = new net.minecraft.nbt.NbtList();
+            for (Stolen s : haul) {
+                NbtCompound c = new NbtCompound();
+                c.putLong("Pos", s.pos().asLong());
+                c.putInt("Slot", s.slot());
+                c.put("Item", s.stack().encode(getRegistryManager()));
+                hl.add(c);
+            }
+            nbt.put("Haul", hl);
+        }
+        if (target != null) nbt.putLong("LootPos", target.asLong());
+        nbt.putInt("LootSlot", targetSlot);
+        nbt.putInt("TheftWeight", theftWeight);
+        nbt.putInt("Slips", slipsLeft);
+        nbt.putBoolean("Detected", detected);
         // 0.9.5: when seated it's saved at the chair's position: on load it appears standing next to it
         if (getVehicle() instanceof ShopSeatEntity seat && seat.standPos() != null) {
             Vec3d st = seat.standPos();
@@ -1821,6 +2243,24 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         loot = nbt.contains("Loot") ? ItemStack.fromNbt(getRegistryManager(), nbt.get("Loot")).orElse(ItemStack.EMPTY) : ItemStack.EMPTY;
         bought = nbt.contains("Bought") ? ItemStack.fromNbt(getRegistryManager(), nbt.get("Bought")).orElse(ItemStack.EMPTY) : ItemStack.EMPTY;
         payPrice = nbt.getLong("PayPrice");
+        // 1.0 beta 3 (gear and health are restored by vanilla with the equipment and attributes)
+        dataTracker.set(FIXED, nbt.contains("FixedId") ? nbt.getInt("FixedId") : -1);
+        dataTracker.set(TIER, nbt.getInt("ThiefTier"));
+        if (nbt.contains("NpcSkin")) dataTracker.set(SKIN, nbt.getInt("NpcSkin"));
+        if (nbt.contains("NpcTitle")) dataTracker.set(TITLE, nbt.getString("NpcTitle"));
+        if (nbt.contains("NpcRole")) dataTracker.set(EV_ROLE, nbt.getString("NpcRole"));
+        haul.clear();
+        net.minecraft.nbt.NbtList hl = nbt.getList("Haul", net.minecraft.nbt.NbtElement.COMPOUND_TYPE);
+        for (int i = 0; i < hl.size(); i++) {
+            NbtCompound c = hl.getCompound(i);
+            ItemStack st = ItemStack.fromNbt(getRegistryManager(), c.get("Item")).orElse(ItemStack.EMPTY);
+            if (!st.isEmpty()) haul.add(new Stolen(BlockPos.fromLong(c.getLong("Pos")), c.getInt("Slot"), st));
+        }
+        if (nbt.contains("LootPos")) target = BlockPos.fromLong(nbt.getLong("LootPos"));
+        if (nbt.contains("LootSlot")) targetSlot = nbt.getInt("LootSlot");
+        theftWeight = nbt.contains("TheftWeight") ? Math.max(1, nbt.getInt("TheftWeight")) : 1;
+        slipsLeft = nbt.getInt("Slips");
+        detected = nbt.getBoolean("Detected");
         if (nbt.contains("SitStandY")) setPosition(nbt.getDouble("SitStandX"), nbt.getDouble("SitStandY"), nbt.getDouble("SitStandZ"));
         exit = null; // on reload: walks away from wherever it is
         reviewed = true;

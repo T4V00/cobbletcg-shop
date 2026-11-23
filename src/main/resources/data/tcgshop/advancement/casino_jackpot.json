@@ -1,0 +1,23 @@
+{
+ "display": {
+  "icon": {
+   "id": "tcgshop:vip_slot_machine"
+  },
+  "title": {
+   "translate": "advancement.tcgshop.casino_jackpot.title"
+  },
+  "description": {
+   "translate": "advancement.tcgshop.casino_jackpot.desc"
+  },
+  "frame": "challenge",
+  "show_toast": true,
+  "announce_to_chat": true,
+  "hidden": false
+ },
+ "criteria": {
+  "done": {
+   "trigger": "minecraft:impossible"
+  }
+ },
+ "parent": "tcgshop:casino_first_win"
+}

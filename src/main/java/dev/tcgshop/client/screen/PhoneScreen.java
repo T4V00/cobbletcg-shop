@@ -1409,8 +1409,15 @@ public class PhoneScreen extends Screen {
         Ui.text(ctx, Text.literal(Ui.ellipsis(Text.translatable("tcgshop.phone.hire_cost", PriceService.format(hire)).getString(), w - 12)), x + 6, y + 38, w - 12, 10, 0xFFCCCCCC, false);
         Ui.text(ctx, Text.literal(Ui.ellipsis(Text.translatable("tcgshop.phone.wage_cost", PriceService.format(wage)).getString(), w - 12)), x + 6, y + 49, w - 12, 10, 0xFFCCCCCC, false);
         int bw = w - 16, by = y + h - 20;
-        Ui.button(ctx, x + 8, by, bw, 14, Text.translatable(hired ? "tcgshop.phone.fire" : "tcgshop.phone.hire"), mouseX, mouseY, true, hired ? 0xFF7A2020 : 0xFF3C8A4A);
-        areas.add(new Area(x + 8, by, bw, 14, () -> ClientPlayNetworking.send(new StaffPayload(z.id(), role, !hired))));
+        boolean upgrades = hired && "guard".equals(role); // 1.0: a hired guard gets an Upgrades button (server opens the upgrade menu)
+        int fw = upgrades ? (bw - 4) / 2 : bw;
+        Ui.button(ctx, x + 8, by, fw, 14, Text.translatable(hired ? "tcgshop.phone.fire" : "tcgshop.phone.hire"), mouseX, mouseY, true, hired ? 0xFF7A2020 : 0xFF3C8A4A);
+        areas.add(new Area(x + 8, by, fw, 14, () -> ClientPlayNetworking.send(new StaffPayload(z.id(), role, !hired))));
+        if (upgrades) {
+            int ux = x + 8 + fw + 4, uw = bw - fw - 4;
+            Ui.button(ctx, ux, by, uw, 14, Text.translatable("tcgshop.phone.guard_upgrades"), mouseX, mouseY, true, 0xFF2D5E9E);
+            areas.add(new Area(ux, by, uw, 14, () -> ClientPlayNetworking.send(new StaffPayload(z.id(), "guard_up_menu", true))));
+        }
     }
 
     private void securityTab(DrawContext ctx, ShopClient.ZoneInfo z, int px, int py, int pw) {

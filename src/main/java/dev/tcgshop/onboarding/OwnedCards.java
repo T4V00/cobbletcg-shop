@@ -60,7 +60,8 @@ public final class OwnedCards {
 
         boolean matches(ItemStack st) {
             return CardInfo.isCard(st) && !Grading.isGraded(st) && CardInfo.id(st).toString().equals(id)
-                    && PrintVariant.of(st).key.equals(variant);
+                    && PrintVariant.of(st).key.equals(variant)
+                    && !dev.tcgshop.entity.CollectorTheft.isStolen(st); // 1.0 beta 3: a stolen card is never sold to a collector
         }
     }
 
@@ -72,7 +73,7 @@ public final class OwnedCards {
         Map<String, Owned> out = new LinkedHashMap<>();
         for (int i = 0; i < 36; i++) {
             ItemStack st = p.getInventory().getStack(i);
-            if (!CardInfo.isCard(st) || Grading.isGraded(st)) continue;
+            if (!CardInfo.isCard(st) || Grading.isGraded(st) || dev.tcgshop.entity.CollectorTheft.isStolen(st)) continue;
             add(out, new Want(CardInfo.id(st).toString(), PrintVariant.of(st).key), st.copyWithCount(1));
         }
         BinderData b = CollectionService.ownedBinder(p);

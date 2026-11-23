@@ -77,8 +77,10 @@ public final class TcgItems {
                         e.add(dev.tcgshop.shop.TcgBlocks.PLAY_TABLE_ITEM);
                         e.add(dev.tcgshop.shop.TcgBlocks.THEFT_DETECTOR_ITEM);
                         e.add(dev.tcgshop.shop.TcgBlocks.ROULETTE_ITEM);
+                        for (Item it : dev.tcgshop.casino.CasinoBlocks.ITEMS) e.add(it); // 1.0 beta 3 casino
                         e.add(dev.tcgshop.shop.TcgBlocks.MYSTERY_BOX);
                         for (Item it : dev.tcgshop.luxury.LuxuryBlocks.items()) e.add(it);
+                        e.add(dev.tcgshop.world.WorldLoot.TRASH_CAN_ITEM); // 1.0 decorative trash can
                         for (String set : new String[]{"mew151", "prismaticevolutions", "eskies", "baseset", "drivals", "crising"})
                             e.add(dev.tcgshop.shop.BoosterBox.of(set));
                         e.add(WHOLESALER_SPAWN_EGG);

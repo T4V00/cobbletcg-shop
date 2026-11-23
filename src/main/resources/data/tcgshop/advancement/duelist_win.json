@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "tcgshop:play_table"
+    },
+    "title": {
+      "translate": "advancement.tcgshop.duelist_win.title"
+    },
+    "description": {
+      "translate": "advancement.tcgshop.duelist_win.desc"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "tcgshop:duel_house_win"
+}

@@ -142,6 +142,10 @@ public final class ClientPtcg {
     private static final String[] ENERGY_NAMES = {null, "Grass", "Fire", "Water", "Lightning", "Psychic", "Fighting", "Darkness", "Metal"};
     private static final Map<Integer, Identifier> ENERGY_TEX = new HashMap<>();
 
+    static { // 1.0: the card art mode (original / official) changes which energy pictures exist
+        dev.masterball.api.client.art.CardArt.addListener(ENERGY_TEX::clear);
+    }
+
     /** Texture of the real basic Energy card (cobbletcg) of the type, to crop its orb as an icon; null if none. */
     @Nullable
     public static Identifier energyTexture(int type) {

@@ -193,6 +193,8 @@ public final class CollectionService {
         for (ItemStack st : cards) {
             if (st.isEmpty()) continue;
             if (!CardInfo.isCard(st)) { player.getInventory().offerOrDrop(st.copy()); continue; } // never lose a non-card
+            // 1.0 beta 3: a card stolen from a collector who is still hunting for it stays in the inventory
+            if (dev.tcgshop.entity.CollectorTheft.refuseHot(player, st)) { player.getInventory().offerOrDrop(st.copy()); continue; }
             file(d, pd, st, newVariants);
             if (!dev.tcgshop.grading.Grading.isGraded(st)) pd.totalObtained += st.getCount();
         }
@@ -316,14 +318,17 @@ public final class CollectionService {
         CardCollection pd = playerData(player);
         List<String> newVariants = new ArrayList<>();
         int filed = 0;
+        boolean hot = false;
         for (int i = 0; i < inv.size(); i++) {
             ItemStack st = inv.getStack(i);
             if (!CardInfo.isCard(st)) continue;
+            if (dev.tcgshop.entity.CollectorTheft.isHot(player.getServer(), st)) { hot = true; continue; } // 1.0 beta 3: stays in the inventory
             file(d, pd, st, newVariants);
             filed += st.getCount();
             inv.setStack(i, ItemStack.EMPTY);
         }
         if (!newVariants.isEmpty()) CardAdvancements.credit(player, pd, d, newVariants);
+        if (hot) dev.tcgshop.entity.CollectorTheft.sayHot(player);
         player.sendMessage(filed > 0 ? Text.translatable("tcgshop.binder.deposited", filed).formatted(Formatting.GREEN)
                 : Text.translatable("tcgshop.binder.nothing_to_deposit").formatted(Formatting.GRAY), true);
         dirty(player);

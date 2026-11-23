@@ -129,6 +129,8 @@ public final class TradeManager {
         if (s == null || slot < 0 || (slot >= 36 && !dev.tcgshop.collection.BinderSlots.isBinder(slot))) return;
         ItemStack st = dev.tcgshop.collection.BinderSlots.peek(p, slot);
         if (!tradeable(st)) { sendState(p, s, "tcgshop.trade.not_tradeable"); return; }
+        // 1.0 beta 3: a card stolen from a collector who is still hunting for it cannot change hands
+        if (dev.tcgshop.entity.CollectorTheft.isHot(p.getServer(), st)) { sendState(p, s, "tcgshop.collector_theft.hot"); return; }
         ItemStack one = st.copyWithCount(1);
         if (s.isA(p.getUuid())) { s.offerA = one; s.slotA = slot; } else { s.offerB = one; s.slotB = slot; }
         s.okA = s.okB = false;

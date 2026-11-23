@@ -1,0 +1,6 @@
+{
+ "parent": "minecraft:item/generated",
+ "textures": {
+  "layer0": "tcgshop:item/phone_icon/masterball"
+ }
+}

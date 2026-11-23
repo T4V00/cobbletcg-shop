@@ -256,6 +256,8 @@ public final class BinderServer {
         for (ItemStack card : cards) {
             if (card.isEmpty()) continue;
             if (!CardInfo.isCard(card)) { player.getInventory().offerOrDrop(card.copy()); continue; }
+            // 1.0 beta 3: a card stolen from a collector who is still hunting for it stays in the inventory
+            if (dev.tcgshop.entity.CollectorTheft.refuseHot(player, card)) { player.getInventory().offerOrDrop(card.copy()); continue; }
             boolean graded = dev.tcgshop.grading.Grading.isGraded(card);
             if (!graded) pd.totalObtained += card.getCount();
             ItemStack rest = card.copy();
@@ -285,9 +287,11 @@ public final class BinderServer {
         PlayerInventory inv = player.getInventory();
         List<String> credit = new ArrayList<>();
         int filed = 0, left = 0;
+        boolean hot = false;
         for (int i = 0; i < inv.size(); i++) {
             ItemStack card = inv.getStack(i);
             if (!CardInfo.isCard(card)) continue;
+            if (dev.tcgshop.entity.CollectorTheft.isHot(player.getServer(), card)) { hot = true; continue; } // 1.0 beta 3: stays in the inventory
             String id = CardInfo.id(card).toString();
             boolean graded = dev.tcgshop.grading.Grading.isGraded(card);
             int before = card.getCount();
@@ -303,6 +307,7 @@ public final class BinderServer {
             else left += card.getCount();
         }
         if (!credit.isEmpty()) CardAdvancements.credit(player, CollectionService.playerData(player), null, credit);
+        if (hot) dev.tcgshop.entity.CollectorTheft.sayHot(player);
         if (filed == 0 && left == 0) player.sendMessage(Text.translatable("tcgshop.binder.nothing_to_deposit").formatted(Formatting.GRAY), true);
         else notifyFiled(player, d, filed, left);
         return d;

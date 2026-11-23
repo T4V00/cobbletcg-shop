@@ -60,6 +60,11 @@ public final class TcgEntities {
             Identifier.of(TcgShop.MOD_ID, "rival"),
             EntityType.Builder.create(RivalTaunterEntity::new, SpawnGroup.MISC).dimensions(0.6f, 1.8f).eyeHeight(1.62f).maxTrackingRange(10)
                     .build("rival"));
+    // 1.0 Wandering Duelist (world/duelist/WanderingDuelists)
+    public static final EntityType<WanderingDuelistEntity> WANDERING_DUELIST = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(TcgShop.MOD_ID, "wandering_duelist"),
+            EntityType.Builder.create(WanderingDuelistEntity::new, SpawnGroup.MISC).dimensions(0.6f, 1.8f).eyeHeight(1.62f).maxTrackingRange(10)
+                    .build("wandering_duelist"));
 
     private TcgEntities() {}
 
@@ -77,6 +82,7 @@ public final class TcgEntities {
         FabricDefaultAttributeRegistry.register(FURNITURE_SELLER, FurnitureSellerEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(UNIQUE_COLLECTOR, UniqueCollectorEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(RIVAL, RivalTaunterEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(WANDERING_DUELIST, WanderingDuelistEntity.createAttributes());
         // Furniture seller: visits players who have a shop (phase 10500 of every half day)
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_WORLD_TICK.register(FurnitureSellerEntity::spawner);
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_WORLD_TICK.register(TcgEntities::wholesalerSpawner);

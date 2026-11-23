@@ -5,15 +5,26 @@ import dev.tcgshop.collection.Titles;
 import dev.tcgshop.entity.NpcIdentity;
 import dev.tcgshop.entity.TcgNpc;
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.model.ModelData;
+import net.minecraft.client.model.ModelPart;
+import net.minecraft.client.model.ModelPartBuilder;
+import net.minecraft.client.model.ModelTransform;
+import net.minecraft.client.model.TexturedModelData;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.BipedEntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.render.entity.LivingEntityRenderer;
+import net.minecraft.client.render.entity.feature.ArmorFeatureRenderer;
+import net.minecraft.client.render.entity.feature.FeatureRenderer;
+import net.minecraft.client.render.entity.feature.FeatureRendererContext;
+import net.minecraft.client.render.entity.model.ArmorEntityModel;
 import net.minecraft.client.render.entity.model.EntityModelLayers;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
@@ -22,8 +33,9 @@ import net.minecraft.util.Identifier;
 import org.joml.Matrix4f;
 
 /**
- * Renderer for the mod's NPCs (customers, employees, Scalper, Wholesaler): default Minecraft skin
- * (wide or slim model), name + a line above with their role and Pokémon title, and the emotion speech bubble.
+ * Renderer for the mod's NPCs (customers, employees, Scalper, Wholesaler...): generated skin (NpcSkins) on the
+ * player model with the outer layer (hat, jacket, sleeves, pants) visible, slim model for female skins, a 3D
+ * backpack for some of them, name + a line above with their role and Pokémon title, and the emotion speech bubble.
  */
 public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRenderer<T, PlayerEntityModel<T>> {
     private static final Identifier[] BUBBLES = {
@@ -40,20 +52,53 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
         super(ctx, new PlayerEntityModel<>(ctx.getPart(EntityModelLayers.PLAYER), false), 0.5f);
         this.wide = this.model;
         this.slim = new PlayerEntityModel<>(ctx.getPart(EntityModelLayers.PLAYER_SLIM), true);
+        // armor worn by NPCs (e.g. top thief tiers), drawn like on players. Subclasses (CustomerNpcRenderer) may add
+        // their own armor layer: this one then stays quiet so the armor is never drawn twice.
+        addFeature(new SharedArmorFeature(
+                new ArmorEntityModel<T>(ctx.getPart(EntityModelLayers.PLAYER_INNER_ARMOR)),
+                new ArmorEntityModel<T>(ctx.getPart(EntityModelLayers.PLAYER_OUTER_ARMOR)),
+                ctx));
+        addFeature(new BackpackFeature<>(this));
     }
 
-    private static int skin(TcgNpc npc) {
-        return Math.floorMod(npc.npcSkin(), 64);
+    /** Vanilla armor layer that skips rendering when the renderer has another armor layer (added by a subclass). */
+    private final class SharedArmorFeature extends ArmorFeatureRenderer<T, PlayerEntityModel<T>, ArmorEntityModel<T>> {
+        private Boolean duplicate;
+
+        SharedArmorFeature(ArmorEntityModel<T> inner, ArmorEntityModel<T> outer, EntityRendererFactory.Context ctx) {
+            super(TcgNpcRenderer.this, inner, outer, ctx.getModelManager());
+        }
+
+        @Override
+        public void render(MatrixStack matrices, VertexConsumerProvider consumers, int light, T entity, float limbAngle,
+                           float limbDistance, float tickDelta, float animationProgress, float headYaw, float headPitch) {
+            if (duplicate == null) {
+                boolean dup = false;
+                for (FeatureRenderer<T, PlayerEntityModel<T>> f : TcgNpcRenderer.this.features)
+                    if (f != this && f instanceof ArmorFeatureRenderer) dup = true;
+                duplicate = dup;
+            }
+            if (duplicate) return;
+            super.render(matrices, consumers, light, entity, limbAngle, limbDistance, tickDelta, animationProgress, headYaw, headPitch);
+        }
+    }
+
+    /** Skin look of an NPC: role, skin int and its name (the name decides the sex of skins that don't store it). */
+    static NpcSkins.Look lookOf(MobEntity entity, TcgNpc npc) {
+        Text name = entity.getCustomName();
+        return NpcSkins.look(npc.roleKey(), npc.npcSkin(), name == null ? null : name.getString());
     }
 
     @Override
     public Identifier getTexture(T entity) {
-        return NpcSkins.texture(entity.roleKey(), skin(entity));
+        return lookOf(entity, entity).texture();
     }
 
     @Override
     public void render(T entity, float yaw, float tickDelta, MatrixStack matrices, VertexConsumerProvider consumers, int light) {
-        this.model = NpcSkins.slim(skin(entity)) ? slim : wide;
+        this.model = lookOf(entity, entity).slim() ? slim : wide;
+        // second skin layer: hair volume, caps, jackets, skirts... (the parts are visible by default, but make sure)
+        this.model.setVisible(true);
         super.render(entity, yaw, tickDelta, matrices, consumers, light);
         dev.tcgshop.client.ClientSpeech.Speech speech = dev.tcgshop.client.ClientSpeech.get(entity.getId());
         if (speech != null && dispatcher.getSquaredDistanceToCamera(entity) < 40 * 40) {
@@ -234,6 +279,39 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
     private static void vertex(VertexConsumer vc, MatrixStack matrices, Matrix4f m, float x, float y, float u, float v) {
         vc.vertex(m, x, y, 0).color(255, 255, 255, 255).texture(u, v).overlay(OverlayTexture.DEFAULT_UV).light(0xF000F0)
                 .normal(matrices.peek(), 0, 1, 0);
+    }
+
+    /**
+     * 3D backpack on the NPC's back (customers and scalpers with straps painted on their skin, and some fixed
+     * customers). Its own small model (bag 7x9x3, front pocket, handle) follows the body part, so it leans when
+     * sneaking. UV layout matches tools/gen_npc_skins.py backpack_texture().
+     */
+    private static final class BackpackFeature<T extends MobEntity & TcgNpc> extends FeatureRenderer<T, PlayerEntityModel<T>> {
+        private final ModelPart bag;
+
+        BackpackFeature(FeatureRendererContext<T, PlayerEntityModel<T>> context) {
+            super(context);
+            ModelData data = new ModelData();
+            data.getRoot().addChild("bag", ModelPartBuilder.create()
+                    .uv(0, 0).cuboid(-3.5f, 1.0f, 2.3f, 7, 9, 3)     // bag, just behind the jacket layer (z 2.25)
+                    .uv(0, 12).cuboid(-2.5f, 5.0f, 5.3f, 5, 4, 1)    // front pocket
+                    .uv(0, 18).cuboid(-1.5f, 0.0f, 3.3f, 3, 1, 1),   // handle
+                    ModelTransform.NONE);
+            this.bag = TexturedModelData.of(data, 32, 32).createModel().getChild("bag");
+        }
+
+        @Override
+        public void render(MatrixStack matrices, VertexConsumerProvider consumers, int light, T entity, float limbAngle,
+                           float limbDistance, float tickDelta, float animationProgress, float headYaw, float headPitch) {
+            if (entity.isInvisible() || !entity.getEquippedStack(EquipmentSlot.CHEST).isEmpty()) return;
+            int color = lookOf(entity, entity).backpack();
+            if (color < 0) return;
+            matrices.push();
+            getContextModel().body.rotate(matrices);
+            VertexConsumer vc = consumers.getBuffer(RenderLayer.getEntityCutoutNoCull(NpcSkins.backpackTexture(color)));
+            bag.render(matrices, vc, light, LivingEntityRenderer.getOverlay(entity, 0));
+            matrices.pop();
+        }
     }
 
     /** Name (vanilla) + role / title line above. */

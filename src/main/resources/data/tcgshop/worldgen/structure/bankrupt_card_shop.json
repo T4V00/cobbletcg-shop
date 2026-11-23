@@ -1,0 +1,7 @@
+{
+ "type": "tcgshop:bankrupt_card_shop",
+ "biomes": "#tcgshop:has_structure/bankrupt_card_shop",
+ "step": "surface_structures",
+ "spawn_overrides": {},
+ "terrain_adaptation": "beard_thin"
+}

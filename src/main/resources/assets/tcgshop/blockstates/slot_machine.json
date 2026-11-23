@@ -1,0 +1,19 @@
+{
+ "variants": {
+  "facing=north": {
+   "model": "tcgshop:block/slot_machine"
+  },
+  "facing=east": {
+   "model": "tcgshop:block/slot_machine",
+   "y": 90
+  },
+  "facing=south": {
+   "model": "tcgshop:block/slot_machine",
+   "y": 180
+  },
+  "facing=west": {
+   "model": "tcgshop:block/slot_machine",
+   "y": 270
+  }
+ }
+}

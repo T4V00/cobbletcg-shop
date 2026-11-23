@@ -1,0 +1,124 @@
+{
+ "variants": {
+  "facing=north,loot=none,searched=false": {
+   "model": "tcgshop:block/trash_can"
+  },
+  "facing=north,loot=none,searched=true": {
+   "model": "tcgshop:block/trash_can_searched"
+  },
+  "facing=north,loot=street,searched=false": {
+   "model": "tcgshop:block/trash_can"
+  },
+  "facing=north,loot=street,searched=true": {
+   "model": "tcgshop:block/trash_can_searched"
+  },
+  "facing=north,loot=bankrupt,searched=false": {
+   "model": "tcgshop:block/trash_can_rusty"
+  },
+  "facing=north,loot=bankrupt,searched=true": {
+   "model": "tcgshop:block/trash_can_rusty_searched"
+  },
+  "facing=north,loot=wild,searched=false": {
+   "model": "tcgshop:block/trash_can"
+  },
+  "facing=north,loot=wild,searched=true": {
+   "model": "tcgshop:block/trash_can_searched"
+  },
+  "facing=east,loot=none,searched=false": {
+   "model": "tcgshop:block/trash_can",
+   "y": 90
+  },
+  "facing=east,loot=none,searched=true": {
+   "model": "tcgshop:block/trash_can_searched",
+   "y": 90
+  },
+  "facing=east,loot=street,searched=false": {
+   "model": "tcgshop:block/trash_can",
+   "y": 90
+  },
+  "facing=east,loot=street,searched=true": {
+   "model": "tcgshop:block/trash_can_searched",
+   "y": 90
+  },
+  "facing=east,loot=bankrupt,searched=false": {
+   "model": "tcgshop:block/trash_can_rusty",
+   "y": 90
+  },
+  "facing=east,loot=bankrupt,searched=true": {
+   "model": "tcgshop:block/trash_can_rusty_searched",
+   "y": 90
+  },
+  "facing=east,loot=wild,searched=false": {
+   "model": "tcgshop:block/trash_can",
+   "y": 90
+  },
+  "facing=east,loot=wild,searched=true": {
+   "model": "tcgshop:block/trash_can_searched",
+   "y": 90
+  },
+  "facing=south,loot=none,searched=false": {
+   "model": "tcgshop:block/trash_can",
+   "y": 180
+  },
+  "facing=south,loot=none,searched=true": {
+   "model": "tcgshop:block/trash_can_searched",
+   "y": 180
+  },
+  "facing=south,loot=street,searched=false": {
+   "model": "tcgshop:block/trash_can",
+   "y": 180
+  },
+  "facing=south,loot=street,searched=true": {
+   "model": "tcgshop:block/trash_can_searched",
+   "y": 180
+  },
+  "facing=south,loot=bankrupt,searched=false": {
+   "model": "tcgshop:block/trash_can_rusty",
+   "y": 180
+  },
+  "facing=south,loot=bankrupt,searched=true": {
+   "model": "tcgshop:block/trash_can_rusty_searched",
+   "y": 180
+  },
+  "facing=south,loot=wild,searched=false": {
+   "model": "tcgshop:block/trash_can",
+   "y": 180
+  },
+  "facing=south,loot=wild,searched=true": {
+   "model": "tcgshop:block/trash_can_searched",
+   "y": 180
+  },
+  "facing=west,loot=none,searched=false": {
+   "model": "tcgshop:block/trash_can",
+   "y": 270
+  },
+  "facing=west,loot=none,searched=true": {
+   "model": "tcgshop:block/trash_can_searched",
+   "y": 270
+  },
+  "facing=west,loot=street,searched=false": {
+   "model": "tcgshop:block/trash_can",
+   "y": 270
+  },
+  "facing=west,loot=street,searched=true": {
+   "model": "tcgshop:block/trash_can_searched",
+   "y": 270
+  },
+  "facing=west,loot=bankrupt,searched=false": {
+   "model": "tcgshop:block/trash_can_rusty",
+   "y": 270
+  },
+  "facing=west,loot=bankrupt,searched=true": {
+   "model": "tcgshop:block/trash_can_rusty_searched",
+   "y": 270
+  },
+  "facing=west,loot=wild,searched=false": {
+   "model": "tcgshop:block/trash_can",
+   "y": 270
+  },
+  "facing=west,loot=wild,searched=true": {
+   "model": "tcgshop:block/trash_can_searched",
+   "y": 270
+  }
+ }
+}

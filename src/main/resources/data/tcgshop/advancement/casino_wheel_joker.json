@@ -1,0 +1,23 @@
+{
+ "display": {
+  "icon": {
+   "id": "tcgshop:fortune_wheel"
+  },
+  "title": {
+   "translate": "advancement.tcgshop.casino_wheel_joker.title"
+  },
+  "description": {
+   "translate": "advancement.tcgshop.casino_wheel_joker.desc"
+  },
+  "frame": "goal",
+  "show_toast": true,
+  "announce_to_chat": false,
+  "hidden": false
+ },
+ "criteria": {
+  "done": {
+   "trigger": "minecraft:impossible"
+  }
+ },
+ "parent": "tcgshop:casino_first_win"
+}

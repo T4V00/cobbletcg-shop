@@ -123,6 +123,13 @@ public class EconomyConfig {
     public double repWeightAesthetics = 0.35, repWeightValue = 0.40, repWeightSafety = 0.25;
     /** Reputation lost for killing a shop NPC (customers, Wholesaler, merchant, employees) and how much is recovered per day. */
     public int infamyPerKill = 12, infamyDecayPerDay = 3;
+    /**
+     * 1.0 beta 3, stealing from the Wandering Collector (entity/CollectorTheft; clamped where read): reputation points and
+     * infamy every shop of the thief loses when they escape (and, with collectorKillPenaltyChance, when they kill him),
+     * the smaller loss when he kills the thief, and his health / hit damage (sword included) while he hunts.
+     */
+    public int collectorTheftRepLoss = 20, collectorTheftInfamy = 35, collectorDeathRepLoss = 8, collectorDeathInfamy = 10;
+    public double collectorKillPenaltyChance = 0.5, collectorRobbedHealth = 80, collectorRobbedDamage = 8;
 
     // --- Special encounters ---
     /** Chance (every half day) of the card beggar / the black-market dealer appearing. */
@@ -166,6 +173,16 @@ public class EconomyConfig {
     /** How long (seconds) two customers play at the table: random between min and max. */
     public int tableExhibitionMinSeconds = 60, tableExhibitionMaxSeconds = 150;
 
+    // --- 1.0 Wandering Duelist (world/duelist; values are clamped where they are read) ---
+    /** Chance, every 30 s of daytime per eligible player (Overworld surface, outside shops), that the Wandering Duelist sets up nearby. 0 = off. */
+    public double duelistChance = 0.008;
+    /** Prize for beating him, and the most cash he takes when you lose (with no cash on you he takes one random inventory stack). */
+    public long duelistPrize = 10_000, duelistMaxTake = 50_000;
+    /** 1.0 beta 3: the stake is held when you accept; who carries cash must stake at least this much (no cash at all = the item rule). */
+    public long duelistMinStake = 1_000;
+    /** Minimum seconds between two Wandering Duelist encounters for the same player. */
+    public int duelistCooldownSeconds = 3_600;
+
     // --- 1.0 store discount event (shop/Discounts; values are clamped where they are read) ---
     /** Chance, once per Minecraft day (24,000 ticks), that one store item goes on sale. 0 = off. */
     public double discountDailyChance = 0.04;
@@ -185,6 +202,17 @@ public class EconomyConfig {
     public double charismaMaxHaggleBonus = 0.25;
     /** Charisma XP for a closed deal, extra XP when you haggled a better price than the opening one, and per tip received. */
     public int charismaXpDeal = 4, charismaXpHaggle = 6, charismaXpTip = 3;
+
+    // --- 1.0 beta 3 unique customers, thief tiers and guard upgrades (entity/FixedCustomers, entity/ThiefTiers, shop/GuardUpgrades; clamped where read) ---
+    /** Chance that a naturally arriving customer is one of the 10 unique customers (the excellent one and the known thief are rarer). 0 = off. */
+    public double uniqueCustomerChance = 0.02;
+    /** Armed robbers and heist crews at popular shops: on/off and a multiplier for their (already very low) chance. */
+    public boolean armedThieves = true;
+    public double armedThiefChanceMult = 1.0;
+    /** Minimum Minecraft days between two armed robberies / two heists at the same shop. */
+    public int robberyCooldownDays = 3, heistCooldownDays = 12;
+    /** Price multiplier of the guard upgrades (armor, weapon, training, detection). */
+    public double guardUpgradeCostMult = 1.0;
 
     private void fillHelp() {
         _help.clear();
@@ -206,6 +234,7 @@ public class EconomyConfig {
         _help.put("customerSellFloor", "1.0: the lowest price, as a fraction of market (0.45 = 45%), a customer who sells you a card/pack/box ever asks or accepts, whatever your charisma, mission luck or haggling arguments. Keep it close to phoneSellRate so buying from customers and quick-selling is not free money.");
         _help.put("repWeightAesthetics/Value/Safety", "Weight of Aesthetics, Value and Safety in the total reputation.");
         _help.put("infamyPerKill/infamyDecayPerDay", "Reputation you lose for killing a shop NPC and how much you recover each day.");
+        _help.put("collector*", "1.0: stealing a card from the Wandering Collector. collectorTheftRepLoss/Infamy: reputation points and infamy all your shops lose if you escape (and, with collectorKillPenaltyChance, if you kill him). collectorDeathRepLoss/Infamy: the loss if he kills you (the stolen card vanishes too). collectorRobbedHealth/Damage: his health and hit damage while he hunts you.");
         _help.put("beggarChance/blackMarketChance", "Chance every half Minecraft day that the card beggar / the black marketeer (very rare) appears.");
         _help.put("startingMoney", "1.0: money a new player receives once, when they open their first pack (only players who got the 1.0 starter kit). 0 = off.");
         _help.put("uniqueCollector*", "1.0: one-time unique collector. After uniqueCollectorPlayTicks of play time (60,000 = 2.5 Minecraft days) he visits once and offers uniqueCollectorOffer for one card you own.");
@@ -220,6 +249,10 @@ public class EconomyConfig {
         _help.put("repPenaltyBelow/repPenaltyMax", "Below that reputation customers want below-market prices (down to -repPenaltyMax at reputation 0).");
         _help.put("fiveStarMood", "Mood a customer needs to leave 5 stars (starts at 3; a good purchase adds 2-3).");
         _help.put("table*", "1.0: the play table needs tableChairsRequired chairs (CobbleFurnies or any modded seat) within tableChairRadius blocks. With chairs, customers may challenge you (tableChallengeChance every 5 s, tableChallengeCooldownSeconds between challenges) or two of them sit and play a match for a while (tableExhibitionChance every 5 s).");
+        _help.put("duelist*", "1.0: Wandering Duelist. During the day, every 30 s, each player on the Overworld surface outside a shop has duelistChance of a pro player setting up a play table and two chairs on flat natural ground nearby (duelistCooldownSeconds between encounters; needs CobbleDollars). He challenges you to one Hard real-TCG match. On accept he holds your stake: all the cash you carry up to duelistMaxTake (at least duelistMinStake, or no cash at all). Win = the stake back + duelistPrize; lose = he keeps the stake, or one random inventory stack if you carried no cash; a draw or a match that never starts = the stake back. Then he packs up and vanishes.");
+        _help.put("uniqueCustomerChance", "1.0: chance that an arriving customer is one of the 10 unique customers (rainbow names, own lines). The excellent customer (Don Aurelio) and the known thief (Vinnie Vex) are rarer; none comes twice the same day.");
+        _help.put("armedThieves", "1.0: popular shops (reputation, tier, sales) attract better thieves. Armed robbers (Copper tier+) and heist crews (Gold tier+, empty every display) are very rare; armedThiefChanceMult scales their chance, robberyCooldownDays / heistCooldownDays space them out. Kill them before they escape to get the stock back.");
+        _help.put("guardUpgradeCostMult", "1.0: price multiplier of the guard upgrades (armor, weapon, training, detection; sneak + right-click your guard).");
         _help.put("missionMax*", "1.0: luck from shop missions. With every mission done, customers accept deals up to missionMaxAcceptBonus more often and tip up to missionMaxTipBonus more often (scaled smoothly by missions completed).");
         _help.put("charisma*", "1.0: per-player charisma level (1-20). XP: charismaXpDeal per closed deal, +charismaXpHaggle if you haggled a better price, charismaXpTip per tip. At level 20 haggling is charismaMaxHaggleBonus more effective.");
         _help.put("discount*","1.0: very rare sale. Once per Minecraft day, with discountDailyChance, one phone store / Wholesaler item gets 10, 30 or 50% off (discountWeights; packs, boxes and the Mystery Box never get 50%) for discountMinDays-discountMaxDays days. Cheap items are much more likely (discountPriceExponent).");

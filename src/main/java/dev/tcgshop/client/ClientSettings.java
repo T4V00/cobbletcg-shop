@@ -27,6 +27,8 @@ public final class ClientSettings {
     public int bubbleSize = 1;
     public boolean bubbles = true;
     public boolean patienceBars = true;
+    /** 1.0: the one-time notice "card art can be changed in the mod options" was already shown on this client. */
+    public boolean artNoticeShown = false;
 
     public static final int[] TEXT_COLORS = {0, 0xFF16161E, 0xFFFFFFFF, 0xFFFFD34D, 0xFF1A3A8A};
     public static final int[] BG_COLORS = {0xF5FFFFFF, 0xD0101018, 0xF5FFF2D2, 0};

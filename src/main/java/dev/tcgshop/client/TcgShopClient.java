@@ -38,13 +38,22 @@ public class TcgShopClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         dev.tcgshop.client.ClientSettings.load();
+        dev.tcgshop.client.options.ModOptions.init(); // 1.0: options screen (key O), card art option and its first-play notice
         EntityRendererRegistry.register(TcgEntities.SCALPER, dev.tcgshop.client.render.TcgNpcRenderer::new);
         // 1.0 onboarding one-time visitors
         EntityRendererRegistry.register(TcgEntities.UNIQUE_COLLECTOR, dev.tcgshop.client.render.TcgNpcRenderer::new);
         EntityRendererRegistry.register(TcgEntities.RIVAL, dev.tcgshop.client.render.TcgNpcRenderer::new);
+        EntityRendererRegistry.register(TcgEntities.WANDERING_DUELIST, dev.tcgshop.client.render.TcgNpcRenderer::new); // 1.0 Wandering Duelist
         dev.tcgshop.client.ShopClient.init();
+        // 1.0 beta 3: customers and employees get armor rendering and the unique customers' rainbow names (replaces ShopClient's registration)
+        EntityRendererRegistry.register(TcgEntities.CUSTOMER, dev.tcgshop.client.render.CustomerNpcRenderer::new);
+        EntityRendererRegistry.register(TcgEntities.EMPLOYEE, dev.tcgshop.client.render.CustomerNpcRenderer::new);
         dev.tcgshop.client.render.RgbLights.initClient(); // 1.0 RGB displays (translucent smoked glass)
+        dev.tcgshop.client.render.NpcSkins.initClient(); // 1.0 beta 3: re-probe NPC skin sets on resource reload
+        dev.tcgshop.client.render.ToolItemRenderer.register(); // 1.0 beta 3: 3D tool items + per-tier 3D phone
+        dev.tcgshop.casino.client.CasinoClient.init(); // 1.0 beta 3 casino: screens, renderer, payload receivers
         dev.tcgshop.events.incident.IncidentModule.initClient(); // 0.9: random events (client side of the incident module)
+        dev.tcgshop.world.WorldLootClient.init(); // 1.0 trash can (cutout layer)
         dev.tcgshop.client.phone.PhoneClient.register();
         dev.tcgshop.client.DiscountsClient.register(); // 1.0: store sale event (Discounts.percent on the client)
         ClientPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.TradePayloads.Open.ID, (p, ctx) -> ctx.client().execute(() ->
@@ -88,6 +97,7 @@ public class TcgShopClient implements ClientModInitializer {
                 case "slot" -> ctx.client().setScreen(new dev.tcgshop.client.screen.SlotEditScreen(p.data()));
                 case "beggar" -> ctx.client().setScreen(new dev.tcgshop.client.screen.BeggarScreen(p.data()));
                 case "unique_collector" -> ctx.client().setScreen(new dev.tcgshop.client.screen.UniqueCollectorScreen(p.data()));
+                case "duelist" -> ctx.client().setScreen(new dev.tcgshop.client.screen.DuelistStakesScreen(p.data())); // 1.0 Wandering Duelist
                 case "shop_status" -> ctx.client().setScreen(new dev.tcgshop.client.screen.ShopStatusScreen(p.data()));
                 case "black_market" -> ctx.client().setScreen(new dev.tcgshop.client.screen.BlackMarketScreen(p.data()));
                 case "binder_market" -> ctx.client().setScreen(new dev.tcgshop.client.screen.BinderMarketScreen(p.data()));
@@ -163,6 +173,8 @@ public class TcgShopClient implements ClientModInitializer {
 
         ItemTooltipCallback.EVENT.register((stack, tooltipContext, type, lines) -> {
             if (!CardInfo.isCard(stack)) return;
+            if (dev.tcgshop.entity.CollectorTheft.isStolen(stack)) // 1.0 beta 3: card stolen from a collector who is still after it
+                lines.add(Math.min(1, lines.size()), Text.translatable("tcgshop.collector_theft.tooltip").formatted(Formatting.DARK_RED, Formatting.ITALIC));
             int grade = dev.tcgshop.grading.Grading.grade(stack);
             if (grade > 0) {
                 lines.add(1, dev.tcgshop.grading.Grading.tooltip(grade));

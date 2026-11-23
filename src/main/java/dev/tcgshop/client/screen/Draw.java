@@ -20,6 +20,11 @@ public final class Draw {
 
     private static final Map<Identifier, Boolean> TEXTURE_EXISTS = new HashMap<>();
 
+    static {
+        // 1.0: the card art option (original / official) changes which card pictures exist
+        dev.masterball.api.client.art.CardArt.addListener(TEXTURE_EXISTS::clear);
+    }
+
     private Draw() {}
 
     public static boolean textureExists(Identifier id) {
@@ -73,7 +78,10 @@ public final class Draw {
         }
     }
 
-    /** Card face without effects (texture from the cobbletcg resource packs, or a placeholder with the icon). */
+    /**
+     * Card face without effects (texture from the API image pack, or a placeholder with the icon). 1.0: in "original"
+     * card art mode the API serves generated faces under the same ids (API CardArt), so every caller follows the option.
+     */
     public static void cardFace(DrawContext ctx, Identifier tex, ItemStack stack, float x, float y, float w, float h, float alpha) {
         if (textureExists(tex)) {
             texture(ctx, tex, x, y, w, h, alpha);
@@ -89,12 +97,15 @@ public final class Draw {
         }
     }
 
-    /** Original card back drawn in code (no copyrighted assets), centered on the current origin. */
+    /**
+     * Card back centered on the current origin. 1.0: the back of the current card art mode (API CardArt.back(): the jar's
+     * own MasterBall back in "original" mode; the official &lt;image folder&gt;/back of cards/card_back.png in "official"
+     * mode when present), the same one the card items use. The back drawn in code below is only a fallback.
+     */
     public static void cardBack(DrawContext ctx, float w, float h, float alpha, int glowColor, double t) {
         int x0 = Math.round(-w / 2), y0 = Math.round(-h / 2), iw = Math.round(w), ih = Math.round(h);
-        // the player's own card back image (<image folder>/back of cards/card_back.png), if they added one
-        Identifier img = dev.masterball.api.client.images.CardTextures.CARD_BACK;
-        if (dev.masterball.api.client.images.CardTextures.exists(img)) {
+        Identifier img = dev.masterball.api.client.art.CardArt.back();
+        if (textureExists(img)) {
             ctx.draw();
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();

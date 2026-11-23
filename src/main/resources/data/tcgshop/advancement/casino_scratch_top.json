@@ -1,0 +1,23 @@
+{
+ "display": {
+  "icon": {
+   "id": "tcgshop:scratch_card_gold"
+  },
+  "title": {
+   "translate": "advancement.tcgshop.casino_scratch_top.title"
+  },
+  "description": {
+   "translate": "advancement.tcgshop.casino_scratch_top.desc"
+  },
+  "frame": "challenge",
+  "show_toast": true,
+  "announce_to_chat": true,
+  "hidden": false
+ },
+ "criteria": {
+  "done": {
+   "trigger": "minecraft:impossible"
+  }
+ },
+ "parent": "tcgshop:casino_first_win"
+}

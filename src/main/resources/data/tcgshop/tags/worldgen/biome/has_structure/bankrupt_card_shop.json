@@ -1,0 +1,19 @@
+{
+ "replace": false,
+ "values": [
+  "#minecraft:has_structure/village_plains",
+  "#minecraft:has_structure/village_desert",
+  "#minecraft:has_structure/village_savanna",
+  "#minecraft:has_structure/village_snowy",
+  "#minecraft:has_structure/village_taiga",
+  "minecraft:plains",
+  "minecraft:sunflower_plains",
+  "minecraft:meadow",
+  "minecraft:forest",
+  "minecraft:birch_forest",
+  {
+   "id": "#c:is_plains",
+   "required": false
+  }
+ ]
+}

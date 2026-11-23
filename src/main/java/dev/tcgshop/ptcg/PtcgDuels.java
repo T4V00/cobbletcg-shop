@@ -102,6 +102,10 @@ public final class PtcgDuels {
         long botNext;
         int pending, ratingDelta;
         boolean over, started;
+        /** 1.0 beta 3: told how a hooked NPC match ended (Wandering Duelist); it pays its own stakes. Fired once. */
+        @Nullable NpcMatchHook hook;
+        /** Prize shown on the result screen instead of the house reward (-1 = the house reward). */
+        long shownReward = -1;
 
         Match(String id, ServerWorld world, @Nullable BlockPos table, Mode mode, int level) {
             this.id = id;
@@ -116,6 +120,23 @@ public final class PtcgDuels {
         boolean ai() { return players[1] == null; }
 
         boolean ranked() { return mode == Mode.TABLE_PVP || mode == Mode.QUEUE_PVP || mode == Mode.RANKED_AI; } // CHALLENGE = friendly
+    }
+
+    /**
+     * 1.0 beta 3 (Wandering Duelist): how a hooked NPC match ended. outcome: 1 = the player won; 0 = the player lost
+     * (conceding, walking away from the table or disconnecting included); -1 = no winner after it started (draw or
+     * aborted); -2 = it never started (deck refused, table taken...: the player was told why). Called once, on the
+     * server thread; the player may be offline by then. With a hook the house reward is not paid (the hook pays).
+     */
+    public interface NpcMatchHook { void onEnd(UUID player, int outcome); }
+
+    private static void fireHook(@Nullable NpcMatchHook h, UUID player, int outcome) {
+        if (h == null || player == null) return;
+        try {
+            h.onEnd(player, outcome);
+        } catch (RuntimeException ex) {
+            dev.tcgshop.TcgShop.LOGGER.warn("NPC match hook failed: {}", ex.toString());
+        }
     }
 
     private static final Map<UUID, Match> BY_PLAYER = new HashMap<>();
@@ -133,6 +154,13 @@ public final class PtcgDuels {
         ServerPlayConnectionEvents.DISCONNECT.register((h, s) -> {
             UUID u = h.getPlayer().getUuid();
             Match m = BY_PLAYER.get(u);
+            // 1.0 beta 3: leaving a hooked NPC match (Wandering Duelist) is a loss settled right now, not after the async
+            // concede below (on a server stop or a single-player quit that result may never arrive)
+            if (m != null && m.hook != null && m.started && !m.over && u.equals(m.players[0])) {
+                NpcMatchHook hook = m.hook;
+                m.hook = null;
+                fireHook(hook, u, 0);
+            }
             if (m != null) concede(m, u);
             WAITING.values().removeIf(x -> x.equals(u));
             QUEUE.remove(u);
@@ -165,6 +193,8 @@ public final class PtcgDuels {
         final BlockPos table = tablePos.toImmutable();
         Match mine = BY_PLAYER.get(p.getUuid());
         if (mine != null) { sendViews(mine, true); return; }
+        // 1.0 beta 3: the Wandering Duelist's own table (stakes window, busy with someone else...)
+        if (dev.tcgshop.world.duelist.WanderingDuelists.interceptTable(p, table)) return;
         // 1.0: chairs requirement, customer exhibitions holding the table and pending customer challenges (PlayTables)
         if (PlayTables.intercept(p, table)) return;
         if (!engineReady(p)) return;
@@ -226,6 +256,15 @@ public final class PtcgDuels {
      * false = it could not start now (busy, table taken or the engine still loading: the player was told why).
      */
     public static boolean startNpcMatch(ServerPlayerEntity p, BlockPos table, String npcName, int level) {
+        return startNpcMatch(p, table, npcName, level, -1, null);
+    }
+
+    /**
+     * 1.0 beta 3 (Wandering Duelist): same as above, but the hook is told the result and pays its own stakes (no house
+     * reward); shownReward is the prize shown on the result screen. When this returns true the hook is always called
+     * later (with -2 if the match then could not start).
+     */
+    public static boolean startNpcMatch(ServerPlayerEntity p, BlockPos table, String npcName, int level, long shownReward, @Nullable NpcMatchHook hook) {
         BlockPos t = table.toImmutable();
         if (BY_PLAYER.containsKey(p.getUuid())) return false;
         if (tableMatch(t) != null) {
@@ -235,7 +274,7 @@ public final class PtcgDuels {
         if (!engineReady(p)) return false;
         WAITING.values().removeIf(x -> x.equals(p.getUuid()));
         QUEUE.remove(p.getUuid());
-        startAi(p, t, Mode.CASUAL_AI, level, npcName);
+        startAi(p, t, Mode.CASUAL_AI, level, npcName, hook, shownReward);
         return true;
     }
 
@@ -245,10 +284,18 @@ public final class PtcgDuels {
 
     /** opponentName: shown instead of the AI level name (1.0: a shop customer who challenged you at a table). */
     private static void startAi(ServerPlayerEntity p, @Nullable BlockPos table, Mode mode, int level, @Nullable String opponentName) {
+        startAi(p, table, mode, level, opponentName, null, -1);
+    }
+
+    private static void startAi(ServerPlayerEntity p, @Nullable BlockPos table, Mode mode, int level, @Nullable String opponentName,
+                                @Nullable NpcMatchHook hook, long shownReward) {
+        UUID who = p.getUuid();
         deckFor(p, deck -> {
-            if (deck == null || BY_PLAYER.containsKey(p.getUuid())) return;
-            if (opponentName != null && table != null && tableMatch(table) != null) return; // someone took the table meanwhile
+            if (deck == null || BY_PLAYER.containsKey(p.getUuid())) { fireHook(hook, who, -2); return; }
+            if (opponentName != null && table != null && tableMatch(table) != null) { fireHook(hook, who, -2); return; } // someone took the table meanwhile
             Match m = new Match("m" + (++counter), p.getServerWorld(), table, mode, Math.max(0, Math.min(3, level)));
+            m.hook = hook;
+            m.shownReward = shownReward;
             m.players[0] = p.getUuid();
             m.names[0] = p.getName().getString();
             m.names[1] = opponentName != null ? opponentName : Text.translatable("tcgshop.ptcg.ai_name." + LEVELS[m.level]).getString();
@@ -578,7 +625,7 @@ public final class PtcgDuels {
             v.add("gMe", m.gradedCards[i]);
             v.addProperty("penalty", m.penalty[i]);
             v.add("gOpp", m.gradedCards[1 - i]);
-            v.addProperty("reward", m.over && winnerSeat(m) == 0 && m.ai() ? LEVEL_REWARD[m.level] : 0);
+            v.addProperty("reward", m.over && winnerSeat(m) == 0 && m.ai() ? (m.shownReward >= 0 ? m.shownReward : LEVEL_REWARD[m.level]) : 0);
             v.addProperty("coinMe", dev.tcgshop.duel.Cosmetics.coinOf(p));
             v.addProperty("board", dev.tcgshop.duel.Cosmetics.boardOf(p));
             ServerPlayerEntity op = m.players[1 - i] == null ? null : server.getPlayerManager().getPlayer(m.players[1 - i]);
@@ -619,9 +666,11 @@ public final class PtcgDuels {
                 else if (humanWon) { lg.entry(m.players[0], m.names[0]).aiWins++; lg.markDirty(); }
                 if (!humanWon && m.mode == Mode.RANKED_AI) penalize(hp, LEVEL_PENALTY[m.level], m, 0);
                 if (humanWon && hp != null) {
-                    long reward = LEVEL_REWARD[m.level];
-                    CobbleDollarsBridge.add(hp, reward);
-                    hp.sendMessage(Text.translatable("tcgshop.duel.reward", PriceService.format(reward)).formatted(Formatting.GOLD), false);
+                    if (m.hook == null) { // a hooked NPC match (Wandering Duelist) pays its own stakes
+                        long reward = LEVEL_REWARD[m.level];
+                        CobbleDollarsBridge.add(hp, reward);
+                        hp.sendMessage(Text.translatable("tcgshop.duel.reward", PriceService.format(reward)).formatted(Formatting.GOLD), false);
+                    }
                     CardAdvancements.grant(hp, "duel_house_win");
                     if (m.mode == Mode.RANKED_AI) CardAdvancements.grant(hp, "duel_ranked_win");
                 }
@@ -649,6 +698,11 @@ public final class PtcgDuels {
             lg.entry(u, pl.getName().getString()).finished(ws == seat, m.ranked());
             lg.markDirty();
             dev.tcgshop.duel.Cosmetics.check(pl);
+        }
+        if (m.hook != null) { // 1.0 beta 3: the Wandering Duelist settles its stakes
+            NpcMatchHook h = m.hook;
+            m.hook = null;
+            fireHook(h, m.players[0], ws == 0 ? 1 : ws == 1 ? 0 : -1);
         }
     }
 
@@ -683,6 +737,11 @@ public final class PtcgDuels {
     }
 
     private static void remove(Match m) {
+        if (m.hook != null) { // removed without a result (start failed or aborted)
+            NpcMatchHook h = m.hook;
+            m.hook = null;
+            fireHook(h, m.players[0], m.started ? -1 : -2);
+        }
         MATCHES.remove(m.id);
         for (UUID u : m.players) if (u != null) BY_PLAYER.remove(u, m);
         if (m.table != null && m.world.getBlockEntity(m.table) instanceof DecorBlocks.DecorEntity be) {

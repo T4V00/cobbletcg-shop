@@ -44,6 +44,8 @@ public class TcgShop implements ModInitializer {
         TcgEntities.init();
         dev.tcgshop.shop.TcgBlocks.init();
         dev.tcgshop.luxury.LuxuryBlocks.register();
+        dev.tcgshop.world.WorldLoot.register(); // 1.0 beta 3: trash cans + Bankrupt Card Shop (config/tcgshop-worldloot.json)
+        dev.tcgshop.casino.CasinoBlocks.init(); // 1.0 beta 3 casino machines + scratch tickets (before ShopServer.init: fixed prices)
         dev.tcgshop.shop.ShopServer.init();
         dev.tcgshop.shop.VanillaPrices.load();
         EconomyConfig.load();
@@ -116,6 +118,9 @@ public class TcgShop implements ModInitializer {
                 case "unique_collector" -> {
                     if (pl.getWorld().getEntityById(p.data().getInt("id")) instanceof dev.tcgshop.entity.UniqueCollectorEntity u) u.answer(pl, p.data().getString("action"));
                 }
+                case "duelist" -> { // 1.0 Wandering Duelist: stakes window answer
+                    if (pl.getWorld().getEntityById(p.data().getInt("id")) instanceof dev.tcgshop.entity.WanderingDuelistEntity d) d.answer(pl, p.data().getString("action"));
+                }
                 case "black_market" -> {
                     if (pl.getWorld().getEntityById(p.data().getInt("id")) instanceof dev.tcgshop.entity.BlackMarketEntity m && p.data().containsUuid("mon"))
                         m.trade(pl, p.data().getUuid("mon"));
@@ -132,6 +137,8 @@ public class TcgShop implements ModInitializer {
                 c.respond(ctx.player(), p.action(), p.counter());
         }));
         dev.tcgshop.shop.ShopLife.register();
+        dev.tcgshop.shop.GuardUpgrades.register(); // 1.0 beta 3: /tcgguard (clickable guard upgrade menu)
+        dev.tcgshop.entity.CollectorTheft.register(); // 1.0 beta 3: stealing from the Wandering Collector
         dev.tcgshop.compat.CobblemonBattles.register();
         dev.tcgshop.shop.PackLock.register();
         dev.tcgshop.shop.ChestLoot.register();
@@ -139,8 +146,10 @@ public class TcgShop implements ModInitializer {
         // TCG competitive mode
         dev.tcgshop.ptcg.PtcgDuels.register();
         dev.tcgshop.ptcg.PlayTables.register(); // 1.0: chairs requirement, customer challenges and exhibitions
+        dev.tcgshop.world.duelist.WanderingDuelists.register(); // 1.0: Wandering Duelist encounters (high-stakes Hard match)
         dev.tcgshop.luxury.StatuePacks.register(); // 1.0: customers drop packs near tier 3+ statues
         dev.tcgshop.shop.Discounts.register(); // 1.0: store sale event (+ its sync payload)
+        dev.tcgshop.casino.Casino.register(); // 1.0 beta 3: casino (config/tcgshop-casino.json, payloads, blackjack sessions)
         PayloadTypeRegistry.playS2C().register(PtcgPayloads.View.ID, PtcgPayloads.View.CODEC);
         PayloadTypeRegistry.playC2S().register(PtcgPayloads.Action.ID, PtcgPayloads.Action.CODEC);
         PayloadTypeRegistry.playS2C().register(PtcgPayloads.League.ID, PtcgPayloads.League.CODEC);
@@ -329,11 +338,13 @@ public class TcgShop implements ModInitializer {
                     dev.tcgshop.shop.VanillaPrices.load();
                     EconomyConfig.load();
                     dev.tcgshop.luxury.LuxuryConfig.load();
+                    dev.tcgshop.world.WorldLootConfig.load(); // 1.0 trash cans / Bankrupt Card Shop
                     syncAll(server);
                     dev.tcgshop.phone.PhoneConfig.load();
                     for (ServerPlayerEntity pl : server.getPlayerManager().getPlayerList()) dev.tcgshop.phone.PhoneUpgrades.sync(pl, null, null);
                     dev.tcgshop.events.EventsConfig.load(); // 0.9: config/tcgshop-events.json
                     dev.tcgshop.events.actor.ActorConfig.load();
+                    dev.tcgshop.casino.CasinoConfig.load(); // 1.0 beta 3: config/tcgshop-casino.json
                     ctx.getSource().sendFeedback(() -> Text.translatable("tcgshop.cmd.reloaded").formatted(Formatting.GREEN), true);
                     return 1;
                 }))

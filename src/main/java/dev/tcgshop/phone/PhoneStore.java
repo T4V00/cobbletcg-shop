@@ -29,6 +29,8 @@ public final class PhoneStore {
             return;
         }
         ItemStack item = view.get(p.index()).copy();
+        // 1.0 beta 3: no gambling while a loan is active, so scratch tickets can't be bought from the Wholesaler either
+        if (item.getItem() instanceof dev.tcgshop.casino.ScratchCardItem && Loans.blocksPurchase(player, "tcgshop.casino.loan_blocked")) return;
         int qty = Math.max(1, Math.min(64, p.qty()));
         int need = PhoneUpgrades.requiredTier(item, p.source() == -1);
         boolean locked = need > PhoneUpgrades.level(player);

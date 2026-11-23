@@ -1,0 +1,19 @@
+{
+ "variants": {
+  "facing=north": {
+   "model": "tcgshop:block/fortune_wheel"
+  },
+  "facing=east": {
+   "model": "tcgshop:block/fortune_wheel",
+   "y": 90
+  },
+  "facing=south": {
+   "model": "tcgshop:block/fortune_wheel",
+   "y": 180
+  },
+  "facing=west": {
+   "model": "tcgshop:block/fortune_wheel",
+   "y": 270
+  }
+ }
+}

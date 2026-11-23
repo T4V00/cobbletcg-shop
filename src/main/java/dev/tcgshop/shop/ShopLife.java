@@ -44,6 +44,7 @@ public final class ShopLife {
         if (!(entity instanceof dev.tcgshop.entity.TcgNpc) || !(entity.getWorld() instanceof ServerWorld w)) return;
         if (entity instanceof CustomerEntity c && c.type() == CustomerEntity.Type.THIEF) return;
         if (entity instanceof dev.tcgshop.entity.ScalperEntity) return;
+        if (entity instanceof dev.tcgshop.entity.TraderEntity tr && tr.isRobbed()) return; // 1.0 beta 3: CollectorTheft settles it
         if (!(source.getAttacker() instanceof ServerPlayerEntity killer)) return;
         int pen = dev.tcgshop.EconomyConfig.INSTANCE.infamyPerKill;
         if (pen <= 0) return;
@@ -408,6 +409,9 @@ public final class ShopLife {
             ShopZones.get(world).markDirty();
             return;
         }
+        // 1.0 beta 3: now and then one of the 10 unique customers walks in instead (FixedCustomers.roll)
+        int fixed = dev.tcgshop.entity.FixedCustomers.roll(world, z);
+        if (fixed >= 0 && spawnAt(world, z, dev.tcgshop.entity.FixedCustomers.def(fixed).type(), null, fixed) != null) return;
         doSpawn(world, z, rollType(world, z));
     }
 
@@ -448,6 +452,13 @@ public final class ShopLife {
 
     @org.jetbrains.annotations.Nullable
     private static CustomerEntity spawnAt(ServerWorld world, ShopZones.Zone z, CustomerEntity.Type type, @org.jetbrains.annotations.Nullable dev.tcgshop.events.VisitorSpec spec) {
+        return spawnAt(world, z, type, spec, -1);
+    }
+
+    /** fixedId: one of the 10 unique customers (1.0 beta 3; -1 = an ordinary customer, who may be a returning regular). */
+    @org.jetbrains.annotations.Nullable
+    private static CustomerEntity spawnAt(ServerWorld world, ShopZones.Zone z, CustomerEntity.Type type, @org.jetbrains.annotations.Nullable dev.tcgshop.events.VisitorSpec spec,
+                                          int fixedId) {
         // they arrive walking from far away (they don't spawn right next to the shop), enter through a door and leave the way they came
         BlockPos door = null;
         Vec3d doorOutside = null, pos = null;
@@ -470,9 +481,9 @@ public final class ShopLife {
         Vec3d exit = pos;
         ShopZones.Regular regular = null;
         if (spec != null) regular = spec.regular;
-        else if (type != CustomerEntity.Type.THIEF && !z.regulars.isEmpty() && world.random.nextFloat() < 0.25f)
+        else if (fixedId < 0 && type != CustomerEntity.Type.THIEF && !z.regulars.isEmpty() && world.random.nextFloat() < 0.25f)
             regular = z.regulars.get(world.random.nextInt(z.regulars.size()));
-        return CustomerEntity.spawn(world, z, type, pos, exit, regular, door, doorOutside, spec);
+        return CustomerEntity.spawn(world, z, type, pos, exit, regular, door, doorOutside, spec, fixedId);
     }
 
     // ------------------------------------------------------------------ capacity and queue
@@ -699,7 +710,9 @@ public final class ShopLife {
     private static CustomerEntity.Type rollType(ServerWorld world, ShopZones.Zone z) {
         dev.tcgshop.events.Mods em = dev.tcgshop.events.EventManager.mods(z);
         double whale = 0.02 + effectiveRep(z) / 2500.0; // 2% .. 6%
-        double thief = Math.max(0.03, 0.1 - (z.guard ? 0.03 : 0) - z.detectors * 0.01);
+        // 1.0 beta 3: a guard with upgraded detection scares a few more thieves away (never below 2 %)
+        int det = z.guard ? GuardUpgrades.level(world.getServer(), z.id, GuardUpgrades.Stat.DETECTION) : 0;
+        double thief = Math.max(det > 0 ? 0.02 : 0.03, 0.1 - (z.guard ? 0.03 : 0) - z.detectors * 0.01 - det * 0.005);
         CustomerEntity.Type[] types = {CustomerEntity.Type.WHALE, CustomerEntity.Type.THIEF, CustomerEntity.Type.SELLER, CustomerEntity.Type.TRADER,
                 CustomerEntity.Type.HAGGLER, CustomerEntity.Type.PICKY, CustomerEntity.Type.REGULAR};
         double[] base = {whale, thief, 0.10, 0.07, 0.09, 0.15, 0};
