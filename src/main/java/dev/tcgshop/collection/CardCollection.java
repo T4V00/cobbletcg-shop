@@ -10,15 +10,15 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Datos TCG del JUGADOR (Fabric Data Attachment, persistente y se conserva al morir).
- * El contenido de cada Binder General vive en BinderRegistry (cada binder es único y tiene dueño).
+ * The PLAYER's TCG data (Fabric Data Attachment, persistent and kept on death).
+ * The contents of each General Binder live in BinderRegistry (each binder is unique and has an owner).
  *
- *  credited      cartas ya contadas para logros (se actualiza AL ABRIR un binder)
- *  facts         hitos de datos curiosos ya mostrados
- *  wishlist      cartas deseadas
- *  species       Pokémon -> cartas de ese Pokémon sacadas de sobres (para los títulos)
- *  title         título elegido ("especie|tier" o vacío)
- *  legacyCounts  contenido del binder de versiones anteriores (se migra al primer binder que registres)
+ *  credited      cards already counted for advancements (updated WHEN OPENING a binder)
+ *  facts         fun-fact milestones already shown
+ *  wishlist      wanted cards
+ *  species       Pokémon -> cards of that Pokémon pulled from packs (for titles)
+ *  title         chosen title ("species|tier" or empty)
+ *  legacyCounts  binder contents from previous versions (migrated to the first binder you register)
  */
 public final class CardCollection {
     public final Map<String, Integer> legacyCounts;

@@ -1,5 +1,5 @@
 {
-  "_comment": "#53 bonus de fidelidad: un poco de dinero por cliente habitual (con tope)",
+  "_comment": "#53 loyalty bonus: a little money per regular customer (capped)",
   "category": "positive",
   "tier": "uncommon",
   "template": "loyalty",

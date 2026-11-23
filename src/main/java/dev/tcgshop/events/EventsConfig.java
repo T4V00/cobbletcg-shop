@@ -15,8 +15,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * config/tcgshop-events.json — todos los números de los eventos aleatorios (sólo servidor). Mismo patrón que
- * EconomyConfig: campos públicos, textos de ayuda (_help), topes en sanitize() y recarga con /tcgshop reload.
+ * config/tcgshop-events.json — all the numbers of the random events (server only). Same pattern as
+ * EconomyConfig: public fields, help texts (_help), caps in sanitize() and reload with /tcgshop reload.
  */
 public class EventsConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
@@ -26,50 +26,50 @@ public class EventsConfig {
 
     public Map<String, String> _help = new LinkedHashMap<>();
 
-    /** Interruptor general. */
+    /** Master switch. */
     public boolean enabled = true;
-    /** Probabilidad por dueño y día de Minecraft de que pase ALGÚN evento (una tirada fija por dueño y día). */
+    /** Chance per owner and Minecraft day that ANY event happens (one fixed roll per owner and day). */
     public double dailyChance = 0.10;
-    /** Eventos naturales como mucho por dueño y día (entre todas sus tiendas). */
+    /** Maximum natural events per owner and day (across all their shops). */
     public int maxPerOwnerPerDay = 1;
-    /** El dueño tiene que estar conectado y a esta distancia (bloques) de la tienda para que el evento empiece. */
+    /** The owner has to be online and within this distance (blocks) of the shop for the event to start. */
     public int ownerRange = 96;
-    /** Momento del día (ticks 0-24000) entre los que puede empezar un evento: el turno de día de la tienda. */
+    /** Time of day (ticks 0-24000) between which an event can start: the shop's day shift. */
     public int shiftStart = 1000, shiftEnd = 11500;
-    /** Pesos de categoría y de rareza dentro de una tirada con éxito. */
+    /** Category and rarity weights within a successful roll. */
     public Map<String, Double> categoryWeights = new LinkedHashMap<>(Map.of("positive", 40.0, "neutral", 30.0, "negative", 30.0));
     public Map<String, Double> tierWeights = new LinkedHashMap<>(Map.of("common", 65.0, "uncommon", 25.0, "rare", 8.0, "extraordinary", 2.0));
-    /** Días que tarda en poder repetirse el mismo evento, por rareza. */
+    /** Days before the same event can repeat, per rarity. */
     public Map<String, Integer> tierCooldownDays = new LinkedHashMap<>(Map.of("common", 5, "uncommon", 10, "rare", 20, "extraordinary", 40));
-    /** Probabilidad de que cada evento exista en este mundo (el "mazo" del mundo), por rareza. */
+    /** Chance that each event exists in this world (the world's "deck"), per rarity. */
     public Map<String, Double> deckPresence = new LinkedHashMap<>(Map.of("common", 1.0, "uncommon", 0.85, "rare", 0.65, "extraordinary", 0.40));
-    /** Peso de un evento que está entre los últimos historySize del dueño. */
+    /** Weight of an event that is among the owner's last historySize. */
     public double historyPenalty = 0.25;
     public int historySize = 10;
-    /** Gracia: sin eventos negativos hasta tener estas ventas y días de vida en la tienda. */
+    /** Grace: no negative events until the shop has these sales and days of life. */
     public int graceMinSales = 20, graceMinDays = 3;
-    /** Los positivos también piden un mínimo (que no compense abrir muchas tiendas vacías). */
+    /** Positive ones also require a minimum (so opening many empty shops does not pay off). */
     public int positiveMinSales = 5, positiveMinDisplays = 2;
-    /** Multiplicador global de la duración de los eventos. */
+    /** Global multiplier for event duration. */
     public double durationMult = 1.0;
-    /** Precio máximo (sobre el mercado) que acepta un visitante de evento. */
+    /** Maximum price (over market) an event visitor accepts. */
     public double visitorPriceCap = 1.15;
-    /** Probabilidad de la reseña "lo arreglaron rápido" si se arregló antes de que llegara el cliente (por defecto). */
+    /** Chance of the "they fixed it quickly" review if it was fixed before the customer arrived (default). */
     public double reviewFixedChance = 0.25;
-    /** Dinero de premios por dueño y día: el menor entre moneyCapAbs y moneyCapPct de sus ingresos medios diarios (mínimo moneyCapFloor). */
+    /** Reward money per owner and day: the lower of moneyCapAbs and moneyCapPct of their average daily revenue (minimum moneyCapFloor). */
     public long moneyCapAbs = 10_000, moneyCapFloor = 500;
     public double moneyCapPct = 0.10;
-    /** Tope semanal = esto x el tope diario. */
+    /** Weekly cap = this x the daily cap. */
     public double weeklyCapMult = 3.0;
-    /** Propina máxima sobre una venta. */
+    /** Maximum tip on a sale. */
     public double tipMaxPct = 0.10;
-    /** Avisos (toast) al dueño al empezar / arreglarse un evento. */
+    /** Notifications (toast) to the owner when an event starts / is fixed. */
     public boolean toasts = true;
-    /** Dimensiones sin eventos (ids, p. ej. "minecraft:the_nether"). */
+    /** Dimensions without events (ids, e.g. "minecraft:the_nether"). */
     public List<String> dimensionBlacklist = new ArrayList<>();
-    /** Ajustes por evento: {"tcgshop:pipe_leak": {"enabled": false, "weight": 0.5, "durationMult": 1.0, "cooldownDays": 8}}. */
+    /** Per-event settings: {"tcgshop:pipe_leak": {"enabled": false, "weight": 0.5, "durationMult": 1.0, "cooldownDays": 8}}. */
     public Map<String, EventOverride> overrides = new LinkedHashMap<>();
-    /** Topes globales de los modificadores sumados. */
+    /** Global caps of the summed modifiers. */
     public Clamps clamps = new Clamps();
 
     public static class EventOverride {
@@ -105,7 +105,7 @@ public class EventsConfig {
         }
     }
 
-    // ------------------------------------------------------------------ consultas
+    // ------------------------------------------------------------------ queries
 
     public double categoryWeight(EventDef.Category c) { return Math.max(0, categoryWeights.getOrDefault(c.key(), 0.0)); }
 
@@ -135,14 +135,14 @@ public class EventsConfig {
         return Math.max(0.1, Math.min(4, durationMult * (o != null && o.durationMult != null ? o.durationMult : 1.0)));
     }
 
-    // ------------------------------------------------------------------ carga
+    // ------------------------------------------------------------------ loading
 
     public static void load() {
         EventsConfig c = null;
         try {
             if (Files.exists(FILE)) try (Reader r = Files.newBufferedReader(FILE)) { c = GSON.fromJson(r, EventsConfig.class); }
         } catch (Exception e) {
-            TcgShop.LOGGER.error("No se pudo leer {} (se usan los valores por defecto)", FILE, e);
+            TcgShop.LOGGER.error("Could not read {} (using default values)", FILE, e);
         }
         if (c == null) c = new EventsConfig();
         c.sanitize();
@@ -155,7 +155,7 @@ public class EventsConfig {
         try (Writer w = Files.newBufferedWriter(FILE)) {
             GSON.toJson(INSTANCE, w);
         } catch (Exception e) {
-            TcgShop.LOGGER.error("No se pudo guardar {}", FILE, e);
+            TcgShop.LOGGER.error("Could not save {}", FILE, e);
         }
     }
 
@@ -206,26 +206,26 @@ public class EventsConfig {
 
     private void fillHelp() {
         _help.clear();
-        _help.put("aplicar", "Edita este archivo y usa /tcgshop reload (operador). Los eventos se definen en data/<ns>/tcgshop_events/*.json (datapacks pueden añadir, cambiar o desactivar eventos con {\"enabled\": false}).");
-        _help.put("enabled", "Interruptor general de los eventos aleatorios. /tcgshop event start funciona aunque esté desactivado.");
-        _help.put("dailyChance", "Probabilidad por dueño y día de Minecraft de que pase algún evento (0.10 = 10%). Una sola tirada fija por dueño y día: recargar el mundo no la cambia.");
-        _help.put("maxPerOwnerPerDay", "Eventos naturales como mucho por dueño y día, entre todas sus tiendas.");
-        _help.put("ownerRange", "Sólo empieza si el dueño está conectado y a esta distancia de la tienda; si no aparece en todo el día, se pierde (nunca se castiga a quien no juega).");
-        _help.put("shiftStart/shiftEnd", "Momento del día (0-24000 ticks; 0 = 6:00) entre los que empieza el evento: un momento al azar del turno de día.");
-        _help.put("categoryWeights/tierWeights", "Reparto cuando sale evento: categoría (positivo/neutral/negativo) y rareza (común/poco común/raro/extraordinario).");
-        _help.put("tierCooldownDays", "Días que tarda un mismo evento en poder repetirse, por rareza.");
-        _help.put("deckPresence", "Probabilidad de que cada evento exista en este mundo, por rareza (se sortea una vez por mundo; /tcgshop event deck reroll).");
-        _help.put("historyPenalty/historySize", "Peso de un evento que salió entre los últimos N del dueño (0.25 = 4 veces menos probable). La misma plantilla nunca sale dos veces seguidas.");
-        _help.put("graceMinSales/graceMinDays", "Una tienda nueva no recibe eventos negativos hasta tener estas ventas y días de vida.");
-        _help.put("positiveMinSales/positiveMinDisplays", "Mínimo de ventas y expositores para eventos positivos (abrir muchas tiendas vacías no da premios).");
-        _help.put("durationMult", "Multiplicador de la duración de todos los eventos.");
-        _help.put("visitorPriceCap", "Precio máximo, sobre el de mercado, que paga un visitante de evento (coleccionista, cliente legendario...).");
-        _help.put("reviewFixedChance", "Probabilidad de la reseña 'hubo un problema pero lo arreglaron rápido' si lo arreglaste antes de que llegara ese cliente.");
-        _help.put("moneyCapAbs/moneyCapFloor/moneyCapPct/weeklyCapMult", "Dinero máximo de premios por dueño: al día el menor entre moneyCapAbs y moneyCapPct de tus ingresos medios diarios (mínimo moneyCapFloor); a la semana weeklyCapMult veces eso.");
-        _help.put("tipMaxPct", "Propina máxima sobre una venta (evento 'propina generosa').");
-        _help.put("toasts", "Avisos en pantalla al dueño cuando empieza o se arregla un evento.");
-        _help.put("dimensionBlacklist", "Dimensiones sin eventos.");
-        _help.put("overrides", "Ajustes por evento: enabled, weight (multiplica el peso), durationMult y cooldownDays. Ej.: {\"tcgshop:rumor\": {\"weight\": 0.5}}.");
-        _help.put("clamps", "Topes de la suma de modificadores de los eventos activos (p. ej. revenueMultMax nunca pasa de 1.15).");
+        _help.put("aplicar", "Edit this file and run /tcgshop reload (operator). Events are defined in data/<ns>/tcgshop_events/*.json (datapacks can add, change or disable events with {\"enabled\": false}).");
+        _help.put("enabled", "Master switch for random events. /tcgshop event start works even when it is off.");
+        _help.put("dailyChance", "Chance per owner per Minecraft day that some event happens (0.10 = 10%). One fixed roll per owner per day: reloading the world does not change it.");
+        _help.put("maxPerOwnerPerDay", "Maximum natural events per owner per day, across all their shops.");
+        _help.put("ownerRange", "Only starts if the owner is online and within this distance of the shop; if they never show up that day it is lost (players who are not playing are never punished).");
+        _help.put("shiftStart/shiftEnd", "Time of day (0-24000 ticks; 0 = 6:00) between which the event starts: a random moment of the day shift.");
+        _help.put("categoryWeights/tierWeights", "Split when an event rolls: category (positive/neutral/negative) and rarity (common/uncommon/rare/extraordinary).");
+        _help.put("tierCooldownDays", "Days before the same event can repeat, per rarity.");
+        _help.put("deckPresence", "Chance that each event exists in this world, per rarity (rolled once per world; /tcgshop event deck reroll).");
+        _help.put("historyPenalty/historySize", "Weight of an event that was among the owner's last N (0.25 = 4 times less likely). The same template never happens twice in a row.");
+        _help.put("graceMinSales/graceMinDays", "A new shop gets no negative events until it has this many sales and days of age.");
+        _help.put("positiveMinSales/positiveMinDisplays", "Minimum sales and displays for positive events (opening many empty shops gives no rewards).");
+        _help.put("durationMult", "Multiplier for the duration of all events.");
+        _help.put("visitorPriceCap", "Maximum price, relative to market, that an event visitor pays (collector, legendary customer...).");
+        _help.put("reviewFixedChance", "Chance of the review 'there was a problem but they fixed it fast' if you fixed it before that customer arrived.");
+        _help.put("moneyCapAbs/moneyCapFloor/moneyCapPct/weeklyCapMult", "Maximum reward money per owner: per day the lower of moneyCapAbs and moneyCapPct of your average daily income (at least moneyCapFloor); per week weeklyCapMult times that.");
+        _help.put("tipMaxPct", "Maximum tip on a sale ('generous tip' event).");
+        _help.put("toasts", "On-screen notices to the owner when an event starts or is fixed.");
+        _help.put("dimensionBlacklist", "Dimensions without events.");
+        _help.put("overrides", "Per-event settings: enabled, weight (multiplies the weight), durationMult and cooldownDays. E.g.: {\"tcgshop:rumor\": {\"weight\": 0.5}}.");
+        _help.put("clamps", "Caps on the sum of modifiers from active events (e.g. revenueMultMax never goes above 1.15).");
     }
 }

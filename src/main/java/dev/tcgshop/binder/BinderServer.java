@@ -26,9 +26,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-/** Servidor: abrir binders y aplicar las acciones que llegan desde sus pantallas. */
+/** Server: opening binders and applying the actions that come from their screens. */
 public final class BinderServer {
-    /** Prefijo de los huecos de "carta deseada" en el Personal Binder (no consumen cartas). */
+    /** Prefix of the "wanted card" slots in the Personal Binder (they don't consume cards). */
     public static final String WISH = "wish:";
 
     private BinderServer() {}
@@ -53,7 +53,7 @@ public final class BinderServer {
         for (String s : d.slots()) if (!s.isEmpty() && !s.startsWith(WISH) && !CardCatalog.isRemovedId(s)) ids.add(s);
         CardAdvancements.credit(player, CollectionService.playerData(player), null, ids);
         CardAdvancements.grant(player, "first_binder");
-        CollectionService.sync(player); // el cajón muestra las cartas de tu Binder General
+        CollectionService.sync(player); // the drawer shows the cards in your General Binder
         List<String> unlocked = new ArrayList<>();
         for (BinderStyles.Style s : BinderStyles.ALL) {
             if (s.advancement() == null || CardAdvancements.isDone(player, s.advancement())) unlocked.add(s.kind() + "=" + s.id());
@@ -79,7 +79,7 @@ public final class BinderServer {
         }
     }
 
-    /** Acciones del Personal Binder. Las cartas se mueven entre tu Binder General y el personal. */
+    /** Personal Binder actions. Cards move between your General Binder and the personal one. */
     private static void personal(BinderActionPayload p, ServerPlayerEntity player) {
         Hand hand = player.getMainHandStack().isOf(TcgItems.PERSONAL_BINDER) ? Hand.MAIN_HAND
                 : player.getOffHandStack().isOf(TcgItems.PERSONAL_BINDER) ? Hand.OFF_HAND : null;
@@ -103,7 +103,7 @@ public final class BinderServer {
                         player.sendMessage(Text.translatable("tcgshop.binder.need").formatted(Formatting.RED), true);
                         return;
                     }
-                    if (general.remove(arg, 1) == 0) return; // no la tienes en el Binder General
+                    if (general.remove(arg, 1) == 0) return; // you don't have it in the General Binder
                 }
                 String prev = d.slots().get(slot);
                 if (!prev.isEmpty() && !prev.startsWith(WISH) && !CardCatalog.isRemovedId(prev) && general != null) general.add(prev, 1);
@@ -113,7 +113,7 @@ public final class BinderServer {
                 int slot = p.amount();
                 if (slot < 0 || slot >= d.slots().size() || d.slots().get(slot).isEmpty()) return;
                 String prev = d.slots().get(slot);
-                if (!prev.startsWith(WISH) && !CardCatalog.isRemovedId(prev)) { // TCG Pocket (quitada): el hueco sólo se vacía
+                if (!prev.startsWith(WISH) && !CardCatalog.isRemovedId(prev)) { // TCG Pocket (removed): the slot is just emptied
                     if (general == null) {
                         player.sendMessage(Text.translatable("tcgshop.binder.need").formatted(Formatting.RED), true);
                         return;

@@ -23,8 +23,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Sobres bloqueados: los N sets con el sobre más caro (EconomyConfig.lockTopPackSets) no salen en ningún sitio
- * (Mayorista, teléfono, cofres, kit de inicio, Mystery Box, revendedores ni clientes). Los que ya tengas se quedan.
+ * Locked packs: the N sets with the most expensive pack (EconomyConfig.lockTopPackSets) don't appear anywhere
+ * (Wholesaler, phone, chests, starter kit, Mystery Box, resellers or customers). The ones you already have stay.
  */
 public final class PackLock {
     private PackLock() {}
@@ -33,7 +33,7 @@ public final class PackLock {
     private static int seenN = -1;
     private static Set<String> locked = Set.of();
 
-    /** Sets bloqueados ahora mismo (se recalcula si cambian los precios o la opción). */
+    /** Currently locked sets (recomputed if prices or the option change). */
     public static synchronized Set<String> lockedSets() {
         int n = EconomyConfig.INSTANCE.lockTopPackSets;
         Map<String, Double> data = PriceService.sealedUsdView();
@@ -49,7 +49,7 @@ public final class PackLock {
         ranked.sort(Collections.reverseOrder(Map.Entry.comparingByValue()));
         Set<String> out = new LinkedHashSet<>();
         for (int i = 0; i < Math.min(n, ranked.size()); i++) out.add(ranked.get(i).getKey());
-        TcgShop.LOGGER.info("Sobres bloqueados (top {} más caros): {}", n, out);
+        TcgShop.LOGGER.info("Locked packs (top {} most expensive): {}", n, out);
         return locked = out;
     }
 
@@ -57,28 +57,28 @@ public final class PackLock {
         return setId != null && lockedSets().contains(setId);
     }
 
-    /** Para el id de un sobre sellado de cobbletcg. */
+    /** For the id of a cobbletcg sealed pack. */
     public static boolean locked(Identifier itemId) {
         return locked(CardInfo.setId(itemId));
     }
 
-    /** Sobre o caja de un set bloqueado. */
+    /** Pack or box of a locked set. */
     public static boolean locked(ItemStack st) {
         if (CardInfo.isPack(st)) return locked(CardInfo.setId(CardInfo.id(st)));
         if (st.isOf(TcgBlocks.BOOSTER_BOX_ITEM)) return locked(st.getOrDefault(TcgBlocks.BOX_SET, ""));
         return false;
     }
 
-    // ------------------------------------------------------------------ compra con tienda de nivel alto
+    // ------------------------------------------------------------------ purchase with a high-tier shop
 
-    /** Nivel mínimo de tienda configurado (por defecto Diamante). */
+    /** Configured minimum shop tier (Diamond by default). */
     public static ShopTier minTier() {
         String k = EconomyConfig.INSTANCE.lockedPacksMinShopTier;
         for (ShopTier t : ShopTier.values()) if (t.key.equalsIgnoreCase(k) || t.name().equalsIgnoreCase(k)) return t;
         return ShopTier.DIAMOND;
     }
 
-    /** ¿Tiene este jugador una tienda del nivel mínimo o superior (en cualquier dimensión)? */
+    /** Does this player own a shop of the minimum tier or higher (in any dimension)? */
     public static boolean canBuyLocked(net.minecraft.server.network.ServerPlayerEntity p) {
         int need = minTier().ordinal();
         for (net.minecraft.server.world.ServerWorld w : p.getServer().getWorlds())
@@ -87,7 +87,7 @@ public final class PackLock {
         return false;
     }
 
-    /** Catálogo que ve este jugador: sin los sets bloqueados si no tiene la tienda necesaria. */
+    /** Catalog this player sees: without the locked sets if they lack the required shop. */
     public static List<ItemStack> visibleTo(net.minecraft.server.network.ServerPlayerEntity p, List<ItemStack> goods) {
         if (lockedSets().isEmpty() || canBuyLocked(p)) return goods;
         List<ItemStack> out = new ArrayList<>(goods.size());
@@ -95,9 +95,9 @@ public final class PackLock {
         return out;
     }
 
-    // ------------------------------------------------------------------ cofres
+    // ------------------------------------------------------------------ chests
 
-    /** Condición de botín: el sobre sólo puede salir si su set no está bloqueado (se evalúa al abrir el cofre). */
+    /** Loot condition: the pack can only drop if its set isn't locked (evaluated when the chest is opened). */
     public record Unlocked(String set) implements LootCondition {
         public static final MapCodec<Unlocked> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
                 Codec.STRING.fieldOf("set").forGetter(Unlocked::set)).apply(i, Unlocked::new));
@@ -113,7 +113,7 @@ public final class PackLock {
         }
     }
 
-    /** Condición de botín: el sobre SÍ es de un set bloqueado (para el premio rarísimo de cualquier cofre). */
+    /** Loot condition: the pack IS from a locked set (for the ultra-rare prize in any chest). */
     public record Locked(String set) implements LootCondition {
         public static final MapCodec<Locked> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
                 Codec.STRING.fieldOf("set").forGetter(Locked::set)).apply(i, Locked::new));
@@ -129,7 +129,7 @@ public final class PackLock {
         }
     }
 
-    /** Tirada con la probabilidad configurada (lockedPackChestChance), leída al abrir el cofre. */
+    /** Roll with the configured chance (lockedPackChestChance), read when the chest is opened. */
     public record RareRoll() implements LootCondition {
         public static final MapCodec<RareRoll> CODEC = MapCodec.unit(new RareRoll());
 

@@ -10,15 +10,15 @@ import net.minecraft.text.TextCodecs;
 import net.minecraft.util.Identifier;
 
 /**
- * Servidor -> cliente: un NPC te propone un trato.
- *  · mode 0 (BUY)   quiere comprarte `item` (de tus expositores) por `price`.
- *  · mode 1 (SELL)  te vende `item` por `price`.
- *  · mode 2 (TRADE) te cambia su carta `item` por tu carta `want` (expuesta en la tienda); price = valor de la suya.
+ * Server -> client: an NPC offers you a deal.
+ *  · mode 0 (BUY)   wants to buy `item` (from your displays) from you for `price`.
+ *  · mode 1 (SELL)  sells you `item` for `price`.
+ *  · mode 2 (TRADE) swaps its card `item` for your card `want` (displayed in the shop); price = value of theirs.
  */
 public record DealOpenPayload(int entityId, Text name, Text line, ItemStack item, long price, long market, int mode, ItemStack want, long wantMarket,
                               int persona, int patience, int maxPatience)
         implements CustomPayload {
-    /** CLOSED: el trato terminó (se muestra la última frase y se cierra la ventana). */
+    /** CLOSED: the deal ended (the last line is shown and the window closes). */
     public static final int BUY = 0, SELL = 1, TRADE = 2, CLOSED = 9;
     public static final Id<DealOpenPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "deal_open"));
     public static final PacketCodec<RegistryByteBuf, DealOpenPayload> CODEC = new PacketCodec<>() {

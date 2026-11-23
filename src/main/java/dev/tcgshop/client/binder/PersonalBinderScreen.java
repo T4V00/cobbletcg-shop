@@ -29,13 +29,13 @@ import java.util.Set;
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
 /**
- * Personal Binder: organiza libremente tus cartas en páginas de 9 bolsillos.
- *  · Cajón "Mis cartas" (tu Binder General) y "♥ Deseadas".
- *  · Arrastra una carta a un bolsillo, o haz doble clic para ponerla en el primer hueco libre.
- *  · Las deseadas que no tienes se colocan como hueco velado con ♥ (no gastan cartas).
- *  · Clic en un bolsillo ocupado = devolver la carta al Binder General. Arrastrar entre bolsillos = mover.
- *  · Shift+clic o clic derecho en una carta (bolsillo o cajón) = verla en grande.
- *  · Personaliza tapa (color + patrón) y fondo con lo que desbloqueas con logros.
+ * Personal Binder: freely arrange your cards on pages of 9 pockets.
+ *  · "My cards" drawer (your General Binder) and "♥ Wishlist".
+ *  · Drag a card into a pocket, or double-click to put it in the first free slot.
+ *  · Wishlisted cards you don't own are placed as a veiled slot with ♥ (they don't use up cards).
+ *  · Click an occupied pocket = return the card to the General Binder. Drag between pockets = move.
+ *  · Shift+click or right-click a card (pocket or drawer) = view it large.
+ *  · Customize the cover (color + pattern) and background with what you unlock through advancements.
  */
 public class PersonalBinderScreen extends Screen {
     private record Area(int x, int y, int w, int h, Runnable action) {}
@@ -53,10 +53,10 @@ public class PersonalBinderScreen extends Screen {
     private String customizeTab = "palette";
     private String lastDrawerClick;
     private long lastDrawerClickTime;
-    /** Vista ampliada de una carta (superpuesta: el binder conserva página, pestaña y scroll). */
+    /** Zoomed view of a card (overlay: the binder keeps page, tab and scroll). */
     private final CardZoom zoom = new CardZoom();
 
-    // arrastre
+    // dragging
     private String dragCard;
     private int dragFromSlot = -1;
     private double pressX, pressY;
@@ -116,7 +116,7 @@ public class PersonalBinderScreen extends Screen {
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         int realX = mouseX, realY = mouseY;
-        if (zoom.isOpen()) { mouseX = -10000; mouseY = -10000; } // debajo de la vista ampliada no hay hover ni tooltips
+        if (zoom.isOpen()) { mouseX = -10000; mouseY = -10000; } // no hover or tooltips underneath the zoomed view
         ClientCollection.tick();
         areas.clear();
         double t = System.nanoTime() / 1e9;
@@ -135,7 +135,7 @@ public class PersonalBinderScreen extends Screen {
         Ui.roundGradient(ctx, bookX + bookW / 2 - 70, 6, 140, 18, 0xCC1A1D2B, 0xCC12141F);
         Ui.text(ctx, Text.translatable("item.tcgshop.personal_binder").formatted(Formatting.BOLD), bookX + bookW / 2 - 70, 6, 140, 18, Ui.GOLD, true);
 
-        // barra de ayuda
+        // help bar
         Text help = Text.translatable(dragCard != null && dragging ? "tcgshop.personal.help_drag" : "tcgshop.personal.help");
         int hw = Math.min(width - 20, textRenderer.getWidth(help) + 16);
         Ui.roundGradient(ctx, (width - hw) / 2, height - 20, hw, 15, 0xCC12141F, 0xCC0A0B12);
@@ -157,7 +157,7 @@ public class PersonalBinderScreen extends Screen {
         if (zoom.isOpen()) zoom.render(ctx, width, height, realX, realY);
     }
 
-    // ------------------------------------------------------------------ libro
+    // ------------------------------------------------------------------ book
 
     private int pocketW() { return (pageW - 16) / 3; }
     private int pocketH() { return (pageH - 18) / 3; }
@@ -256,7 +256,7 @@ public class PersonalBinderScreen extends Screen {
             } else if (id.isEmpty() && hover) {
                 ctx.drawCenteredTextWithShadow(textRenderer, "+", px + pw / 2, py + ph / 2 - 4, placing ? 0xFF43C463 : 0x883A7BD5);
             }
-            ctx.fill(px + 2, py + 2, px + pw / 3, py + 3, 0x55FFFFFF); // reflejo del plástico
+            ctx.fill(px + 2, py + 2, px + pw / 3, py + 3, 0x55FFFFFF); // plastic sleeve reflection
         }
         String num = String.valueOf(page + 1);
         ctx.drawText(textRenderer, num, x + pageW / 2 - textRenderer.getWidth(num) / 2, y + pageH - 9, 0xFF8A8577, false);
@@ -265,7 +265,7 @@ public class PersonalBinderScreen extends Screen {
     private void clickPocket(int slot, String current) {
         if (current.startsWith(BinderServer.WISH)) {
             String key = current.substring(BinderServer.WISH.length());
-            if (ClientCollection.count(key) > 0) { // ¡ya la tienes!: colocarla de verdad
+            if (ClientCollection.count(key) > 0) { // you own it now!: place it for real
                 ClientCollection.action(BinderActionPayload.PERSONAL_PLACE, key, slot);
                 play(1.4f);
             } else {
@@ -278,7 +278,7 @@ public class PersonalBinderScreen extends Screen {
         }
     }
 
-    /** Coloca la carta en el primer bolsillo libre (doble página actual primero; si no, cualquiera). */
+    /** Places the card in the first free pocket (current spread first; otherwise, any). */
     private void autoPlace(String card) {
         PersonalBinderData d = data();
         int start = spread * 18;
@@ -313,7 +313,7 @@ public class PersonalBinderScreen extends Screen {
         if (client != null) client.getSoundManager().play(PositionedSoundInstance.master(TcgSounds.CARD_SLIDE, pitch, 0.6f));
     }
 
-    // ------------------------------------------------------------------ cajón
+    // ------------------------------------------------------------------ drawer
 
     private List<Catalog.Card> drawerCards() {
         List<Catalog.Card> list = new ArrayList<>();
@@ -368,7 +368,7 @@ public class PersonalBinderScreen extends Screen {
         }
     }
 
-    // ------------------------------------------------------------------ personalización
+    // ------------------------------------------------------------------ customization
 
     private void renderCustomize(DrawContext ctx, int mouseX, int mouseY, double t, PersonalBinderData d) {
         int w = Math.min(360, width - 40), h = Math.min(240, height - 40);
@@ -425,7 +425,7 @@ public class PersonalBinderScreen extends Screen {
         ctx.getMatrices().pop();
     }
 
-    // ------------------------------------------------------------------ entrada
+    // ------------------------------------------------------------------ input
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
@@ -435,7 +435,7 @@ public class PersonalBinderScreen extends Screen {
             return true;
         }
         search.setFocused(false);
-        // Shift+clic o clic derecho en una carta = verla en grande (el clic normal sigue devolviendo/arrastrando)
+        // Shift+click or right-click on a card = view it large (a normal click still returns/drags)
         if (!customizing && (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT || hasShiftDown()) && tryZoom(mouseX, mouseY)) return true;
         pressX = mouseX;
         pressY = mouseY;
@@ -483,7 +483,7 @@ public class PersonalBinderScreen extends Screen {
         if (!dragging) {
             if (from >= 0) clickPocket(from, data().slots().get(from));
             else {
-                // doble clic en el cajón = colocar en el primer hueco libre
+                // double-click in the drawer = place in the first free slot
                 long now = System.currentTimeMillis();
                 if (card.equals(lastDrawerClick) && now - lastDrawerClickTime < 350) {
                     autoPlace(card);
@@ -514,7 +514,7 @@ public class PersonalBinderScreen extends Screen {
 
     private boolean tryZoom(double mx, double my) {
         String key;
-        boolean placed = false; // carta real colocada en un bolsillo (ya no cuenta en el Binder General, pero es tuya)
+        boolean placed = false; // real card placed in a pocket (no longer counted in the General Binder, but it's yours)
         PersonalBinderData d = data();
         int slot = pocketAt(mx, my);
         if (slot >= 0 && slot < d.slots().size() && !d.slots().get(slot).isEmpty()) {

@@ -11,8 +11,8 @@ import net.minecraft.util.Formatting;
 import java.util.List;
 
 /**
- * Guantes de friki: con ellos puestos (slot "hand" de Accessories o en la mano secundaria) la barra espaciadora
- * abre los sobres de un tirón con un corte perfecto. Sin guantes, Espacio no abre nada.
+ * Nerd Gloves: while wearing them (Accessories "hand" slot or in the off hand) the space bar
+ * opens packs in one go with a perfect cut. Without gloves, Space opens nothing.
  */
 public class NerdGlovesItem extends Item {
     public NerdGlovesItem(Settings settings) {

@@ -29,16 +29,16 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Trato con un NPC: te vende algo, quiere comprarte un producto o cambiarte una carta.
+ * Deal with an NPC: they sell you something, want to buy a product from you or trade you a card.
  *
- * Con quien te VENDE algo (comerciante) o te quiere COMPRAR algo (cliente regateador) se puede regatear. La ventana
- * enseña al NPC (retrato, nombre, personalidad), su ánimo y su paciencia, el precio de mercado y tu margen (con lo que
- * tus clientes pagan de más gracias a la reputación de la tienda), tu oferta (pasos +/-, porcentajes rápidos del
- * mercado o escribiéndola a mano), el historial de ofertas y contraofertas y, al terminar, si hubo trato o se fue.
- * Rechazar con educación casi siempre deja una reseña neutral; tratarle mal, no.
+ * You can haggle with someone who SELLS you something (merchant) or wants to BUY something from you (haggling
+ * customer). The window shows the NPC (portrait, name, personality), their mood and patience, the market price and
+ * your margin (including what your customers overpay thanks to the shop's reputation), your offer (+/- steps, quick
+ * market percentages or typed by hand), the history of offers and counteroffers and, at the end, whether there was a
+ * deal or they left. Declining politely almost always leaves a neutral review; treating them badly does not.
  */
 public class DealScreen extends Screen {
-    // historial: qué pasó en cada turno
+    // history: what happened each turn
     private static final int H_OPEN = 0, H_YOU_OFFER = 1, H_THEY_COUNTER = 2, H_HOLD = 3, H_INSULT = 4, H_THINK = 5, H_ARG = 6, H_ACCEPT = 7,
             H_DEAL = 8, H_WALK = 9, H_REJECT = 10, H_TIMEOUT = 11, H_YOU_THINK = 12;
 
@@ -49,11 +49,11 @@ public class DealScreen extends Screen {
     private DealOpenPayload deal;
     private final double opened = now();
     private boolean answered, waiting;
-    /** Cuándo se mandó la última respuesta (para no esperar eternamente si el servidor no contesta). */
+    /** When the last response was sent (so we don't wait forever if the server doesn't reply). */
     private double waitSince;
     private static final double WAIT_TIMEOUT = 8.0;
     private long counter;
-    /** Trato terminado: última frase, resultado (CustomerEntity.OUT_*), precio final y cuándo cerrar. */
+    /** Deal finished: last line, outcome (CustomerEntity.OUT_*), final price and when to close. */
     private Text closing;
     private double closeAt, closingSince;
     private int outcome;
@@ -61,12 +61,12 @@ public class DealScreen extends Screen {
     private final List<Btn> buttons = new ArrayList<>();
     private double flashAt = -10, shakeAt = -10;
     private final List<Hist> history = new ArrayList<>();
-    /** Ánimo mostrado (0-1): sigue suavemente al objetivo (paciencia + última reacción). */
+    /** Displayed mood (0-1): smoothly follows the target (patience + last reaction). */
     private float mood, moodTarget;
-    /** Precio que estás escribiendo a mano (null = no estás escribiendo). */
+    /** Price you are typing by hand (null = not typing). */
     private String typed;
     private int lastAction = -1;
-    /** Clave de la ayuda del botón bajo el ratón (se pinta abajo). */
+    /** Help key of the button under the mouse (drawn at the bottom). */
     private String tip;
 
     public DealScreen(DealOpenPayload deal) {
@@ -85,19 +85,19 @@ public class DealScreen extends Screen {
         return p.maxPatience() <= 0 ? 1f : MathHelper.clamp(p.patience() / (float) p.maxPatience(), 0f, 1f);
     }
 
-    /** Con regateo: el comerciante que te vende (SELL) o el cliente que te compra (BUY), ambos con personalidad. */
+    /** With haggling: the merchant selling to you (SELL) or the customer buying from you (BUY), both with a personality. */
     private boolean haggle() {
         return deal.persona() >= 0 && (deal.mode() == DealOpenPayload.SELL || deal.mode() == DealOpenPayload.BUY);
     }
 
-    /** true = tú compras (ofreces menos); false = tú vendes (pides más). */
+    /** true = you buy (offer less); false = you sell (ask for more). */
     private boolean youBuy() { return deal.mode() == DealOpenPayload.SELL; }
 
     private long suggested(DealOpenPayload p) {
         return p.mode() == DealOpenPayload.SELL ? Math.max(1, Math.round(p.price() * 0.85)) : Math.max(p.price() + 1, Math.round(p.price() * 1.15));
     }
 
-    /** Tu oferta siempre tiene sentido: al comprar, no más de lo que pide; al vender, no menos de lo que ofrece. */
+    /** Your offer always makes sense: when buying, no more than they ask; when selling, no less than they offer. */
     private long clampCounter(long v) {
         if (youBuy()) return Math.max(1, Math.min(deal.price(), v));
         long max = Math.max(deal.price() * 3, deal.market() * 3);
@@ -109,7 +109,7 @@ public class DealScreen extends Screen {
         while (history.size() > 8) history.remove(0);
     }
 
-    /** Respuesta del NPC (contraoferta, enfado, cierre...). */
+    /** NPC response (counteroffer, anger, closing...). */
     public void update(DealOpenPayload p) {
         waiting = false;
         if (p.mode() == DealOpenPayload.CLOSED) {
@@ -156,7 +156,7 @@ public class DealScreen extends Screen {
         if (answered || waiting || closing != null) return;
         commitTyped();
         lastAction = action;
-        if (!haggle()) { // sin regateo se cierra al momento
+        if (!haggle()) { // without haggling it closes immediately
             if (action != DealAnswerPayload.ACCEPT && action != DealAnswerPayload.REJECT_POLITE && action != DealAnswerPayload.REJECT_RUDE) return;
             answered = true;
             ClientPlayNetworking.send(new DealAnswerPayload(deal.entityId(), action, counter));
@@ -217,12 +217,12 @@ public class DealScreen extends Screen {
             if (now() > closeAt) super.close();
             return;
         }
-        // red de seguridad: el NPC ya no existe (se fue, desapareció, quedó fuera de alcance) o el servidor no contesta
+        // safety net: the NPC no longer exists (left, despawned, went out of range) or the server doesn't reply
         Entity e = client == null || client.world == null ? null : client.world.getEntityById(deal.entityId());
         if (e == null || !e.isAlive() || (waiting && now() - waitSince > WAIT_TIMEOUT)) endLocally();
     }
 
-    /** Cierra el trato en la ventana sin respuesta del servidor (mismo aspecto que un cierre sin resultado). */
+    /** Closes the deal in the window without a server response (same look as a close with no outcome). */
     private void endLocally() {
         waiting = false;
         typed = null;
@@ -276,16 +276,16 @@ public class DealScreen extends Screen {
         m.pop();
     }
 
-    // ------------------------------------------------------------------ regateo
+    // ------------------------------------------------------------------ haggling
 
     private void renderHaggle(DrawContext ctx, int x, int y, int w, int h, int mx, int my, double t, float in) {
-        // abajo, de abajo arriba: ayuda, respuestas (3x3), porcentajes rápidos, tu oferta
+        // at the bottom, from bottom to top: help, responses (3x3), quick percentages, your offer
         int footY = y + h - 12;
         int ansH = 17, ansGap = 3, ansY = footY - 3 - (ansH + ansGap) * 3 + ansGap;
         int quickY = ansY - 16, offerY = quickY - 19;
         int top = y + 28, topEnd = offerY - 5;
 
-        // ---- columna izquierda: retrato, paciencia y ánimo
+        // ---- left column: portrait, patience and mood
         int lw = 70, lx = x + 8;
         int portraitH = Math.max(40, topEnd - top - 26);
         portrait(ctx, lx, top, lw, portraitH, mx, my, in);
@@ -297,7 +297,7 @@ public class DealScreen extends Screen {
         int mc = moodColor();
         Ui.text(ctx, Text.translatable("tcgshop.haggle.mood." + Math.min(4, (int) (mood * 5))), lx, py + 15, lw, 9, mc, true);
 
-        // ---- columna derecha: el producto
+        // ---- right column: the product
         int cw = 62, cx = x + w - 8 - cw, ch = Math.round(cw / Draw.CARD_RATIO);
         if (!deal.item().isEmpty()) {
             int cy = top + Math.max(0, (topEnd - top - 12 - ch) / 2);
@@ -305,7 +305,7 @@ public class DealScreen extends Screen {
             Ui.text(ctx, Text.literal(Ui.ellipsis(deal.item().getName().getString(), (int) ((cw + 10) / 0.8f))), cx - 5, cy + ch + 2, cw + 10, 9, 0xFFFFFFFF, true);
         }
 
-        // ---- centro: nombre + personalidad, bocadillo, precios e historial
+        // ---- center: name + personality, speech bubble, prices and history
         int mx0 = lx + lw + 8, mw = cx - 8 - mx0;
         ctx.drawTextWithShadow(textRenderer, Text.literal(Ui.ellipsis(deal.name().getString(), mw - 80)).formatted(Formatting.YELLOW), mx0, top + 1, 0xFFFFFFFF);
         personaChip(ctx, mx0 + Math.min(mw - 80, textRenderer.getWidth(deal.name())) + 6, top);
@@ -344,7 +344,7 @@ public class DealScreen extends Screen {
         ctx.fillGradient(px + 1, py + ph / 2, px + pw - 1, py + ph - 1, 0x00000000, Draw.withAlpha(moodColor(), 0.35f));
         Ui.outline(ctx, px, py, pw, ph, 0x55FFFFFF);
         Entity e = client != null && client.world != null ? client.world.getEntityById(deal.entityId()) : null;
-        // sólo cuando la ventana ya no está animándose (el recorte del retrato no sigue la escala)
+        // only once the window is no longer animating (the portrait clipping does not follow the scale)
         if (in >= 0.999f && e instanceof LivingEntity le) {
             int size = Math.max(12, Math.round(ph * 0.4f));
             InventoryScreen.drawEntity(ctx, px + 1, py + 1, px + pw - 1, py + ph - 1, size, 0.0625f, mx, my, le);
@@ -361,10 +361,10 @@ public class DealScreen extends Screen {
         ctx.drawText(textRenderer, p, x + 4, y + 1, 0xFFBFD6FF, false);
     }
 
-    /** Bocadillo con la frase del NPC: si no cabe, la letra se hace más pequeña. */
+    /** Speech bubble with the NPC's line: if it doesn't fit, the font gets smaller. */
     private void bubble(DrawContext ctx, int x, int y, int w, int h, Text line, double t) {
         Ui.roundGradient(ctx, x, y, w, h, 0xFFF4F1E8, 0xFFDCD6C6);
-        ctx.fill(x + 10, y - 2, x + 16, y, 0xFFF4F1E8); // piquito hacia el nombre
+        ctx.fill(x + 10, y - 2, x + 16, y, 0xFFF4F1E8); // little tail pointing to the name
         Ui.outline(ctx, x, y, w, h, 0xFF8A8270);
         Text q = Text.literal("«").append(line).append("»").formatted(Formatting.ITALIC);
         int inner = w - 10, avail = h - 6;
@@ -391,7 +391,7 @@ public class DealScreen extends Screen {
         }
     }
 
-    /** Lo que se pide/ofrece, el mercado, tu margen y lo que paga de más la gente en tu tienda por su reputación. */
+    /** What is asked/offered, the market, your margin and what people overpay in your shop thanks to its reputation. */
     private void info(DrawContext ctx, int x, int y, int w, int h, double t) {
         Ui.roundGradient(ctx, x, y, w, h, 0xFF1C2030, 0xFF151824);
         Ui.outline(ctx, x, y, w, h, 0x33FFFFFF);
@@ -412,7 +412,7 @@ public class DealScreen extends Screen {
         double prem = rep < 0 ? 0 : ShopZones.repPremium(rep, ShopZones.isSealed(deal.item()));
         long margin;
         Text mt;
-        if (youBuy()) { // si lo revendes a mercado (más lo que tus clientes pagan de más por tu reputación)
+        if (youBuy()) { // if you resell it at market (plus what your customers overpay for your reputation)
             long resale = Math.round(deal.market() * (1 + Math.max(0, prem)));
             margin = resale - price;
             mt = Text.translatable("tcgshop.haggle.margin_buy", signed(margin));
@@ -443,7 +443,7 @@ public class DealScreen extends Screen {
         return (v >= 0 ? "+" : "-") + PriceService.format(Math.abs(v));
     }
 
-    /** Reputación de la tienda donde está el NPC (o la mejor de las tuyas); -1 si no se sabe. */
+    /** Reputation of the shop the NPC is in (or your best one); -1 if unknown. */
     private int shopRep() {
         if (client == null || client.world == null || client.player == null) return -1;
         Entity e = client.world.getEntityById(deal.entityId());
@@ -517,7 +517,7 @@ public class DealScreen extends Screen {
         };
     }
 
-    /** Tu oferta: -10% -5% -1% [precio (clic para escribir)] +1% +5% +10%. */
+    /** Your offer: -10% -5% -1% [price (click to type)] +1% +5% +10%. */
     private void offerRow(DrawContext ctx, int x, int y, int w, int mx, int my) {
         Text lbl = Text.translatable(youBuy() ? "tcgshop.haggle.your_offer" : "tcgshop.haggle.your_ask").formatted(Formatting.BOLD);
         String[] steps = {"-10%", "-5%", "-1%", "+1%", "+5%", "+10%"};
@@ -530,7 +530,7 @@ public class DealScreen extends Screen {
         ctx.drawTextWithShadow(textRenderer, lbl, bx, y + 4, 0xFFFFFFFF);
         bx += textRenderer.getWidth(lbl) + 8;
         for (int i = 0; i < 3; i++) bx = step(ctx, bx, y, steps[i], pct[i], mx, my);
-        // caja del precio: clic para escribirlo a mano
+        // price box: click to type it by hand
         boolean hover = Ui.in(mx, my, bx, y, boxW, 15);
         Ui.round(ctx, bx, y, boxW, 15, typed != null ? 0xFF1A1E2C : 0xFF0E1018);
         Ui.outline(ctx, bx, y, boxW, 15, typed != null ? 0xFFFFFFFF : hover ? Ui.brighten(Ui.GOLD, 30) : Ui.GOLD);
@@ -553,7 +553,7 @@ public class DealScreen extends Screen {
         return x + bw + 3;
     }
 
-    /** Porcentajes rápidos sobre el precio de mercado y lo que supone tu oferta ahora mismo. */
+    /** Quick percentages of the market price and what your current offer amounts to. */
     private void quickRow(DrawContext ctx, int x, int y, int w, int mx, int my) {
         int[] pcts = youBuy() ? new int[]{60, 70, 80, 90, 100} : new int[]{100, 110, 120, 135, 150};
         long market = Math.max(1, deal.market());
@@ -575,7 +575,7 @@ public class DealScreen extends Screen {
         }
     }
 
-    /** Respuestas: aceptar / contraoferta / última oferta, tres argumentos y pensar / no gracias / grosería. */
+    /** Responses: accept / counteroffer / final offer, three arguments and think / no thanks / rudeness. */
     private void answers(DrawContext ctx, int x, int y, int w, int bh, int gap, int mx, int my) {
         int bw = (w - gap * 2) / 3;
         String pc = PriceService.format(counter);
@@ -613,7 +613,7 @@ public class DealScreen extends Screen {
         buttons.add(new Btn(x, y, w, h, () -> send(action)));
     }
 
-    /** Resultado del trato: hecho (verde), se fue (naranja), lo rechazaste (gris) o se cansó (rojo). */
+    /** Deal outcome: done (green), they left (orange), you declined (gray) or they got fed up (red). */
     private void outcomeBanner(DrawContext ctx, int x, int y, int w, int h, double t) {
         int col = switch (outcome) {
             case CustomerEntity.OUT_DEAL -> 0xFF2E9C5A;
@@ -654,7 +654,7 @@ public class DealScreen extends Screen {
         ctx.drawText(textRenderer, Text.translatable("tcgshop.haggle.click_close"), tx + Math.min(tw, 160) + 6, y + h / 2 + 8, 0xFFCCCCCC, false);
     }
 
-    // ------------------------------------------------------------------ tratos sin regateo
+    // ------------------------------------------------------------------ deals without haggling
 
     private void renderTrade(DrawContext ctx, int x, int y, int w, Text lineT, int mouseX, double t) {
         int ty = y + 44;
@@ -702,7 +702,7 @@ public class DealScreen extends Screen {
                 x + 12, py + 36, good ? 0xFF6BE07B : 0xFFFF7A5C);
     }
 
-    // ------------------------------------------------------------------ entrada
+    // ------------------------------------------------------------------ input
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
@@ -715,7 +715,7 @@ public class DealScreen extends Screen {
                 }
                 return true;
             }
-        commitTyped(); // clic fuera de la caja del precio: se queda lo escrito
+        commitTyped(); // click outside the price box: keep what was typed
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
@@ -742,14 +742,14 @@ public class DealScreen extends Screen {
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (typed != null) {
             switch (keyCode) {
-                case 257, 335 -> { commitTyped(); return true; } // Intro
-                case 259 -> { if (!typed.isEmpty()) typed = typed.substring(0, typed.length() - 1); return true; } // Retroceso
-                case 256 -> { typed = null; return true; } // Esc: deja de escribir
+                case 257, 335 -> { commitTyped(); return true; } // Enter
+                case 259 -> { if (!typed.isEmpty()) typed = typed.substring(0, typed.length() - 1); return true; } // Backspace
+                case 256 -> { typed = null; return true; } // Esc: stop typing
                 default -> {}
             }
         } else if (haggle() && closing == null && !waiting) {
-            if (keyCode == 265) { nudge(0.01); return true; } // flecha arriba
-            if (keyCode == 264) { nudge(-0.01); return true; } // flecha abajo
+            if (keyCode == 265) { nudge(0.01); return true; } // up arrow
+            if (keyCode == 264) { nudge(-0.01); return true; } // down arrow
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }

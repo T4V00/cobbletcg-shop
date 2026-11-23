@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""0.9 - eventos aleatorios, parte NÚCLEO: nombres/descripciones/arreglos de los eventos de la fase 1, avisos,
-comandos, pestaña Eventos del teléfono, roles de visitantes, frases de clientes (tcgshop.evline.*) y las reseñas
-con memoria (tcgshop.review.ev_<tag> y tcgshop.reviewtext.ev_<tag>.<1-5>.<0-7>, mismo patrón que gen_lang_reviews.py).
+"""0.9 - random events, CORE part: names/descriptions/fixes of the phase 1 events, notices,
+commands, the phone's Events tab, visitor roles, customer lines (tcgshop.evline.*) and the reviews
+with memory (tcgshop.review.ev_<tag> and tcgshop.reviewtext.ev_<tag>.<1-5>.<0-7>, same pattern as gen_lang_reviews.py).
 
-Sólo fija SUS claves en es_es.json y en_us.json (idempotente). Recarga el JSON justo antes de escribir.
-Uso: python -I -X utf8 tools/gen_lang_09_events_core.py
+Only sets ITS OWN keys in es_es.json and en_us.json (idempotent). Reloads the JSON right before writing.
+Usage: python -I -X utf8 tools/gen_lang_09_events_core.py
 """
 import importlib.util
 import json
@@ -22,7 +22,7 @@ def k(key, es, en):
     EN[key] = en
 
 
-# ================================================================ eventos (nombre, descripción, al empezar, arreglo)
+# ================================================================ events (name, description, on start, fix)
 def event(id, name, desc, start, fix=None):
     base = "tcgshop.event." + id
     k(base + ".name", name[0], name[1])
@@ -32,7 +32,7 @@ def event(id, name, desc, start, fix=None):
         k(base + ".fix", fix[0], fix[1])
 
 
-# ---- negativos
+# ---- negative
 event("inspection", ("Inspección inesperada", "Surprise inspection"),
       ("Un inspector de comercio va a pasar hoy por la tienda. Mirará el olor, la luz, si hay monstruos cerca, el techo y las paredes, si los expositores tienen género y si hay otros problemas sin arreglar. Una buena nota sube la reputación un día; una mala la baja medio día.",
        "A trade inspector will drop by the shop today. They'll check the smell, the lighting, nearby monsters, the roof and walls, whether the displays are stocked and whether there are other unfixed problems. A good grade boosts reputation for a day; a bad one lowers it for half a day."),
@@ -77,7 +77,7 @@ event("distracted_employee", ("Empleado distraído", "Distracted employee"),
       ("Tu cajero está en las nubes y cobra mucho más despacio. Se le ve tarareando.", "Your cashier has their head in the clouds and checks people out much slower. You can hear them humming."),
       ("Tu cajero está distraído hoy.", "Your cashier is distracted today."),
       ("Haz clic derecho a tu cajero para que vuelva a centrarse.", "Right-click your cashier to get them focused again."))
-# ---- positivos
+# ---- positive
 event("generous_tip", ("Propina generosa", "Generous tip"),
       ("Un cliente dejará una propina (un 10% extra) en la próxima venta de hoy.", "A customer will leave a tip (10% extra) on today's next sale."),
       ("Hoy alguien viene con ganas de dejar propina.", "Someone's in a tipping mood today."))
@@ -151,7 +151,7 @@ event("early_delivery", ("Entrega anticipada", "Early delivery"),
 event("expert_visit", ("Visita de un experto", "Expert visit"),
       ("Un experto en gradeo pasa por la tienda y te deja un 20% de descuento para tu próximo envío a CobbleGrade (hoy).", "A grading expert stops by and leaves you a 20% discount on your next CobbleGrade submission (today)."),
       ("Un experto en gradeo viene a la tienda.", "A grading expert is coming to the shop."))
-# ---- neutrales
+# ---- neutral
 event("decoration_contest", ("Concurso de decoración", "Decoration contest"),
       ("El pueblo organiza un concurso de decoración de tiendas: si la tuya está bien decorada, hay un pequeño premio.", "The town holds a shop decoration contest: if yours is well decorated, there's a small prize."),
       ("Ha empezado el concurso de decoración de tiendas.", "The shop decoration contest has begun."))
@@ -198,7 +198,7 @@ event("collector_seller", ("Coleccionista que vende", "Collector selling cards")
       ("Un par de coleccionistas vienen a venderte cartas de su colección (nunca por debajo del mercado).", "A couple of collectors come to sell you cards from their collection (never below market)."),
       ("Unos coleccionistas vienen a venderte cartas.", "Some collectors are coming to sell you cards."))
 
-# ================================================================ avisos y mensajes
+# ================================================================ notices and messages
 for t, es, en in (("common", "Común", "Common"), ("uncommon", "Poco común", "Uncommon"), ("rare", "Raro", "Rare"), ("extraordinary", "Extraordinario", "Extraordinary")):
     k("tcgshop.event.tier." + t, es, en)
 k("tcgshop.event.fix_prefix", "Cómo arreglarlo:", "How to fix it:")
@@ -220,7 +220,7 @@ k("tcgshop.event.visitor.inspector_here", "El inspector ha llegado a la tienda."
 k("tcgshop.event.visitor.done_good", "«%s» ha salido muy bien.", "\"%s\" went really well.")
 k("tcgshop.event.visitor.done_bad", "«%s» ha salido mal.", "\"%s\" went badly.")
 k("tcgshop.event.visitor.done_neutral", "«%s» ha terminado.", "\"%s\" is over.")
-# comandos
+# commands
 k("tcgshop.event.cmd.ended", "Evento #%s terminado.", "Event #%s ended.")
 k("tcgshop.event.cmd.unknown", "No hay ningún evento activo #%s.", "No active event #%s.")
 k("tcgshop.event.cmd.list", "%s eventos activos · %s definiciones cargadas · %s descartadas", "%s active events · %s definitions loaded · %s rejected")
@@ -237,10 +237,10 @@ k("tcgshop.event.cmd.deck_missing", "No están en este mundo: %s", "Not in this 
 k("tcgshop.event.cmd.deck_rerolled", "Mazo de eventos sorteado de nuevo.", "Event deck rerolled.")
 k("tcgshop.event.cmd.rolled", "Tirada de hoy forzada: el evento empezará en cuanto estés cerca de una de tus tiendas.",
   "Today's roll forced: the event will start as soon as you're near one of your shops.")
-# reputación (factor temporal de eventos)
+# reputation (temporary event factor)
 k("tcgshop.rep.event", "Eventos (temporal)", "Events (temporary)")
 k("tcgshop.rep.tip.event", "Hay un evento afectando a tu reputación. Mira la pestaña Eventos de la app Tienda.", "An event is affecting your reputation. Check the Events tab in the Shop app.")
-# teléfono
+# phone
 k("tcgshop.phone.tab.events", "Eventos", "Events")
 k("tcgshop.phone.ev.none", "Ahora mismo no pasa nada especial en esta tienda.", "Nothing special is happening in this shop right now.")
 k("tcgshop.phone.ev.fixed", "✔ Arreglado", "✔ Fixed")
@@ -251,7 +251,7 @@ for o, es, en in (("resolved", "Arreglado", "Fixed"), ("expired", "Sin arreglar"
                   ("failed", "Salió mal", "Went badly"), ("left", "Se fue", "Left"), ("removed", "Cancelado", "Cancelled"),
                   ("command", "Cancelado", "Cancelled"), ("ended", "Terminado", "Done")):
     k("tcgshop.phone.ev.out." + o, es, en)
-# roles de visitantes (línea sobre la cabeza)
+# visitor roles (line above the head)
 for r, es, en in (("inspector", "Inspector de comercio", "Trade inspector"), ("demanding", "Cliente exigente", "Demanding customer"),
                   ("troublemaker", "Cliente problemático", "Troublemaker"), ("influencer", "Influencer TCG", "TCG influencer"),
                   ("nostalgic", "Coleccionista nostálgico", "Nostalgic collector"), ("wholesale", "Comprador al por mayor", "Wholesale buyer"),
@@ -261,7 +261,7 @@ for r, es, en in (("inspector", "Inspector de comercio", "Trade inspector"), ("d
                   ("photographer", "Fotógrafo", "Photographer"), ("seller_collector", "Coleccionista vendedor", "Collector seller")):
     k("tcgshop.role.ev_" + r, es, en)
 
-# ================================================================ frases de clientes y empleados (tcgshop.evline.<cat>.<n>)
+# ================================================================ customer and employee lines (tcgshop.evline.<cat>.<n>)
 L = {
     "rumor": [("Dicen por ahí que aquí todo es carísimo...", "People say everything here is overpriced..."),
               ("Me han contado que esta tienda te cobra de más.", "I heard this shop overcharges."),
@@ -478,8 +478,8 @@ for cat, lines in L.items():
     for i, (es, en) in enumerate(lines):
         k(f"tcgshop.evline.{cat}.{i}", es, en)
 
-# ================================================================ reseñas con memoria
-# tag: (etiqueta corta es, en, [4 buenas (es,en)], [4 malas (es,en)])
+# ================================================================ reviews with memory
+# tag: (short label es, en, [4 good (es,en)], [4 bad (es,en)])
 R = {
     "flood": ("Tienda inundada", "Flooded shop",
               [("Había agua por el suelo, pero me atendieron genial", "There was water on the floor, but I was served great"),
@@ -707,7 +707,7 @@ R = {
                     ("El empleado salva la visita, a medias", "The employee half saves the visit"),
                     ("Rápidos cobrando, pero poco más", "Quick at the register, but not much else")]),
 }
-# _fixed: hubo un problema pero se arregló antes de que llegara este cliente ({d} = detalle de cada familia)
+# _fixed: there was a problem but it was fixed before this customer arrived ({d} = per-family detail)
 FIX_GOOD = [("Hubo un problema {d}, pero lo solucionaron rápido", "There was a problem {d}, but they fixed it quickly"),
             ("Se notaba que había pasado algo, pero ya estaba arreglado", "You could tell something had happened, but it was already fixed"),
             ("Me contaron que hubo un lío {d}, pero cuando llegué todo estaba en orden", "I heard there had been trouble {d}, but when I arrived everything was in order"),
@@ -754,7 +754,7 @@ for tag, (les, len_, good, bad) in R.items():
                 target[f"tcgshop.reviewtext.{key}.{stars}.{n}"] = rv.fit(frames[n], band[n % 4][li])
 
 
-# ================================================================ escribir
+# ================================================================ write
 def merge(fname, add):
     p = os.path.join(LANG, fname)
     with open(p, encoding="utf-8") as f:
@@ -768,5 +768,5 @@ def merge(fname, add):
 
 if __name__ == "__main__":
     assert set(ES) == set(EN), set(ES) ^ set(EN)
-    print("es_es.json:", merge("es_es.json", ES), "claves")
-    print("en_us.json:", merge("en_us.json", EN), "claves")
+    print("es_es.json:", merge("es_es.json", ES), "keys")
+    print("en_us.json:", merge("en_us.json", EN), "keys")

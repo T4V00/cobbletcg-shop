@@ -1,5 +1,5 @@
 {
-  "_comment": "#109 visita de un experto: descuento en el próximo envío a CobbleGrade",
+  "_comment": "#109 expert visit: discount on the next shipment to CobbleGrade",
   "category": "positive",
   "tier": "rare",
   "template": "expert",

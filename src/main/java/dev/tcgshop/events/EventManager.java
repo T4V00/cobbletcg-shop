@@ -38,31 +38,31 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Motor de eventos aleatorios.
+ * Random event engine.
  *
- * FRECUENCIA (EventsConfig): una tirada sembrada por dueño y día (semilla del mundo, uuid, día): dailyChance (10%) de
- * que pase algo. Si sale, se elige un momento al azar del turno de día; el evento empieza cuando llega ese momento, el
- * dueño está conectado y a menos de ownerRange bloques de una de sus tiendas (la que tenga más cerca). Si no aparece
- * en todo el día, se pierde. Como mucho maxPerOwnerPerDay (1) al día entre todas sus tiendas. Nada el primer día de
- * un mundo nuevo. Dentro de la tirada: categoría 40/30/30, rareza 65/25/8/2, enfriamiento por rareza, historial x0.25,
- * misma plantilla nunca dos veces seguidas, gracia para tiendas nuevas y "mazo" por mundo.
+ * FREQUENCY (EventsConfig): one roll seeded per owner and day (world seed, uuid, day): dailyChance (10%) that
+ * something happens. If it hits, a random moment of the day shift is chosen; the event starts when that moment comes, the
+ * owner is online and within ownerRange blocks of one of their shops (the nearest one). If they don't show up
+ * all day, it is lost. At most maxPerOwnerPerDay (1) per day across all their shops. Nothing on the first day of
+ * a new world. Within the roll: category 40/30/30, rarity 65/25/8/2, cooldown per rarity, history x0.25,
+ * same template never twice in a row, grace for new shops and a per-world "deck".
  *
- * API PÚBLICA para los módulos: {@link #resolve}, {@link #isActive}, {@link #activeFor}, {@link #logIncident},
- * {@link #invalidate}, {@link #mods}, {@link #state}. Ver EFFECTS.md.
+ * PUBLIC API for modules: {@link #resolve}, {@link #isActive}, {@link #activeFor}, {@link #logIncident},
+ * {@link #invalidate}, {@link #mods}, {@link #state}. See EFFECTS.md.
  */
 public final class EventManager {
-    /** Etiqueta (command tag) de toda entidad de evento: no cuenta como Pokémon de la tienda ni se guarda. */
+    /** Tag (command tag) of every event entity: does not count as a shop Pokémon and is not saved. */
     public static final String EVENT_TAG = "tcgshop_event";
 
     private static MinecraftServer server;
     private static final Map<UUID, Mods> MODS = new HashMap<>();
     private static final Map<UUID, Long> MODS_AT = new HashMap<>();
-    /** uid -> zona, de los eventos en marcha (se reconstruye cada 10 s y al arrancar). */
+    /** uid -> zone, of running events (rebuilt every 10 s and on startup). */
     private static final Map<Long, UUID> ACTIVE = new HashMap<>();
 
     private EventManager() {}
 
-    // ------------------------------------------------------------------ arranque
+    // ------------------------------------------------------------------ startup
 
     public static void register() {
         EffectTypes.registerCore();
@@ -101,7 +101,7 @@ public final class EventManager {
             try {
                 scheduler(s);
             } catch (Exception e) {
-                TcgShop.LOGGER.error("[eventos] error en el planificador", e);
+                TcgShop.LOGGER.error("[events] error in the scheduler", e);
             }
         }
     }
@@ -134,16 +134,16 @@ public final class EventManager {
                 try {
                     effs.get(i).tick(new EventContext(w, z, inst, def, i, now));
                 } catch (Exception e) {
-                    TcgShop.LOGGER.error("[eventos] {} efecto {} falló en tick", inst.defId, i, e);
+                    TcgShop.LOGGER.error("[events] {} effect {} failed in tick", inst.defId, i, e);
                 }
             }
         }
         if (now % 1200 < 20) ze.trimLog(now);
     }
 
-    // ------------------------------------------------------------------ planificador (frecuencia)
+    // ------------------------------------------------------------------ scheduler (frequency)
 
-    /** Semilla de la tirada diaria de un dueño (no cambia al recargar el mundo). */
+    /** Seed of an owner's daily roll (does not change when the world is reloaded). */
     public static long daySeed(long worldSeed, UUID owner, long day) {
         long h = worldSeed ^ owner.getMostSignificantBits() * 0x9E3779B97F4A7C15L ^ owner.getLeastSignificantBits() * 0xC2B2AE3D27D4EB4FL;
         return h ^ day * 0x165667B19E3779F9L;
@@ -155,7 +155,7 @@ public final class EventManager {
         ServerWorld ow = s.getOverworld();
         long tod = ow.getTimeOfDay(), day = tod / 24000;
         int t = (int) Math.floorMod(tod, 24000L);
-        if (day < 1 || ow.getTime() < 24_000) return; // nunca el primer día de un mundo nuevo
+        if (day < 1 || ow.getTime() < 24_000) return; // never on the first day of a new world
         EventState st = EventState.get(s);
         for (ServerPlayerEntity p : s.getPlayerManager().getPlayerList()) {
             if (!ownsShop(s, p.getUuid())) continue;
@@ -166,16 +166,16 @@ public final class EventManager {
                 Random r = new Random(daySeed(ow.getSeed(), p.getUuid(), day));
                 od.rollHit = r.nextDouble() < cfg.dailyChance;
                 od.fireTod = cfg.shiftStart + r.nextInt(Math.max(1, cfg.shiftEnd - cfg.shiftStart));
-                od.pendingDef = ""; // lo que esperaba ayer a su franja se pierde
+                od.pendingDef = ""; // whatever was waiting for its time window yesterday is lost
                 st.markDirty();
             }
             if (!od.rollHit || od.firedToday >= cfg.maxPerOwnerPerDay || t < od.fireTod) continue;
             Target target = pickShop(s, p);
-            if (target == null) continue; // espera (hasta que acabe el día) a que el dueño esté cerca de una tienda
+            if (target == null) continue; // waits (until the day ends) for the owner to be near a shop
             Random pick = new Random(daySeed(ow.getSeed(), p.getUuid(), day) ^ 0x5EEDL ^ od.firedToday * 977L);
             if (!od.pendingDef.isEmpty()) {
-                // un evento elegido antes espera a su franja (noche...): empieza si ya encaja; si su franja de hoy ya
-                // pasó (o desapareció la plantilla), se descarta; si no, sigue esperando
+                // an event chosen earlier waits for its time window (night...): starts if it fits now; if today's window
+                // has already passed (or the template disappeared), it is discarded; otherwise it keeps waiting
                 EventDef pd = EventRegistry.get(od.pendingDef);
                 if (pd != null && eligible(target.world, target.zone, pd, od, day, st, ow.getSeed(), null)) {
                     od.pendingDef = "";
@@ -193,7 +193,7 @@ public final class EventManager {
             EventDef def = pickDef(target.world, target.zone, od, pick, day, null, probes(t), when);
             int at = def == null ? t : when.getOrDefault(def, t);
             if (def != null && at > t) {
-                // su franja horaria empieza más tarde hoy: se aplaza a un momento dentro de ella
+                // its time window starts later today: postponed to a moment within it
                 od.pendingDef = def.id();
                 od.fireTod = Math.min(23_900, at + pick.nextInt(3000));
                 st.markDirty();
@@ -206,8 +206,8 @@ public final class EventManager {
     }
 
     /**
-     * Horas del día en las que mirar si un evento encaja: ahora (t) y el comienzo de cada franja "time" (de eventos y
-     * variantes) que aún no ha llegado hoy. Así los eventos de noche pueden salir aunque el dueño sólo esté de día.
+     * Times of day at which to check whether an event fits: now (t) and the start of each "time" window (of events and
+     * variants) that has not arrived yet today. This way night events can happen even if the owner is only around by day.
      */
     private static int[] probes(int t) {
         java.util.TreeSet<Integer> out = new java.util.TreeSet<>();
@@ -226,7 +226,7 @@ public final class EventManager {
         if (time != null && time[0] > t && time[0] < 24000) out.add(time[0]);
     }
 
-    /** Primera hora de probes (en orden) en la que el evento sería elegible, o -1. */
+    /** First time in probes (in order) at which the event would be eligible, or -1. */
     private static int firstFit(ServerWorld w, ShopZones.Zone z, EventDef d, EventState.OwnerData od, long day, EventState st, long seed, int[] probes) {
         for (int p : probes) {
             EventConditions.timeOverride = p;
@@ -246,7 +246,7 @@ public final class EventManager {
         return false;
     }
 
-    /** La tienda del dueño en la que está (o la más cercana dentro de ownerRange), cargada y con expositores. */
+    /** The owner's shop they are in (or the nearest within ownerRange), loaded and with displays. */
     @Nullable
     private static Target pickShop(MinecraftServer s, ServerPlayerEntity p) {
         ServerWorld w = p.getServerWorld();
@@ -262,8 +262,8 @@ public final class EventManager {
     }
 
     /**
-     * Elige un evento para esta tienda (o null si no hay ninguno posible). forceCategory: sólo esa categoría (pruebas).
-     * Categoría (pesos) -> rareza (pesos) -> evento (peso x historial x cadena), sólo entre los elegibles.
+     * Picks an event for this shop (or null if none is possible). forceCategory: only that category (testing).
+     * Category (weights) -> rarity (weights) -> event (weight x history x chain), only among the eligible ones.
      */
     @Nullable
     public static EventDef pickDef(ServerWorld w, ShopZones.Zone z, EventState.OwnerData od, Random r, long day, @Nullable EventDef.Category forceCategory) {
@@ -271,8 +271,8 @@ public final class EventManager {
     }
 
     /**
-     * Como {@link #pickDef}, pero con probes (horas del día) un evento es elegible si encaja en cualquiera de ellas;
-     * when recibe la primera hora en la que encaja cada evento elegible (para aplazar los de noche).
+     * Like {@link #pickDef}, but with probes (times of day) an event is eligible if it fits at any of them;
+     * when receives the first time at which each eligible event fits (to postpone night ones).
      */
     @Nullable
     private static EventDef pickDef(ServerWorld w, ShopZones.Zone z, EventState.OwnerData od, Random r, long day, @Nullable EventDef.Category forceCategory,
@@ -301,7 +301,7 @@ public final class EventManager {
         return weighted(r, tiers.get(tier), d -> defWeight(d, od, day));
     }
 
-    /** Peso final de un evento para este dueño: configuración x historial x cadenas ("después de X, más probable Y"). */
+    /** Final weight of an event for this owner: config x history x chains ("after X, Y is more likely"). */
     static double defWeight(EventDef d, EventState.OwnerData od, long day) {
         EventsConfig cfg = EventsConfig.INSTANCE;
         double w = cfg.weight(d);
@@ -313,7 +313,7 @@ public final class EventManager {
         return w;
     }
 
-    /** ¿Puede salir este evento ahora en esta tienda? why recibe el motivo si no. */
+    /** Can this event happen now in this shop? why receives the reason if not. */
     public static boolean eligible(ServerWorld w, ShopZones.Zone z, EventDef d, EventState.OwnerData od, long day, EventState st, long seed, @Nullable StringBuilder why) {
         EventsConfig cfg = EventsConfig.INSTANCE;
         if (!cfg.enabled(d)) return fail(why, "disabled");
@@ -374,11 +374,11 @@ public final class EventManager {
         return false;
     }
 
-    // ------------------------------------------------------------------ empezar / arreglar / terminar
+    // ------------------------------------------------------------------ start / fix / end
 
     /**
-     * Empieza un evento en una tienda. variant null = al azar entre las que encajen. forced = desde un comando
-     * (no comprueba condiciones). Devuelve la instancia o null.
+     * Starts an event in a shop. variant null = random among those that fit. forced = from a command
+     * (does not check conditions). Returns the instance or null.
      */
     @Nullable
     public static EventInstance start(ServerWorld w, ShopZones.Zone z, EventDef def, @Nullable String variant, Random r, boolean forced) {
@@ -397,7 +397,7 @@ public final class EventManager {
         if (!def.untilDayEnd()) dur = Math.round(dur * EventsConfig.INSTANCE.durationMult(def));
         dur = Math.max(400, Math.min(24000, dur));
         List<EventEffect> effs = def.effectsFor(vk);
-        if (!forced) for (EventEffect e : effs) if (!e.canStart(w, z)) return null; // sin sitio: no gasta el día ni el cooldown
+        if (!forced) for (EventEffect e : effs) if (!e.canStart(w, z)) return null; // no room: does not use up the day or the cooldown
         EventState st = EventState.get(w.getServer());
         EventInstance inst = new EventInstance(st.nextUid(), def.id(), vk, z.id, z.owner, now, now + dur, day);
         z.events.active.add(inst);
@@ -408,10 +408,10 @@ public final class EventManager {
             try {
                 effs.get(i).start(new EventContext(w, z, inst, def, i, now ^ 0x51L));
             } catch (Exception e) {
-                TcgShop.LOGGER.error("[eventos] {} efecto {} falló al empezar", def.id(), i, e);
+                TcgShop.LOGGER.error("[events] {} effect {} failed on start", def.id(), i, e);
             }
         }
-        // memoria de reseñas (después de start: un módulo puede cambiar el tag con inst.reviewTag)
+        // review memory (after start: a module can change the tag with inst.reviewTag)
         if (def.review().present() && z.events.active.contains(inst)) {
             EventDef.Review rv = def.review();
             double fixed = rv.fixedChance() >= 0 ? rv.fixedChance() : EventsConfig.INSTANCE.reviewFixedChance;
@@ -423,12 +423,12 @@ public final class EventManager {
         invalidate(z);
         ShopZones.get(w).markDirty();
         if (z.events.active.contains(inst)) notifyStart(w, z, def, inst);
-        TcgShop.LOGGER.info("[eventos] {} empieza en la tienda de {} ({}){}", def.id(), z.ownerName, inst.uid, forced ? " [comando]" : "");
+        TcgShop.LOGGER.info("[events] {} starts in {}'s shop ({}){}", def.id(), z.ownerName, inst.uid, forced ? " [command]" : "");
         sync(w, z);
         return inst;
     }
 
-    /** Arregla un evento ("how": mop, guard, talk, metric, visit, shoo, feed...). Devuelve false si no existe o ya estaba arreglado. */
+    /** Fixes an event ("how": mop, guard, talk, metric, visit, shoo, feed...). Returns false if it does not exist or was already fixed. */
     public static boolean resolve(long uid, String how) {
         Found f = find(uid);
         if (f == null || f.inst.resolved()) return false;
@@ -444,7 +444,7 @@ public final class EventManager {
                 try {
                     effs.get(i).resolve(new EventContext(f.world, f.zone, f.inst, def, i, now ^ 0x52L), f.inst.resolvedHow);
                 } catch (Exception e) {
-                    TcgShop.LOGGER.error("[eventos] {} efecto {} falló al resolverse", f.inst.defId, i, e);
+                    TcgShop.LOGGER.error("[events] {} effect {} failed on resolve", f.inst.defId, i, e);
                 }
                 keep |= effs.get(i).keepsAfterResolve();
             }
@@ -458,7 +458,7 @@ public final class EventManager {
         return true;
     }
 
-    /** Termina un evento ya (comando, o un módulo que necesita cortarlo). */
+    /** Ends an event right away (command, or a module that needs to cut it short). */
     public static boolean end(long uid, String outcome) {
         Found f = find(uid);
         if (f == null) return false;
@@ -477,7 +477,7 @@ public final class EventManager {
                 try {
                     effs.get(i).end(new EventContext(w, z, inst, def, i, now ^ 0x53L));
                 } catch (Exception e) {
-                    TcgShop.LOGGER.error("[eventos] {} efecto {} falló al terminar", inst.defId, i, e);
+                    TcgShop.LOGGER.error("[events] {} effect {} failed on end", inst.defId, i, e);
                 }
             }
         }
@@ -487,8 +487,8 @@ public final class EventManager {
         if (w.getServer() != null) {
             EventState st = EventState.get(w.getServer());
             st.clearActorsOf(inst.uid);
-            // las ventajas ("próxima compra/contratación/gradeo") siguen hasta su until aunque el evento acabe (p. ej. el
-            // visitante se va); sólo se quitan si el evento se corta (comando, tienda borrada, cancelado)
+            // perks ("next purchase/hire/grading") last until their until even if the event ends (e.g. the
+            // visitor leaves); they are only removed if the event is cut short (command, shop deleted, cancelled)
             if (outcome.equals("removed") || outcome.equals("command") || outcome.equals("cancelled")) {
                 EventState.OwnerData od = st.owner(z.owner);
                 if (od.perks.removeIf(p -> p.uid == inst.uid)) st.markDirty();
@@ -503,14 +503,14 @@ public final class EventManager {
         sync(w, z);
     }
 
-    /** La tienda desaparece (núcleo roto): termina sus eventos para que los módulos lo limpien todo. */
+    /** The shop disappears (core broken): ends its events so modules clean everything up. */
     public static void onZoneRemoved(ServerWorld w, ShopZones.Zone z) {
         for (EventInstance e : new ArrayList<>(z.events.active)) end(w, z, e, "removed");
     }
 
-    // ------------------------------------------------------------------ consultas (API pública)
+    // ------------------------------------------------------------------ queries (public API)
 
-    /** ¿Sigue en marcha este evento? (false si no existe, terminó o su tienda se borró) */
+    /** Is this event still running? (false if it does not exist, ended, or its shop was deleted) */
     public static boolean isActive(long uid) {
         UUID zid = ACTIVE.get(uid);
         if (zid == null || server == null) return false;
@@ -521,7 +521,7 @@ public final class EventManager {
         return false;
     }
 
-    /** ¿En marcha y sin arreglar? */
+    /** Running and not fixed? */
     public static boolean isUnresolved(long uid) {
         Found f = find(uid);
         return f != null && !f.inst.resolved();
@@ -560,8 +560,8 @@ public final class EventManager {
     }
 
     /**
-     * Apunta algo en la memoria de reseñas de la tienda (para los módulos: p. ej. un charco concreto con su tag).
-     * Se marca como arreglado cuando se resuelve el evento uid (o con {@link #resolveIncident}).
+     * Records something in the shop's review memory (for modules: e.g. a specific puddle with its tag).
+     * It is marked as fixed when the event uid is resolved (or with {@link #resolveIncident}).
      */
     public static void logIncident(ServerWorld w, ShopZones.Zone z, long uid, String tag, boolean negative, int mood, double chance) {
         for (IncidentRecord r : z.events.log) if (r.uid == uid && r.tag.equals(tag) && r.end < 0) return;
@@ -570,15 +570,15 @@ public final class EventManager {
         ShopZones.get(w).markDirty();
     }
 
-    /** Marca como arreglados los registros de ese evento con ese tag (sin resolver el evento entero). */
+    /** Marks that event's records with that tag as fixed (without resolving the whole event). */
     public static void resolveIncident(ServerWorld w, ShopZones.Zone z, long uid, String tag) {
         for (IncidentRecord r : z.events.log) if (r.uid == uid && r.tag.equals(tag) && r.resolvedAt < 0) r.resolvedAt = w.getTime();
         ShopZones.get(w).markDirty();
     }
 
-    // ------------------------------------------------------------------ modificadores
+    // ------------------------------------------------------------------ modifiers
 
-    /** Modificadores de los eventos activos de la tienda (cacheados; Mods.NONE si no hay ninguno). */
+    /** Modifiers of the shop's active events (cached; Mods.NONE if there are none). */
     public static Mods mods(ShopZones.Zone z) {
         if (z.events.active.isEmpty()) return Mods.NONE;
         long now = now();
@@ -592,7 +592,7 @@ public final class EventManager {
         return m;
     }
 
-    /** Tras cambiar un evento (bloqueos, datos de resultado...). */
+    /** After changing an event (locks, outcome data...). */
     public static void invalidate(ShopZones.Zone z) {
         MODS.remove(z.id);
         MODS_AT.remove(z.id);
@@ -607,7 +607,7 @@ public final class EventManager {
             any = true;
             if (!inst.resolved()) b.locks(inst);
             for (EventEffect e : def.effectsFor(inst.variant)) e.contribute(b, inst, now);
-            // resultado de un visitante (inspección, influencer...): dura hasta o_until
+            // outcome of a visitor (inspection, influencer...): lasts until o_until
             if (inst.data.getLong("o_until") > now) {
                 b.repDelta += inst.data.getInt("o_rep");
                 if (inst.data.contains("o_spawn")) b.spawnMult *= Math.max(0.1, inst.data.getDouble("o_spawn"));
@@ -616,15 +616,15 @@ public final class EventManager {
         return b.build(any);
     }
 
-    /** Reputación "efectiva" para clientes (llegada y decisión): la real + el modificador temporal de los eventos. No toca premiumFor. */
+    /** "Effective" reputation for customers (arrival and decision): the real one + the events' temporary modifier. Does not touch premiumFor. */
     public static int effectiveRep(ShopZones.Zone z) {
         if (z.events.active.isEmpty()) return z.reputation;
         return Math.max(0, Math.min(100, z.reputation + mods(z).repDelta));
     }
 
-    // ------------------------------------------------------------------ ganchos de la tienda
+    // ------------------------------------------------------------------ shop hooks
 
-    /** ShopLife.recompute: datos para condiciones y objetivos medibles. */
+    /** ShopLife.recompute: data for conditions and measurable goals. */
     public static void onRecompute(ServerWorld w, ShopZones.Zone z, boolean register, List<BlockPos> doors) {
         ZoneEvents ze = z.events;
         ze.hasRegister = register;
@@ -643,15 +643,15 @@ public final class EventManager {
                 try {
                     effs.get(i).onRecompute(new EventContext(w, z, inst, def, i, now ^ 0x54L));
                 } catch (Exception e) {
-                    TcgShop.LOGGER.error("[eventos] {} efecto {} falló en onRecompute", inst.defId, i, e);
+                    TcgShop.LOGGER.error("[events] {} effect {} failed in onRecompute", inst.defId, i, e);
                 }
             }
         }
     }
 
     /**
-     * ShopServer.payFromNpc: anota los ingresos del día (topes de premios), avisa a los efectos (objetivos) y aplica
-     * revenueMult y la propina (con el tope por dueño). Devuelve el dinero EXTRA ya sumado a la caja.
+     * ShopServer.payFromNpc: records the day's revenue (reward caps), notifies effects (goals) and applies
+     * revenueMult and the tip (with the per-owner cap). Returns the EXTRA money already added to the till.
      */
     public static long onNpcSale(ServerWorld w, ShopZones.Zone z, ItemStack bought, long price, long earned) {
         long day = w.getTimeOfDay() / 24000;
@@ -667,7 +667,7 @@ public final class EventManager {
                 try {
                     effs.get(i).onSale(new EventContext(w, z, inst, def, i, now ^ 0x55L), bought, price, market);
                 } catch (Exception e) {
-                    TcgShop.LOGGER.error("[eventos] {} efecto {} falló en onSale", inst.defId, i, e);
+                    TcgShop.LOGGER.error("[events] {} effect {} failed in onSale", inst.defId, i, e);
                 }
             }
         }
@@ -686,14 +686,14 @@ public final class EventManager {
         return granted;
     }
 
-    /** Un cliente aparece: cuenta para "llegaron clientes mientras seguía sin arreglar". */
+    /** A customer spawns: counts toward "customers arrived while it was still unfixed". */
     public static void onCustomerSpawn(ServerWorld w, ShopZones.Zone z) {
         if (z.events.log.isEmpty()) return;
         long now = w.getTime();
         for (IncidentRecord r : z.events.log) if (r.activeAt(now)) r.customersDuring++;
     }
 
-    /** Frase de un cliente que entra mientras hay un evento activo (o null). */
+    /** Line from a customer who enters while an event is active (or null). */
     @Nullable
     public static Text enterLine(ShopZones.Zone z, net.minecraft.util.math.random.Random r) {
         for (EventInstance inst : z.events.active) {
@@ -706,19 +706,19 @@ public final class EventManager {
         return null;
     }
 
-    // ------------------------------------------------------------------ memoria de reseñas
+    // ------------------------------------------------------------------ review memory
 
-    /** Lo que un evento cambia en la reseña de un cliente: clave (null = no cambia) y ánimo a sumar. */
+    /** What an event changes in a customer's review: key (null = unchanged) and mood to add. */
     public record ReviewOutcome(@Nullable String key, int mood) {}
 
     private static final Set<String> STRONG_KEYS = Set.of("murder", "hit", "infamy", "shop_full");
 
     /**
-     * Al irse un cliente (CustomerEntity.finishVisit, antes de calcular las estrellas):
-     *  · si coincidió con un evento sin arreglar: con su probabilidad, reseña "ev_&lt;tag&gt;" y su ánimo (el peor
-     *    negativo gana a cualquier positivo);
-     *  · si se arregló antes de que llegara (ese día) y alguien llegó a verlo: a veces "ev_&lt;tag&gt;_fixed", sin castigo;
-     *  · si se arregló antes de que llegara ningún cliente: nada.
+     * When a customer leaves (CustomerEntity.finishVisit, before computing the stars):
+     *  · if it overlapped an unfixed event: with its probability, review "ev_&lt;tag&gt;" and its mood (the worst
+     *    negative beats any positive);
+     *  · if it was fixed before they arrived (that day) and someone got to see it: sometimes "ev_&lt;tag&gt;_fixed", no penalty;
+     *  · if it was fixed before any customer arrived: nothing.
      */
     public static ReviewOutcome reviewFor(ShopZones.Zone z, long arrivedAt, long now, String currentKey, net.minecraft.util.math.random.Random r) {
         if (z.events.log.isEmpty() || arrivedAt < 0) return new ReviewOutcome(null, 0);
@@ -739,12 +739,12 @@ public final class EventManager {
         return new ReviewOutcome(null, 0);
     }
 
-    // ------------------------------------------------------------------ visitantes
+    // ------------------------------------------------------------------ visitors
 
-    /** Resultado de la visita de un visitante de evento: clave de reseña a usar (o null) y estrellas forzadas (o 0). */
+    /** Outcome of an event visitor's visit: review key to use (or null) and forced stars (or 0). */
     public record VisitorResult(@Nullable String key, int stars) {}
 
-    /** CustomerEntity.finishVisit de un visitante de evento. stars = las que dejaría. */
+    /** CustomerEntity.finishVisit of an event visitor. stars = the ones they would leave. */
     public static VisitorResult visitorFinished(ServerWorld w, ShopZones.Zone z, CustomerEntity c, VisitorSpec spec, int stars) {
         Found f = find(spec.eventUid);
         if (f == null || !f.zone.id.equals(z.id)) return new VisitorResult(null, 0);
@@ -756,7 +756,7 @@ public final class EventManager {
         return ve.finished(new EventContext(w, z, f.inst, def, spec.effectIndex, w.getTime() ^ 0x56L), c, spec, stars);
     }
 
-    /** Clic derecho del dueño a un visitante de evento (calmar al cliente molesto). true = consumido. */
+    /** Owner right-clicks an event visitor (calm down the upset customer). true = consumed. */
     public static boolean onVisitorInteract(ServerPlayerEntity sp, ShopZones.Zone z, CustomerEntity c, VisitorSpec spec) {
         if (!spec.troublemaker || !z.owner.equals(sp.getUuid())) return false;
         EventInstance inst = z.events.byUid(spec.eventUid);
@@ -767,7 +767,7 @@ public final class EventManager {
         return true;
     }
 
-    /** Clic derecho del dueño a su cajero: lo "despierta" si está distraído. true = consumido. */
+    /** Owner right-clicks their cashier: "wakes them up" if distracted. true = consumed. */
     public static boolean onEmployeeInteract(ServerPlayerEntity sp, ShopZones.Zone z, EmployeeEntity e) {
         if (!z.owner.equals(sp.getUuid()) || e.isGuard()) return false;
         for (EventInstance inst : new ArrayList<>(z.events.active)) {
@@ -786,9 +786,9 @@ public final class EventManager {
         return false;
     }
 
-    // ------------------------------------------------------------------ dinero y ventajas (topes por dueño)
+    // ------------------------------------------------------------------ money and perks (per-owner caps)
 
-    /** Tope de dinero de premios que le queda hoy a este dueño (diario y semanal). */
+    /** Reward money cap this owner has left today (daily and weekly). */
     public static long moneyLeft(MinecraftServer s, UUID owner) {
         EventsConfig cfg = EventsConfig.INSTANCE;
         long day = today(s);
@@ -801,7 +801,7 @@ public final class EventManager {
         return Math.max(0, Math.min(daily - od.money[0], weekly - od.moneyWeek()));
     }
 
-    /** Da dinero de un premio a la caja de la tienda, con el tope por dueño. Devuelve lo que se dio de verdad. */
+    /** Gives reward money to the shop's till, with the per-owner cap. Returns what was actually given. */
     public static long grantMoney(ServerWorld w, ShopZones.Zone z, long amount, boolean tell) {
         if (amount <= 0) return 0;
         long give = Math.min(amount, moneyLeft(w.getServer(), z.owner));
@@ -863,8 +863,8 @@ public final class EventManager {
     }
 
     /**
-     * Factor de precio de una compra al Mayorista (source &gt;= 0) o en el Mercado del teléfono (source -1) por los
-     * eventos: descuento del proveedor (se gasta al comprar, consume=true) o recargo por retraso (sólo teléfono).
+     * Price factor of a purchase from the Wholesaler (source &gt;= 0) or in the phone Market (source -1) due to
+     * events: supplier discount (used up on purchase, consume=true) or delay surcharge (phone only).
      */
     public static double purchaseFactor(ServerPlayerEntity p, int source, boolean consume) {
         MinecraftServer s = p.getServer();
@@ -878,19 +878,19 @@ public final class EventManager {
         return f;
     }
 
-    /** Descuento en la próxima contratación (evento "alguien busca trabajo"). */
+    /** Discount on the next hire ("someone is looking for work" event). */
     public static double hireFactor(ServerPlayerEntity p, boolean consume) {
         EventState.Perk d = consume ? takePerk(p.getServer(), p.getUuid(), "hire_discount") : peekPerk(p.getServer(), p.getUuid(), "hire_discount");
         return d == null ? 1.0 : Math.max(0.3, Math.min(1, d.factor));
     }
 
-    /** Descuento en el próximo envío a CobbleGrade (evento "visita de un experto"). */
+    /** Discount on the next submission to CobbleGrade ("expert visit" event). */
     public static double gradingFeeFactor(ServerPlayerEntity p, boolean consume) {
         EventState.Perk d = consume ? takePerk(p.getServer(), p.getUuid(), "grading_discount") : peekPerk(p.getServer(), p.getUuid(), "grading_discount");
         return d == null ? 1.0 : Math.max(0.5, Math.min(1, d.factor));
     }
 
-    // ------------------------------------------------------------------ avisos
+    // ------------------------------------------------------------------ notifications
 
     public static MutableText name(EventDef def) {
         return Text.translatable(def.langKey() + ".name");
@@ -935,9 +935,9 @@ public final class EventManager {
         if (owner != null) ShopServer.syncZones(owner);
     }
 
-    // ------------------------------------------------------------------ teléfono
+    // ------------------------------------------------------------------ phone
 
-    /** Datos de eventos para el teléfono del dueño (ext.ev de ShopServer.syncZones). */
+    /** Event data for the owner's phone (ext.ev of ShopServer.syncZones). */
     public static NbtCompound writeSync(ServerWorld w, ShopZones.Zone z) {
         NbtCompound c = new NbtCompound();
         long now = w.getTime(), day = w.getTimeOfDay() / 24000;
@@ -971,9 +971,9 @@ public final class EventManager {
         return c;
     }
 
-    // ------------------------------------------------------------------ comandos
+    // ------------------------------------------------------------------ commands
 
-    /** Zona de la que es dueño el jugador más cercana (o en la que está), en su mundo. */
+    /** Nearest zone owned by the player (or the one they are in), in their world. */
     @Nullable
     public static ShopZones.Zone nearestZone(ServerPlayerEntity p, boolean anyOwner) {
         ShopZones zs = ShopZones.get(p.getServerWorld());
@@ -989,7 +989,7 @@ public final class EventManager {
         return best;
     }
 
-    /** /tcgshop event roll: repite la tirada de hoy del jugador (ignora la probabilidad: sale seguro). */
+    /** /tcgshop event roll: redoes the player's roll for today (ignores the chance: it always hits). */
     public static Text forceRoll(ServerPlayerEntity p) {
         MinecraftServer s = p.getServer();
         EventState st = EventState.get(s);

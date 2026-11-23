@@ -31,29 +31,29 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Obra de la mansión, repartida en muchos ticks (cola en memoria, se atiende una obra a la vez):
- *  0. despejar de arriba abajo lo que sobra por encima del suelo (sin actualizar vecinos: nada se cae ni se rompe);
- *  1. cimientos: rellenar con tierra/piedra los huecos bajo la finca (hasta 7 bloques de hondo);
- *  2. estructura de abajo arriba (con actualizaciones de forma: escaleras, vallas y cristales se conectan);
- *  3. decoración en el orden del diseño (muebles, alfombras, faroles, agua, camas, puertas...);
- *  4. Pokémon residentes;  5. fin.
- * Cada tick coloca como mucho {@code mansionBlocksPerTick} bloques y gasta como mucho ~10 ms (menos si el servidor ya
- * va cargado). Los chunks de la finca se mantienen cargados con un ticket propio mientras dura la obra. Un bloque que
- * falla (un bloque de otro mod que lanza al colocarlo...) se apunta en el log y se salta: no para la obra. Si algo
- * grave tumba la obra entera, se vuelve a poner en la cola (desde el principio, saltando lo que ya está bien) sin
- * esperar a reiniciar. Si el servidor se para a medias no pasa nada: la obra figura sin terminar en {@link MansionState}
- * y se reanuda al arrancar de nuevo. Como mucho {@link #MAX_ATTEMPTS} intentos; después, un op puede usar
+ * Mansion construction, spread over many ticks (in-memory queue, one build is handled at a time):
+ *  0. clear, top to bottom, whatever is in the way above the ground (without neighbor updates: nothing falls or breaks);
+ *  1. foundations: fill gaps under the estate with dirt/stone (up to 7 blocks deep);
+ *  2. structure bottom to top (with shape updates: stairs, fences and glass panes connect);
+ *  3. decoration in design order (furniture, carpets, lanterns, water, beds, doors...);
+ *  4. resident Pokémon;  5. done.
+ * Each tick places at most {@code mansionBlocksPerTick} blocks and spends at most ~10 ms (less if the server is already
+ * under load). The estate's chunks are kept loaded with a dedicated ticket while the build lasts. A block that
+ * fails (a block from another mod that throws when placed...) is logged and skipped: it does not stop the build. If something
+ * serious brings down the whole build, it is put back in the queue (from the start, skipping what is already fine) without
+ * waiting for a restart. If the server stops midway nothing bad happens: the build is marked unfinished in {@link MansionState}
+ * and resumes on the next startup. At most {@link #MAX_ATTEMPTS} attempts; after that, an op can use
  * {@code /tcgshop debug mansion resume|remove <dueño>}.
  */
 public final class MansionBuilder {
     private static final ChunkTicketType<ChunkPos> TICKET = ChunkTicketType.create("tcgshop_mansion", Comparator.comparingLong(ChunkPos::toLong));
-    /** Presupuesto de tiempo por tick con el servidor holgado / cargado / muy cargado. */
+    /** Time budget per tick with the server idle / busy / very busy. */
     private static final long NANOS_IDLE = 10_000_000L, NANOS_BUSY = 6_000_000L, NANOS_LAGGING = 3_000_000L;
-    /** Intentos de obra (fallos graves + reanudaciones al arrancar) antes de rendirse. */
+    /** Build attempts (serious failures + resumes on startup) before giving up. */
     public static final int MAX_ATTEMPTS = 5;
-    /** Bloques que fallan en una obra antes de darla por rota (algo va muy mal si fallan tantos). */
+    /** Failed blocks in a build before treating it as broken (something is very wrong if that many fail). */
     private static final int MAX_BLOCK_ERRORS = 2000;
-    /** Los cimientos de los bordes bajan hasta tocar suelo firme, como mucho estos bloques por debajo de Y_MIN. */
+    /** Edge foundations go down until they reach solid ground, at most this many blocks below Y_MIN. */
     static final int EDGE_FILL_EXTRA = 24;
     private static final List<Job> JOBS = new ArrayList<>();
 
@@ -80,7 +80,7 @@ public final class MansionBuilder {
         }
     }
 
-    /** ¿Hay alguna obra de ese jugador en marcha? */
+    /** Does that player have a build in progress? */
     public static boolean busy(java.util.UUID owner) {
         for (Job j : JOBS) if (j.rec.owner.equals(owner)) return true;
         return false;
@@ -90,17 +90,17 @@ public final class MansionBuilder {
         return JOBS.size();
     }
 
-    /** Mete la obra en la cola. */
+    /** Adds the build to the queue. */
     static void start(ServerWorld world, MansionState.Record rec, MansionDesign design) {
         JOBS.add(new Job(world, rec, design));
     }
 
-    /** Al parar el servidor: se olvida la cola (los tickets de chunk desaparecen con el servidor). */
+    /** On server stop: the queue is forgotten (chunk tickets go away with the server). */
     static void clear() {
         JOBS.clear();
     }
 
-    /** Al arrancar: reanuda las obras que se quedaron a medias. */
+    /** On startup: resumes builds that were left unfinished. */
     static void resumeAll(MinecraftServer server) {
         for (ServerWorld w : server.getWorlds()) {
             MansionState st = MansionState.get(w);
@@ -110,9 +110,9 @@ public final class MansionBuilder {
                 st.markDirty();
                 try {
                     start(w, r, MansionDesign.generate(r.seed));
-                    TcgShop.LOGGER.info("[mansión] se reanuda la obra de {} en {} (intento {})", r.ownerName, r.origin, r.attempts);
+                    TcgShop.LOGGER.info("[mansion] resuming {}'s build at {} (attempt {})", r.ownerName, r.origin, r.attempts);
                 } catch (Throwable t) {
-                    TcgShop.LOGGER.error("[mansión] no se pudo reanudar la obra de {}", r.ownerName, t);
+                    TcgShop.LOGGER.error("[mansion] could not resume {}'s build", r.ownerName, t);
                 }
             }
         }
@@ -126,12 +126,12 @@ public final class MansionBuilder {
         try {
             if (step(job)) finish(job, true);
         } catch (Throwable t) {
-            TcgShop.LOGGER.error("[mansión] la obra de {} falló en la fase {}", job.rec.ownerName, job.phase, t);
+            TcgShop.LOGGER.error("[mansion] {}'s build failed in phase {}", job.rec.ownerName, job.phase, t);
             retry(job);
         }
     }
 
-    /** Fallo grave: la obra vuelve a la cola (al final) sin esperar a reiniciar, hasta MAX_ATTEMPTS intentos. */
+    /** Serious failure: the build goes back into the queue (at the end) without waiting for a restart, up to MAX_ATTEMPTS attempts. */
     private static void retry(Job job) {
         if (job.rec.attempts >= MAX_ATTEMPTS) {
             finish(job, false);
@@ -142,12 +142,12 @@ public final class MansionBuilder {
         job.rec.attempts++;
         MansionState.get(job.world).markDirty();
         JOBS.add(new Job(job.world, job.rec, job.design));
-        TcgShop.LOGGER.warn("[mansión] la obra de {} vuelve a la cola (intento {})", job.rec.ownerName, job.rec.attempts);
+        TcgShop.LOGGER.warn("[mansion] {}'s build goes back into the queue (attempt {})", job.rec.ownerName, job.rec.attempts);
         ServerPlayerEntity owner = job.world.getServer().getPlayerManager().getPlayer(job.rec.owner);
         if (owner != null) owner.sendMessage(Text.translatable("tcgshop.mansion.retrying", job.rec.attempts).formatted(Formatting.YELLOW), false);
     }
 
-    /** Comando de op: vuelve a poner en la cola la obra de ese registro (repara lo que falte). false si ya está en marcha. */
+    /** Op command: re-queues that record's build (repairs whatever is missing). false if it is already running. */
     static boolean requeue(ServerWorld world, MansionState.Record rec) {
         if (running(rec)) return false;
         MansionDesign design = MansionDesign.generate(rec.seed);
@@ -158,7 +158,7 @@ public final class MansionBuilder {
         return true;
     }
 
-    /** Comando de op: quita de la cola la obra de ese registro (si estaba en marcha). */
+    /** Op command: removes that record's build from the queue (if it was running). */
     static void cancel(MansionState.Record rec) {
         for (Iterator<Job> it = JOBS.iterator(); it.hasNext(); ) {
             Job j = it.next();
@@ -173,7 +173,7 @@ public final class MansionBuilder {
         return false;
     }
 
-    /** Presupuesto de este tick: más pequeño cuanto más cargado va ya el servidor (media de los últimos ticks). */
+    /** This tick's budget: smaller the more loaded the server already is (average of the last ticks). */
     private static long budget(MinecraftServer server) {
         long avg;
         try {
@@ -225,7 +225,7 @@ public final class MansionBuilder {
         job.chunks.clear();
     }
 
-    /** Un tick de trabajo. true = obra terminada. */
+    /** One tick of work. true = build finished. */
     private static boolean step(Job job) {
         ensureTickets(job);
         int maxSets = LuxuryConfig.INSTANCE.mansionBlocksPerTick, maxChecks = maxSets * 12;
@@ -238,34 +238,34 @@ public final class MansionBuilder {
             if ((++iter & 63) == 0 && System.nanoTime() > deadline) break;
             try {
             switch (job.phase) {
-                case 0 -> { // despejar, de arriba abajo, sólo por encima del suelo
+                case 0 -> { // clear, top to bottom, only above the ground
                     int total = (MansionDesign.Y_MAX + 1) * layer;
                     if (job.cursor >= total) { next(job); continue; }
                     int c = job.cursor++;
                     int y = MansionDesign.Y_MAX - c / layer, rem = c % layer, z = rem / MansionDesign.W, x = rem % MansionDesign.W;
                     checks++;
-                    if (job.design.cell(x, y, z) > MansionDesign.AIR) continue; // ahí va estructura: se sustituye luego
+                    if (job.design.cell(x, y, z) > MansionDesign.AIR) continue; // structure goes there: replaced later
                     job.plan.world(x, y, z, job.pos);
                     if (!w.getBlockState(job.pos).isAir()) {
                         w.setBlockState(job.pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
                         sets++;
                     }
                 }
-                case 1 -> { // cimientos: rellenar huecos bajo la capa de hierba
+                case 1 -> { // foundations: fill gaps under the grass layer
                     if (job.cursor >= layer) { next(job); continue; }
                     int c = job.cursor++;
                     int z = c / MansionDesign.W, x = c % MansionDesign.W;
                     boolean firm = false;
                     for (int y = -2; y >= MansionDesign.Y_MIN; y--) {
                         checks++;
-                        if (job.design.cell(x, y, z) != MansionDesign.KEEP) continue; // lo pone la estructura
+                        if (job.design.cell(x, y, z) != MansionDesign.KEEP) continue; // placed by the structure
                         job.plan.world(x, y, z, job.pos);
                         int r = fillCell(w, job.pos, y >= -4 ? Blocks.DIRT : Blocks.STONE);
                         if (r < 0) { firm = true; break; }
                         sets += r;
                     }
-                    // bordes: sobre un barranco, un acantilado o una cueva se sigue bajando hasta suelo firme para que
-                    // la finca no quede colgando con los lados al aire
+                    // edges: over a ravine, a cliff or a cave keep going down to solid ground so that
+                    // the estate isn't left hanging with its sides exposed
                     boolean edge = x == 0 || z == 0 || x == MansionDesign.W - 1 || z == MansionDesign.D - 1;
                     if (!firm && edge) {
                         for (int y = MansionDesign.Y_MIN - 1; y >= MansionDesign.Y_MIN - EDGE_FILL_EXTRA; y--) {
@@ -278,7 +278,7 @@ public final class MansionBuilder {
                         }
                     }
                 }
-                case 2 -> { // estructura, de abajo arriba
+                case 2 -> { // structure, bottom to top
                     int total = MansionDesign.H * layer;
                     if (job.cursor >= total) { next(job); continue; }
                     int c = job.cursor++;
@@ -293,27 +293,27 @@ public final class MansionBuilder {
                         sets++;
                     }
                 }
-                case 3 -> { // decoración
+                case 3 -> { // decoration
                     if (job.cursor >= job.decor.size()) { next(job); continue; }
                     MansionDesign.Deco d = job.decor.get(job.cursor++);
                     checks++;
                     BlockState target = rotate(job, d.state());
                     BlockPos p = job.plan.world(d.x(), d.y(), d.z());
-                    job.pos.set(p); // para el log si falla
+                    job.pos.set(p); // for the log if it fails
                     if (w.getBlockState(p) == target) continue;
                     w.setBlockState(p, target, Block.NOTIFY_LISTENERS);
                     sets++;
                     if (d.hook()) placedHook(job, p, target);
                 }
-                case 4 -> { // residentes (un fallo aquí no rompe la obra: la casa ya está hecha)
+                case 4 -> { // residents (a failure here doesn't break the build: the house is already done)
                     if (LuxuryConfig.INSTANCE.mansionPokemon && !job.rec.residentsSpawned) {
-                        job.rec.residentsSpawned = true; // antes de intentarlo: nunca se repite en bucle
+                        job.rec.residentsSpawned = true; // before trying: never repeats in a loop
                         MansionState.get(w).markDirty();
                         try {
                             int n = MansionPokemon.spawn(w, job.rec, job.design, job.plan);
-                            if (n > 0) TcgShop.LOGGER.info("[mansión] {} Pokémon residentes en la finca de {}", n, job.rec.ownerName);
+                            if (n > 0) TcgShop.LOGGER.info("[mansion] {} resident Pokémon on {}'s estate", n, job.rec.ownerName);
                         } catch (Throwable t) {
-                            TcgShop.LOGGER.error("[mansión] no se pudieron soltar los residentes de {}", job.rec.ownerName, t);
+                            TcgShop.LOGGER.error("[mansion] could not spawn {}'s residents", job.rec.ownerName, t);
                         }
                     }
                     next(job);
@@ -323,11 +323,11 @@ public final class MansionBuilder {
                 }
             }
             } catch (Throwable t) {
-                // un bloque concreto ha fallado: se apunta y se sigue (el cursor ya avanzó)
+                // a specific block failed: log it and continue (the cursor already advanced)
                 job.errors++;
                 if (job.errors <= 20)
-                    TcgShop.LOGGER.warn("[mansión] fase {}: falló el bloque en {} ({}); se salta", job.phase, job.pos.toShortString(), t.toString());
-                if (job.errors >= MAX_BLOCK_ERRORS) throw new IllegalStateException("demasiados bloques fallidos: " + job.errors, t);
+                    TcgShop.LOGGER.warn("[mansion] phase {}: block at {} failed ({}); skipping", job.phase, job.pos.toShortString(), t.toString());
+                if (job.errors >= MAX_BLOCK_ERRORS) throw new IllegalStateException("too many failed blocks: " + job.errors, t);
             }
         }
         progress(job);
@@ -335,8 +335,8 @@ public final class MansionBuilder {
     }
 
     /**
-     * Cimientos: rellena esa celda si está hueca. -1 = ya hay suelo firme (se para la columna), 0 = no se toca (bloque con
-     * datos: un cofre o similar no se pisa nunca), 1 = rellenada.
+     * Foundations: fills that cell if it is empty. -1 = solid ground already (the column stops), 0 = left untouched (block with
+     * data: a chest or similar is never overwritten), 1 = filled.
      */
     private static int fillCell(ServerWorld w, BlockPos pos, Block fill) {
         BlockState cur = w.getBlockState(pos);
@@ -351,13 +351,13 @@ public final class MansionBuilder {
         job.cursor = 0;
     }
 
-    /** Estatuas y expositores: piezas de encima (onPlaced) y dueño = el de la finca. */
+    /** Statues and displays: upper parts (onPlaced) and owner = the estate's owner. */
     private static void placedHook(Job job, BlockPos p, BlockState state) {
         ServerPlayerEntity owner = job.world.getServer().getPlayerManager().getPlayer(job.rec.owner);
         try {
             state.getBlock().onPlaced(job.world, p, state, owner, new ItemStack(state.getBlock()));
         } catch (Throwable t) {
-            TcgShop.LOGGER.warn("[mansión] onPlaced de {} falló: {}", state.getBlock(), t.toString());
+            TcgShop.LOGGER.warn("[mansion] onPlaced of {} failed: {}", state.getBlock(), t.toString());
         }
         if (state.getBlock() instanceof ShopDisplayBlock) {
             ShopDisplayBlockEntity be = ShopDisplayBlock.masterEntity(job.world, state, p);
@@ -368,12 +368,12 @@ public final class MansionBuilder {
         }
     }
 
-    /** Estado girado a la orientación del mundo (con caché). */
+    /** State rotated to the world orientation (cached). */
     private static BlockState rotate(Job job, BlockState s) {
         return job.rotated.computeIfAbsent(s, k -> {
             BlockState r = k.rotate(job.plan.rotation);
             Direction f = facingOf(k);
-            // muebles de otros mods que no implementen rotate(): se fuerza su "facing"
+            // furniture from other mods that doesn't implement rotate(): force its "facing"
             if (f != null) r = MansionDesign.face(r, job.plan.dir(f));
             return r;
         });
@@ -408,7 +408,7 @@ public final class MansionBuilder {
         if (owner != null) owner.sendMessage(Text.translatable("tcgshop.mansion.progress", pct).formatted(Formatting.GOLD), true);
     }
 
-    /** ¿Hay una obra en marcha que pise esa caja? */
+    /** Is there a build in progress that overlaps that box? */
     static boolean overlapsJob(ServerWorld w, Box box) {
         for (Iterator<Job> it = JOBS.iterator(); it.hasNext(); ) {
             Job j = it.next();

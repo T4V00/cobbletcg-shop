@@ -29,38 +29,38 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Bienvenida al mod: N sobres (TcgShopConfig.starterPackCount, 3 por defecto) sellados al azar de los sets más baratos la primera vez que entras al mundo, y el
- * tutorial del "Meowth del Team Rocket" la primera vez que creas una tienda (aparece un Meowth salvaje normal y
- * capturable a tu lado, se queda quieto mirándote y te da unos consejos cortos en bocadillos: ver MeowthTalk). Las marcas se guardan como etiquetas del jugador
- * (se guardan con sus datos, así que valen para siempre en ese mundo).
+ * Mod welcome: N random sealed packs (TcgShopConfig.starterPackCount, 3 by default) from the cheapest sets the first time you join the world, and the
+ * "Team Rocket Meowth" tutorial the first time you create a shop (a normal, catchable wild Meowth appears
+ * next to you, stands still looking at you and gives you a few short tips in speech bubbles: see MeowthTalk). The flags are stored as player tags
+ * (saved with the player's data, so they last forever in that world).
  */
 public final class Onboarding {
-    /** Misma etiqueta que el kit de inicio antiguo (CardSales): quien ya lo recibió no vuelve a recibir sobres. */
+    /** Same tag as the old starter kit (CardSales): anyone who already got it does not get packs again. */
     public static final String STARTER_TAG = CardSales.STARTER_TAG;
     public static final String TUTORIAL_TAG = "tcgshop_tutorial";
-    /** Sobres que se regalan al empezar si la config no dice otra cosa (TcgShopConfig.starterPackCount). */
+    /** Packs given at the start unless the config says otherwise (TcgShopConfig.starterPackCount). */
     public static final int STARTER_COUNT = 3;
-    /** Se eligen entre los N sets más baratos (por precio del sobre). */
+    /** Picked from the N cheapest sets (by pack price). */
     public static final int CHEAPEST_SETS = 8;
-    /** Propiedades de Cobblemon del Meowth del tutorial. */
+    /** Cobblemon properties of the tutorial Meowth. */
     public static final String MEOWTH_PROPS = "meowth level=10";
 
     private Onboarding() {}
 
-    // ------------------------------------------------------------------ sobres de inicio
+    // ------------------------------------------------------------------ starter packs
 
-    /** Al entrar al mundo (ServerPlayConnectionEvents.JOIN): sobres de bienvenida sólo la primera vez. */
+    /** On joining the world (ServerPlayConnectionEvents.JOIN): welcome packs only the first time. */
     public static void onJoin(ServerPlayerEntity player) {
-        // quien ya tiene tienda (mundos de antes del tutorial) no necesita el Meowth: se marca como visto
+        // players who already own a shop (worlds from before the tutorial) don't need the Meowth: mark it as seen
         if (!player.getCommandTags().contains(TUTORIAL_TAG) && ownedShops(player) > 0) player.addCommandTag(TUTORIAL_TAG);
         if (!TcgShopConfig.INSTANCE.starterPacks || player.getCommandTags().contains(STARTER_TAG)) return;
         int count = Math.max(0, TcgShopConfig.INSTANCE.starterPackCount);
-        if (count == 0) { // config a 0: sin sobres, sólo se marca para no volver a mirarlo
+        if (count == 0) { // config set to 0: no packs, just flag it so it isn't checked again
             player.addCommandTag(STARTER_TAG);
             return;
         }
         List<Item> picks = pickStarterPacks(player.getRandom(), count);
-        if (picks.isEmpty()) return; // aún no hay sobres registrados: se reintenta en la próxima entrada
+        if (picks.isEmpty()) return; // no packs registered yet: retried on the next join
         player.addCommandTag(STARTER_TAG);
         for (Item it : picks) player.getInventory().offerOrDrop(new ItemStack(it));
         player.sendMessage(Text.translatable("tcgshop.onboarding.starter", picks.size()).formatted(Formatting.GOLD), false);
@@ -69,8 +69,8 @@ public final class Onboarding {
     }
 
     /**
-     * {@code count} sobres sellados al azar de los {@link #CHEAPEST_SETS} sets (no bloqueados) con el sobre más barato.
-     * Intenta que sean de sets distintos; si hay menos sets que sobres, repite.
+     * {@code count} random sealed packs from the {@link #CHEAPEST_SETS} (unlocked) sets with the cheapest pack.
+     * Tries to use different sets; if there are fewer sets than packs, it repeats.
      */
     public static List<Item> pickStarterPacks(Random random, int count) {
         Map<String, List<Item>> bySet = new LinkedHashMap<>();
@@ -105,24 +105,24 @@ public final class Onboarding {
         return out;
     }
 
-    // ------------------------------------------------------------------ tutorial del Meowth
+    // ------------------------------------------------------------------ Meowth tutorial
 
-    /** Nombre del Meowth (traducible: cada cliente lo ve en su idioma). */
+    /** Meowth's name (translatable: each client sees it in its own language). */
     public static Text meowthName() {
         return Text.translatable("tcgshop.tutorial.speaker");
     }
 
     /**
-     * Al crear una tienda (ShopCoreBlock.onPlaced, después de crear la zona): si es la primera tienda del jugador,
-     * aparece el Meowth del Team Rocket a su lado, se queda quieto mirándole y le da unos consejos en bocadillos.
-     * Nada de spam en el chat: como mucho una línea corta (y la pista de "clic derecho" va a la barra de acción).
+     * On shop creation (ShopCoreBlock.onPlaced, after the zone is created): if it is the player's first shop,
+     * the Team Rocket Meowth appears next to them, stands still looking at them and gives a few tips in speech bubbles.
+     * No chat spam: at most one short line (and the "right click" hint goes to the action bar).
      */
     public static void onShopCreated(ServerPlayerEntity player) {
         if (player.getCommandTags().contains(TUTORIAL_TAG)) return;
         player.addCommandTag(TUTORIAL_TAG);
-        // la zona nueva ya está creada: si tiene más de una, es un veterano (mundo de antes del tutorial)
+        // the new zone is already created: if they have more than one, they're a veteran (world from before the tutorial)
         if (ownedShops(player) > 1) return;
-        Entity meowth = MeowthTalk.findNear(player); // nunca dos Meowth: si ya hay uno suyo cerca, habla ese
+        Entity meowth = MeowthTalk.findNear(player); // never two Meowths: if one of theirs is already nearby, that one talks
         if (meowth == null) meowth = spawnMeowth(player);
         if (meowth != null && MeowthTalk.start(player, meowth)) {
             player.sendMessage(Text.translatable("tcgshop.tutorial.appears", meowthName().copy().formatted(Formatting.GOLD)).formatted(Formatting.YELLOW), true);
@@ -131,7 +131,7 @@ public final class Onboarding {
         }
     }
 
-    /** Tiendas (zonas) del jugador en todas las dimensiones del servidor. */
+    /** The player's shops (zones) across all server dimensions. */
     public static int ownedShops(ServerPlayerEntity player) {
         if (player.getServer() == null) return 0;
         int n = 0;
@@ -142,8 +142,8 @@ public final class Onboarding {
     }
 
     /**
-     * /tcgshop tutorial: si su Meowth está cerca, vuelve a decir los bocadillos; si no, las mismas frases cortas por
-     * el chat (sin sacar otro Meowth).
+     * /tcgshop tutorial: if their Meowth is nearby, it repeats the speech bubbles; otherwise the same short lines go to
+     * chat (without spawning another Meowth).
      */
     public static int replay(ServerPlayerEntity player) {
         Entity meowth = MeowthTalk.findNear(player);
@@ -151,18 +151,18 @@ public final class Onboarding {
             player.sendMessage(Text.translatable("tcgshop.tutorial.appears", meowthName().copy().formatted(Formatting.GOLD)).formatted(Formatting.YELLOW), true);
             return 1;
         }
-        MeowthTalk.stop(player); // una charla pausada lejos no se reanuda luego repitiendo lo mismo
+        MeowthTalk.stop(player); // a talk paused far away is not resumed later repeating the same thing
         for (int i = 0; i < MeowthTalk.LINES; i++) player.sendMessage(MeowthTalk.chatLine(MeowthTalk.line(i)), false);
         return 1;
     }
 
-    /** Meowth salvaje normal (capturable, persistente) con el mote "Meowth del Team Rocket". Null si no hay Cobblemon. */
+    /** Normal wild Meowth (catchable, persistent) nicknamed "Team Rocket Meowth". Null if Cobblemon is not present. */
     public static Entity spawnMeowth(ServerPlayerEntity player) {
         if (!CobblemonSpawn.available()) return null;
         ServerWorld world = player.getServerWorld();
         Vec3d spot = CobblemonSpawn.freeSpotNear(world, player.getPos(), player.getRotationVector());
         if (spot == null) spot = player.getPos();
-        // que mire hacia el jugador
+        // make it face the player
         Vec3d d = player.getPos().subtract(spot);
         float yaw = (float) (Math.toDegrees(Math.atan2(d.z, d.x)) - 90.0);
         Entity e = CobblemonSpawn.spawnWild(world, spot, yaw, MEOWTH_PROPS, Text.translatable("tcgshop.tutorial.speaker"));

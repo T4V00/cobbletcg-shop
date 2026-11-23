@@ -20,21 +20,21 @@ import java.util.concurrent.Executors;
 import java.util.function.Function;
 
 /**
- * Motor real del Pokémon TCG (twinleaf.gg, MIT, basado en ryuu-play de keeshii, MIT) ejecutado con GraalJS.
- * Todo el JavaScript corre en un único hilo propio ("tcgshop-ptcg") para no bloquear nunca el hilo del servidor;
- * las llamadas devuelven futuros y los resultados se aplican luego en el hilo del servidor.
+ * The real Pokémon TCG engine (twinleaf.gg, MIT, based on keeshii's ryuu-play, MIT) running on GraalJS.
+ * All JavaScript runs on a single dedicated thread ("tcgshop-ptcg") so it never blocks the server thread;
+ * calls return futures and the results are applied afterwards on the server thread.
  *
- * <h2>GraalJS aislado</h2>
- * GraalVM 24.1.1 va dentro del jar como recursos (graal/*.jar), no como mods anidados: Fabric no lo carga. Aquí se
- * copia a &lt;juego&gt;/.tcgshop/graal-24.1.1 y se carga en un URLClassLoader propio cuyo padre es el cargador de
- * plataforma (sólo Java). El puente {@code dev.tcgshop.ptcg.host.GraalHost} se define dentro de ese cargador y se usa
- * por reflexión con tipos de Java. Así no choca con el GraalVM de Cobblemon (1.8 lo trae sin reubicar) ni de nadie.
+ * <h2>Isolated GraalJS</h2>
+ * GraalVM 24.1.1 ships inside the jar as resources (graal/*.jar), not as nested mods: Fabric does not load it. Here it is
+ * copied to &lt;game&gt;/.tcgshop/graal-24.1.1 and loaded in a dedicated URLClassLoader whose parent is the
+ * platform loader (Java only). The bridge {@code dev.tcgshop.ptcg.host.GraalHost} is defined inside that loader and used
+ * via reflection with Java types. This way it never clashes with Cobblemon's GraalVM (1.8 ships it unrelocated) or anyone else's.
  */
 public final class PtcgEngine {
     public static final String GRAAL_VERSION = "24.1.1";
     private static final String HOST = "dev.tcgshop.ptcg.host.GraalHost";
 
-    /** Lo que ven las partidas: funciones del puente JS (PTCG.*) con argumentos y resultados de Java. */
+    /** What matches see: JS bridge functions (PTCG.*) with Java arguments and results. */
     public interface Api {
         String str(String fn, Object... args);
 
@@ -64,7 +64,7 @@ public final class PtcgEngine {
 
     public static String error() { return error; }
 
-    /** Carga el motor en segundo plano (tarda unos segundos la primera vez). */
+    /** Loads the engine in the background (takes a few seconds the first time). */
     public static CompletableFuture<Boolean> preload() {
         return CompletableFuture.supplyAsync(PtcgEngine::load, THREAD);
     }
@@ -79,7 +79,7 @@ public final class PtcgEngine {
             Thread.currentThread().setContextClassLoader(loader);
             String code;
             try (InputStream in = PtcgEngine.class.getResourceAsStream("/assets/tcgshop/ptcg/engine.js")) {
-                if (in == null) throw new IllegalStateException("falta assets/tcgshop/ptcg/engine.js");
+                if (in == null) throw new IllegalStateException("missing assets/tcgshop/ptcg/engine.js");
                 code = new String(in.readAllBytes(), StandardCharsets.UTF_8);
             }
             Class<?> host = Class.forName(HOST, true, loader);
@@ -94,12 +94,12 @@ public final class PtcgEngine {
             };
             int cards = api.integer("init");
             ready = true;
-            TcgShop.LOGGER.info("Motor Pokémon TCG listo: {} cartas en {} ms (GraalJS {} aislado)", cards, System.currentTimeMillis() - t0, GRAAL_VERSION);
+            TcgShop.LOGGER.info("Pokémon TCG engine ready: {} cards in {} ms (isolated GraalJS {})", cards, System.currentTimeMillis() - t0, GRAAL_VERSION);
             return true;
         } catch (Throwable e) {
             failed = true;
             error = e.toString();
-            TcgShop.LOGGER.error("No se pudo cargar el motor Pokémon TCG", e);
+            TcgShop.LOGGER.error("Could not load the Pokémon TCG engine", e);
             return false;
         } finally {
             Thread.currentThread().setContextClassLoader(old);
@@ -121,7 +121,7 @@ public final class PtcgEngine {
         }
     }
 
-    /** Copia los jars de GraalVM del mod a disco y crea el cargador aislado (con el puente GraalHost dentro). */
+    /** Copies the mod's GraalVM jars to disk and creates the isolated loader (with the GraalHost bridge inside). */
     private static synchronized ClassLoader isolatedLoader() throws Exception {
         if (graalLoader != null) return graalLoader;
         Path dir = FabricLoader.getInstance().getGameDir().resolve(".tcgshop").resolve("graal-" + GRAAL_VERSION);
@@ -129,7 +129,7 @@ public final class PtcgEngine {
         List<URL> urls = new ArrayList<>();
         String index;
         try (InputStream in = PtcgEngine.class.getResourceAsStream("/graal/index.txt")) {
-            if (in == null) throw new IllegalStateException("faltan los jars de GraalVM (graal/index.txt) en el mod");
+            if (in == null) throw new IllegalStateException("GraalVM jars (graal/index.txt) missing from the mod");
             index = new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
         for (String line : index.split("\\R")) {
@@ -137,7 +137,7 @@ public final class PtcgEngine {
             if (name.isEmpty()) continue;
             Path target = dir.resolve(name);
             try (InputStream in = PtcgEngine.class.getResourceAsStream("/graal/" + name)) {
-                if (in == null) throw new IllegalStateException("falta graal/" + name);
+                if (in == null) throw new IllegalStateException("missing graal/" + name);
                 byte[] bytes = in.readAllBytes();
                 if (!Files.isRegularFile(target) || Files.size(target) != bytes.length) {
                     Path tmp = dir.resolve(name + ".tmp");
@@ -149,7 +149,7 @@ public final class PtcgEngine {
         }
         byte[] hostBytes;
         try (InputStream in = PtcgEngine.class.getResourceAsStream("/" + HOST.replace('.', '/') + ".class")) {
-            if (in == null) throw new IllegalStateException("falta " + HOST);
+            if (in == null) throw new IllegalStateException("missing " + HOST);
             hostBytes = in.readAllBytes();
         }
         graalLoader = new URLClassLoader("tcgshop-graal", urls.toArray(URL[]::new), ClassLoader.getPlatformClassLoader()) {
@@ -162,15 +162,15 @@ public final class PtcgEngine {
         return graalLoader;
     }
 
-    /** Ejecuta algo con la API del motor en su hilo. */
+    /** Runs something with the engine API on its thread. */
     public static <T> CompletableFuture<T> call(Function<Api, T> fn) {
         return CompletableFuture.supplyAsync(() -> {
-            if (!load()) throw new IllegalStateException("motor TCG no disponible: " + error);
+            if (!load()) throw new IllegalStateException("TCG engine unavailable: " + error);
             return fn.apply(api);
         }, THREAD);
     }
 
-    /** Llamada a una función del puente que devuelve texto. */
+    /** Calls a bridge function that returns text. */
     public static String str(Api api, String fn, Object... args) {
         return api.str(fn, args);
     }

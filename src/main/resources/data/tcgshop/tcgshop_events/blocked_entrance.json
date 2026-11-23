@@ -1,5 +1,5 @@
 {
-  "_comment": "#4 Snorlax dormilon bloquea la entrada (+#61 familia de Psyduck, +#65 Wobbuffet). Se queda DENTRO de la zona junto a la puerta (nunca en el hueco ni delante: nadie se queda encerrado); los clientes no entran por esa puerta.",
+  "_comment": "#4 sleepy Snorlax blocks the entrance (+#61 Psyduck family, +#65 Wobbuffet). It stays INSIDE the zone next to the door (never in the doorway or in front of it: nobody gets locked in); customers do not enter through that door.",
   "category": "negative",
   "tier": "uncommon",
   "template": "blocked",

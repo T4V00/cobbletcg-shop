@@ -10,7 +10,7 @@ import net.minecraft.util.Identifier;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Servidor -> cliente: título elegido por cada jugador conectado (uuid -> "especie|tier"). */
+/** Server -> client: title chosen by each connected player (uuid -> "species|tier"). */
 public record TitlesPayload(Map<String, String> titles) implements CustomPayload {
     public static final Id<TitlesPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "titles"));
     public static final PacketCodec<RegistryByteBuf, TitlesPayload> CODEC = PacketCodec.tuple(

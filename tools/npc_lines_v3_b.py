@@ -1,5 +1,5 @@
-"""Frases extra de NPC (v3, lote B): regateo, tratos, ladrones y personal.
-Se añaden a las categorías existentes; neg_think_lower usa exactamente un %s (el precio)."""
+"""Extra NPC lines (v3, batch B): haggling, deals, thieves and staff.
+They are added to the existing categories; neg_think_lower uses exactly one %s (the price)."""
 
 EXTRA = {
     "haggle": [

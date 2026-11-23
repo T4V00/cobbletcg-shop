@@ -31,31 +31,31 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Módulo de incidentes (charcos, escombros, chispas, quemaduras...): bloque tcgshop:incident, herramientas para
- * arreglarlos (tcgshop:mop, tcgshop:repair_kit) y el tipo de efecto "incident". Contrato: dev/tcgshop/events/EFFECTS.md.
+ * Incident module (puddles, debris, sparks, scorch marks...): tcgshop:incident block, tools to
+ * fix them (tcgshop:mop, tcgshop:repair_kit) and the "incident" effect type. Contract: dev/tcgshop/events/EFFECTS.md.
  *
- * API para el núcleo: {@link #cleanupZone} (barrido barato de incidentes huérfanos de una tienda; pensado para el
- * recálculo de ShopLife, crítica E4).
+ * API for the core: {@link #cleanupZone} (cheap sweep of a shop's orphaned incidents; meant for the
+ * ShopLife recompute, critique E4).
  */
 public final class IncidentModule {
     private IncidentModule() {}
 
-    /** true mientras quitamos nosotros un incidente (para que onStateReplaced no lo cuente como "arreglado"). */
+    /** true while we ourselves are removing an incident (so onStateReplaced does not count it as "fixed"). */
     private static boolean silent;
 
-    /** Servidor y común (TcgShop.onInitialize, antes de cargar los datapacks). */
+    /** Server and common (TcgShop.onInitialize, before datapacks load). */
     public static void init() {
         EffectTypes.register("incident", IncidentEffect::new);
     }
 
-    /** Cliente (TcgShopClient.onInitializeClient): capa de render translúcida del bloque. */
+    /** Client (TcgShopClient.onInitializeClient): translucent render layer for the block. */
     public static void initClient() {
         IncidentClient.init();
     }
 
-    // ------------------------------------------------------------------ limpieza
+    // ------------------------------------------------------------------ cleanup
 
-    /** Quita un incidente sin avisar a nadie (sin vecinos, sin drops, sin contarlo como arreglado). */
+    /** Removes an incident without notifying anyone (no neighbors, no drops, not counted as fixed). */
     public static void removeSilently(ServerWorld w, BlockPos pos) {
         if (!w.getBlockState(pos).isOf(TcgBlocks.INCIDENT)) return;
         silent = true;
@@ -67,9 +67,9 @@ public final class IncidentModule {
     }
 
     /**
-     * Barrido de incidentes huérfanos de una tienda (eventos ya terminados o arreglados, tiendas borradas): recorre
-     * sólo los bloques-entidad de los chunks CARGADOS de la zona, así que es barato. Lo llama el efecto en cada
-     * recálculo; el núcleo puede llamarlo también tras ShopLife.recompute para tiendas sin eventos.
+     * Sweep of a shop's orphaned incidents (events already ended or fixed, deleted shops): walks
+     * only the block entities in the zone's LOADED chunks, so it is cheap. The effect calls it on every
+     * recompute; the core can also call it after ShopLife.recompute for shops without events.
      */
     public static int cleanupZone(ServerWorld w, ShopZones.Zone z) {
         if (EventManager.server() == null) return 0;
@@ -80,7 +80,7 @@ public final class IncidentModule {
         return orphans.size();
     }
 
-    /** El bloque desaparece por otra vía (creativo, comando, wither...): cuenta como arreglado, sin premio. */
+    /** The block disappears some other way (creative, command, wither...): counts as fixed, no reward. */
     static void onBlockGone(ServerWorld w, BlockPos pos, IncidentBlockEntity be) {
         if (silent || be.eventUid < 0 || !EventManager.isUnresolved(be.eventUid)) return;
         EventInstance inst = EventManager.instance(be.eventUid);
@@ -91,7 +91,7 @@ public final class IncidentModule {
         if (eff != null) eff.onFixed(w, z, inst, def, be.effectIndex, pos, "removed", null);
     }
 
-    // ------------------------------------------------------------------ arreglar (clic del dueño)
+    // ------------------------------------------------------------------ fix (owner's click)
 
     static void onPlayerUse(ServerWorld w, BlockPos pos, BlockState state, ServerPlayerEntity p, ItemStack stack, Hand hand) {
         if (!(w.getBlockEntity(pos) instanceof IncidentBlockEntity be) || !be.stillWanted(w)) {
@@ -104,13 +104,13 @@ public final class IncidentModule {
             removeSilently(w, pos);
             return;
         }
-        // crítica C3: ShopProtection no cubre onUse; sólo el dueño (u op en creativo) arregla o abre
+        // critique C3: ShopProtection does not cover onUse; only the owner (or an op in creative) fixes or opens
         if (!z.owner.equals(p.getUuid()) && !(p.isCreative() && p.hasPermissionLevel(2))) {
             p.sendMessage(Text.translatable("tcgshop.incident.not_owner").formatted(Formatting.RED), true);
             return;
         }
         IncidentKind kind = state.get(IncidentBlock.KIND);
-        // el paquete es un premio del dueño: un op no lo abre por él (ni se lleva el botín ni gasta su tope semanal)
+        // the package is the owner's reward: an op does not open it for them (neither takes the loot nor uses up their weekly cap)
         if (kind == IncidentKind.PACKAGE && !z.owner.equals(p.getUuid())) {
             p.sendMessage(Text.translatable("tcgshop.incident.not_owner").formatted(Formatting.RED), true);
             return;
@@ -118,7 +118,7 @@ public final class IncidentModule {
         EventDef def = EventRegistry.get(inst.defId);
         IncidentEffect eff = effectOf(def, inst, be.effectIndex);
         IncidentEffect.FixSpec spec = eff != null ? eff.fix : IncidentEffect.FixSpec.defaults(kind);
-        // mano principal vacía: si no basta la mano pero la herramienta está en la otra mano, se usa esa
+        // empty main hand: if the hand is not enough but the tool is in the other hand, that one is used
         if (stack.isEmpty() && hand == Hand.MAIN_HAND && !spec.matches(stack)) {
             ItemStack off = p.getOffHandStack();
             if (!off.isEmpty() && spec.matches(off)) {
@@ -175,7 +175,7 @@ public final class IncidentModule {
         }
     }
 
-    // ------------------------------------------------------------------ utilidades
+    // ------------------------------------------------------------------ utilities
 
     static ShopZones.Zone zoneOf(ServerWorld w, IncidentBlockEntity be, BlockPos pos) {
         ShopZones zs = ShopZones.get(w);
@@ -189,7 +189,7 @@ public final class IncidentModule {
         return index < effs.size() && effs.get(index) instanceof IncidentEffect ie ? ie : null;
     }
 
-    /** Premios del paquete: nada de cartas, sobres, cajas ni objetos de la tienda aunque alguien edite la tabla. */
+    /** Package rewards: no cards, packs, boxes or shop items even if someone edits the table. */
     static boolean safeLoot(ItemStack st) {
         if (dev.masterball.api.card.CardInfo.isCard(st) || dev.masterball.api.card.CardInfo.isPack(st)) return false;
         String ns = Registries.ITEM.getId(st.getItem()).getNamespace();

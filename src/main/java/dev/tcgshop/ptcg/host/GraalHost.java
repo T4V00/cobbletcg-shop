@@ -6,10 +6,10 @@ import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
 
 /**
- * Puente con GraalJS. ESTA CLASE NO SE CARGA CON EL CARGADOR DEL JUEGO: PtcgEngine la define dentro de un cargador
- * de clases aislado que sólo ve Java y nuestros jars de GraalVM 24.1.1 (guardados como recursos en graal/). Así nuestro
- * GraalJS nunca choca con el de otros mods (Cobblemon 1.8 trae GraalVM 22.3 sin reubicar).
- * Sólo usa tipos de Java en su interfaz (String, Object[], Boolean) para poder llamarla por reflexión desde fuera.
+ * Bridge to GraalJS. THIS CLASS IS NOT LOADED BY THE GAME CLASS LOADER: PtcgEngine defines it inside an isolated
+ * class loader that only sees Java and our GraalVM 24.1.1 jars (stored as resources in graal/). This way our
+ * GraalJS never clashes with other mods' (Cobblemon 1.8 ships GraalVM 22.3 unrelocated).
+ * Its interface only uses Java types (String, Object[], Boolean) so it can be called via reflection from outside.
  */
 public final class GraalHost {
     private final Context ctx;
@@ -23,7 +23,7 @@ public final class GraalHost {
         api = ctx.getBindings("js").getMember("PTCG");
     }
 
-    /** Llama a PTCG.fn(args) y devuelve el resultado como texto ("" si es null). */
+    /** Calls PTCG.fn(args) and returns the result as text ("" if null). */
     public String str(String fn, Object[] args) {
         Value v = api.getMember(fn).execute(args);
         return v.isNull() ? "" : v.isString() ? v.asString() : v.toString();

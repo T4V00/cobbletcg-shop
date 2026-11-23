@@ -1,5 +1,5 @@
-// Empaqueta bridge.ts + el motor de twinleaf.gg en un único archivo para GraalJS.
-// Uso: node build.js   ->  ../src/main/resources/assets/tcgshop/ptcg/engine.js
+// Bundles bridge.ts + the twinleaf.gg engine into a single file for GraalJS.
+// Usage: node build.js   ->  ../src/main/resources/assets/tcgshop/ptcg/engine.js
 const esbuild = require('esbuild');
 const path = require('path');
 
@@ -20,6 +20,6 @@ esbuild.build({
   legalComments: 'inline',
   logLevel: 'warning',
   alias: Object.fromEntries(nodeOnly.map(m => [m, stub])),
-  banner: { js: '/* Motor Pokémon TCG: twinleaf.gg (MIT) basado en ryuu-play (MIT, (c) 2020 keeshii). Puente: MasterBall Traders Co.. */\n' +
+  banner: { js: '/* Pokémon TCG engine: twinleaf.gg (MIT) based on ryuu-play (MIT, (c) 2020 keeshii). Bridge: MasterBall Traders Co.. */\n' +
     'var global = globalThis; var process = globalThis.process || { env: {}, argv: [], platform: "graal", nextTick: function (f) { f(); } };' }
-}).then(r => console.log('ok', r.warnings.length, 'avisos')).catch(() => process.exit(1));
+}).then(r => console.log('ok', r.warnings.length, 'warnings')).catch(() => process.exit(1));

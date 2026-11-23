@@ -8,17 +8,17 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 /**
- * Números de certificado CobbleGrade para las cartas gradeadas por comando. Usan el mismo contador que los pedidos
- * normales (GradingService.nextCert), así nunca se repite un certificado.
+ * CobbleGrade certificate numbers for cards graded via command. They use the same counter as regular
+ * orders (GradingService.nextCert), so a certificate is never repeated.
  * <p>
- * Si GradingService expone {@code public static int nextCert(MinecraftServer)} se usa ese método; si no, se lee el
- * campo privado por reflexión (mismo mod, sin módulos de Java, así que siempre es accesible).
+ * If GradingService exposes {@code public static int nextCert(MinecraftServer)} that method is used; otherwise the
+ * private field is read via reflection (same mod, no Java modules, so it is always accessible).
  */
 final class CertNumbers {
     private static Method method;
     private static Field field;
     private static boolean looked;
-    private static int fallback = 900_001; // sólo si todo lo demás falla (no debería pasar)
+    private static int fallback = 900_001; // only if everything else fails (should not happen)
 
     private CertNumbers() {}
 
@@ -33,7 +33,7 @@ final class CertNumbers {
                     field = GradingService.class.getDeclaredField("nextCert");
                     field.setAccessible(true);
                 } catch (ReflectiveOperationException | RuntimeException e) {
-                    TcgShop.LOGGER.warn("[CardCommands] no se encontró el contador de certificados de CobbleGrade", e);
+                    TcgShop.LOGGER.warn("[CardCommands] CobbleGrade certificate counter not found", e);
                 }
             }
         }
@@ -46,7 +46,7 @@ final class CertNumbers {
                 return c;
             }
         } catch (ReflectiveOperationException | RuntimeException e) {
-            TcgShop.LOGGER.warn("[CardCommands] no se pudo obtener un certificado nuevo", e);
+            TcgShop.LOGGER.warn("[CardCommands] could not obtain a new certificate", e);
         }
         return fallback++;
     }

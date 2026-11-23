@@ -18,9 +18,9 @@ def value(r,y,rar,P,pack):
     mu,sd,anc,phi=era(y); mu+=TEX[rar]
     s=shares(mu,sd)
     A=ART[rar]
-    U=min(2.5,max(0,math.log(max(pack,1)/5)))          # escasez del set (sobre caro = poco producto)
-    D=math.exp(0.6*(P-0.5)+0.3*(A-0.5)+0.1*U)            # demanda de coleccionista por copias perfectas
-    comp=(1+r/100)**(-0.15*min(1,s[10]/0.25))                                  # cartas caras: más enviadas a PSA -> prima menor
+    U=min(2.5,max(0,math.log(max(pack,1)/5)))          # set scarcity (expensive pack = little product)
+    D=math.exp(0.6*(P-0.5)+0.3*(A-0.5)+0.1*U)            # collector demand for perfect copies
+    comp=(1+r/100)**(-0.15*min(1,s[10]/0.25))                                  # expensive cards: more sent to PSA -> smaller premium
     lam={8:1.12,9:1.25,10:1.45}; eps={8:0.6,9:0.6,10:0.85}; dl={8:0.2,9:0.4,10:0.7}
     rel={7:1.0}
     for g in (8,9,10):
@@ -28,7 +28,7 @@ def value(r,y,rar,P,pack):
         rel[g]=rel[g-1]*ratio**comp
     ph=min(0.6,phi*D**0.5)
     for g in range(1,7): rel[g]=ph+(1-ph)*((g-1)/6)**1.5
-    # ancla: el precio sin calificar equivale a la nota 'anc' (interpolación logarítmica)
+    # anchor: the ungraded price equals grade 'anc' (logarithmic interpolation)
     lo=int(anc); f=anc-lo
     a=math.exp(math.log(rel[lo])*(1-f)+math.log(rel[lo+1])*f)
     base=r/a
@@ -39,21 +39,21 @@ def value(r,y,rar,P,pack):
     for g in range(1,11):
         prem=16*D*(0.35/s10)**0.5*(w[g] if g in w else 0.03+0.07*(g-1)/6)
         v=base*rel[g]+prem
-        v=min(v, r*120+40)              # límite anti-absurdos
+        v=min(v, r*120+40)              # anti-absurdity cap
         v=max(v,prev); prev=v; out[g]=v
     return out,s[10],D
 cards=[("Charizard Base Set (1999, unlimited holo)",450,1999,'holo',1.0,500),
 ("Dark Charizard Team Rocket (2000, holo)",150,2000,'holo',1.0,300),
-("Rattata Base Set (1999, común)",0.5,1999,'common',0.25,500),
+("Rattata Base Set (1999, common)",0.5,1999,'common',0.25,500),
 ("Umbreon VMAX alt 'Moonbreon' EVS (2021)",1400,2021,'ultra_rare',1.0,12),
 ("Umbreon ex SIR Prismatic (2025)",1000,2025,'special_illustration_rare',1.0,12),
 ("Charizard ex SIR 151 (2023)",110,2023,'special_illustration_rare',1.0,8),
 ("Charizard GX Shiny Hidden Fates (2019)",100,2019,'hyper_rare',1.0,15),
-("Pikachu IR moderna (2024)",5,2024,'illustration_rare',0.95,5),
-("Común moderna poco popular (2024)",0.10,2024,'common',0.1,4.5),
-("Ultra rara dorada impopular (2023)",3,2023,'hyper_rare',0.2,4.5),
+("Pikachu IR modern (2024)",5,2024,'illustration_rare',0.95,5),
+("Unpopular modern common (2024)",0.10,2024,'common',0.1,4.5),
+("Unpopular gold ultra rare (2023)",3,2023,'hyper_rare',0.2,4.5),
 ("Giratina VSTAR GG Crown Zenith (2023)",90,2023,'ultra_rare',0.75,7),
-("SIR Pokemon medio (2024)",25,2024,'special_illustration_rare',0.5,5)]
+("Mid-tier Pokemon SIR (2024)",25,2024,'special_illustration_rare',0.5,5)]
 for n,r,y,rar,P,pack in cards:
     v,g10,D=value(r,y,rar,P,pack)
     print(f"{n}: raw ${r} | gem {g10*100:.0f}% D={D:.2f} | "+" ".join(f"{g}:{v[g]:,.0f}" if v[g]>=10 else f"{g}:{v[g]:.2f}" for g in range(1,11))+f" | x10={v[10]/r:.1f}")

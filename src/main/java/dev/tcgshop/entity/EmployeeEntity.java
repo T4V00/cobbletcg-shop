@@ -30,9 +30,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Empleado contratado desde el teléfono:
- *  · Cajero: atiende la caja registradora. Sin cajero, la tienda no puede vender sobres, cajas ni mystery boxes.
- *  · Guardia: patrulla la tienda, persigue ladrones y recupera lo robado (métricas: detenidos y cartas recuperadas).
+ * Employee hired from the phone:
+ *  · Cashier: runs the cash register. Without a cashier, the shop cannot sell packs, boxes or mystery boxes.
+ *  · Guard: patrols the shop, chases thieves and recovers stolen goods (metrics: detained and cards recovered).
  */
 public class EmployeeEntity extends PathAwareEntity implements TcgNpc {
     private static final TrackedData<String> TITLE = DataTracker.registerData(EmployeeEntity.class, TrackedDataHandlerRegistry.STRING);
@@ -84,7 +84,7 @@ public class EmployeeEntity extends PathAwareEntity implements TcgNpc {
 
     public void setEmote(int e) { dataTracker.set(EMOTE, e); }
 
-    // ------------------------------------------------------------------ contratar / despedir
+    // ------------------------------------------------------------------ hire / fire
 
     private int slot;
 
@@ -94,7 +94,7 @@ public class EmployeeEntity extends PathAwareEntity implements TcgNpc {
         spawnFor(world, z, cashier, 0);
     }
 
-    /** slot: puesto de caja (0 = primera caja registradora, 1 = la segunda más cercana). */
+    /** slot: register post (0 = first cash register, 1 = the second closest). */
     public static void spawnFor(ServerWorld world, ShopZones.Zone z, boolean cashier, int slot) {
         EmployeeEntity e = TcgEntities.EMPLOYEE.create(world);
         if (e == null) return;
@@ -106,7 +106,7 @@ public class EmployeeEntity extends PathAwareEntity implements TcgNpc {
         e.setCustomName(Text.literal(cashier ? (slot == 1 ? z.cashier2Name : z.cashierName) : z.guardName));
         e.setCustomNameVisible(true);
         BlockPos home = z.core.up();
-        if (cashier) { // detrás de la caja registradora más cercana al bloque de tienda
+        if (cashier) { // behind the cash register closest to the shop block
             int seen = 0;
             for (BlockPos p : BlockPos.iterateOutwards(z.core, z.tierInfo().size / 2, 4, z.tierInfo().size / 2)) {
                 if (world.getBlockState(p).isOf(TcgBlocks.CASH_REGISTER) && seen++ == slot) {
@@ -126,14 +126,14 @@ public class EmployeeEntity extends PathAwareEntity implements TcgNpc {
         removeFor(world, z, cashier, -1);
     }
 
-    /** slot -1 = todos los de ese rol. */
+    /** slot -1 = all of that role. */
     public static void removeFor(ServerWorld world, ShopZones.Zone z, boolean cashier, int slot) {
         List<EmployeeEntity> list = world.getEntitiesByClass(EmployeeEntity.class, z.box().expand(16),
                 e -> z.id.equals(e.zoneId) && e.isGuard() == !cashier && (slot < 0 || !cashier || e.slot == slot));
         for (EmployeeEntity e : list) e.discard();
     }
 
-    // ------------------------------------------------------------------ comportamiento
+    // ------------------------------------------------------------------ behavior
 
     @Override
     public void tick() {
@@ -142,7 +142,7 @@ public class EmployeeEntity extends PathAwareEntity implements TcgNpc {
         ServerWorld world = (ServerWorld) getWorld();
         ShopZones.Zone z = zoneId == null ? null : ShopZones.get(world).byId(zoneId);
         if (z == null || (isGuard() ? !z.guard : (slot == 1 ? !z.cashier2 : !z.cashier))) { discard(); return; }
-        if (!isGuard() && !dev.tcgshop.shop.ShopServer.isDayShift(world)) { // fin del turno: se va a casa
+        if (!isGuard() && !dev.tcgshop.shop.ShopServer.isDayShift(world)) { // end of shift: goes home
             NpcLines.sayNear(this, "cashier_bye");
             discard();
             return;
@@ -153,7 +153,7 @@ public class EmployeeEntity extends PathAwareEntity implements TcgNpc {
     }
 
     private void guardTick(ServerWorld world, ShopZones.Zone z) {
-        // perseguir ladrones con botín dentro (o cerca) de la tienda
+        // chase thieves carrying loot inside (or near) the shop
         CustomerEntity thief = null;
         double best = Double.MAX_VALUE;
         for (CustomerEntity c : world.getEntitiesByClass(CustomerEntity.class, z.box().expand(12), CustomerEntity::isFleeingThief)) {
@@ -164,7 +164,7 @@ public class EmployeeEntity extends PathAwareEntity implements TcgNpc {
             getNavigation().startMovingTo(thief, thief.isDetected() ? 1.45 : 1.3);
             setEmote(EMOTE_ANGRY);
             if (squaredDistanceTo(thief) < 2.6 * 2.6) {
-                // a veces el ladrón se resiste y sacan los Pokémon (el guardia casi siempre gana)
+                // sometimes the thief resists and they send out their Pokémon (the guard almost always wins)
                 CustomerEntity t = thief;
                 if (!t.duelled && random.nextFloat() < 0.4f) {
                     t.duelled = true;
@@ -178,7 +178,7 @@ public class EmployeeEntity extends PathAwareEntity implements TcgNpc {
             return;
         }
         setEmote(EMOTE_NONE);
-        // patrulla dentro de la zona
+        // patrol inside the zone
         if (getNavigation().isIdle() && random.nextInt(6) == 0) {
             int half = z.tierInfo().size / 2 - 1;
             int x = z.core.getX() + random.nextInt(half * 2 + 1) - half, zz = z.core.getZ() + random.nextInt(half * 2 + 1) - half;
@@ -190,10 +190,10 @@ public class EmployeeEntity extends PathAwareEntity implements TcgNpc {
     @Override
     protected ActionResult interactMob(PlayerEntity player, Hand hand) {
         if (player instanceof ServerPlayerEntity sp && !isGuard()) {
-            // al dueño, el cajero le entrega el dinero de la caja (con la fila delante a veces no se llega a la caja)
+            // the cashier hands the register money to the owner (with the queue in front, the register is sometimes unreachable)
             ShopZones.Zone z = zoneId == null ? null : ShopZones.get(sp.getServerWorld()).byId(zoneId);
             if (z != null && z.owner.equals(sp.getUuid())) {
-                if (dev.tcgshop.events.EventManager.onEmployeeInteract(sp, z, this)) return ActionResult.SUCCESS; // 0.9: cajero distraído
+                if (dev.tcgshop.events.EventManager.onEmployeeInteract(sp, z, this)) return ActionResult.SUCCESS; // 0.9: distracted cashier
                 dev.tcgshop.shop.ShopServer.useRegister(sp, z);
                 return ActionResult.SUCCESS;
             }
@@ -235,7 +235,7 @@ public class EmployeeEntity extends PathAwareEntity implements TcgNpc {
         dataTracker.set(SKIN, nbt.getInt("NpcSkin"));
     }
 
-    /** Mensaje en el chat a los jugadores cercanos, firmado por el empleado. */
+    /** Chat message to nearby players, signed by the employee. */
     public void announce(Text msg) {
         NpcLines.speak(this, msg);
     }

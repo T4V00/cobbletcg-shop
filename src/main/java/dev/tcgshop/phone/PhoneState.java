@@ -9,15 +9,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/** Nivel del teléfono de cada jugador (guardado en el Overworld: data/tcgshop_phone.dat). */
+/** Each player's phone tier (stored in the Overworld: data/tcgshop_phone.dat). */
 public class PhoneState extends PersistentState {
     public static final class Entry {
         public int tier;
-        /** Jugador de antes de la 0.9: conserva todas las apps. */
+        /** Player from before 0.9: keeps all apps. */
         public boolean legacy;
         /**
-         * Tick del mundo (getTime(), sólo avanza: no le afecta /time set ni doDaylightCycle) en que usó la llamada
-         * (-1 = nunca). Antes de 0.9.1 se guardaba el número de día en "call"; ese valor se descarta.
+         * World tick (getTime(), only moves forward: unaffected by /time set or doDaylightCycle) when the call was used
+         * (-1 = never). Before 0.9.1 the day number was stored in "call"; that value is discarded.
          */
         public long lastCallTick = -1;
 
@@ -46,7 +46,7 @@ public class PhoneState extends PersistentState {
         return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, "tcgshop_phone");
     }
 
-    /** null si este jugador aún no tiene registro (se crea con la migración al entrar). */
+    /** null if this player has no record yet (created by the migration on join). */
     public Entry find(UUID id) {
         return players.get(id);
     }

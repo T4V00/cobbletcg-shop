@@ -10,7 +10,7 @@ import net.minecraft.util.Identifier;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Paquetes de CobbleGrade (gradeo de cartas). */
+/** CobbleGrade packets (card grading). */
 public final class GradePayloads {
     private GradePayloads() {}
 
@@ -29,19 +29,19 @@ public final class GradePayloads {
     }
 
     /**
-     * Cliente -> servidor: pedir datos, enviar cartas (huecos del inventario + servicio) o recoger un pedido.
-     * {@code expected} va en paralelo a {@code slots}: el id de la carta que el jugador eligió en cada hueco ("" = sin
-     * comprobar), para que el servidor no gradee otra carta si el hueco cambió por el camino.
+     * Client -> server: request data, submit cards (inventory slots + service) or collect an order.
+     * {@code expected} runs parallel to {@code slots}: the id of the card the player chose in each slot ("" = not
+     * checked), so the server does not grade a different card if the slot changed in the meantime.
      */
     public record Action(int action, int service, List<Integer> slots, List<String> expected, int order) implements CustomPayload {
         public static final Id<Action> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "grade_action"));
 
-        /** Sin ids esperados (SYNC, COLLECT). */
+        /** Without expected ids (SYNC, COLLECT). */
         public Action(int action, int service, List<Integer> slots, int order) {
             this(action, service, slots, List.of(), order);
         }
 
-        /** Id esperado del hueco i-ésimo ("" si no viene). */
+        /** Expected id of the i-th slot ("" if absent). */
         public String expectedAt(int i) {
             return i >= 0 && i < expected.size() ? expected.get(i) : "";
         }
@@ -50,7 +50,7 @@ public final class GradePayloads {
             @Override
             public Action decode(RegistryByteBuf buf) {
                 int a = buf.readVarInt(), s = buf.readVarInt(), n = buf.readVarInt();
-                if (n < 0 || n > 64) throw new io.netty.handler.codec.DecoderException("grade_action: demasiados huecos " + n);
+                if (n < 0 || n > 64) throw new io.netty.handler.codec.DecoderException("grade_action: too many slots " + n);
                 List<Integer> slots = new ArrayList<>(n);
                 List<String> expected = new ArrayList<>(n);
                 for (int i = 0; i < n; i++) {
@@ -77,10 +77,10 @@ public final class GradePayloads {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** Un pedido en curso. */
+    /** An order in progress. */
     public record Order(int id, int service, long submitted, long ready, List<ItemStack> cards) {}
 
-    /** Servidor -> cliente: pedidos del jugador y la hora del servidor. */
+    /** Server -> client: the player's orders and the server time. */
     public record Sync(long now, List<Order> orders) implements CustomPayload {
         public static final Id<Sync> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "grade_sync"));
         public static final PacketCodec<RegistryByteBuf, Sync> CODEC = new PacketCodec<>() {
@@ -111,7 +111,7 @@ public final class GradePayloads {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** Servidor -> cliente: cartas recién gradeadas (pantalla de revelado). */
+    /** Server -> client: freshly graded cards (reveal screen). */
     public record Reveal(List<ItemStack> cards, long valueBefore, long valueAfter) implements CustomPayload {
         public static final Id<Reveal> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "grade_reveal"));
         public static final PacketCodec<RegistryByteBuf, Reveal> CODEC = new PacketCodec<>() {

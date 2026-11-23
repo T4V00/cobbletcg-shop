@@ -12,15 +12,15 @@ import java.lang.reflect.Method;
 import java.util.function.Consumer;
 
 /**
- * Pokémon residentes de la finca (sólo con Cobblemon, por reflexión a través de {@link CobblemonActors}):
- *  · se crean como salvajes "uncatchable=yes", invulnerables, no combatibles (tracked data UNBATTLEABLE, que Cobblemon
- *    guarda en el NBT como "Unbattleable") y persistentes (MobEntity.setPersistent: PokemonEntity.checkDespawn no
- *    despawnea a los persistentes);
- *  · SÍ se guardan con el mundo (a diferencia de los actores de eventos) y llevan la etiqueta {@link #TAG};
- *  · gancho propio a THROWN_POKEBALL_HIT: cualquier Poké Ball lanzada a un residente se cancela;
- *  · al cargarse (ENTITY_LOAD) se les vuelve a aplicar todo por si alguna versión no guardara algún dato;
- *  · cada 5 s, si un residente cargado se aleja de su casa más de su radio, vuelve a ella (no salen de la finca).
- * Snorlax se queda quieto (sin IA) durmiendo en el césped; el resto pasea un poco dentro de su radio.
+ * Resident Pokémon of the estate (only with Cobblemon, via reflection through {@link CobblemonActors}):
+ *  · created as wild "uncatchable=yes", invulnerable, unbattleable (tracked data UNBATTLEABLE, which Cobblemon
+ *    stores in NBT as "Unbattleable") and persistent (MobEntity.setPersistent: PokemonEntity.checkDespawn does not
+ *    despawn persistent ones);
+ *  · they ARE saved with the world (unlike event actors) and carry the {@link #TAG} tag;
+ *  · our own hook on THROWN_POKEBALL_HIT: any Poké Ball thrown at a resident is cancelled;
+ *  · on load (ENTITY_LOAD) everything is reapplied in case some version doesn't save some data;
+ *  · every 5 s, if a loaded resident wanders farther from home than its radius, it returns (they don't leave the estate).
+ * Snorlax stays still (no AI) sleeping on the lawn; the rest wander a bit within their radius.
  */
 public final class MansionPokemon {
     public static final String TAG = "tcgshop_mansion_mon";
@@ -33,7 +33,7 @@ public final class MansionPokemon {
         return e.getCommandTags().contains(TAG);
     }
 
-    /** Gancho de Cobblemon (una vez por JVM): no se pueden capturar. Sin Cobblemon no hace nada. */
+    /** Cobblemon hook (once per JVM): they cannot be caught. Does nothing without Cobblemon. */
     static synchronized void installHooks() {
         if (hookTried || !CobblemonActors.available()) return;
         hookTried = true;
@@ -52,11 +52,11 @@ public final class MansionPokemon {
             };
             sub.invoke(obs, highest, handler);
         } catch (Throwable e) {
-            TcgShop.LOGGER.warn("[mansión] no se pudo enganchar THROWN_POKEBALL_HIT ({}); los residentes siguen siendo uncatchable=yes", e.toString());
+            TcgShop.LOGGER.warn("[mansion] could not hook THROWN_POKEBALL_HIT ({}); residents are still uncatchable=yes", e.toString());
         }
     }
 
-    /** Vuelve a aplicar las reglas a un residente que se carga del disco. */
+    /** Reapplies the rules to a resident loaded from disk. */
     static void onLoad(Entity e) {
         if (!isResident(e)) return;
         apply(e, e.getCommandTags().contains(STILL_TAG));
@@ -72,7 +72,7 @@ public final class MansionPokemon {
         CobblemonActors.noSpawnCap(e);
     }
 
-    /** Saca los residentes de la finca. Devuelve cuántos aparecieron (0 sin Cobblemon o si está desactivado). */
+    /** Spawns the estate's residents. Returns how many appeared (0 without Cobblemon or if disabled). */
     static int spawn(ServerWorld world, MansionState.Record rec, MansionDesign design, MansionPlan plan) {
         if (!CobblemonActors.available()) return 0;
         installHooks();
@@ -91,7 +91,7 @@ public final class MansionPokemon {
                 rec.residents.add(new MansionState.Resident(e.getUuid(), r.species(), v.x, v.y, v.z, r.radius()));
                 n++;
             } catch (Throwable t) {
-                TcgShop.LOGGER.warn("[mansión] no se pudo sacar al residente {}: {}", r.species(), t.toString());
+                TcgShop.LOGGER.warn("[mansion] could not spawn resident {}: {}", r.species(), t.toString());
             }
         }
         return n;
@@ -99,7 +99,7 @@ public final class MansionPokemon {
 
     private static int clock;
 
-    /** Cada 100 ticks: los residentes cargados que se han alejado demasiado vuelven a su sitio. */
+    /** Every 100 ticks: loaded residents that wandered too far go back to their spot. */
     static void tick(MinecraftServer server) {
         if (++clock % 100 != 0) return;
         for (ServerWorld w : server.getWorlds()) {

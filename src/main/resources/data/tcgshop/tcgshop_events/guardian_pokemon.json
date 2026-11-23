@@ -1,5 +1,5 @@
 {
-  "_comment": "#120 Pokemon protector: un Lucario (montana, taiga, nieve) o un Growlithe (resto) vigila la entrada todo el dia: hoy no viene ningun ladron.",
+  "_comment": "#120 guardian Pokemon: a Lucario (mountain, taiga, snow) or a Growlithe (everywhere else) guards the entrance all day: no thief comes today.",
   "category": "positive",
   "tier": "rare",
   "template": "guardian",

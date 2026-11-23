@@ -16,8 +16,8 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * Añade "Intercambiar cartas" y "Desafío TCG" a la rueda de interacción de jugador de Cobblemon. Todo por reflexión: si Cobblemon
- * cambia sus clases internas, simplemente no aparece la opción (y sigue disponible /tcgtrade).
+ * Adds "Trade cards" and "TCG Challenge" to Cobblemon's player interaction wheel. All via reflection: if Cobblemon
+ * changes its internal classes, the option simply does not appear (and /tcgtrade is still available).
  */
 public final class CobblemonWheelCompat {
     private static final String PKG = "com.cobblemon.mod.common.client.gui.interact.wheel.";
@@ -54,7 +54,7 @@ public final class CobblemonWheelCompat {
             Class<?> optionClass = Class.forName(PKG + "InteractWheelOption");
             Constructor<?> ctor = optionClass.getConstructor(Identifier.class, Identifier.class, boolean.class, String.class, fn0, fn0);
             options.put(slot, ctor.newInstance(ICON, null, true, "tcgshop.trade.wheel", colour, press));
-            // desafío al TCG real (partida amistosa)
+            // real TCG challenge (friendly match)
             Object duel = function(fn0, () -> {
                 com.google.gson.JsonObject o = new com.google.gson.JsonObject();
                 o.addProperty("a", "challenge");
@@ -67,7 +67,7 @@ public final class CobblemonWheelCompat {
         } catch (Throwable e) {
             if (!warned) {
                 warned = true;
-                TcgShop.LOGGER.warn("No se pudo añadir el intercambio de cartas a la rueda de Cobblemon: {}", e.toString());
+                TcgShop.LOGGER.warn("Could not add card trading to the Cobblemon wheel: {}", e.toString());
             }
         }
     }

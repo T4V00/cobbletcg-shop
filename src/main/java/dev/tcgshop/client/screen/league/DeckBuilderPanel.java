@@ -39,19 +39,19 @@ import java.util.TreeSet;
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
 /**
- * Editor de mazos de la Liga TCG (app del teléfono, pestaña «Mi mazo»).
- *  · Izquierda: tu colección como cartas, con buscador por nombre, filtros (Pokémon / Entrenador / Energía, tipo,
- *    set, sólo disponibles) y orden. Clic = añadir · Mayús + clic = todas las copias que quepan · clic derecho = quitar.
- *  · Derecha: resumen (reparto, curva de fases, tipos de Entrenador y de Energía), avisos de validación en vivo
- *    (60 cartas, regla de 4 copias, Pokémon Básico, Radiante, copias que te faltan, evoluciones sin su fase anterior)
- *    más el resultado del motor (validateDeck: AS TÁCTICO, combinaciones prohibidas, formato) y la lista del mazo
- *    agrupada con botones − / +.
- *  · Arriba: contador 60 en vivo y Guardar · Comprobar · Autocompletar (buildDeck del motor alrededor de lo que ya
- *    has puesto) · +Energía (rellena con Energía básica de tus tipos) · Deshacer · Vaciar.
- * No usa las áreas del teléfono: guarda sus propias zonas de clic (botón izquierdo/derecho y Mayús).
+ * TCG League deck editor (phone app, "My deck" tab).
+ *  · Left: your collection as cards, with name search, filters (Pokémon / Trainer / Energy, type,
+ *    set, available only) and sort order. Click = add · Shift + click = as many copies as fit · right click = remove.
+ *  · Right: summary (split, stage curve, Trainer and Energy types), live validation warnings
+ *    (60 cards, 4-copy rule, Basic Pokémon, Radiant, copies you are missing, evolutions without their previous stage)
+ *    plus the engine's result (validateDeck: ACE SPEC, banned combinations, format) and the deck list
+ *    grouped with − / + buttons.
+ *  · Top: live 60 counter and Save · Check · Autocomplete (the engine's buildDeck around what you have
+ *    already added) · +Energy (fills with Basic Energy of your types) · Undo · Clear.
+ * Does not use the phone's areas: keeps its own click zones (left/right button and Shift).
  */
 public final class DeckBuilderPanel {
-    /** Lo que el teléfono le presta al editor: la lista editable del mazo, el estado «sin guardar» y el envío al servidor. */
+    /** What the phone lends the editor: the editable deck list, the "unsaved" state and sending to the server. */
     public interface Host {
         List<String> deck();
 
@@ -66,23 +66,23 @@ public final class DeckBuilderPanel {
 
     private record Hit(int x, int y, int w, int h, Click action) {}
 
-    private record Issue(int level, Text text) {} // 0 = bien, 1 = consejo, 2 = aviso, 3 = error
+    private record Issue(int level, Text text) {} // 0 = ok, 1 = tip, 2 = warning, 3 = error
 
     private static final int SURF = 0xF0171A26, SURF2 = 0xF01F2333, LINE = 0xFF2C3149;
     private static final int DECK_SIZE = 60, MAX_COPIES = 4, UNDO_MAX = 40;
     private static final String[] CATS = {"all", "pokemon", "trainer", "energy"};
     private static final String[] SORTS = {"stage", "name", "type", "hp", "owned", "set"};
-    /** Tipos (CardType del motor) que se pueden filtrar: Planta…Metal, Incoloro, Hada, Dragón. */
+    /** Types (engine CardType) that can be filtered: Grass…Metal, Colorless, Fairy, Dragon. */
     private static final int[] TYPES = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
     private static final int COL_P = 0xFFE0604A, COL_T = 0xFF4FA3E8, COL_E = 0xFFF2CC2E;
-    /** Stage del motor: 2 = Básico, 3 = Fase 1, 4 = Fase 2 (el resto: VMAX, VSTAR, BREAK, Restaurado...). */
+    /** Engine stage: 2 = Basic, 3 = Stage 1, 4 = Stage 2 (the rest: VMAX, VSTAR, BREAK, Restored...). */
     private static final int STAGE_BASIC = 2, STAGE_1 = 3, STAGE_2 = 4;
 
     private final Host host;
     private final List<Hit> hits = new ArrayList<>();
     private final Deque<List<String>> undo = new ArrayDeque<>();
 
-    // filtros
+    // filters
     private String query = "";
     private boolean focused;
     private int cat, sort, typeFilter = -1;
@@ -90,21 +90,21 @@ public final class DeckBuilderPanel {
     private boolean onlyAvail;
     private double poolScroll, deckScroll;
 
-    // zonas de este fotograma (rueda del ratón)
+    // zones of this frame (mouse wheel)
     private int poolX, poolY, poolW, poolH, deckX, deckY, deckW, deckH;
     private long lastRender;
     private List<OrderedText> tooltip;
 
-    // guardado pendiente: el mazo sigue «sin guardar» hasta que el servidor confirma (SAVED) o lo rechaza
+    // pending save: the deck stays "unsaved" until the server confirms it (SAVED) or rejects it
     private @Nullable List<String> pendingSave;
-    private @Nullable JsonObject saveSentOn; // sincronización que había al pulsar Guardar (su respuesta será otra)
+    private @Nullable JsonObject saveSentOn; // sync present when Save was pressed (its reply will be a different one)
     private long saveSentAt;
-    private String saveError = ""; // motivo del motor si rechazó el último Guardar (se borra al editar)
-    // huella del mazo enviado con Comprobar: un resultado de otro mazo (respuesta tardía) no vale
+    private String saveError = ""; // engine's reason if it rejected the last Save (cleared on edit)
+    // fingerprint of the deck sent with Check: a result for another deck (late reply) does not count
     private int checkHash;
     private boolean checkSent;
 
-    // índice de la colección (se rehace cuando llega una sincronización nueva)
+    // collection index (rebuilt when a new sync arrives)
     private JsonObject indexed;
     private final Map<String, JsonObject> info = new HashMap<>();
     private final Map<String, Integer> owned = new HashMap<>();
@@ -112,7 +112,7 @@ public final class DeckBuilderPanel {
     private final Map<Integer, String> energyByType = new HashMap<>();
     private final List<String> sets = new ArrayList<>();
     private final Map<String, String> searchKey = new HashMap<>();
-    // lista filtrada en caché
+    // cached filtered list
     private String filterKey = "";
     private List<String> filtered = new ArrayList<>();
 
@@ -126,7 +126,7 @@ public final class DeckBuilderPanel {
 
     private static String gs(@Nullable JsonObject o, String k) { return o != null && o.has(k) && !o.get(k).isJsonNull() ? o.get(k).getAsString() : ""; }
 
-    // ------------------------------------------------------------------ datos de las cartas
+    // ------------------------------------------------------------------ card data
 
     private void reindex(JsonObject L) {
         if (L == indexed) return;
@@ -159,14 +159,14 @@ public final class DeckBuilderPanel {
 
     private boolean isBasicEnergy(String f) { return basicEnergy.contains(f); }
 
-    /** 1 = Pokémon, 2 = Entrenador, 3 = Energía. */
+    /** 1 = Pokémon, 2 = Trainer, 3 = Energy. */
     private int kind(String f) {
         if (isBasicEnergy(f)) return 3;
         int st = gi(info.get(f), "st");
         return st >= 1 && st <= 3 ? st : 2;
     }
 
-    /** Tipo (CardType) de la carta para el filtro y los colores: tipo del Pokémon o de la Energía básica; -1 si no tiene. */
+    /** Card type (CardType) for the filter and colors: the Pokémon's or Basic Energy's type; -1 if it has none. */
     private int type(String f) {
         JsonObject o = info.get(f);
         if (o == null) return -1;
@@ -202,13 +202,13 @@ public final class DeckBuilderPanel {
         return searchKey.computeIfAbsent(f, k -> norm(name(k) + " " + baseName(k) + " " + set(k) + " " + gs(info.get(k), "num")));
     }
 
-    // ------------------------------------------------------------------ recuentos del mazo
+    // ------------------------------------------------------------------ deck counts
 
     private final class Stats {
         final Map<String, Integer> byCard = new LinkedHashMap<>();
         final Map<String, Integer> byName = new HashMap<>();
         int n, pokemon, trainer, energy, basics, stage1, stage2, otherStage, radiant;
-        final int[] trainerType = new int[4]; // Objeto, Partidario, Estadio, Herramienta
+        final int[] trainerType = new int[4]; // Item, Supporter, Stadium, Tool
         final Map<Integer, Integer> energyType = new LinkedHashMap<>();
         final Map<Integer, Integer> pokemonType = new HashMap<>();
         final Set<String> names = new HashSet<>();
@@ -257,7 +257,7 @@ public final class DeckBuilderPanel {
         return false;
     }
 
-    /** Si se puede añadir una copia más (y si no, por qué). */
+    /** Whether one more copy can be added (and if not, why). */
     private @Nullable Text cantAdd(String f, Stats s) {
         if (s.n >= DECK_SIZE) return Text.translatable("tcgshop.league.db.why.full");
         if (isBasicEnergy(f)) return null;
@@ -266,7 +266,7 @@ public final class DeckBuilderPanel {
         return null;
     }
 
-    // ------------------------------------------------------------------ cambios en el mazo
+    // ------------------------------------------------------------------ deck changes
 
     private void snapshot() {
         undo.push(new ArrayList<>(host.deck()));
@@ -276,7 +276,7 @@ public final class DeckBuilderPanel {
     private void changed(SoundEvent sound, float pitch) {
         host.setDirty(true);
         JsonObject L = ClientPtcg.league;
-        if (L != null) L.remove("check"); // la comprobación del motor ya no vale
+        if (L != null) L.remove("check"); // the engine's check is no longer valid
         saveError = "";
         filterKey = "";
         MinecraftClient.getInstance().getSoundManager().play(PositionedSoundInstance.master(sound, pitch, 0.4f));
@@ -299,7 +299,7 @@ public final class DeckBuilderPanel {
     private void remove(String f, int times) {
         if (!host.deck().contains(f)) return;
         snapshot();
-        for (int i = 0; i < times && host.deck().remove(f); i++) { /* quita una copia cada vuelta */ }
+        for (int i = 0; i < times && host.deck().remove(f); i++) { /* removes one copy per iteration */ }
         changed(dev.tcgshop.TcgSounds.CARD_FLIP, 0.9f);
     }
 
@@ -319,7 +319,7 @@ public final class DeckBuilderPanel {
         return true;
     }
 
-    /** Rellena los huecos con Energía básica repartida según los tipos de tus Pokémon (los que tienen Energía básica). */
+    /** Fills the free slots with Basic Energy split by your Pokémon's types (those that have a Basic Energy). */
     private void fillEnergy() {
         Stats s = new Stats(host.deck());
         int free = DECK_SIZE - s.n;
@@ -328,7 +328,7 @@ public final class DeckBuilderPanel {
         if (free <= 0 || weights.isEmpty()) { denied(); return; }
         int total = 0;
         for (int w : weights.values()) total += w;
-        // reparto proporcional con el método del mayor resto
+        // proportional split using the largest remainder method
         Map<Integer, Integer> give = new LinkedHashMap<>();
         List<double[]> rest = new ArrayList<>();
         int given = 0;
@@ -356,9 +356,9 @@ public final class DeckBuilderPanel {
         if (mc.player != null) mc.player.playSound(net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK.value(), 0.4f, 1.4f);
     }
 
-    // ------------------------------------------------------------------ validación
+    // ------------------------------------------------------------------ validation
 
-    /** Huella del mazo sin importar el orden (la misma lista con otro orden es el mismo mazo). */
+    /** Order-independent deck fingerprint (the same list in another order is the same deck). */
     private static int deckHash(List<String> deck) {
         List<String> sorted = new ArrayList<>(deck);
         sorted.sort(null);
@@ -366,8 +366,8 @@ public final class DeckBuilderPanel {
     }
 
     /**
-     * Si el resultado de Comprobar que hay en L es del mazo que estás viendo: la respuesta trae la lista que validó el
-     * motor («checked») y tiene que coincidir con la que enviaste y con la actual; si no, es de otro mazo y se ignora.
+     * Whether the Check result in L belongs to the deck you are viewing: the reply carries the list the engine
+     * validated ("checked") and it must match the one you sent and the current one; otherwise it is for another deck and is ignored.
      */
     private boolean engineChecked(JsonObject L) {
         if (!host.dirty() || !checkSent || !L.has("check") || !L.get("check").getAsBoolean()) return false;
@@ -380,21 +380,21 @@ public final class DeckBuilderPanel {
 
     private boolean saving() { return pendingSave != null && System.currentTimeMillis() - saveSentAt < 10_000; }
 
-    /** Mira si la sincronización nueva es la respuesta al Guardar pendiente y, si lo es, la aplica. */
+    /** Checks whether the new sync is the reply to the pending Save and, if so, applies it. */
     private void absorbSaveReply(JsonObject L) {
         if (pendingSave == null || L == saveSentOn) return;
         String msg = gs(L, "msg");
-        // otras respuestas (sincronización periódica, Comprobar, Autocompletar, cola...): seguimos esperando la del Guardar
+        // other replies (periodic sync, Check, Autocomplete, queue...): keep waiting for the Save reply
         if (msg.isEmpty() || msg.equals("CHECK") || msg.startsWith("AUTO") || msg.equals("CLEARED") || msg.equals("QUEUED") || msg.equals("UNQUEUED")) return;
         List<String> sent = pendingSave;
         pendingSave = null;
         saveSentOn = null;
         if (msg.equals("SAVED")) {
             saveError = "";
-            // si editaste mientras llegaba la respuesta, esos cambios siguen sin guardar
+            // if you edited while the reply was on its way, those changes remain unsaved
             if (deckHash(sent) == deckHash(host.deck())) host.setDirty(false);
         } else {
-            saveError = msg; // el motor lo rechazó: se queda tu lista editada y se muestra el motivo
+            saveError = msg; // the engine rejected it: your edited list is kept and the reason is shown
         }
     }
 
@@ -414,7 +414,7 @@ public final class DeckBuilderPanel {
         }
         if (s.n > 0 && s.basics == 0) out.add(new Issue(3, Text.translatable("tcgshop.league.db.err.basic")));
         if (s.radiant > 1) out.add(new Issue(3, Text.translatable("tcgshop.league.db.err.radiant")));
-        // resultado del motor (validateDeck): lo único que sabe de AS TÁCTICO, Estrella, Prisma y combinaciones prohibidas
+        // engine result (validateDeck): the only thing that knows about ACE SPEC, Star, Prism and banned combinations
         if (dirty && !saveError.isEmpty()) out.add(new Issue(3, Text.translatable("tcgshop.league.db.save_bad", deckErr(saveError))));
         if (checked) {
             if (valid.isEmpty()) out.add(new Issue(0, Text.translatable("tcgshop.league.db.engine_ok")));
@@ -424,7 +424,7 @@ public final class DeckBuilderPanel {
             else if (!valid.isEmpty() && !valid.equals("EMPTY")) out.add(new Issue(3, Text.translatable("tcgshop.league.db.engine_bad", deckErr(valid))));
             else if (msg.startsWith("AUTO")) out.add(new Issue(0, Text.translatable("tcgshop.league.db.auto_done")));
         }
-        // consejos (no impiden jugar)
+        // tips (do not prevent playing)
         int warnEvo = 0;
         for (String f : s.byCard.keySet()) {
             JsonObject o = info.get(f);
@@ -445,7 +445,7 @@ public final class DeckBuilderPanel {
         return out;
     }
 
-    /** Motivo legible del motor ("ACE_SPEC:Nombre" -> texto traducido con el nombre). */
+    /** Readable engine reason ("ACE_SPEC:Name" -> translated text with the name). */
     private static String deckErr(String code) {
         String[] parts = code.split(":", 2);
         return Text.translatable("tcgshop.ptcg.deck_err." + parts[0], parts.length > 1 ? parts[1] : "").getString();
@@ -459,11 +459,11 @@ public final class DeckBuilderPanel {
         return switch (level) { case 0 -> "✔"; case 1 -> "ℹ"; case 2 -> "⚠"; default -> "✖"; };
     }
 
-    // ------------------------------------------------------------------ dibujo
+    // ------------------------------------------------------------------ drawing
 
     /**
-     * Dibuja el editor en el panel (px, py, pw, ph). (sx, sy, sw, sh) es la pantalla del teléfono, para colocar la vista
-     * previa grande de la carta.
+     * Draws the editor in the panel (px, py, pw, ph). (sx, sy, sw, sh) is the phone screen, used to place the large
+     * card preview.
      */
     public void render(DrawContext ctx, JsonObject L, int px, int py, int pw, int ph, int mx, int my, int sx, int sy, int sw, int sh) {
         hits.clear();
@@ -476,7 +476,7 @@ public final class DeckBuilderPanel {
         boolean checked = engineChecked(L);
         List<Issue> issues = issues(L, s, checked);
 
-        // ---- cabecera: contador 60 en vivo y botones
+        // ---- header: live 60 counter and buttons
         int n = s.n;
         int col = n == DECK_SIZE ? 0xFF6BE07B : n > DECK_SIZE ? 0xFFFF6B6B : 0xFFFFC233;
         ctx.drawText(tr(), Text.literal(n + "/" + DECK_SIZE).formatted(Formatting.BOLD), px + 2, py + 3, col, true);
@@ -518,7 +518,7 @@ public final class DeckBuilderPanel {
                 click();
                 switch (id) {
                     case "save" -> {
-                        // no se marca como guardado hasta que el servidor responda (absorbSaveReply)
+                        // not marked as saved until the server replies (absorbSaveReply)
                         pendingSave = new ArrayList<>(host.deck());
                         saveSentOn = ClientPtcg.league;
                         saveSentAt = System.currentTimeMillis();
@@ -544,7 +544,7 @@ public final class DeckBuilderPanel {
         drawPool(ctx, L, s, px, top, colW, h, mx, my, hover);
         drawDeck(ctx, s, issues, dx, top, dw, h, mx, my, hover);
 
-        // ---- vista previa grande de la carta bajo el ratón
+        // ---- large preview of the card under the mouse
         if (hover[0] != null) {
             String f = hover[0];
             int pwid = Math.min(96, sh / 2), phgt = Math.round(pwid / Draw.CARD_RATIO);
@@ -555,9 +555,9 @@ public final class DeckBuilderPanel {
             m.translate(0, 0, 400);
             ctx.fill(prx + 3, pry + 4, prx + pwid + 3, pry + phgt + 4, 0x66000000);
             card(ctx, f, prx, pry, pwid, phgt, 1f);
-            // ficha: nombre, PS, set y copias
+            // info card: name, HP, set and copies
             JsonObject o = info.get(f);
-            String line2 = (kind(f) == 1 && gi(o, "hp") > 0 ? gi(o, "hp") + " PS · " : "") + set(f) + (gs(o, "num").isEmpty() ? "" : " " + gs(o, "num"));
+            String line2 = (kind(f) == 1 && gi(o, "hp") > 0 ? gi(o, "hp") + " " + Text.translatable("tcgshop.league.db.sort.hp").getString() + " · " : "") + set(f) + (gs(o, "num").isEmpty() ? "" : " " + gs(o, "num"));
             String line3 = isBasicEnergy(f) ? Text.translatable("tcgshop.league.db.free_energy").getString()
                     : Text.translatable("tcgshop.league.db.copies", s.card(f), owned(f)).getString();
             int cw = Math.max(pwid, Math.max(tr().getWidth(name(f)), Math.max(tr().getWidth(line2), tr().getWidth(line3))) + 8);
@@ -569,7 +569,7 @@ public final class DeckBuilderPanel {
             ctx.drawText(tr(), line3, cx + 4, cy + 21, 0xFFFFD34D, false);
             m.pop();
         }
-        // el teléfono dibuja esto dentro de su recorte (scissor): el tooltip se le pasa a la pantalla, que lo pinta al final
+        // the phone draws this inside its scissor: the tooltip is handed to the screen, which paints it at the end
         if (tooltip != null) deferTooltip(tooltip);
     }
 
@@ -577,13 +577,13 @@ public final class DeckBuilderPanel {
         tooltip = tr().wrapLines(t, 170);
     }
 
-    /** Tooltip diferido: Screen.renderWithTooltip lo dibuja después de render(), ya fuera del recorte del teléfono. */
+    /** Deferred tooltip: Screen.renderWithTooltip draws it after render(), outside the phone's scissor. */
     static void deferTooltip(List<OrderedText> lines) {
         Screen screen = MinecraftClient.getInstance().currentScreen;
         if (screen != null) screen.setTooltip(lines, HoveredTooltipPositioner.INSTANCE, true);
     }
 
-    /** Imagen real de la carta o una tarjeta de color con el nombre si no hay imagen. */
+    /** The card's real image, or a colored card with the name if there is no image. */
     private void card(DrawContext ctx, String f, int x, int y, int w, int h, float alpha) {
         ItemStack st = ClientPtcg.stack(f);
         ctx.fill(x, y + 1, x + w + 1, y + h + 2, withAlpha(0xFF000000, 0.35f * alpha));
@@ -624,7 +624,7 @@ public final class DeckBuilderPanel {
         m.pop();
     }
 
-    // ------------------------------------------------------------------ izquierda: colección
+    // ------------------------------------------------------------------ left: collection
 
     private List<String> filtered(JsonObject L, Stats s) {
         String key = query + "|" + cat + "|" + sort + "|" + typeFilter + "|" + setFilter + "|" + onlyAvail + "|" + (onlyAvail ? host.deck().hashCode() : 0)
@@ -662,7 +662,7 @@ public final class DeckBuilderPanel {
         try { return Integer.parseInt(s.replaceAll("\\D", "")); } catch (NumberFormatException ex) { return 9999; }
     }
 
-    /** Orden dentro de cada clase: Básico, Fase 1, Fase 2, otros · Objeto, Herramienta, Partidario, Estadio · Energía básica por tipo. */
+    /** Order within each class: Basic, Stage 1, Stage 2, others · Item, Tool, Supporter, Stadium · Basic Energy by type. */
     private int stageOrder(String f) {
         JsonObject o = info.get(f);
         return switch (kind(f)) {
@@ -675,7 +675,7 @@ public final class DeckBuilderPanel {
     private void drawPool(DrawContext ctx, JsonObject L, Stats s, int px, int top, int colW, int h, int mx, int my, String[] hover) {
         Ui.roundGradient(ctx, px, top, colW, h, SURF2, SURF);
         Ui.outline(ctx, px, top, colW, h, LINE);
-        // fila 1: buscador · orden · sólo disponibles
+        // row 1: search · sort · available only
         int y1 = top + 3;
         Text sortL = Text.translatable("tcgshop.league.db.sort", Text.translatable("tcgshop.league.db.sort." + SORTS[sort]));
         Text availL = Text.translatable("tcgshop.league.db.only_avail");
@@ -690,7 +690,7 @@ public final class DeckBuilderPanel {
         Ui.chip(ctx, x, y1, availW, 12, availL, onlyAvail, Ui.in(mx, my, x, y1, availW, 12), 0xFF4ADE80, 0);
         if (Ui.in(mx, my, x, y1, availW, 12)) tip(Text.translatable("tcgshop.league.db.hint.only_avail"), mx, my);
         hits.add(new Hit(x, y1, availW, 12, (b, sh) -> { click(); onlyAvail = !onlyAvail; poolScroll = 0; }));
-        // fila 2: clase · tipo · set
+        // row 2: class · type · set
         int y2 = top + 18;
         x = px + 4;
         for (int k = 0; k < CATS.length; k++) {
@@ -728,9 +728,9 @@ public final class DeckBuilderPanel {
             poolScroll = 0;
         }));
 
-        // rejilla de cartas
+        // card grid
         List<String> items = filtered(L, s);
-        int gy = top + 33, gh = h - 42, gap = 4; // abajo queda la línea de controles
+        int gy = top + 33, gh = h - 42, gap = 4; // the controls line sits at the bottom
         poolX = px; poolY = gy; poolW = colW; poolH = gh;
         int cw = Math.max(22, Math.min(34, (colW - 10) / 6 - gap)), chh = Math.round(cw / Draw.CARD_RATIO);
         int cols = Math.max(1, (colW - 8 + gap) / (cw + gap)), rowH = chh + gap + 7;
@@ -759,14 +759,14 @@ public final class DeckBuilderPanel {
             if (inDeck > 0) Ui.badge(ctx, x0 + cw - 2, y0 - 2, inDeck);
             String cnt = energy ? "∞" : inDeck + "/" + owned(f);
             small(ctx, cnt, x0 + cw / 2f - tr().getWidth(cnt) * 0.3f, y0 + chh + 1.5f, 0.6f, can ? 0xFFFFD34D : 0xFF777788);
-            int hy = Math.max(y0, gy), hh = Math.min(y0 + chh, gy + gh) - hy; // sólo la parte visible se puede pulsar
+            int hy = Math.max(y0, gy), hh = Math.min(y0 + chh, gy + gh) - hy; // only the visible part is clickable
             if (hh > 0) hits.add(new Hit(x0, hy, cw, hh, (b, shift) -> {
                 if (b == 1) remove(f, shift ? 99 : 1);
                 else add(f, shift ? (energy ? 10 : MAX_COPIES) : 1);
             }));
         }
         ctx.disableScissor();
-        // barra de desplazamiento
+        // scrollbar
         if (rows * rowH > gh) {
             float frac = (float) (poolScroll / Math.max(1, rows * rowH - gh + 4));
             int bh = Math.max(12, gh * gh / (rows * rowH));
@@ -784,7 +784,7 @@ public final class DeckBuilderPanel {
                 hits.add(new Hit(px + 6, yy + 4, rw, 13, (b, sh) -> { click(); resetFilters(); }));
             }
         }
-        // ayuda de controles al pie
+        // controls help at the bottom
         small(ctx, Text.translatable("tcgshop.league.db.controls"), px + 4, top + h - 7, 0.55f, 0xFF7A80A0);
     }
 
@@ -812,7 +812,7 @@ public final class DeckBuilderPanel {
         ctx.drawText(tr(), "⌕", x + 3, y + 2, 0xFFAAAAAA, false);
         int tx = x + 12, tw = w - 24;
         String shownText = query;
-        while (!shownText.isEmpty() && tr().getWidth(shownText) > tw) shownText = shownText.substring(1); // se ve el final
+        while (!shownText.isEmpty() && tr().getWidth(shownText) > tw) shownText = shownText.substring(1); // the end stays visible
         if (query.isEmpty() && !focused) ctx.drawText(tr(), Ui.ellipsis(Text.translatable("tcgshop.league.db.search").getString(), tw), tx, y + 2, 0xFF666A80, false);
         else ctx.drawText(tr(), shownText, tx, y + 2, 0xFFFFFFFF, false);
         if (focused && (System.currentTimeMillis() / 500) % 2 == 0) {
@@ -830,13 +830,13 @@ public final class DeckBuilderPanel {
         }
     }
 
-    // ------------------------------------------------------------------ derecha: resumen, avisos y lista del mazo
+    // ------------------------------------------------------------------ right: summary, warnings and deck list
 
     private void drawDeck(DrawContext ctx, Stats s, List<Issue> issues, int dx, int top, int dw, int h, int mx, int my, String[] hover) {
         Ui.roundGradient(ctx, dx, top, dw, h, SURF2, SURF);
         Ui.outline(ctx, dx, top, dw, h, LINE);
         int x = dx + 4, w = dw - 8, y = top + 3;
-        // reparto Pokémon / Entrenador / Energía con barra de 60
+        // Pokémon / Trainer / Energy split with a 60 bar
         small(ctx, Text.translatable("tcgshop.league.deck.split", s.pokemon, s.trainer, s.energy), x, y, 0.7f, 0xFFDDE3F0);
         y += 8;
         Ui.rounded(ctx, x, y, w, 5, 2, 0xFF0B0D13);
@@ -848,8 +848,8 @@ public final class DeckBuilderPanel {
         if (px3 > px2) ctx.fill(x + px2, y + 1, x + px3, y + 4, COL_E);
         if (Ui.in(mx, my, x, y - 8, w, 13)) tip(Text.translatable("tcgshop.league.db.hint.split"), mx, my);
         y += 8;
-        // curva: fases de Pokémon · tipos de Entrenador · Energía por tipo
-        List<int[]> bars = new ArrayList<>(); // valor, color
+        // curve: Pokémon stages · Trainer types · Energy by type
+        List<int[]> bars = new ArrayList<>(); // value, color
         List<String> barLabels = new ArrayList<>();
         bars.add(new int[]{s.basics, COL_P}); barLabels.add(Text.translatable("tcgshop.league.db.curve.basic").getString());
         bars.add(new int[]{s.stage1, COL_P}); barLabels.add(Text.translatable("tcgshop.league.db.curve.s1").getString());
@@ -886,7 +886,7 @@ public final class DeckBuilderPanel {
             bx += bw + gapX;
         }
         y += chartH + 1;
-        // avisos (errores primero)
+        // warnings (errors first)
         int maxIssues = h > 220 ? 5 : h > 170 ? 3 : 2;
         int shownIssues = 0;
         for (Issue is : issues) {
@@ -910,13 +910,13 @@ public final class DeckBuilderPanel {
         y += 2;
         ctx.fill(x, y, x + w, y + 1, 0x22FFFFFF);
         y += 2;
-        // lista agrupada
+        // grouped list
         int ly = y, lh = top + h - 3 - ly;
         deckX = dx; deckY = ly; deckW = dw; deckH = lh;
         List<String> keys = new ArrayList<>(s.byCard.keySet());
         keys.sort(Comparator.comparingInt(this::kind).thenComparingInt(this::stageOrder).thenComparing(this::name, String.CASE_INSENSITIVE_ORDER));
         int rowH = 10;
-        List<Object> rows = new ArrayList<>(); // Integer = cabecera de clase, String = carta
+        List<Object> rows = new ArrayList<>(); // Integer = class header, String = card
         int lastKind = 0;
         for (String f : keys) {
             int k = kind(f);
@@ -947,7 +947,7 @@ public final class DeckBuilderPanel {
             int nameX = x + 22, btn = 8;
             int nameW = w - 22 - btn * 2 - 4;
             small(ctx, Ui.ellipsis(name(f), Math.round(nameW / 0.75f)), nameX, ry + 2.5f, 0.75f, over ? 0xFFFF8A80 : 0xFFE6E9F2);
-            // botones − / +
+            // − / + buttons
             int bmx = x + w - btn * 2 - 2, bpx = x + w - btn;
             boolean canPlus = cantAdd(f, s) == null;
             miniButton(ctx, bmx, ry + 1, btn, "−", Ui.in(mx, my, bmx, ry + 1, btn, btn), true);
@@ -976,16 +976,16 @@ public final class DeckBuilderPanel {
         ctx.drawText(tr(), label, x + (s - tr().getWidth(label)) / 2 + 1, y, enabled ? 0xFFFFFFFF : 0xFF66667A, false);
     }
 
-    // ------------------------------------------------------------------ entrada (el teléfono la reenvía)
+    // ------------------------------------------------------------------ input (forwarded by the phone)
 
-    /** Clic dentro del editor. Devuelve true si lo ha usado. */
+    /** Click inside the editor. Returns true if it consumed it. */
     public boolean mouseClicked(double mx, double my, int button) {
         if (!shown()) return false;
         boolean shift = Screen.hasShiftDown();
         for (int i = hits.size() - 1; i >= 0; i--) {
             Hit h = hits.get(i);
             if (Ui.in(mx, my, h.x, h.y, h.w, h.h)) {
-                focused = false; // el buscador vuelve a enfocarse si el clic era suyo
+                focused = false; // the search box refocuses if the click was on it
                 h.action.run(button, shift);
                 return true;
             }
@@ -1010,7 +1010,7 @@ public final class DeckBuilderPanel {
         return true;
     }
 
-    /** Teclas: con el buscador activo se las queda todas (Esc / Intro lo cierran); si no, Ctrl+Z deshace y Ctrl+F busca. */
+    /** Keys: with the search box active it takes all of them (Esc / Enter close it); otherwise Ctrl+Z undoes and Ctrl+F searches. */
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (!shown()) return false;
         if (focused) {
@@ -1030,7 +1030,7 @@ public final class DeckBuilderPanel {
         return false;
     }
 
-    /** Llamar cuando el teléfono deja de dibujar el editor (otra pestaña / otra app) para soltar el foco y los clics. */
+    /** Call when the phone stops drawing the editor (another tab / another app) to release focus and clicks. */
     public void hide() {
         lastRender = 0;
         focused = false;
@@ -1039,6 +1039,6 @@ public final class DeckBuilderPanel {
 
     public boolean searchFocused() { return shown() && focused; }
 
-    /** Si se ha dibujado hace nada (si el teléfono cambia de pestaña deja de recibir entrada solo). */
+    /** Whether it was drawn just now (if the phone switches tab, it stops receiving input on its own). */
     private boolean shown() { return System.currentTimeMillis() - lastRender < 250; }
 }

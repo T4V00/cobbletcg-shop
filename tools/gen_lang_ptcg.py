@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Textos del motor real del TCG: mensajes de prompts/errores (GAME_MESSAGES) y registro de partida (GAME_LOGS) tomados
-de las traducciones del cliente de twinleaf.gg (MIT) -> tcgshop.ptcg.msg.<CLAVE> / tcgshop.ptcg.log.<CLAVE>.
-Los parámetros quedan como {{ nombre }}; el cliente los sustituye. También copia el mapa de cartas a assets
-(el cliente lo usa para dibujar las cartas) y escribe el aviso de licencia del motor.
-Uso: python tools/gen_lang_ptcg.py
+Texts for the real TCG engine: prompt/error messages (GAME_MESSAGES) and game log (GAME_LOGS) taken
+from the twinleaf.gg client translations (MIT) -> tcgshop.ptcg.msg.<KEY> / tcgshop.ptcg.log.<KEY>.
+Parameters stay as {{ name }}; the client substitutes them. It also copies the card map into assets
+(the client uses it to draw the cards) and writes the engine's license notice.
+Usage: python tools/gen_lang_ptcg.py
 """
 import json
 import shutil
@@ -15,8 +15,8 @@ I18N = ROOT.parent / "vendor/twinleafgg/ptcg-play/src/assets/i18n"
 LANG = ROOT / "src/main/resources/assets/tcgshop/lang"
 PTCG = ROOT / "src/main/resources/assets/tcgshop/ptcg"
 
-LICENSE = """MasterBall Traders Co. incluye el motor de juego de Pokémon TCG de twinleaf.gg (https://github.com/twinleafgg/twinleafgg),
-basado en ryuu-play (https://github.com/keeshii/ryuu-play), ambos publicados bajo licencia MIT, y textos de su cliente.
+LICENSE = """MasterBall Traders Co. includes the Pokémon TCG game engine from twinleaf.gg (https://github.com/twinleafgg/twinleafgg),
+based on ryuu-play (https://github.com/keeshii/ryuu-play), both released under the MIT license, and texts from its client.
 
 The MIT License (MIT)
 
@@ -35,7 +35,7 @@ OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO 
 LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-Pokémon y los nombres/textos de las cartas son propiedad de Nintendo, Creatures Inc., GAME FREAK inc. y The Pokémon Company.
+Pokémon and the card names/texts are the property of Nintendo, Creatures Inc., GAME FREAK inc. and The Pokémon Company.
 """
 
 
@@ -49,11 +49,11 @@ def main():
         for k, v in tl.get("GAME_LOGS", {}).items():
             d["tcgshop.ptcg.log." + k] = v.replace("%", "%%")
         (LANG / dst).write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(dst, len(tl.get("GAME_MESSAGES", {})), "mensajes,", len(tl.get("GAME_LOGS", {})), "registros")
+        print(dst, len(tl.get("GAME_MESSAGES", {})), "messages,", len(tl.get("GAME_LOGS", {})), "logs")
     PTCG.mkdir(parents=True, exist_ok=True)
     shutil.copy(ROOT / "src/main/resources/data/tcgshop/tcgshop_ptcg/cards.json", PTCG / "cards.json")
     (PTCG / "LICENSE-twinleaf.txt").write_text(LICENSE, encoding="utf-8")
-    print("mapa de cartas y licencia copiados")
+    print("card map and license copied")
 
 
 if __name__ == "__main__":

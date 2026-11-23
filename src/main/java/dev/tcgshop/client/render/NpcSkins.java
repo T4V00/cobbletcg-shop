@@ -10,11 +10,11 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * Pieles propias de los NPC, pintadas por código (64x64, formato de piel de jugador): nada de Steve/Alex.
- * Cada rol tiene su estilo (clientes con ropa de fan de Pokémon genérica, cajeros con delantal y gorra de la tienda,
- * guardias de uniforme, Mayorista con gabardina, coleccionistas con chaleco, revendedores con sudadera, mendigos con
- * ropa remendada y el mercader negro encapuchado) y el índice cambia colores, pelo, gorra y emblema.
- * Los emblemas son figuras genéricas (bola bicolor, rayo, llama, hoja, gota, estrella), sin arte oficial.
+ * Custom NPC skins, painted in code (64x64, player skin format): no Steve/Alex.
+ * Each role has its own style (customers in generic Pokémon fan clothing, cashiers with the shop's apron and cap,
+ * guards in uniform, Wholesaler in a trench coat, collectors with a vest, resellers in a hoodie, beggars in
+ * patched clothes and the hooded black-market dealer) and the index changes colors, hair, cap and emblem.
+ * Emblems are generic shapes (two-tone ball, bolt, flame, leaf, drop, star), no official art.
  */
 public final class NpcSkins {
     private NpcSkins() {}
@@ -38,7 +38,7 @@ public final class NpcSkins {
         return id;
     }
 
-    // ------------------------------------------------------------------ pintor
+    // ------------------------------------------------------------------ painter
 
     private static final int[] SKIN_TONES = {0xFFF6D3B3, 0xFFEAC09A, 0xFFD9A47A, 0xFFC08A5E, 0xFF9C6A44, 0xFF7A4E2E, 0xFF5A3820, 0xFFF0C8A0};
     private static final int[] HAIR = {0xFF2A1C12, 0xFF4A2E1A, 0xFF7A4A22, 0xFFB07A3A, 0xFFE0C070, 0xFF1A1A1E, 0xFF8A2A1A, 0xFFD8D8D8,
@@ -69,7 +69,7 @@ public final class NpcSkins {
             shoes = r.nextBoolean() ? 0xFF1E1E22 : shade(SHIRTS[r.nextInt(SHIRTS.length)], -20);
         }
 
-        // --- utilidades
+        // --- utilities
         void px(int x, int y, int c) {
             if (x >= 0 && y >= 0 && x < 64 && y < 64) img.setColor(x, y, abgr(c));
         }
@@ -78,7 +78,7 @@ public final class NpcSkins {
             for (int j = 0; j < h; j++) for (int i = 0; i < w; i++) px(x + i, y + j, c);
         }
 
-        /** Rellena la plantilla de un cubo (arriba, abajo, der, frente, izq, detrás) con un color con algo de textura. */
+        /** Fills a cube's template (top, bottom, right, front, left, back) with a color with some texture. */
         void box(int u, int v, int w, int h, int d, int c) {
             rectN(u + d, v, w, d, c);
             rectN(u + d + w, v, w, d, shade(c, -12));
@@ -92,7 +92,7 @@ public final class NpcSkins {
             for (int j = 0; j < h; j++) for (int i = 0; i < w; i++) px(x + i, y + j, shade(c, r.nextInt(7) - 3));
         }
 
-        /** Fila (desde arriba) de las 4 caras laterales de un cubo: der, frente, izq, detrás. */
+        /** Row (from the top) of a cube's 4 side faces: right, front, left, back. */
         void ring(int u, int v, int w, int d, int row, int c) {
             int y = v + d + row;
             rect(u, y, d, 1, c);
@@ -117,9 +117,9 @@ public final class NpcSkins {
             return (a << 24) | (b << 16) | (g << 8) | rr;
         }
 
-        // --- piel completa
+        // --- full skin
         void paint() {
-            // todo transparente (las capas exteriores sólo donde haga falta)
+            // all transparent (outer layers only where needed)
             for (int y = 0; y < 64; y++) for (int x = 0; x < 64; x++) img.setColor(x, y, 0);
             head();
             switch (role) {
@@ -137,17 +137,17 @@ public final class NpcSkins {
 
         void head() {
             box(0, 0, 8, 8, 8, skin);
-            // pelo: arriba, detrás y laterales altos
+            // hair: top, back and upper sides
             boolean longHair = r.nextFloat() < 0.35f, bald = role.equals("guard") ? r.nextFloat() < 0.3f : r.nextFloat() < 0.06f;
             if (!bald) {
                 rectN(8, 0, 8, 8, hair);
                 ringRows(0, 0, 8, 8, 0, longHair ? 1 : 0, hair);
-                rect(0, 8, 8, longHair ? 7 : 3, hair);      // lado derecho
-                rect(16, 8, 8, longHair ? 7 : 3, hair);     // lado izquierdo
-                rect(24, 8, 8, longHair ? 8 : 5, hair);     // detrás
+                rect(0, 8, 8, longHair ? 7 : 3, hair);      // right side
+                rect(16, 8, 8, longHair ? 7 : 3, hair);     // left side
+                rect(24, 8, 8, longHair ? 8 : 5, hair);     // back
                 if (longHair) { rect(8, 9, 1, 5, hair); rect(15, 9, 1, 5, hair); }
             }
-            // cara (frente: 8..15, 8..15)
+            // face (front: 8..15, 8..15)
             int eye = r.nextFloat() < 0.15f ? 0xFF3A6FD8 : r.nextFloat() < 0.2f ? 0xFF4CAF50 : 0xFF3A2414;
             px(9, 12, 0xFFFFFFFF); px(10, 12, eye);
             px(13, 12, eye); px(14, 12, 0xFFFFFFFF);
@@ -155,7 +155,7 @@ public final class NpcSkins {
             px(11, 13, shade(skin, -18)); px(12, 13, shade(skin, -18));
             int mouth = shade(skin, -45);
             px(11, 14, mouth); px(12, 14, mouth);
-            if (role.equals("beggar") || (r.nextFloat() < 0.12f && !slim)) { // barba
+            if (role.equals("beggar") || (r.nextFloat() < 0.12f && !slim)) { // beard
                 int beard = shade(hair, -5);
                 rect(9, 14, 6, 2, beard);
                 px(11, 14, mouth); px(12, 14, mouth);
@@ -163,40 +163,40 @@ public final class NpcSkins {
             if (role.equals("black_market")) { px(10, 12, 0xFFFF3030); px(13, 12, 0xFFFF3030); }
         }
 
-        /** Camiseta/chaqueta, brazos y pantalón. shortSleeves = manga corta. */
+        /** Shirt/jacket, arms and trousers. shortSleeves = short sleeves. */
         void outfit(int top, boolean shortSleeves, int bottom) {
             box(16, 16, 8, 12, 4, top);
-            ring(16, 16, 8, 4, 0, shade(top, 18)); // cuello
-            // brazos
+            ring(16, 16, 8, 4, 0, shade(top, 18)); // collar
+            // arms
             int[][] arms = {{40, 16}, {32, 48}};
             for (int[] a : arms) {
                 box(a[0], a[1], aw, 12, 4, skin);
                 ringRows(a[0], a[1], aw, 4, 0, shortSleeves ? 3 : 10, top);
-                if (!shortSleeves) ring(a[0], a[1], aw, 4, 10, shade(top, -25)); // puño
+                if (!shortSleeves) ring(a[0], a[1], aw, 4, 10, shade(top, -25)); // cuff
                 rect(a[0] + 4, a[1], aw, 4, top);
             }
-            // piernas: pantalón y zapatos
+            // legs: trousers and shoes
             int[][] legs = {{0, 16}, {16, 48}};
             for (int[] l : legs) {
                 box(l[0], l[1], 4, 12, 4, bottom);
                 ringRows(l[0], l[1], 4, 4, 10, 11, shoes);
-                rect(l[0] + 8, l[1], 4, 4, shoes); // suela
+                rect(l[0] + 8, l[1], 4, 4, shoes); // sole
             }
-            ring(16, 16, 8, 4, 11, shade(bottom, -15)); // cinturón
+            ring(16, 16, 8, 4, 11, shade(bottom, -15)); // belt
             ring(16, 16, 8, 4, 10, 0xFF2A2018);
-            if (role.equals("beggar")) { // remiendos
+            if (role.equals("beggar")) { // patches
                 for (int k = 0; k < 4; k++) rect(20 + r.nextInt(6), 22 + r.nextInt(8), 2, 2, shade(SHIRTS[r.nextInt(SHIRTS.length)], -30));
                 rect(4 + r.nextInt(2), 24 + r.nextInt(4), 2, 2, 0xFF6A5A3A);
             }
         }
 
-        /** Emblema genérico en el pecho (frente del cuerpo: 20..27, 20..31). */
+        /** Generic chest emblem (body front: 20..27, 20..31). */
         void emblem() {
             if (role.equals("black_market") || role.equals("beggar")) return;
             int cx = 22, cy = 23, kind = role.equals("cashier") ? 0 : role.equals("guard") ? 6 : r.nextInt(7);
             int col = shade(shirt, 70) == shirt ? 0xFFFFFFFF : contrast(role.equals("cashier") ? 0xFFF5F5F5 : role.equals("guard") ? 0xFF263248 : shirt);
             switch (kind) {
-                case 0 -> { // bola bicolor
+                case 0 -> { // two-tone ball
                     rect(cx, cy, 4, 2, 0xFFE33B3B);
                     rect(cx, cy + 2, 4, 2, 0xFFFFFFFF);
                     rect(cx, cy + 2, 4, 1, 0xFF1A1A1A);
@@ -204,12 +204,12 @@ public final class NpcSkins {
                     px(cx, cy, 0); px(cx + 3, cy, 0); px(cx, cy + 3, 0); px(cx + 3, cy + 3, 0);
                     restoreCorners(cx, cy);
                 }
-                case 1 -> { px(cx + 2, cy, 0xFFFFD23F); px(cx + 1, cy + 1, 0xFFFFD23F); px(cx + 2, cy + 1, 0xFFFFD23F); px(cx + 1, cy + 2, 0xFFFFD23F); px(cx, cy + 3, 0xFFFFD23F); } // rayo
-                case 2 -> { rect(cx + 1, cy + 1, 2, 3, 0xFFFF7A2A); px(cx + 1, cy, 0xFFFFC23A); px(cx + 2, cy + 2, 0xFFFFD23F); } // llama
-                case 3 -> { px(cx + 2, cy, 0xFF6CC46F); rect(cx + 1, cy + 1, 2, 2, 0xFF4CAF50); px(cx, cy + 3, 0xFF2E7A33); } // hoja
-                case 4 -> { px(cx + 1, cy, 0xFF8FD8FF); rect(cx + 1, cy + 1, 2, 2, 0xFF4FA3E8); rect(cx + 1, cy + 3, 2, 1, 0xFF2D64B8); } // gota
-                case 5 -> { px(cx + 1, cy, col); px(cx + 2, cy, col); rect(cx, cy + 1, 4, 1, col); px(cx + 1, cy + 2, col); px(cx + 2, cy + 2, col); px(cx, cy + 3, col); px(cx + 3, cy + 3, col); } // estrella
-                default -> { rect(cx, cy, 4, 3, 0xFFC9D2DE); rect(cx + 1, cy + 3, 2, 1, 0xFFC9D2DE); px(cx + 1, cy + 1, 0xFF3A6FD8); px(cx + 2, cy + 1, 0xFF3A6FD8); } // placa / escudo
+                case 1 -> { px(cx + 2, cy, 0xFFFFD23F); px(cx + 1, cy + 1, 0xFFFFD23F); px(cx + 2, cy + 1, 0xFFFFD23F); px(cx + 1, cy + 2, 0xFFFFD23F); px(cx, cy + 3, 0xFFFFD23F); } // bolt
+                case 2 -> { rect(cx + 1, cy + 1, 2, 3, 0xFFFF7A2A); px(cx + 1, cy, 0xFFFFC23A); px(cx + 2, cy + 2, 0xFFFFD23F); } // flame
+                case 3 -> { px(cx + 2, cy, 0xFF6CC46F); rect(cx + 1, cy + 1, 2, 2, 0xFF4CAF50); px(cx, cy + 3, 0xFF2E7A33); } // leaf
+                case 4 -> { px(cx + 1, cy, 0xFF8FD8FF); rect(cx + 1, cy + 1, 2, 2, 0xFF4FA3E8); rect(cx + 1, cy + 3, 2, 1, 0xFF2D64B8); } // drop
+                case 5 -> { px(cx + 1, cy, col); px(cx + 2, cy, col); rect(cx, cy + 1, 4, 1, col); px(cx + 1, cy + 2, col); px(cx + 2, cy + 2, col); px(cx, cy + 3, col); px(cx + 3, cy + 3, col); } // star
+                default -> { rect(cx, cy, 4, 3, 0xFFC9D2DE); rect(cx + 1, cy + 3, 2, 1, 0xFFC9D2DE); px(cx + 1, cy + 1, 0xFF3A6FD8); px(cx + 2, cy + 1, 0xFF3A6FD8); } // badge / shield
             }
         }
 
@@ -223,23 +223,23 @@ public final class NpcSkins {
             return l > 1300 ? 0xFF1E1E28 : 0xFFFFFFFF;
         }
 
-        /** Capas exteriores: gorra, capucha, delantal, chaqueta abierta, gabardina. */
+        /** Outer layers: cap, hood, apron, open jacket, trench coat. */
         void overlays() {
             switch (role) {
                 case "cashier" -> {
                     cap(0xFF2E9C5A, 0xFFFFFFFF);
-                    // delantal verde de la tienda con bolsillo
+                    // green shop apron with pocket
                     rect(21, 37, 6, 10, 0xFF2E9C5A);
                     rect(22, 42, 4, 2, 0xFF43C463);
                     rect(20, 36, 1, 4, 0xFF2E9C5A); rect(27, 36, 1, 4, 0xFF2E9C5A);
                 }
                 case "guard" -> {
                     cap(0xFF1E2636, 0xFFFFD23F);
-                    rect(16, 36, 24, 12, 0); // sin chaqueta
+                    rect(16, 36, 24, 12, 0); // no jacket
                     ringRows(16, 32, 8, 4, 0, 1, 0xFF1E2636);
                 }
                 case "black_market" -> {
-                    // capucha: toda la cabeza menos la cara
+                    // hood: the whole head except the face
                     int hood = 0xFF22222C;
                     rectN(40, 0, 8, 8, hood);
                     rectN(48, 0, 8, 8, shade(hood, -6));
@@ -249,7 +249,7 @@ public final class NpcSkins {
                     rect(40, 8, 8, 3, hood);
                     rect(40, 11, 1, 5, hood);
                     rect(47, 11, 1, 5, hood);
-                    // gabardina
+                    // trench coat
                     jacket(0xFF15151C, false);
                 }
                 case "wholesaler" -> {
@@ -257,27 +257,27 @@ public final class NpcSkins {
                     jacket(0xFF5A4030, true);
                 }
                 case "trader" -> {
-                    jacket(SHIRTS[r.nextInt(SHIRTS.length)], true); // chaleco de coleccionista
+                    jacket(SHIRTS[r.nextInt(SHIRTS.length)], true); // collector's vest
                     rect(40, 32, 16, 16, 0);
                     rect(48, 48, 16, 16, 0);
                     if (r.nextFloat() < 0.5f) cap(SHIRTS[r.nextInt(SHIRTS.length)], 0xFFFFFFFF);
                 }
                 case "scalper" -> {
-                    // sudadera con capucha bajada y gorra hacia atrás
+                    // hoodie with the hood down and a backwards cap
                     jacket(shade(0xFF3A3A44, r.nextInt(20)), false);
                     cap(0xFF1E1E22, 0xFFE33B3B);
                 }
                 case "beggar" -> {
-                    if (r.nextBoolean()) { // gorro de lana
+                    if (r.nextBoolean()) { // wool beanie
                         int b = shade(SHIRTS[r.nextInt(SHIRTS.length)], -30);
                         rectN(40, 0, 8, 8, b);
                         for (int x = 32; x < 64; x++) for (int y = 8; y < 11; y++) px(x, y, b);
                     }
                 }
-                default -> { // clientes: gorra o chaqueta a veces
+                default -> { // customers: cap or jacket sometimes
                     float f = r.nextFloat();
                     if (f < 0.45f) cap(SHIRTS[r.nextInt(SHIRTS.length)], r.nextBoolean() ? 0xFFFFFFFF : 0xFFE33B3B);
-                    else if (f < 0.55f) { // diadema / cinta
+                    else if (f < 0.55f) { // headband / ribbon
                         int b = SHIRTS[r.nextInt(SHIRTS.length)];
                         for (int x = 32; x < 64; x++) px(x, 9, b);
                     }
@@ -286,7 +286,7 @@ public final class NpcSkins {
             }
         }
 
-        /** Gorra en la capa del sombrero con un logotipo de dos colores al frente. */
+        /** Cap on the hat layer with a two-color logo on the front. */
         void cap(int c, int logo) {
             rectN(40, 0, 8, 8, c);
             for (int y = 8; y < 11; y++) {
@@ -298,15 +298,15 @@ public final class NpcSkins {
             px(43, 8, logo); px(44, 8, logo); px(43, 9, logo == 0xFFFFFFFF ? 0xFFE33B3B : 0xFFFFFFFF); px(44, 9, logo == 0xFFFFFFFF ? 0xFFE33B3B : 0xFFFFFFFF);
         }
 
-        /** Chaqueta en la capa exterior; open = abierta por delante (se ve la camiseta y el emblema). */
+        /** Jacket on the outer layer; open = open at the front (shirt and emblem show through). */
         void jacket(int c, boolean open) {
-            // cuerpo (16,32): frente 20..27 x 36..47
+            // body (16,32): front 20..27 x 36..47
             for (int y = 36; y < 48; y++) {
                 for (int x = 16; x < 40; x++) px(x, y, shade(c, r.nextInt(5) - 2));
                 if (open) for (int x = 22; x < 26; x++) px(x, y, 0);
             }
             for (int x = 20; x < 36; x++) for (int y = 32; y < 36; y++) px(x, y, c);
-            // mangas
+            // sleeves
             for (int y = 36; y < 46; y++) for (int x = 40; x < 56; x++) px(x, y, shade(c, -6));
             for (int y = 52; y < 62; y++) for (int x = 48; x < 64; x++) px(x, y, shade(c, -6));
             for (int x = 44; x < 44 + aw * 2; x++) for (int y = 32; y < 36; y++) px(x, y, c);

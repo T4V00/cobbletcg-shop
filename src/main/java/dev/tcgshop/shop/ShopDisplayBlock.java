@@ -34,17 +34,17 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Expositor de tienda de varios bloques (atril, vitrina-mostrador, estantería, góndola, palé, pedestal, muro).
- * Todas las partes comparten bloque; la parte 0 (maestro) lleva el inventario y dibuja los productos.
- *  · Clic derecho sobre un producto: lo compras al momento (el dinero va directo a la caja). También en tu tienda.
- *  · Dueño con carta / sobre / caja / peluche / mystery box en la mano: lo pone a la venta en esa casilla.
- *  · Dueño + Mayús + clic: gestionar precios y retirar productos.
+ * Multi-block shop display (stand, counter showcase, shelf, gondola, pallet, pedestal, wall).
+ * All parts share the block; part 0 (master) holds the inventory and draws the products.
+ *  · Right-click a product: you buy it instantly (the money goes straight to the register). Also in your own shop.
+ *  · Owner holding a card / pack / box / plush / mystery box: puts it up for sale in that slot.
+ *  · Owner + Shift + click: manage prices and remove products.
  */
 public class ShopDisplayBlock extends BlockWithEntity implements ShopFurniture {
     public static final DirectionProperty FACING = Properties.HORIZONTAL_FACING;
     public static final IntProperty PART = IntProperty.of("part", 0, 15);
     public final DisplayKind kind;
-    /** Expositor "de casa": se coloca en cualquier sitio, sólo su dueño pone y quita cartas, y no se vende nada. */
+    /** "Home" display: can be placed anywhere, only its owner adds and removes cards, and nothing is sold. */
     public final boolean home;
 
     public ShopDisplayBlock(DisplayKind kind, Settings settings) {
@@ -74,7 +74,7 @@ public class ShopDisplayBlock extends BlockWithEntity implements ShopFurniture {
         builder.add(FACING, PART);
     }
 
-    /** Bloque maestro de la estructura a la que pertenece esta parte. */
+    /** Master block of the structure this part belongs to. */
     public BlockPos master(BlockState state, BlockPos pos) {
         return kind.masterOf(pos, state.get(FACING), state.get(PART));
     }
@@ -180,7 +180,7 @@ public class ShopDisplayBlock extends BlockWithEntity implements ShopFurniture {
             if (world.getBlockEntity(master) instanceof ShopDisplayBlockEntity be) {
                 int slot = slotFor(state, master, hit);
                 if (slot >= 0 && !be.getStack(slot).isEmpty() && !ShopServer.canMerge(be.getStack(slot), stack))
-                    return ItemActionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION; // comprar lo que hay
+                    return ItemActionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION; // buy what's there
                 ShopServer.stock(sp, be, stack, slot);
             }
         }
@@ -194,10 +194,10 @@ public class ShopDisplayBlock extends BlockWithEntity implements ShopFurniture {
             if (world instanceof ServerWorld && player instanceof ServerPlayerEntity sp && world.getBlockEntity(master) instanceof ShopDisplayBlockEntity be) {
                 int slot = slotFor(state, master, hit);
                 if (slot >= 0 && !be.getStack(slot).isEmpty()) {
-                    if (be.mayEdit(sp) && sp.isSneaking()) { // agachado: la coges al momento
+                    if (be.mayEdit(sp) && sp.isSneaking()) { // sneaking: you take it instantly
                         sp.getInventory().offerOrDrop(be.removeStack(slot));
                         world.playSound(null, pos, net.minecraft.sound.SoundEvents.ENTITY_ITEM_FRAME_REMOVE_ITEM, net.minecraft.sound.SoundCategory.BLOCKS, 1f, 1f);
-                    } else if (be.mayEdit(sp)) ShopServer.openSlot(sp, be, slot); // menú: tomar o editar
+                    } else if (be.mayEdit(sp)) ShopServer.openSlot(sp, be, slot); // menu: take or edit
                     else sp.sendMessage(be.getStack(slot).getName().copy().formatted(Formatting.YELLOW), true);
                 } else sp.sendMessage(Text.translatable("tcgshop.home.hint").formatted(Formatting.GRAY), true);
             }
@@ -208,7 +208,7 @@ public class ShopDisplayBlock extends BlockWithEntity implements ShopFurniture {
             boolean owner = z != null && z.owner.equals(sp.getUuid());
             int slot = slotFor(state, master, hit);
             if (owner && sp.isSneaking()) ShopServer.openDisplay(sp, be);
-            else if (owner && slot >= 0 && !be.getStack(slot).isEmpty()) ShopServer.openSlot(sp, be, slot); // tomar o editar esa carta
+            else if (owner && slot >= 0 && !be.getStack(slot).isEmpty()) ShopServer.openSlot(sp, be, slot); // take or edit that card
             else if (slot >= 0 && !be.getStack(slot).isEmpty()) ShopServer.buyDirect(sp, be, slot);
             else if (owner) ShopServer.openDisplay(sp, be);
             else sp.sendMessage(Text.translatable("tcgshop.shop.empty_slot").formatted(Formatting.GRAY), true);
@@ -216,7 +216,7 @@ public class ShopDisplayBlock extends BlockWithEntity implements ShopFurniture {
         return ActionResult.success(world.isClient);
     }
 
-    /** Romper cualquier parte rompe el mueble entero; el objeto (y lo expuesto) sale del maestro. */
+    /** Breaking any part breaks the whole fixture; the item (and what's displayed) drops from the master. */
     @Override
     public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
         if (!world.isClient && state.get(PART) != 0) {
@@ -243,7 +243,7 @@ public class ShopDisplayBlock extends BlockWithEntity implements ShopFurniture {
             if (c.equals(pos)) continue;
             BlockState cs = world.getBlockState(c);
             if (cs.isOf(this) && cs.get(FACING) == facing && cs.get(PART) == p) {
-                if (p == 0) world.breakBlock(c, true); // el maestro suelta el mueble y sus productos
+                if (p == 0) world.breakBlock(c, true); // the master drops the fixture and its products
                 else world.setBlockState(c, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL | Block.SKIP_DROPS);
             }
         }

@@ -1,5 +1,5 @@
 {
-  "_comment": "#83 (+111, +112) vendedor fuera de catálogo: aparece el mercader negro (cambia un Pokémon por un sobre)",
+  "_comment": "#83 (+111, +112) off-catalog vendor: the black-market merchant appears (trades a Pokémon for a pack)",
   "category": "neutral",
   "tier": "rare",
   "template": "vendor",

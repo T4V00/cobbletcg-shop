@@ -1,5 +1,5 @@
 {
-  "_comment": "#113 coleccionista que vende cartas (nunca por debajo del mercado)",
+  "_comment": "#113 collector who sells cards (never below market)",
   "category": "neutral",
   "tier": "rare",
   "template": "seller",

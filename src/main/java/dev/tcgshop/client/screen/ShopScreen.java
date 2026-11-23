@@ -20,7 +20,7 @@ import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Mueble de tienda: el cliente compra; el dueño cambia precios (con el precio de mercado de referencia) o retira. */
+/** Shop furniture: the customer buys; the owner changes prices (with the market price as reference) or withdraws. */
 public class ShopScreen extends Screen {
     private record Area(int x, int y, int w, int h, Runnable action) {}
 
@@ -33,7 +33,7 @@ public class ShopScreen extends Screen {
         this.data = data;
     }
 
-    /** El servidor reenvía el contenido tras cada acción. */
+    /** The server resends the contents after every action. */
     public void update(ShopViewPayload p) {
         this.data = p;
         clearAndInit();
@@ -88,7 +88,7 @@ public class ShopScreen extends Screen {
                 Ui.text(ctx, Text.translatable("tcgshop.shop.empty_slot"), x, y + cellH() / 2 - 6, cellW(), 12, Ui.MUTED, false);
                 continue;
             }
-            // producto
+            // product
             int iw = 52, ih = 72, ix = x + (cellW() - iw) / 2, iy = y + 8;
             if (CardInfo.isCard(st)) {
                 Rarity r = Rarity.of(st);

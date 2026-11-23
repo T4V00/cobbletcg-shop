@@ -12,10 +12,10 @@ import net.minecraft.util.math.RotationAxis;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Utilidades de dibujo para cartas, sobres, brillos y cortes. */
+/** Drawing utilities for cards, packs, shines and cuts. */
 public final class Draw {
     public static final float CARD_RATIO = 63f / 88f;
-    /** Proporción de un sobre real (≈ 6,6 x 11,8 cm). Las texturas de cobbletcg tienen tamaños distintos: se estiran a esto. */
+    /** Proportions of a real pack (≈ 6.6 x 11.8 cm). cobbletcg textures have different sizes: they are stretched to this. */
     public static final float PACK_RATIO = 0.56f;
 
     private static final Map<Identifier, Boolean> TEXTURE_EXISTS = new HashMap<>();
@@ -27,8 +27,8 @@ public final class Draw {
     }
 
     /**
-     * Recorta un círculo de una textura (centro uc,vc y radios ur,vr en coordenadas 0..1) y lo dibuja con radio r en
-     * (cx, cy): se pinta fila a fila con el ancho de la cuerda, así queda redondo sin máscaras.
+     * Cuts a circle out of a texture (center uc,vc and radii ur,vr in 0..1 coordinates) and draws it with radius r at
+     * (cx, cy): it is painted row by row with the chord width, so it comes out round without masks.
      */
     public static void circleTexture(DrawContext ctx, Identifier tex, int cx, int cy, int r, float uc, float vc, float ur, float vr) {
         ctx.draw();
@@ -43,10 +43,10 @@ public final class Draw {
         }
     }
 
-    /** Dibuja una textura completa estirada al rectángulo (cualquier tamaño de imagen). */
+    /** Draws a full texture stretched to the rectangle (any image size). */
     public static void texture(DrawContext ctx, Identifier tex, float x, float y, float w, float h, float alpha) {
-        // los rectángulos y fondos de DrawContext se acumulan y se pintan al final; la textura se pinta al momento.
-        // Sin vaciarlos antes, un panel dibujado ANTES de la carta acababa encima (venta rápida del teléfono sin arte).
+        // DrawContext rectangles and fills are batched and drawn at the end; the texture is drawn immediately.
+        // Without flushing them first, a panel drawn BEFORE the card ended up on top (phone quick sell without art).
         ctx.draw();
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
@@ -55,7 +55,7 @@ public final class Draw {
         RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
     }
 
-    /** Sobre: textura plana si existe; si no (faltan los resource packs) el icono del ítem escalado. */
+    /** Pack: flat texture if it exists; otherwise (resource packs missing) the scaled item icon. */
     public static void pack(DrawContext ctx, Identifier tex, ItemStack fallback, float x, float y, float w, float h, float alpha) {
         if (textureExists(tex)) {
             ctx.fill(Math.round(x) + 4, Math.round(y) + 6, Math.round(x + w) + 4, Math.round(y + h) + 6, withAlpha(0xFF000000, 0.4f * alpha));
@@ -73,7 +73,7 @@ public final class Draw {
         }
     }
 
-    /** Cara de carta sin efectos (textura de los resource packs de cobbletcg, o placeholder con el icono). */
+    /** Card face without effects (texture from the cobbletcg resource packs, or a placeholder with the icon). */
     public static void cardFace(DrawContext ctx, Identifier tex, ItemStack stack, float x, float y, float w, float h, float alpha) {
         if (textureExists(tex)) {
             texture(ctx, tex, x, y, w, h, alpha);
@@ -89,9 +89,27 @@ public final class Draw {
         }
     }
 
-    /** Reverso original dibujado por código (sin assets con copyright), centrado en el origen actual. */
+    /** Original card back drawn in code (no copyrighted assets), centered on the current origin. */
     public static void cardBack(DrawContext ctx, float w, float h, float alpha, int glowColor, double t) {
         int x0 = Math.round(-w / 2), y0 = Math.round(-h / 2), iw = Math.round(w), ih = Math.round(h);
+        // the player's own card back image (<image folder>/back of cards/card_back.png), if they added one
+        Identifier img = dev.masterball.api.client.images.CardTextures.CARD_BACK;
+        if (dev.masterball.api.client.images.CardTextures.exists(img)) {
+            ctx.draw();
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+            // shadow: the same image tinted black, so it keeps the rounded corners
+            RenderSystem.setShaderColor(0f, 0f, 0f, 0.45f * alpha);
+            ctx.drawTexture(img, x0 + 3, y0 + 5, iw, ih, 0f, 0f, 1, 1, 1, 1);
+            RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+            texture(ctx, img, x0, y0, iw, ih, alpha);
+            if (glowColor != 0) {
+                float p = 0.5f + 0.5f * (float) Math.sin(t * 6);
+                ctx.drawBorder(x0, y0, iw, ih, withAlpha(glowColor, alpha * (0.5f + 0.5f * p)));
+                ctx.drawBorder(x0 + 1, y0 + 1, iw - 2, ih - 2, withAlpha(glowColor, alpha * 0.5f * p));
+            }
+            return;
+        }
         ctx.fill(x0 + 3, y0 + 5, x0 + iw + 3, y0 + ih + 5, withAlpha(0xFF000000, 0.45f * alpha));
         ctx.fill(x0, y0, x0 + iw, y0 + ih, withAlpha(0xFFF2F2F2, alpha));
         int b = Math.max(3, iw / 18);
@@ -117,11 +135,11 @@ public final class Draw {
     }
 
     /**
-     * Dibuja un rectángulo partido por un corte: el contenido se pinta en franjas verticales recortadas
-     * (scissor) por encima o por debajo de la línea de corte, y cada mitad se desplaza por separado.
+     * Draws a rectangle split by a cut: the content is painted in vertical strips clipped
+     * (scissor) above or below the cut line, and each half is offset separately.
      *
-     * @param cut   altura del corte en cada franja, normalizada 0..1 dentro del rectángulo
-     * @param part  0 = mitad de arriba, 1 = mitad de abajo
+     * @param cut   height of the cut in each strip, normalized 0..1 within the rectangle
+     * @param part  0 = top half, 1 = bottom half
      */
     public static void split(DrawContext ctx, float x, float y, float w, float h, float[] cut, int part,
                              float dx, float dy, Runnable painter) {
@@ -142,7 +160,7 @@ public final class Draw {
         }
     }
 
-    /** Borde rasgado (fibras de papel/cartón) a lo largo del corte. */
+    /** Torn edge (paper/cardboard fibers) along the cut. */
     public static void tornEdge(DrawContext ctx, float x, float y, float w, float h, float[] cut, float dx, float dy,
                                 int color, float alpha, long seed) {
         int n = cut.length;
@@ -159,7 +177,7 @@ public final class Draw {
         }
     }
 
-    /** Brillo holográfico (banda diagonal que sigue al ratón) sobre un rectángulo de carta en coordenadas de pantalla. */
+    /** Holographic shine (diagonal band that follows the mouse) over a card rectangle in screen coordinates. */
     public static void holo(DrawContext ctx, float x, float y, float w, float h, int tier, int color, double t, int mouseX) {
         int x0 = Math.round(x), y0 = Math.round(y);
         ctx.enableScissor(x0, y0, x0 + Math.round(w), y0 + Math.round(h));

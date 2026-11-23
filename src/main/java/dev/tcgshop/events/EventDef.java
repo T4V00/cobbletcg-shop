@@ -10,9 +10,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Definición inmutable de un evento aleatorio, leída de data/&lt;ns&gt;/tcgshop_events/&lt;path&gt;.json (EventRegistry).
- * Un evento NO tiene código propio: sólo compone efectos ({@link EventEffect}) registrados por tipo en {@link EffectTypes}.
- * El formato completo está en events/EFFECTS.md.
+ * Immutable definition of a random event, read from data/&lt;ns&gt;/tcgshop_events/&lt;path&gt;.json (EventRegistry).
+ * An event has NO code of its own: it only composes effects ({@link EventEffect}) registered by type in {@link EffectTypes}.
+ * The full format is in events/EFFECTS.md.
  */
 public record EventDef(String id, Category category, Tier tier, String template, double weight,
                        long durMin, long durMax, boolean untilDayEnd, EventConditions conditions,
@@ -31,26 +31,26 @@ public record EventDef(String id, Category category, Tier tier, String template,
         public static Tier parse(String s) { return valueOf(s.trim().toUpperCase(Locale.ROOT)); }
     }
 
-    /** Variante con peso: añade (o sustituye, replace=true) efectos; puede tener sus propias condiciones. */
+    /** Weighted variant: adds (or replaces, replace=true) effects; may have its own conditions. */
     public record Variant(String key, int weight, boolean replace, List<EventEffect> effects, EventConditions conditions) {}
 
     /**
-     * Memoria de reseñas: tag compartido (familia de frases tcgshop.reviewtext.ev_&lt;tag&gt;.*), probabilidad de que un
-     * cliente presente lo comente, ánimo que suma/resta, y probabilidad de la reseña "_fixed" si se arregló antes.
+     * Review memory: shared tag (line family tcgshop.reviewtext.ev_&lt;tag&gt;.*), chance that a customer
+     * who was present mentions it, mood added/subtracted, and chance of the "_fixed" review if it was fixed earlier.
      */
     public record Review(String tag, double chance, int mood, double fixedChance) {
         public static final Review NONE = new Review("", 0, 0, 0);
         public boolean present() { return !tag.isEmpty(); }
     }
 
-    /** Aviso al dueño (toast) y frases de los clientes que entran mientras está activo (tcgshop.evline.&lt;lines&gt;.&lt;n&gt;). */
+    /** Notice to the owner (toast) and lines from customers who enter while it is active (tcgshop.evline.&lt;lines&gt;.&lt;n&gt;). */
     public record Notify(boolean toast, String lines, int count, double chance) {
         public static final Notify DEFAULT = new Notify(true, "", 0, 0);
     }
 
     // ------------------------------------------------------------------ helpers
 
-    /** Prefijo de las claves de idioma: tcgshop.event.&lt;path&gt; (con el namespace si no es tcgshop). */
+    /** Language key prefix: tcgshop.event.&lt;path&gt; (with the namespace if it is not tcgshop). */
     public String langKey() { return langKey(id); }
 
     public static String langKey(String id) {
@@ -59,7 +59,7 @@ public record EventDef(String id, Category category, Tier tier, String template,
         return "tcgshop.event." + (ns.equals("tcgshop") ? "" : ns + ".") + path.replace('/', '.');
     }
 
-    /** Efectos de una variante concreta (base + variante, o sólo la variante si replace). */
+    /** Effects of a specific variant (base + variant, or only the variant if replace). */
     public List<EventEffect> effectsFor(String variantKey) {
         if (variantKey == null || variantKey.isEmpty()) return effects;
         for (Variant v : variants) {
@@ -72,11 +72,11 @@ public record EventDef(String id, Category category, Tier tier, String template,
         return effects;
     }
 
-    /** ¿Tiene al menos una forma de arreglarlo el jugador? (obligatorio en los negativos) */
+    /** Does the player have at least one way to fix it? (mandatory for negative ones) */
     public boolean hasFix() {
         for (EventEffect e : effects) if (e.providesFix()) return true;
         if (variants.isEmpty()) return false;
-        // con variantes: TODAS deben poder arreglarse
+        // with variants: ALL of them must be fixable
         for (Variant v : variants) {
             boolean ok = false;
             for (EventEffect e : effectsFor(v.key())) if (e.providesFix()) { ok = true; break; }
@@ -87,9 +87,9 @@ public record EventDef(String id, Category category, Tier tier, String template,
 
     public boolean negative() { return category == Category.NEGATIVE; }
 
-    // ------------------------------------------------------------------ lectura
+    // ------------------------------------------------------------------ parsing
 
-    /** Lee una definición. Lanza IllegalArgumentException con un mensaje claro si algo no cuadra. */
+    /** Reads a definition. Throws IllegalArgumentException with a clear message if something does not add up. */
     public static EventDef parse(String id, JsonObject o) {
         Category cat = Category.parse(str(o, "category", "neutral"));
         Tier tier = Tier.parse(str(o, "tier", "common"));
@@ -152,17 +152,17 @@ public record EventDef(String id, Category category, Tier tier, String template,
     private static List<EventEffect> parseEffects(String id, JsonArray arr) {
         List<EventEffect> out = new ArrayList<>();
         for (JsonElement e : arr) {
-            if (!e.isJsonObject()) throw new IllegalArgumentException("efecto que no es un objeto");
+            if (!e.isJsonObject()) throw new IllegalArgumentException("effect is not an object");
             JsonObject eo = e.getAsJsonObject();
             String type = str(eo, "type", "");
             EffectTypes.Factory f = EffectTypes.get(type);
-            if (f == null) throw new IllegalArgumentException("tipo de efecto desconocido '" + type + "' (¿módulo sin cargar?)");
+            if (f == null) throw new IllegalArgumentException("unknown effect type '" + type + "' (module not loaded?)");
             out.add(f.create(eo, id));
         }
         return out;
     }
 
-    // ------------------------------------------------------------------ utilidades JSON (las usan también los efectos)
+    // ------------------------------------------------------------------ JSON utilities (also used by the effects)
 
     public static String str(JsonObject o, String k, String def) {
         return o.has(k) && !o.get(k).isJsonNull() ? o.get(k).getAsString() : def;
@@ -180,7 +180,7 @@ public record EventDef(String id, Category category, Tier tier, String template,
         return o.has(k) && !o.get(k).isJsonNull() ? o.get(k).getAsBoolean() : def;
     }
 
-    /** Número o [min,max] -> {min,max}. */
+    /** Number or [min,max] -> {min,max}. */
     public static long[] range(JsonElement e, long def) {
         if (e == null || e.isJsonNull()) return new long[]{def, def};
         if (e.isJsonArray()) {

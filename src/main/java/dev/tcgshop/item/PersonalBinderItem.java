@@ -16,7 +16,7 @@ import net.minecraft.world.World;
 
 import java.util.List;
 
-/** Personal Binder: organiza tus cartas y personalízalo. Al abrirlo queda vinculado a tu nombre. */
+/** Personal Binder: organize your cards and customize it. Opening it binds it to your name. */
 public class PersonalBinderItem extends Item {
     public PersonalBinderItem(Settings settings) {
         super(settings);

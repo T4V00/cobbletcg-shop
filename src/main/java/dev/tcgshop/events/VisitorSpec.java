@@ -5,31 +5,31 @@ import dev.tcgshop.shop.ShopZones;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Cliente "especial" de un evento (ShopLife.forceSpawnVisitor). No se guarda: si el mundo se recarga, el cliente se
- * marcha (como cualquier cliente) y el evento lo cuenta como terminado (nunca se vuelve a crear: sin duplicados).
+ * "Special" customer of an event (ShopLife.forceSpawnVisitor). Not saved: if the world reloads, the customer
+ * leaves (like any customer) and the event counts it as finished (it is never recreated: no duplicates).
  */
 public final class VisitorSpec {
     public CustomerEntity.Type type = CustomerEntity.Type.REGULAR;
-    /** Evento y efecto al que pertenece (-1 = ninguno). */
+    /** Event and effect it belongs to (-1 = none). */
     public long eventUid = -1;
     public int effectIndex = -1;
     public int moodStart;
     public double patienceMult = 1, buyMult = 1;
-    /** Precio máximo que acepta, sobre el de mercado (precio expuesto / mercado). */
+    /** Maximum price it accepts, over market (displayed price / market). */
     public double priceCap = 1.15;
-    /** Productos que mira (-1 = lo normal) y compras que puede hacer antes de irse. */
+    /** Products it browses (-1 = normal) and purchases it can make before leaving. */
     public int browses = -1, purchases = 1;
-    /** Prefiere productos de este set ("set:&lt;id&gt;"), "packs", "cards" u "old_sets" (null = cualquiera). */
+    /** Prefers products from this set ("set:&lt;id&gt;"), "packs", "cards" or "old_sets" (null = any). */
     @Nullable
     public String filter;
-    /** Molesto (lo calma el dueño con clic derecho o el guardia), inspector (no compra y puntúa la tienda), vendedor justo (pide al menos el mercado). */
+    /** Troublemaker (calmed by the owner's right click or the guard), inspector (does not buy and rates the shop), fair seller (asks at least market). */
     public boolean troublemaker, inspector, fairSeller, noBuy;
-    /** Título que se ve sobre la cabeza (clave de idioma; vacío = uno normal). */
+    /** Title shown above the head (language key; empty = a normal one). */
     public String titleKey = "";
-    /** Frases al entrar: tcgshop.evline.&lt;lines&gt;.&lt;n&gt; (n &lt; linesCount). */
+    /** Lines on entering: tcgshop.evline.&lt;lines&gt;.&lt;n&gt; (n &lt; linesCount). */
     public String lines = "";
     public int linesCount;
-    /** Cliente habitual que vuelve (null = uno nuevo). */
+    /** Returning regular customer (null = a new one). */
     @Nullable
     public ShopZones.Regular regular;
 }

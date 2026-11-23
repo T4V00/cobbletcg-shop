@@ -2,7 +2,7 @@ package dev.tcgshop.client;
 
 import net.minecraft.nbt.NbtCompound;
 
-/** Datos sociales y de gestión recibidos del servidor (amigos, expositores) para las apps del teléfono. */
+/** Social and management data received from the server (friends, displays) for the phone apps. */
 public final class ClientSocial {
     private ClientSocial() {}
 

@@ -10,7 +10,7 @@ import net.minecraft.util.Identifier;
 
 import java.util.List;
 
-/** Servidor -> cliente: cartas de cada sobre del grupo, sus precios y si se destruyeron. toBinder = fueron al Binder General. */
+/** Server -> client: cards of each pack in the group, their prices and whether they were destroyed. toBinder = they went to the General Binder. */
 public record GroupRevealPayload(List<List<ItemStack>> cards, List<List<Long>> prices, List<Boolean> damaged, boolean toBinder) implements CustomPayload {
     public static final Id<GroupRevealPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "group_reveal"));
     public static final PacketCodec<RegistryByteBuf, GroupRevealPayload> CODEC = PacketCodec.tuple(

@@ -14,10 +14,10 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * Fondos de tablero en alta resolución generados por código (mosaico continuo de 512 px, sin archivos ni descargas):
- * Poké Balls, prados, olas, llamas, rayos, cristales, espirales, fuegos fatuos, destellos, hexágonos, cañón,
- * escamas, noche estrellada, Master, Campeón, cosmos, burbujas tóxicas, dojo, sakura y prisma.
- * Se generan la primera vez que se ven (una por fotograma como mucho) y se quedan en memoria.
+ * High-resolution board backgrounds generated in code (seamless 512 px tile, no files or downloads):
+ * Poké Balls, meadows, waves, flames, lightning, crystals, spirals, will-o'-wisps, sparkles, hexagons, canyon,
+ * scales, starry night, Master, Champion, cosmos, toxic bubbles, dojo, sakura and prism.
+ * They are generated the first time they are seen (at most one per frame) and stay in memory.
  */
 public final class DuelBackgrounds {
     private DuelBackgrounds() {}
@@ -25,7 +25,7 @@ public final class DuelBackgrounds {
     public static final int N = 512;
     private static final Map<String, Identifier> READY = new HashMap<>();
     private static final Map<String, java.util.concurrent.CompletableFuture<Canvas>> PENDING = new HashMap<>();
-    /** Un único hilo de baja prioridad pinta los fondos: el juego no se congela al abrir la pestaña de Fondos. */
+    /** A single low-priority thread paints the backgrounds: the game doesn't freeze when opening the Backgrounds tab. */
     private static final java.util.concurrent.ExecutorService GEN = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "tcgshop-board-gen");
         t.setDaemon(true);
@@ -34,7 +34,7 @@ public final class DuelBackgrounds {
     });
     private static long lastUpload = -1;
 
-    /** Textura lista del fondo (null si es el clásico o aún se está generando en segundo plano). */
+    /** Ready texture for the background (null if it's the classic one or still being generated in the background). */
     @Nullable
     public static Identifier texture(String id) {
         if (id == null || id.equals("classic") || Cosmetics.board(id) == null) return null;
@@ -45,13 +45,13 @@ public final class DuelBackgrounds {
             try {
                 paint(k, c);
             } catch (Exception ex) {
-                dev.tcgshop.TcgShop.LOGGER.warn("No se pudo generar el fondo {}", k, ex);
+                dev.tcgshop.TcgShop.LOGGER.warn("Could not generate background {}", k, ex);
             }
             return c;
         }, GEN));
         if (!job.isDone()) return null;
         long nowMs = System.currentTimeMillis();
-        if (nowMs - lastUpload < 16) return null; // como mucho una subida a la GPU por fotograma
+        if (nowMs - lastUpload < 16) return null; // at most one GPU upload per frame
         lastUpload = nowMs;
         PENDING.remove(id);
         Canvas c = job.getNow(null);
@@ -71,12 +71,12 @@ public final class DuelBackgrounds {
         return tid;
     }
 
-    /** Dibuja el fondo en mosaico cubriendo (x, y, w, h), con desplazamiento lento. tile = tamaño en pantalla del mosaico. */
+    /** Draws the tiled background covering (x, y, w, h), with slow scrolling. tile = on-screen size of the tile. */
     public static boolean draw(DrawContext ctx, String id, int x, int y, int w, int h, int tile, double t, float alpha) {
         Identifier tex = texture(id);
         if (tex == null) return false;
         float u = (float) ((t * 4) % tile), v = (float) ((t * 2.5) % tile);
-        ctx.draw(); // que lo dibujado antes (fondos, degradados) no acabe encima de la textura
+        ctx.draw(); // so what was drawn before (backgrounds, gradients) doesn't end up on top of the texture
         com.mojang.blaze3d.systems.RenderSystem.enableBlend();
         ctx.setShaderColor(1, 1, 1, alpha);
         ctx.drawTexture(tex, x, y, u, v, w, h, tile, tile);
@@ -86,9 +86,9 @@ public final class DuelBackgrounds {
 
     private static int clamp255(float v) { return Math.max(0, Math.min(255, Math.round(v))); }
 
-    // ------------------------------------------------------------------ lienzo
+    // ------------------------------------------------------------------ canvas
 
-    /** Lienzo en coma flotante con figuras antialias que dan la vuelta por los bordes (mosaico sin costuras). */
+    /** Floating-point canvas with antialiased shapes that wrap around the edges (seamless tile). */
     static final class Canvas {
         final int n;
         final float[] r, g, b;
@@ -109,7 +109,7 @@ public final class DuelBackgrounds {
             b[i] += ((rgb & 0xFF) - b[i]) * a;
         }
 
-        /** Fondo con dos colores que varían de forma periódica (diagonal suave). */
+        /** Background with two colors that vary periodically (soft diagonal). */
         void base(int c0, int c1, float waves) {
             for (int y = 0; y < n; y++)
                 for (int x = 0; x < n; x++) {
@@ -125,7 +125,7 @@ public final class DuelBackgrounds {
 
         interface Sdf { float d(float x, float y); }
 
-        /** Pinta una figura dada por su distancia con signo, dentro de su caja (x0..x1, y0..y1). */
+        /** Paints a shape given by its signed distance, within its box (x0..x1, y0..y1). */
         void shape(float x0, float y0, float x1, float y1, int rgb, float a, Sdf f) {
             for (int py = (int) Math.floor(y0) - 1; py <= (int) Math.ceil(y1) + 1; py++)
                 for (int px = (int) Math.floor(x0) - 1; px <= (int) Math.ceil(x1) + 1; px++) {
@@ -144,11 +144,11 @@ public final class DuelBackgrounds {
             shape(cx - o, cy - o, cx + o, cy + o, rgb, a, (x, y) -> Math.abs((float) Math.hypot(x - cx, y - cy) - rad) - w / 2);
         }
 
-        /** Disco con brillo radial suave (glow). */
+        /** Disc with a soft radial glow. */
         void glow(float cx, float cy, float rad, int rgb, float a) {
             shape(cx - rad, cy - rad, cx + rad, cy + rad, rgb, 1, (x, y) -> {
                 float k = 1 - (float) Math.hypot(x - cx, y - cy) / rad;
-                return k <= 0 ? 1 : 0.5f - k * k * a; // devuelve "distancia" para dar cobertura k² · a
+                return k <= 0 ? 1 : 0.5f - k * k * a; // returns a "distance" that yields coverage k² · a
             });
         }
 
@@ -167,7 +167,7 @@ public final class DuelBackgrounds {
             });
         }
 
-        /** Polígono (cualquier forma, regla par-impar) con antialias por distancia a los lados. */
+        /** Polygon (any shape, even-odd rule) antialiased by distance to the edges. */
         void poly(float[] pts, int rgb, float a) {
             float x0 = Float.MAX_VALUE, y0 = Float.MAX_VALUE, x1 = -Float.MAX_VALUE, y1 = -Float.MAX_VALUE;
             for (int k = 0; k < pts.length; k += 2) {
@@ -187,7 +187,7 @@ public final class DuelBackgrounds {
             });
         }
 
-        /** Polígono regular / estrella de `k` puntas centrado en (cx, cy). */
+        /** Regular polygon / `k`-pointed star centered at (cx, cy). */
         void star(float cx, float cy, float ro, float ri, int k, float deg, int rgb, float a) {
             float[] p = new float[k * 4];
             for (int i = 0; i < k * 2; i++) {
@@ -209,7 +209,7 @@ public final class DuelBackgrounds {
             poly(p, rgb, a);
         }
 
-        /** Ruido de valor periódico (fbm) en [0, 1]. */
+        /** Periodic value noise (fbm) in [0, 1]. */
         float noise(float x, float y, int cells, long seed) {
             float sum = 0, amp = 0.5f, norm = 0;
             for (int o = 0; o < 4; o++) {
@@ -246,7 +246,7 @@ public final class DuelBackgrounds {
         return (Math.round(ar + (br - ar) * t) << 16) | (Math.round(ag + (bg - ag) * t) << 8) | Math.round(ab + (bb - ab) * t);
     }
 
-    // ------------------------------------------------------------------ diseños
+    // ------------------------------------------------------------------ designs
 
     private static void paint(String id, Canvas c) {
         Random rnd = new Random(id.hashCode() * 7919L);
@@ -374,7 +374,7 @@ public final class DuelBackgrounds {
                         c.ring(cx, cy, sr - 2, 2.5f, 0x7FE0D0, 0.45f);
                         c.ring(cx, cy - 4, sr - 12, 1.5f, 0xFFD34D, 0.25f);
                     }
-                // la fila 0 repetida abajo tapa la última fila (sólo la parte que queda dentro del mosaico)
+                // row 0 repeated at the bottom covers the last row (only the part that falls inside the tile)
                 for (int col = 0; col < 8; col++) {
                     float cx = col * sr * 2, cy = n;
                     c.shape(cx - sr, cy - sr, cx + sr, cy, 0x1F7A70, 1f, (x, y) -> Math.max((float) Math.hypot(x - cx, y - cy) - sr, y - n));
@@ -493,7 +493,7 @@ public final class DuelBackgrounds {
         }
     }
 
-    // ------------------------------------------------------------------ motivos
+    // ------------------------------------------------------------------ motifs
 
     private static void ball(Canvas c, float cx, float cy, float r, int top, float a, float deg) {
         c.circle(cx + 3, cy + 4, r, 0x000000, a * 0.35f);
@@ -501,7 +501,7 @@ public final class DuelBackgrounds {
         float ca = (float) Math.cos(t), sa = (float) Math.sin(t);
         c.shape(cx - r, cy - r, cx + r, cy + r, top, a + 0.3f, (x, y) -> {
             float d = (float) Math.hypot(x - cx, y - cy) - r;
-            float side = -((x - cx) * sa) + (y - cy) * ca; // < 0 = mitad de arriba
+            float side = -((x - cx) * sa) + (y - cy) * ca; // < 0 = top half
             return Math.max(d, side);
         });
         c.shape(cx - r, cy - r, cx + r, cy + r, 0xFFFFFF, a + 0.3f, (x, y) -> {

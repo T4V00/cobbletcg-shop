@@ -7,13 +7,13 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 /**
- * Puesto del Vendedor de muebles: muebles de CobbleFurnies y peluches, comprar y venderle (panel FurnitureApp), y las
- * estatuas de lujo en la pestaña Exclusivos (botón de la cabecera).
+ * Furniture Seller's stall: CobbleFurnies furniture and plushies, buying and selling to him (FurnitureApp panel), and the
+ * luxury statues in the Exclusives tab (header button).
  */
 public class FurnitureScreen extends Screen {
     private final FurnitureApp app;
     private final int source;
-    /** Botón "★ Exclusivos" de la cabecera (salta a las estatuas de lujo); x, y, w, h del último fotograma. */
+    /** "★ Exclusives" header button (jumps to the luxury statues); x, y, w, h from the last frame. */
     private int exX, exY, exW, exH;
 
     public FurnitureScreen(int source) {
@@ -35,14 +35,14 @@ public class FurnitureScreen extends Screen {
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         ctx.fillGradient(0, 0, width, height, 0xB0101018, 0xD0050508);
         int w = Math.min(width - 20, 520), h = Math.min(height - 20, 330), x = (width - w) / 2, y = (height - h) / 2;
-        // madera cálida: es una tienda de muebles
+        // warm wood: it's a furniture shop
         Ui.leather(ctx, x, y, w, h, 0xFF6B4626, 0xFF3A2411);
         ctx.fill(x + 6, y + 31, x + w - 6, y + 32, 0x55FFD9A0);
         ctx.drawItem(FurnitureApp.icon(), x + 9, y + 8);
         ctx.drawTextWithShadow(textRenderer, title.copy().formatted(Formatting.BOLD), x + 30, y + 7, Ui.GOLD);
         ctx.drawText(textRenderer, Text.translatable("tcgshop.furn.subtitle"), x + 30, y + 19, 0xFFE8D2B4, false);
         exW = 0;
-        if (app.hasLuxury()) { // según el catálogo del servidor, no la config local del cliente
+        if (app.hasLuxury()) { // based on the server's catalog, not the client's local config
             Text ex = Text.translatable("tcgshop.lux.tab_button");
             exW = Ui.chipWidth(ex) + 6;
             exH = 16;

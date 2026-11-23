@@ -21,9 +21,9 @@ import java.util.List;
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
 /**
- * Puesto del Coleccionista ambulante: a la izquierda sus cartas, a la derecha las tuyas. Elige una de cada lado y,
- * si la tuya vale al menos el 85% de la suya, acepta el cambio. Arriba, la carta tuya que le ha encantado y lo que
- * te paga por ella (más que el mercado).
+ * Wandering Collector's stall: his cards on the left, yours on the right. Pick one from each side and,
+ * if yours is worth at least 85% of his, he accepts the trade. At the top, the card of yours he loves and what
+ * he pays you for it (more than market).
  */
 public class TraderScreen extends Screen {
     private record Area(int x, int y, int w, int h, Runnable action) {}
@@ -39,7 +39,7 @@ public class TraderScreen extends Screen {
         super(Text.translatable("entity.tcgshop.trader"));
         this.data = data;
         mine.multi = false;
-        mine.includeBinder = true; // puedes cambiar o vender cartas de tu Binder
+        mine.includeBinder = true; // you can trade or sell cards from your Binder
         mine.price = CardSales::unitValue;
         mine.highlight = data.wishSlot();
     }
@@ -72,7 +72,7 @@ public class TraderScreen extends Screen {
         String tl = Text.translatable("tcgshop.trader.trades_left", data.tradesLeft()).getString();
         ctx.drawTextWithShadow(textRenderer, tl, x + w - 10 - textRenderer.getWidth(tl), y + 8, data.tradesLeft() > 0 ? 0xFF8BE08B : 0xFFFF8A8A);
 
-        // ---- sus cartas
+        // ---- his cards
         int lw = w * 46 / 100, lx = x + 8, ly = y + 34, lh = h - 84;
         Ui.round(ctx, lx, ly, lw, lh, 0xAA0B1512);
         ctx.drawText(textRenderer, Text.translatable("tcgshop.trader.his").formatted(Formatting.BOLD), lx + 6, ly + 5, 0xFFFFFFFF, false);
@@ -101,7 +101,7 @@ public class TraderScreen extends Screen {
             areas.add(new Area(cx, cy - lift, cw, ch, () -> { pick = pick == fk ? -1 : fk; click(); }));
         }
 
-        // ---- tus cartas
+        // ---- your cards
         int rx = lx + lw + 8, rw = x + w - 8 - rx;
         Ui.round(ctx, rx, ly, rw, lh, 0xAA0B1512);
         ctx.drawText(textRenderer, Text.translatable("tcgshop.trader.yours").formatted(Formatting.BOLD), rx + 6, ly + 5, 0xFFFFFFFF, false);
@@ -112,7 +112,7 @@ public class TraderScreen extends Screen {
             if (!hm.isEmpty()) hovered = hm;
         }
 
-        // ---- barra inferior: comparación y botones
+        // ---- bottom bar: comparison and buttons
         int by = y + h - 46;
         ItemStack his = pick >= 0 && pick < n ? data.stock().get(pick) : ItemStack.EMPTY;
         int mySlot = mine.sel.isEmpty() ? -1 : mine.sel.iterator().next();
@@ -128,7 +128,7 @@ public class TraderScreen extends Screen {
         if (!my.isEmpty()) ctx.drawText(textRenderer, PriceService.format(mv), x + w / 3 + 18, by + 16, Ui.GOLD, false);
         boolean both = !his.isEmpty() && !my.isEmpty();
         boolean ok = both && mv >= hv * 0.85 && data.tradesLeft() > 0;
-        if (both) { // medidor: tu carta frente a la suya
+        if (both) { // meter: your card versus his
             float ratio = hv <= 0 ? 2 : mv / (float) hv;
             int mw = w / 3 - 12, mxp = x + 14;
             Ui.progress(ctx, mxp, by + 28, mw * 2 + 10, 4, Math.min(1f, ratio / 1.5f), ok ? (ratio > 1.3f ? 0xFFFFB347 : 0xFF5BD68A) : 0xFFE05050);
@@ -142,7 +142,7 @@ public class TraderScreen extends Screen {
             areas.add(new Area(bx, by + 9, bw, 20, () -> ClientPlayNetworking.send(new MarketPayloads.TraderAction(data.entity(), MarketPayloads.TRADE, fp, fs))));
         }
 
-        // ---- la carta que le interesa
+        // ---- the card he wants
         if (data.wishSlot() >= 0 && client != null && client.player != null) {
             ItemStack ws = CardPickGrid.stackAt(client.player, data.wishSlot());
             if (CardInfo.isCard(ws)) {

@@ -10,8 +10,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Estado propio del módulo de incidentes (mundo): cuántos paquetes con premio ha abierto cada dueño esta semana de
- * juego (tope semanal por DUEÑO, en todas sus tiendas y mundos; crítica C1/F #88).
+ * The incident module's own (world) state: how many reward packages each owner has opened this in-game
+ * week (weekly cap per OWNER, across all their shops and worlds; critique C1/F #88).
  */
 public final class IncidentState extends PersistentState {
     private static final Type<IncidentState> TYPE = new Type<>(IncidentState::new, IncidentState::fromNbt, null);
@@ -24,7 +24,7 @@ public final class IncidentState extends PersistentState {
         return server.getOverworld().getPersistentStateManager().getOrCreate(TYPE, "tcgshop_incidents");
     }
 
-    /** Paquetes con premio abiertos por ese dueño en la semana (day / 7). */
+    /** Reward packages opened by that owner in the week (day / 7). */
     public int packagesThisWeek(UUID owner, long day) {
         Week w = packages.get(owner);
         return w == null || w.week() != day / 7 ? 0 : w.count();

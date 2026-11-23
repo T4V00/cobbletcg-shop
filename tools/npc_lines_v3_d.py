@@ -1,6 +1,6 @@
-"""Frases v3 (bloque D): más coleccionistas ricos, comentarios sobre el ambiente y los precios,
-clientes que pagan de más por la reputación y clientes habituales.
-Formato: {"categoria": [("es", "en"), ...]}. Sin placeholders."""
+"""v3 lines (block D): more rich collectors, comments about the atmosphere and the prices,
+customers who overpay because of reputation, and regular customers.
+Format: {"category": [("es", "en"), ...]}. No placeholders."""
 
 EXTRA = {
     "whale_talk": [

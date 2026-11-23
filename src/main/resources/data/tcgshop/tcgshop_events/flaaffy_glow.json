@@ -1,5 +1,5 @@
 {
-  "_comment": "#39 Flaaffy luminoso: ilumina la tienda (+luz) y, si habia un apagon o un cortocircuito (plantilla 'power'), lo arregla al momento. De noche o en tiendas oscuras.",
+  "_comment": "#39 glowing Flaaffy: lights up the shop (+light) and, if there was a blackout or short circuit ('power' template), fixes it instantly. At night or in dark shops.",
   "category": "positive",
   "tier": "uncommon",
   "template": "flaaffy",

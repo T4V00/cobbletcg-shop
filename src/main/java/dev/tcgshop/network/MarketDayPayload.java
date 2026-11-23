@@ -7,7 +7,7 @@ import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
-/** Servidor -> cliente: empezó un nuevo día de mercado (los precios se recalculan solos en el cliente). */
+/** Server -> client: a new market day started (prices are recalculated on the client by itself). */
 public record MarketDayPayload(long day) implements CustomPayload {
     public static final Id<MarketDayPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "market_day"));
     public static final PacketCodec<RegistryByteBuf, MarketDayPayload> CODEC =

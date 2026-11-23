@@ -1,11 +1,11 @@
 package dev.tcgshop.shop;
 
 /**
- * Niveles del bloque de tienda: lado de la zona en bloques, altura protegida por encima del bloque, precio en ₽,
- * aforo base (clientes dentro a la vez, ver ShopMissions.capacity) y color del material. Por debajo siempre se protegen ShopZones.BELOW bloques.
+ * Shop block tiers: zone side in blocks, protected height above the block, price in ₽,
+ * base capacity (customers inside at once, see ShopMissions.capacity) and material color. Below, ShopZones.BELOW blocks are always protected.
  */
 public enum ShopTier {
-    // aforo base (clientes dentro a la vez): cada nivel se nota; misiones y asientos suman hasta +3 (ShopMissions)
+    // base capacity (customers inside at once): each tier makes a difference; missions and seats add up to +3 (ShopMissions)
     WOOD("wood", 16, 6, 15_000, 3, 0xFF9C6B3C),
     STONE("stone", 24, 8, 45_000, 4, 0xFF8A8A8A),
     IRON("iron", 32, 10, 110_000, 6, 0xFFD8D8D8),
@@ -30,7 +30,7 @@ public enum ShopTier {
         this.color = color;
     }
 
-    /** Siguiente nivel (o null si ya es el máximo). */
+    /** Next tier (or null if already the maximum). */
     public ShopTier next() {
         return ordinal() + 1 < values().length ? values()[ordinal() + 1] : null;
     }

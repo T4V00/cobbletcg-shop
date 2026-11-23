@@ -1,6 +1,6 @@
-"""Textos del editor de mazos mejorado y del panel de ayuda de la Liga TCG (client/screen/league/*).
+"""Texts for the improved deck editor and the TCG League help panel (client/screen/league/*).
 
-Uso: python tools/gen_lang_league_ui.py  (actualiza/inserta las claves en es_es.json y en_us.json)
+Usage: python tools/gen_lang_league_ui.py  (updates/inserts the keys in es_es.json and en_us.json)
 """
 import json
 from pathlib import Path
@@ -8,7 +8,7 @@ from pathlib import Path
 LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
 
 T = {
-    # ------------------------------------------------------------------ editor de mazos
+    # ------------------------------------------------------------------ deck editor
     "tcgshop.league.db.search": ("Buscar carta…", "Search card…"),
     "tcgshop.league.db.sort": ("Orden: %s", "Sort: %s"),
     "tcgshop.league.db.sort.stage": ("Clase", "Class"),
@@ -89,7 +89,7 @@ T = {
     "tcgshop.league.db.empty_hint": ("Tu mazo está vacío. Haz clic en tus cartas de la izquierda o pulsa «Automático».",
                                      "Your deck is empty. Click your cards on the left or press \"Automatic\"."),
 
-    # ------------------------------------------------------------------ panel de ayuda
+    # ------------------------------------------------------------------ help panel
     "tcgshop.league.help.button": ("¿Qué significa cada número?", "What does each number mean?"),
     "tcgshop.league.help.title": ("Cómo funciona la Liga TCG", "How the TCG League works"),
     "tcgshop.league.help.me": ("Tú: %s pts · %s", "You: %s pts · %s"),
@@ -117,7 +117,7 @@ T = {
     "tcgshop.league.help.col.rule": ("Cómo se consigue", "How to get it"),
     "tcgshop.league.help.col.coins": ("Monedas", "Coins"),
     "tcgshop.league.help.col.boards": ("Fondos", "Boards"),
-    # puntos y rangos
+    # points and ranks
     "tcgshop.league.help.points.h": ("Puntos de Liga (pts)", "League points (pts)"),
     "tcgshop.league.help.points.p1": ("Tu puntuación de Liga empieza en %s y nunca baja de %s. Es el número que decide tu rango y tu puesto en la clasificación.",
                                       "Your League rating starts at %s and never drops below %s. It decides your rank and your place on the leaderboard."),
@@ -128,7 +128,7 @@ T = {
                                      "Your best rating (peak) is kept: rank coins and boards unlock with the best rank you ever reached, even if you drop later."),
     "tcgshop.league.help.ranks.now": ("Ahora: %s pts (%s) · récord %s · te faltan %s pts para %s.", "Now: %s pts (%s) · peak %s · %s pts to reach %s."),
     "tcgshop.league.help.ranks.now_top": ("Ahora: %s pts (%s) · récord %s · ¡estás en el rango más alto!", "Now: %s pts (%s) · peak %s · you're at the top rank!"),
-    # IA
+    # AI
     "tcgshop.league.help.ai.h": ("Contra la IA (%s niveles)", "Vs the AI (%s levels)"),
     "tcgshop.league.help.ai.cols": ("«Pts IA» es la fuerza orientativa del rival. Ganar / Perder: puntos de Liga fijos por nivel (no es ELO). Premio: lo que cobras al ganar. Multa: lo que pagas al perder en Liga.",
                                     "\"AI pts\" is the opponent's rough strength. Win / Lose: fixed League points per level (not ELO). Prize: what you earn when you win. Fine: what you pay when you lose a League match."),
@@ -141,7 +141,7 @@ T = {
                                        "As you rank up, easy levels stop being allowed in League: %s. Friendly matches allow any level."),
     "tcgshop.league.help.ai.meta": ("La IA Difícil juega un mazo top del metajuego la mitad de las veces, y la Campeona siempre.",
                                     "The Hard AI plays a top meta deck half of the time, and the Champion always does."),
-    # jugadores
+    # players
     "tcgshop.league.help.pvp.h": ("Contra jugadores (ELO)", "Vs players (ELO)"),
     "tcgshop.league.help.pvp.p1": ("Entre jugadores se usa ELO: el ganador gana exactamente los puntos que pierde el perdedor. Ganar a alguien con más puntos que tú da mucho; ganar a alguien con menos, poco.",
                                    "Between players ELO is used: the winner gains exactly what the loser drops. Beating someone above you gives a lot; beating someone below you gives little."),
@@ -156,7 +156,7 @@ T = {
                                       "League matches: the phone's \"Find opponent\" queue and play tables (click a table to wait for an opponent)."),
     "tcgshop.league.help.pvp.friendly": ("Los desafíos (rueda de Cobblemon «Desafío TCG» o /tcgduel) son amistosos: no cambian puntos ni cobran multa.",
                                          "Challenges (Cobblemon wheel \"TCG Challenge\" or /tcgduel) are friendly: no points, no fine."),
-    # récord
+    # record
     "tcgshop.league.help.stats.h": ("Qué significa tu récord", "What your record means"),
     "tcgshop.league.help.stats.wl": ("V · D: victorias y derrotas en partidas de Liga (contra jugadores y Liga contra la IA).",
                                      "W · L: wins and losses in League matches (vs players and League vs the AI)."),
@@ -171,7 +171,7 @@ T = {
                                       "Leaderboard: the top 10 by points among players who played at least one League match."),
     "tcgshop.league.help.stats.you": ("Tú: %s V · %s D (%s%%) · %s contra la casa · %s partidas · racha %s (mejor %s) · récord %s pts.",
                                       "You: %s W · %s L (%s%%) · %s vs the house · %s matches · streak %s (best %s) · peak %s pts."),
-    # recompensas
+    # rewards
     "tcgshop.league.help.rewards.h": ("Monedas 3D y fondos de tablero", "3D coins and board backgrounds"),
     "tcgshop.league.help.rewards.p1": ("La moneda se usa en el lanzamiento de cada partida y el fondo decora tu tablero. Se desbloquean solos al cumplir su condición y se equipan con un clic en las pestañas Monedas y Fondos.",
                                        "The coin is used for each match's coin flip and the board decorates your table. They unlock by themselves when you meet the condition; equip them with a click in the Coins and Boards tabs."),
@@ -191,7 +191,7 @@ T = {
     "tcgshop.league.help.rewards.money": ("Dinero: ganar a la IA paga el premio de su nivel (ver «Contra la IA»); perder en Liga cuesta la multa.",
                                           "Money: beating the AI pays its level's prize (see \"Vs the AI\"); losing in League costs the fine."),
     "tcgshop.league.help.rewards.goals": ("La pestaña Logros muestra cuánto te falta para cada desbloqueo.", "The Goals tab shows how far you are from each unlock."),
-    # mazo
+    # deck
     "tcgshop.league.help.deck.h": ("Reglas del mazo (oficiales)", "Deck rules (official)"),
     "tcgshop.league.help.deck.size": ("Exactamente 60 cartas.", "Exactly 60 cards."),
     "tcgshop.league.help.deck.copies": ("Máximo 4 copias con el mismo nombre (aunque sean de sets distintos). La Energía básica no tiene límite y es gratis: no hace falta tenerla.",
@@ -218,7 +218,7 @@ T = {
     "tcgshop.league.help.editor.warnings": ("✖ = error (no se puede jugar) · ⚠ = consejo (p. ej. una evolución sin su fase anterior) · ✔ = todo bien.",
                                             "✖ = error (can't play) · ⚠ = advice (e.g. an evolution without its previous stage) · ✔ = all good."),
 
-    # texto antiguo de la clasificación (hablaba solo de mesas)
+    # old leaderboard text (it only talked about tables)
     "tcgshop.league.how": ("Juega desde «Jugar» (IA o cola de Liga) o en una Mesa de juego. Pulsa «?» arriba para ver qué significa cada número.",
                            "Play from \"Play\" (AI or League queue) or at a Play table. Press \"?\" at the top to see what each number means."),
 }
@@ -231,7 +231,7 @@ def main():
         for k, v in T.items():
             d[k] = v[i]
         p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(len(T), "textos")
+    print(len(T), "texts")
 
 
 if __name__ == "__main__":

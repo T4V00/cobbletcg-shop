@@ -17,8 +17,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Mercader negro: ves el sobre que ofrece, eliges qué Pokémon de tu equipo le das y confirmas dos veces
- * (elegir + "Sí, cambiar"). El intercambio sólo ocurre si el servidor consigue quitar el Pokémon.
+ * Black-market dealer: you see the pack on offer, pick which Pokémon from your party to give and confirm twice
+ * (pick + "Sí, cambiar"). The trade only happens if the server manages to remove the Pokémon.
  */
 public class BlackMarketScreen extends Screen {
     private record Mon(UUID uuid, Text name, int level, boolean shiny, String species) {}
@@ -67,13 +67,13 @@ public class BlackMarketScreen extends Screen {
         Ui.roundGradient(ctx, x, y, w, h, 0xF01A1426, 0xF00A0812);
         Ui.roundGradient(ctx, x, y, w, 22, 0xFF4A2A6A, 0xFF24143A);
         Draw.scaledCentered(ctx, Text.translatable("tcgshop.bm.title").formatted(Formatting.BOLD), x + w / 2f, y + 7, 1f, Draw.withAlpha(0xFFE0D0FF, in));
-        // el sobre que ofrece
+        // the pack on offer
         int cw = 70, ch = Math.round(cw / Draw.CARD_RATIO), cx = x + 14, cy = y + 32;
         Draw.glow(ctx, cx + cw / 2f, cy + ch / 2f, cw * 1.4f, ch * 1.2f, rare ? 0xFFFFD34D : 0xFFB06BFF, 0.3f + 0.12f * (float) Math.sin(t * 2.5));
         CatalogPanel.drawProduct(ctx, pack, cx, cy, cw, ch);
         Ui.text(ctx, Text.literal(Ui.ellipsis(pack.getName().getString(), cw + 30)), cx - 15, cy + ch + 4, cw + 30, 10, rare ? Ui.GOLD : 0xFFE0D0FF, true);
         if (rare) Ui.text(ctx, Text.translatable("tcgshop.bm.rare").formatted(Formatting.BOLD), cx - 15, cy + ch + 15, cw + 30, 10, Ui.GOLD, false);
-        // equipo
+        // party
         int lx = x + cw + 34, lw = w - cw - 46;
         ctx.drawTextWithShadow(textRenderer, Text.translatable("tcgshop.bm.pick"), lx, y + 30, 0xFFCFC2E8);
         int ry = y + 44;

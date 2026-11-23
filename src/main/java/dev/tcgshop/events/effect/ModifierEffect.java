@@ -14,9 +14,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * P1 "modifier": cambia números de la tienda mientras dura el evento (ver EFFECTS.md). Los topes globales los pone Mods.
- * while: "unresolved" (sólo hasta que se arregla; lo normal en negativos), "always" (todo el evento, también tras
- * arreglarse), "resolved" (sólo DESPUÉS de arreglarse) o "auto" (unresolved en negativos, always en el resto).
+ * P1 "modifier": changes shop numbers while the event lasts (see EFFECTS.md). Global caps are set by Mods.
+ * while: "unresolved" (only until it is fixed; the norm for negative events), "always" (the whole event, also after
+ * being fixed), "resolved" (only AFTER being fixed) or "auto" (unresolved for negative events, always for the rest).
  */
 public final class ModifierEffect implements EventEffect {
     final double spawnMult, buyMult, perceivedMult, haggleMult, patienceMult, serviceMult, revenueMult;
@@ -45,7 +45,7 @@ public final class ModifierEffect implements EventEffect {
             buy.add(new Mods.FilteredMult(EventDef.str(b, "filter", "any"), EventDef.dbl(b, "mult", 1)));
         }
         mode = EventDef.str(o, "while", "auto");
-        if (!List.of("auto", "unresolved", "always", "resolved").contains(mode)) throw new IllegalArgumentException("modifier.while inválido: " + mode);
+        if (!List.of("auto", "unresolved", "always", "resolved").contains(mode)) throw new IllegalArgumentException("invalid modifier.while: " + mode);
     }
 
     private boolean activeNow(EventInstance inst) {

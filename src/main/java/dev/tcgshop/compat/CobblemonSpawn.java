@@ -13,8 +13,8 @@ import net.minecraft.world.World;
 import java.lang.reflect.Method;
 
 /**
- * Aparición de Pokémon salvajes normales (capturables) de Cobblemon, por reflexión y sin dependencia de compilación.
- * Lo usa el tutorial: el "Meowth del Team Rocket" es un Meowth salvaje cualquiera con mote y que no desaparece.
+ * Spawning of normal (catchable) Cobblemon wild Pokémon, via reflection and with no compile-time dependency.
+ * Used by the tutorial: the "Team Rocket Meowth" is just an ordinary wild Meowth with a nickname that does not despawn.
  */
 public final class CobblemonSpawn {
     private static boolean warned;
@@ -26,8 +26,8 @@ public final class CobblemonSpawn {
     }
 
     /**
-     * Saca un Pokémon salvaje con las propiedades dadas (p.ej. "meowth level=10") en {@code pos}, con mote opcional,
-     * persistente (no se despawnea) y capturable. Devuelve la entidad o null si Cobblemon no está o algo falla.
+     * Spawns a wild Pokémon with the given properties (e.g. "meowth level=10") at {@code pos}, with an optional nickname,
+     * persistent (does not despawn) and catchable. Returns the entity or null if Cobblemon is missing or something fails.
      */
     public static Entity spawnWild(ServerWorld world, Vec3d pos, float yaw, String properties, MutableText nickname) {
         if (!available()) return null;
@@ -45,28 +45,28 @@ public final class CobblemonSpawn {
                         if (m.getName().equals("setNickname") && m.getParameterCount() == 1) set = m;
                     if (set != null) set.invoke(pk, nickname);
                 } catch (Throwable e) {
-                    TcgShop.LOGGER.warn("No se pudo poner mote al Pokémon del tutorial: {}", e.toString());
+                    TcgShop.LOGGER.warn("Could not nickname the tutorial Pokémon: {}", e.toString());
                 }
             }
             pokemon.refreshPositionAndAngles(pos.x, pos.y, pos.z, yaw, 0);
-            // los Pokémon salvajes sin dueño sólo se despawnean si no son persistentes (PokemonEntity.checkDespawn)
+            // ownerless wild Pokémon only despawn if they are not persistent (PokemonEntity.checkDespawn)
             if (pokemon instanceof MobEntity mob) mob.setPersistent();
             if (!world.spawnEntity(pokemon)) return null;
             return pokemon;
         } catch (Throwable e) {
             if (!warned) {
                 warned = true;
-                TcgShop.LOGGER.warn("No se pudo sacar un Pokémon de Cobblemon: {}", e.toString());
+                TcgShop.LOGGER.warn("Could not spawn a Cobblemon Pokémon: {}", e.toString());
             }
             return null;
         }
     }
 
-    /** Hueco libre (2 bloques de alto sin colisión y suelo sólido) cerca de {@code around}, o null. */
+    /** Free spot (2 blocks tall with no collision and solid ground) near {@code around}, or null. */
     public static Vec3d freeSpotNear(ServerWorld world, Vec3d around, Vec3d preferredDir) {
         Vec3d dir = new Vec3d(preferredDir.x, 0, preferredDir.z);
         dir = dir.lengthSquared() < 1e-4 ? new Vec3d(1, 0, 0) : dir.normalize();
-        // primero delante, luego girando alrededor
+        // in front first, then rotating around
         for (int step = 0; step < 8; step++) {
             double ang = Math.toRadians(step * 45.0);
             double dx = dir.x * Math.cos(ang) - dir.z * Math.sin(ang), dz = dir.x * Math.sin(ang) + dir.z * Math.cos(ang);

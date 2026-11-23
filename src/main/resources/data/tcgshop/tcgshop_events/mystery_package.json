@@ -1,5 +1,5 @@
 {
-  "_comment": "#88 caja misteriosa (+#89 paquete sin remitente como variante): una caja dentro de la tienda, junto a la puerta. Sólo el dueño la abre (mano vacía). Premio pequeño con tope semanal por dueño.",
+  "_comment": "#88 mystery box (+#89 package with no sender as a variant): a box inside the shop, next to the door. Only the owner opens it (empty hand). Small prize with a weekly cap per owner.",
   "category": "positive",
   "tier": "uncommon",
   "template": "package",

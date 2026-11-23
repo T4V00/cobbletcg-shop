@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Textos de CobbleGrade (gradeo de cartas). Fusiona las claves en es_es / en_us."""
+"""CobbleGrade texts (card grading). Merges the keys into es_es / en_us."""
 import json
 from pathlib import Path
 
@@ -105,7 +105,7 @@ def main():
         d = json.loads(p.read_text(encoding="utf-8"))
         d.update(add)
         p.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
-    print("textos CobbleGrade:", len(ES))
+    print("CobbleGrade texts:", len(ES))
 
 
 if __name__ == "__main__":

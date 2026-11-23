@@ -8,7 +8,7 @@ import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
-/** Cliente -> servidor: comprar / cambiar precio / retirar una casilla de un mueble de tienda. */
+/** Client -> server: buy / change price / withdraw a slot of a shop fixture. */
 public record ShopActionPayload(BlockPos pos, int action, int slot, long value) implements CustomPayload {
     public static final int BUY = 0, SET_PRICE = 1, TAKE = 2;
     public static final Id<ShopActionPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "shop_action"));

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Textos de los datos curiosos por hitos de cartas distintas (FunFacts.MILESTONES)."""
+"""Texts for the fun facts at distinct-card milestones (FunFacts.MILESTONES)."""
 import json
 from pathlib import Path
 
@@ -117,7 +117,7 @@ def main():
             d[f"tcgshop.fact.{n}"] = texts[idx]
         d["tcgshop.fact.title"] = "¡%s cartas distintas!" if idx == 0 else "%s different cards!"
         p.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(len(FACTS), "datos curiosos")
+    print(len(FACTS), "fun facts")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 {
-  "_comment": "#27 cliente que rompe productos: un cliente patoso tira productos de un expositor. Las casillas afectadas quedan bloqueadas (el objeto NUNCA se mueve). Arreglo: recoger con la mano o la fregona.",
+  "_comment": "#27 customer who breaks products: a clumsy customer knocks products off a display. The affected slots stay blocked (the item NEVER moves). Fix: pick up by hand or with the mop.",
   "category": "negative",
   "tier": "uncommon",
   "template": "clumsy",

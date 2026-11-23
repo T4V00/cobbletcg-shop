@@ -1,5 +1,5 @@
-"""Frases de NPC de la "tienda viva v2" (clientes que vuelven, trueques, caja, reseñas, ladrones con combate).
-Las importa gen_npc_lines.py; los recuentos deben coincidir con NpcLines.COUNTS."""
+"""NPC lines for the "living shop v2" (returning customers, trades, checkout, reviews, thieves with combat).
+Imported by gen_npc_lines.py; the counts must match NpcLines.COUNTS."""
 
 EXTRA = {
     "trader_hello": [

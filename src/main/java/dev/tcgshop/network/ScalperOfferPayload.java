@@ -8,7 +8,7 @@ import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
-/** Servidor -> cliente: un Scalper te ofrece un sobre. */
+/** Server -> client: a Scalper offers you a pack. */
 public record ScalperOfferPayload(int entityId, ItemStack pack, long price, long market) implements CustomPayload {
     public static final Id<ScalperOfferPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "scalper_offer"));
     public static final PacketCodec<RegistryByteBuf, ScalperOfferPayload> CODEC = PacketCodec.tuple(

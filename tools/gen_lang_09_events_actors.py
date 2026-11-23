@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""0.9 - eventos aleatorios, parte ACTORES (Pokémon de Cobblemon que visitan la tienda): nombres, descripciones,
-avisos y arreglos de los eventos con actores, mensajes del módulo (tcgshop.actor.*), frases de clientes
-(tcgshop.evline.act_*) y reseñas con memoria propias de cada Pokémon (tcgshop.review.ev_pkmn_* y
-tcgshop.reviewtext.ev_pkmn_*.<1-5>.<0-7>, mismo patrón que gen_lang_09_events_core.py / gen_lang_reviews.py).
+"""0.9 - random events, ACTORS part (Cobblemon Pokémon that visit the shop): names, descriptions,
+notices and fixes for the actor events, module messages (tcgshop.actor.*), customer lines
+(tcgshop.evline.act_*) and memory reviews specific to each Pokémon (tcgshop.review.ev_pkmn_* and
+tcgshop.reviewtext.ev_pkmn_*.<1-5>.<0-7>, same pattern as gen_lang_09_events_core.py / gen_lang_reviews.py).
 
-Sólo fija SUS claves en es_es.json y en_us.json (idempotente). Recarga el JSON justo antes de escribir.
-Uso: python -I -X utf8 tools/gen_lang_09_events_actors.py
+Only sets ITS OWN keys in es_es.json and en_us.json (idempotent). Reloads the JSON right before writing.
+Usage: python -I -X utf8 tools/gen_lang_09_events_actors.py
 """
 import importlib.util
 import json
@@ -35,7 +35,7 @@ def event(id, name, desc, start, fix=None):
 SHOO_FEED_BATTLE = ("Espántalo con la mano vacía (clic derecho varias veces), dale una baya o, agachado + clic derecho, combate contra él.",
                     "Shoo it away with an empty hand (right-click a few times), give it a berry or, sneaking + right-click, battle it.")
 
-# ================================================================ negativos
+# ================================================================ negative
 event("blocked_entrance", ("Un Pokémon bloquea la entrada", "A Pokémon blocks the entrance"),
       ("Un Pokémon enorme (un Snorlax dormilón, un Wobbuffet testarudo o la familia de Psyduck) se ha plantado junto a la puerta. Mientras siga ahí, los clientes no entran por esa puerta y los que esperan se impacientan antes. Nunca tapa el hueco de la puerta: puedes pasar.",
        "A huge Pokémon (a sleepy Snorlax, a stubborn Wobbuffet or the Psyduck family) has settled next to the door. While it stays there, customers won't come in through that door and those waiting get impatient sooner. It never covers the doorway itself: you can get through."),
@@ -84,7 +84,7 @@ event("pidgey_invasion", ("Invasión de Pidgey", "Pidgey invasion"),
       ("Limpia los excrementos. Espantar a los Pidgey (un clic derecho con la mano vacía a cada uno) evita que sigan molestando, pero lo que dejaron sigue ahí.",
        "Clean up the droppings. Shooing the Pidgey (one empty-hand right-click each) stops them bothering people, but what they left is still there."))
 
-# ================================================================ neutrales
+# ================================================================ neutral
 event("rotom_register", ("Rotom en la caja registradora", "Rotom in the cash register"),
       ("Un Rotom se ha metido en la caja registradora. El cobro va a tirones: a ratos va rapidísimo y a ratos se atasca.",
        "A Rotom got into the cash register. Checkout is hit-and-miss: sometimes it's super fast, sometimes it jams."),
@@ -102,7 +102,7 @@ event("combee_flowers", ("Combee en las flores", "Combee in the flowers"),
       ("Unos Combee zumban junto a la entrada, buscando néctar.", "Some Combee are buzzing by the entrance, looking for nectar."),
       ("Unos Combee revolotean junto a la puerta de la tienda.", "Some Combee are fluttering by the shop door."))
 
-# ================================================================ positivos
+# ================================================================ positive
 event("pikachu_visit", ("Visita de Pikachu", "Pikachu visit"),
       ("Un Pikachu salvaje pasea por la tienda. Los clientes se animan: llegan algo más y de mejor humor mientras esté.",
        "A wild Pikachu is wandering around the shop. Customers love it: a few more come in, and in a better mood, while it's here."),
@@ -148,7 +148,7 @@ event("guardian_pokemon", ("Pokémon protector", "Guardian Pokémon"),
        "A strong Pokémon (a Lucario in mountain or snowy areas, a Growlithe elsewhere) guards the entrance all day. No thief will come near today."),
       ("Un Pokémon protector se ha quedado vigilando la puerta de tu tienda.", "A guardian Pokémon is keeping watch at your shop door."))
 
-# ================================================================ mensajes del módulo (tcgshop.actor.*)
+# ================================================================ module messages (tcgshop.actor.*)
 k("tcgshop.actor.only_owner", "Sólo el dueño de la tienda puede encargarse de este Pokémon.", "Only the shop owner can deal with this Pokémon.")
 k("tcgshop.actor.shoo_progress", "Espantando a %s… %s/%s", "Shooing %s… %s/%s")
 k("tcgshop.actor.shooed", "%s se ha ido.", "%s left.")
@@ -178,7 +178,7 @@ k("tcgshop.actor.slots", "%s ha tirado productos: %s casillas no se pueden compr
 k("tcgshop.actor.customers_left", "El canto de %s ha hecho que %s clientes se vayan.", "%s's singing made %s customers leave.")
 k("tcgshop.actor.helped", "¡%s ha arreglado «%s»!", "%s fixed \"%s\"!")
 
-# ================================================================ frases de clientes (tcgshop.evline.act_*.<0-5>)
+# ================================================================ customer lines (tcgshop.evline.act_*.<0-5>)
 L = {
     "act_charmander": [("¿Huele a quemado o soy yo?", "Does it smell like something's burning or is it just me?"),
                        ("¡Cuidado, que ese Charmander está que echa chispas!", "Careful, that Charmander is fuming!"),
@@ -300,8 +300,8 @@ for cat, lines in L.items():
     for i, (es, en) in enumerate(lines):
         k("tcgshop.evline.%s.%d" % (cat, i), es, en)
 
-# ================================================================ reseñas con memoria (tcgshop.review.ev_pkmn_*)
-# (etiqueta ES, etiqueta EN, 4 frases para 4-5 estrellas, 4 frases para 1-2 estrellas). 3 estrellas mezcla ambas.
+# ================================================================ memory reviews (tcgshop.review.ev_pkmn_*)
+# (ES label, EN label, 4 lines for 4-5 stars, 4 lines for 1-2 stars). 3 stars mixes both.
 R = {
     "pkmn_snorlax": ("Snorlax en la puerta", "Snorlax at the door",
                      [("Había un Snorlax roncando en la entrada, pero mereció la pena rodearlo", "There was a Snorlax snoring at the entrance, but it was worth going around it"),
@@ -411,7 +411,7 @@ R = {
                     ("Todo desordenado y con un Zubat volando por ahí", "Everything messy and a Zubat flying around"),
                     ("Tardaron muchísimo en cobrarme, había un Zubat en el almacén", "It took ages to ring me up, there was a Zubat in the stockroom"),
                     ("Una tienda con Zubat dentro no da confianza", "A shop with Zubat inside doesn't inspire confidence")]),
-    # positivos propios
+    # own positive ones
     "pkmn_meowth": ("Meowth afortunado", "Lucky Meowth",
                     [("¡Había un Meowth con una moneda brillante! Da buena suerte", "There was a Meowth with a shiny coin! It brings good luck"),
                      ("Acaricié al Meowth de la tienda y me dio suerte", "I petted the shop's Meowth and it brought me luck"),
@@ -441,7 +441,7 @@ R = {
                    ("Lo mejor, el Flaaffy; lo demás, para olvidar", "The best part, the Flaaffy; the rest, forgettable")]),
 }
 
-# _fixed: hubo un Pokémon dando guerra, pero lo resolvieron antes de que llegara este cliente ({d} = detalle)
+# _fixed: a Pokémon was causing trouble, but it was dealt with before this customer arrived ({d} = detail)
 FIX_GOOD = [("Me contaron que hubo jaleo {d}, pero cuando llegué ya estaba todo resuelto", "I heard there'd been a commotion {d}, but when I got there it was all sorted"),
             ("Al parecer hubo un problema {d}; lo arreglaron rapidísimo", "Apparently there was a problem {d}; they fixed it super fast"),
             ("Ni rastro del lío {d} del que hablaba la gente", "No sign of the trouble {d} people were talking about"),
@@ -491,7 +491,7 @@ for tag, (les, len_, good, bad) in R.items():
                 target[f"tcgshop.reviewtext.{key}.{stars}.{n}"] = rv.fit(frames[n], band[n % 4][li])
 
 
-# ================================================================ escribir
+# ================================================================ write
 def merge(fname, add):
     p = os.path.join(LANG, fname)
     with open(p, encoding="utf-8") as f:
@@ -507,4 +507,4 @@ if __name__ == "__main__":
     assert set(ES) == set(EN), set(ES) ^ set(EN)
     n1 = merge("es_es.json", ES)
     n2 = merge("en_us.json", EN)
-    print("gen_lang_09_events_actors: %d claves en es_es.json, %d en en_us.json" % (n1, n2))
+    print("gen_lang_09_events_actors: %d keys in es_es.json, %d in en_us.json" % (n1, n2))

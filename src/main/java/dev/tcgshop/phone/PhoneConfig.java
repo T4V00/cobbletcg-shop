@@ -12,7 +12,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** config/tcgshop-phone.json — mejoras del teléfono (0.9). Se lee al arrancar y con PhoneConfig.load(). */
+/** config/tcgshop-phone.json — phone upgrades (0.9). Read on startup and by PhoneConfig.load(). */
 public class PhoneConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("tcgshop-phone.json");
@@ -21,27 +21,27 @@ public class PhoneConfig {
 
     public Map<String, String> _help = new LinkedHashMap<>();
 
-    /** false = sistema de mejoras desactivado: todos tienen todo desbloqueado (menos la llamada diaria si callsEnabled = false). */
+    /** false = upgrade system disabled: everyone has everything unlocked (except the daily call if callsEnabled = false). */
     public boolean enabled = true;
-    /** Coste de cada nivel (índice 0 = Básico, siempre gratis). */
+    /** Cost of each tier (index 0 = Basic, always free). */
     public long[] tierCosts = PhoneTier.DEFAULT_COSTS.clone();
-    /** Precio máximo del sobre (USD de mercado) por nivel 0..5; en el nivel 6 no hay límite. */
+    /** Max pack price (market USD) per tier 0..5; tier 6 has no limit. */
     public double[] packUsdLimits = PhoneTier.DEFAULT_PACK_USD.clone();
-    /** Llamada diaria del último nivel (Coleccionista o Mayorista). */
+    /** Daily call of the top tier (Collector or Wholesaler). */
     public boolean callsEnabled = true;
-    /** Nivel con el que empiezan los jugadores que ya tenían tienda / ya habían jugado antes de la 0.9. */
+    /** Starting tier for players who already had a shop / had already played before 0.9. */
     public int legacyShopOwnerTier = 2, legacyPlayerTier = 1;
-    /** Los jugadores de antes de la 0.9 conservan TODAS las apps que ya usaban (Precios, CobbleGrade, Liga...). */
+    /** Players from before 0.9 keep ALL the apps they already used (Prices, CobbleGrade, League...). */
     public boolean legacyKeepsApps = true;
 
     private void fillHelp() {
         _help.clear();
-        _help.put("enabled", "false = sin mejoras: todo el mundo tiene el teléfono completo.");
-        _help.put("tierCosts", "Coste en CobbleDollars de cada nivel: Básico, Plus, Pro, Ultra, Max, Élite, MasterBall Edition.");
-        _help.put("packUsdLimits", "Precio máximo del sobre (USD de mercado) de los sets que puedes comprar en los niveles 0..5 (cajas incluidas). El nivel 6 no tiene límite.");
-        _help.put("callsEnabled", "Llamada diaria del nivel MasterBall Edition (Coleccionista o Mayorista).");
-        _help.put("legacyShopOwnerTier/legacyPlayerTier", "Nivel inicial de quien ya tenía tienda / ya había jugado antes de la 0.9.");
-        _help.put("legacyKeepsApps", "Los jugadores de antes de la 0.9 conservan todas las apps que ya tenían.");
+        _help.put("enabled", "false = no upgrades: everyone has the full phone.");
+        _help.put("tierCosts", "CobbleDollars cost of each tier: Basic, Plus, Pro, Ultra, Max, Elite, MasterBall Edition.");
+        _help.put("packUsdLimits", "Max pack price (market USD) of the sets you can buy at tiers 0..5 (boxes included). Tier 6 has no limit.");
+        _help.put("callsEnabled", "Daily call of the MasterBall Edition tier (Collector or Wholesaler).");
+        _help.put("legacyShopOwnerTier/legacyPlayerTier", "Starting tier for players who already had a shop / had already played before 0.9.");
+        _help.put("legacyKeepsApps", "Players from before 0.9 keep all the apps they already had.");
     }
 
     private void sanitize() {
@@ -65,7 +65,7 @@ public class PhoneConfig {
         try {
             if (Files.exists(FILE)) try (Reader r = Files.newBufferedReader(FILE)) { c = GSON.fromJson(r, PhoneConfig.class); }
         } catch (Exception e) {
-            TcgShop.LOGGER.error("No se pudo leer {} (se usan los valores por defecto)", FILE, e);
+            TcgShop.LOGGER.error("Could not read {} (using default values)", FILE, e);
         }
         if (c == null) c = new PhoneConfig();
         c.sanitize();
@@ -74,7 +74,7 @@ public class PhoneConfig {
         try (Writer w = Files.newBufferedWriter(FILE)) {
             GSON.toJson(c, w);
         } catch (Exception e) {
-            TcgShop.LOGGER.error("No se pudo guardar {}", FILE, e);
+            TcgShop.LOGGER.error("Could not save {}", FILE, e);
         }
     }
 }

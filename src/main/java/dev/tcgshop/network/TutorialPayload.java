@@ -10,10 +10,10 @@ import net.minecraft.text.TextCodecs;
 import net.minecraft.util.Identifier;
 
 /**
- * Servidor -> cliente (sólo al dueño de la tienda): bocadillo guionizado del tutorial del Meowth del Team Rocket.
- * Se pinta con ClientSpeech sobre la entidad {@code entityId} (cualquier entidad, no sólo los NPC del mod), dura al
- * menos {@code duration} ticks y se ve aunque el jugador tenga apagados los bocadillos de los NPC.
- * (Desde la 0.9 ya no abre ninguna pantalla: antes era TutorialScreen.)
+ * Server -> client (only to the shop owner): scripted speech bubble of the Team Rocket Meowth tutorial.
+ * Drawn with ClientSpeech over entity {@code entityId} (any entity, not just the mod's NPCs), lasts at
+ * least {@code duration} ticks and is visible even if the player has NPC speech bubbles turned off.
+ * (Since 0.9 it no longer opens any screen: it used to be TutorialScreen.)
  */
 public record TutorialPayload(int entityId, Text text, int duration) implements CustomPayload {
     public static final Id<TutorialPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "tutorial"));

@@ -7,7 +7,7 @@ import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
-/** Cliente -> servidor: comprar del catálogo (source = id del Mayorista, o -1 = teléfono). */
+/** Client -> server: buy from the catalog (source = Wholesaler id, or -1 = phone). */
 public record StoreBuyPayload(int source, int index, int qty) implements CustomPayload {
     public static final Id<StoreBuyPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "store_buy"));
     public static final PacketCodec<RegistryByteBuf, StoreBuyPayload> CODEC = PacketCodec.tuple(

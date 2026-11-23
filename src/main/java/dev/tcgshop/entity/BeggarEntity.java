@@ -42,9 +42,9 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Mendigo de cartas: un fan del TCG sin blanca que ronda las tiendas. Te pide unas monedas o una carta.
- * Darle algo mejora la "buena fama" de tus tiendas (y a veces te devuelve el favor con una carta o un sobre);
- * echarle de malas maneras la empeora. Rechazarle con educación no pasa nada. Se va al rato.
+ * Card beggar: a broke TCG fan who hangs around shops. Asks you for a few coins or a card.
+ * Giving him something improves your shops' "good standing" (and sometimes he returns the favor with a card or a pack);
+ * sending him off rudely worsens it. Turning him down politely has no effect. Leaves after a while.
  */
 public class BeggarEntity extends PathAwareEntity implements TcgNpc {
     private static final TrackedData<Integer> SKIN = DataTracker.registerData(BeggarEntity.class, TrackedDataHandlerRegistry.INTEGER);
@@ -116,7 +116,7 @@ public class BeggarEntity extends PathAwareEntity implements TcgNpc {
         return ActionResult.success(getWorld().isClient);
     }
 
-    /** Respuesta del jugador: give_50 / give_250 / give_1000 / give_card / polite / rude. */
+    /** Player's answer: give_50 / give_250 / give_1000 / give_card / polite / rude. */
     public void answer(ServerPlayerEntity p, String action) {
         if (squaredDistanceTo(p) > 8 * 8 || !isAlive()) return;
         ServerWorld world = p.getServerWorld();
@@ -164,7 +164,7 @@ public class BeggarEntity extends PathAwareEntity implements TcgNpc {
                 getX(), getY() + 2, getZ(), 3, 0.3, 0.2, 0.3, 0);
     }
 
-    /** Buena (o mala) fama en todas las tiendas del jugador. */
+    /** Good (or bad) standing across all of the player's shops. */
     private void charity(ServerPlayerEntity p, int points) {
         boolean any = false;
         for (ServerWorld w : p.getServer().getWorlds()) {
@@ -179,7 +179,7 @@ public class BeggarEntity extends PathAwareEntity implements TcgNpc {
         if (any) p.sendMessage(Text.translatable(points >= 0 ? "tcgshop.beggar.karma_up" : "tcgshop.beggar.karma_down").formatted(points >= 0 ? Formatting.GREEN : Formatting.RED), true);
     }
 
-    /** A veces te devuelve el favor: una carta (mejor si fuiste generoso) o, rara vez, un sobre. */
+    /** Sometimes returns the favor: a card (better if you were generous) or, rarely, a pack. */
     private void reward(ServerPlayerEntity p, double cardChance, double packChance, boolean good) {
         if (random.nextDouble() < packChance) {
             List<Item> packs = new ArrayList<>();

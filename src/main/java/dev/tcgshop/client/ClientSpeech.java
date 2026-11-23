@@ -26,15 +26,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Bocadillos de diálogo de los NPC: el texto aparece letra a letra sobre su cabeza mientras "balbucean" con
- * pitidos de bloque musical (cada NPC con su voz: tono e instrumento según quién sea).
+ * NPC speech bubbles: the text appears letter by letter above their head while they "babble" with
+ * note block beeps (each NPC with its own voice: pitch and instrument depending on who it is).
  * <p>
- * Los NPC propios del mod (TcgNpc) pintan su bocadillo en su renderer (TcgNpcRenderer). Para cualquier OTRA entidad
- * (p.ej. el Meowth del Team Rocket, que es un Pokémon de Cobblemon) el bocadillo se pinta aquí, en el evento de
- * render del mundo, sobre la entidad con esa id.
+ * The mod's own NPCs (TcgNpc) draw their bubble in their renderer (TcgNpcRenderer). For any OTHER entity
+ * (e.g. Team Rocket's Meowth, which is a Cobblemon Pokémon) the bubble is drawn here, in the world
+ * render event, above the entity with that id.
  */
 public final class ClientSpeech {
-    /** Letras por tick que se van mostrando. */
+    /** Letters shown per tick. */
     public static final float CHARS_PER_TICK = 1.6f;
     public static final int MAX_WIDTH = 150;
 
@@ -43,7 +43,7 @@ public final class ClientSpeech {
         public final String plain;
         public final long start;
         public final int duration;
-        /** Bocadillo guionizado (tutorial): se ve aunque el jugador haya apagado los bocadillos de los NPC. */
+        /** Scripted bubble (tutorial): visible even if the player has turned off NPC bubbles. */
         public final boolean forced;
         int cursor, letters;
 
@@ -67,13 +67,13 @@ public final class ClientSpeech {
     private static boolean worldHooked;
 
     static {
-        // la clase se inicializa en el primer tick del cliente (ClientTickEvents -> tick): ahí se engancha el render
+        // the class is initialized on the first client tick (ClientTickEvents -> tick): the render is hooked there
         hookWorldRender();
     }
 
     private ClientSpeech() {}
 
-    /** Engancha el render de bocadillos sobre entidades que no son TcgNpc (idempotente). */
+    /** Hooks the bubble render above entities that are not TcgNpc (idempotent). */
     public static void hookWorldRender() {
         if (worldHooked) return;
         worldHooked = true;
@@ -92,8 +92,8 @@ public final class ClientSpeech {
     }
 
     /**
-     * Bocadillo guionizado (tutorial del Meowth): dura al menos {@code minTicks} y siempre lo bastante para escribirse
-     * entero y leerse; se ve aunque los bocadillos de NPC estén desactivados en los ajustes.
+     * Scripted bubble (Meowth tutorial): lasts at least {@code minTicks} and always long enough to be typed out
+     * fully and read; visible even if NPC bubbles are disabled in the settings.
      */
     public static void sayScripted(int entityId, Text text, int minTicks) {
         MinecraftClient mc = MinecraftClient.getInstance();
@@ -106,7 +106,7 @@ public final class ClientSpeech {
         SPEECH.put(entityId, new Speech(plain, lines, mc.world.getTime(), duration, true));
     }
 
-    /** Partido por palabras (y por letras si una palabra no cabe). */
+    /** Split by words (and by letters if a word does not fit). */
     public static List<String> wrap(TextRenderer tr, String s, int max) {
         List<String> out = new ArrayList<>();
         StringBuilder line = new StringBuilder();
@@ -126,7 +126,7 @@ public final class ClientSpeech {
         return out;
     }
 
-    /** Sonidos de "hablar" a medida que salen las letras, y limpieza de los bocadillos terminados. */
+    /** "Talking" sounds as the letters appear, and cleanup of finished bubbles. */
     public static void tick(MinecraftClient mc) {
         if (mc.world == null) { SPEECH.clear(); return; }
         long now = mc.world.getTime();
@@ -155,16 +155,16 @@ public final class ClientSpeech {
         if (who instanceof ScalperEntity) { sound = SoundEvents.ENTITY_PILLAGER_AMBIENT; base = 0.95f + Math.floorMod(h, 20) / 100f; }
         else if (who instanceof WholesalerEntity) { sound = SoundEvents.ENTITY_WANDERING_TRADER_AMBIENT; base = 0.95f + Math.floorMod(h, 15) / 100f; }
         else if (who instanceof dev.tcgshop.entity.FurnitureSellerEntity) { sound = SoundEvents.ENTITY_WANDERING_TRADER_AMBIENT; base = 1.08f + Math.floorMod(h, 15) / 100f; }
-        else if (!(who instanceof TcgNpc)) { sound = SoundEvents.ENTITY_CAT_AMBIENT; base = 1.15f; volume = 0.35f; } // el Meowth del tutorial
+        else if (!(who instanceof TcgNpc)) { sound = SoundEvents.ENTITY_CAT_AMBIENT; base = 1.15f; volume = 0.35f; } // the tutorial Meowth
         else {
             sound = Math.floorMod(h, 4) == 0 ? SoundEvents.ENTITY_VILLAGER_TRADE : SoundEvents.ENTITY_VILLAGER_AMBIENT;
-            base = 0.9f + Math.floorMod(h, 35) / 100f; // cada cliente con su "voz"
+            base = 0.9f + Math.floorMod(h, 35) / 100f; // each customer with its own "voice"
         }
         float pitch = base + (who.getRandom().nextFloat() - 0.5f) * 0.1f;
         mc.world.playSound(who.getX(), who.getEyeY(), who.getZ(), sound, SoundCategory.NEUTRAL, volume, pitch, false);
     }
 
-    // ------------------------------------------------------------------ bocadillos sobre entidades que no son TcgNpc
+    // ------------------------------------------------------------------ bubbles above entities that are not TcgNpc
 
     private static void renderWorld(WorldRenderContext ctx) {
         if (SPEECH.isEmpty()) return;
@@ -180,7 +180,7 @@ public final class ClientSpeech {
         boolean drew = false;
         for (Map.Entry<Integer, Speech> e : SPEECH.entrySet()) {
             Entity who = mc.world.getEntityById(e.getKey());
-            if (who == null || who instanceof TcgNpc || who.isInvisible()) continue; // los TcgNpc lo pintan en su renderer
+            if (who == null || who instanceof TcgNpc || who.isInvisible()) continue; // TcgNpcs draw it in their renderer
             Speech sp = e.getValue();
             if (!sp.forced && !ClientSettings.INSTANCE.bubbles) continue;
             double x = MathHelper.lerp(tickDelta, who.prevX, who.getX());
@@ -195,7 +195,7 @@ public final class ClientSpeech {
         if (drew && consumers instanceof VertexConsumerProvider.Immediate imm) imm.draw();
     }
 
-    /** Mismo bocadillo de cómic que TcgNpcRenderer: fondo, piquito hacia la entidad y texto letra a letra. */
+    /** Same comic bubble as TcgNpcRenderer: background, tail pointing at the entity and letter-by-letter text. */
     private static boolean bubble(TextRenderer tr, Entity who, Speech sp, float tickDelta, MatrixStack matrices,
                                   VertexConsumerProvider consumers, Quaternionf cameraRotation) {
         var cfg = ClientSettings.INSTANCE;
@@ -209,13 +209,13 @@ public final class ClientSpeech {
         float pop = Math.min(1, (now - sp.start) / 4f);
         float scale = 0.021f * cfg.size() * (0.7f + 0.3f * (float) Math.sin(pop * Math.PI / 2));
         matrices.push();
-        // por encima del nombre (mote) que pinta el renderer de la entidad
+        // above the name (nickname) drawn by the entity's renderer
         matrices.translate(0, who.getHeight() + 0.85f + (cfg.size() - 1f) * 0.25f, 0);
         matrices.multiply(cameraRotation);
         matrices.scale(scale, -scale, scale);
         float x0 = -bw / 2f, y0 = -6 - bh;
         int bg = cfg.bgColor();
-        if (bg == 0 && sp.forced) bg = ClientSettings.BG_COLORS[0]; // guionizado: siempre con fondo para leerse bien
+        if (bg == 0 && sp.forced) bg = ClientSettings.BG_COLORS[0]; // scripted: always with a background so it reads well
         int bgCol = bg == 0 ? 0 : (Math.round(((bg >>> 24) / 255f) * alpha * 255) << 24) | (bg & 0xFFFFFF);
         int tc = cfg.textColor();
         if (sp.forced && cfg.bgColor() == 0) tc = 0xFF16161E;
@@ -223,7 +223,7 @@ public final class ClientSpeech {
         int visible = sp.visibleChars(now), used = 0;
         int target = w + padX * 2;
         boolean typing = visible < sp.plain.length();
-        // 1) el fondo solo (líneas de espacios con color de fondo): Minecraft lo pinta un poco por delante del texto
+        // 1) the background alone (lines of spaces with a background color): Minecraft draws it slightly in front of the text
         if (bgCol != 0) {
             Matrix4f mb = matrices.peek().getPositionMatrix();
             for (int i = 0; i < sp.lines.size(); i++) {
@@ -235,7 +235,7 @@ public final class ClientSpeech {
             tr.draw(tail, -tr.getWidth(tail) / 2f, y0 + padY + sp.lines.size() * lineH - 2, (Math.max(8, Math.round(alpha * 255)) << 24) | (bg & 0xFFFFFF),
                     false, mb, consumers, TextRenderer.TextLayerType.NORMAL, 0, 0xF000F0);
         }
-        // 2) el texto, adelantado hacia la cámara y con desplazamiento de profundidad
+        // 2) the text, moved toward the camera and with depth offset
         matrices.push();
         matrices.translate(0, 0, 1.5f);
         Matrix4f mt = matrices.peek().getPositionMatrix();

@@ -19,9 +19,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * config/tcgshop-economy.json — todos los números de la economía que no son precios de cartas/sobres
- * (esos vienen de los datos de mercado y de cobbleDollarsPerUsd en tcgshop.json).
- * Se puede editar con el juego abierto y aplicar con /tcgshop reload (los clientes reciben los valores nuevos).
+ * config/tcgshop-economy.json — all economy numbers that are not card/pack prices
+ * (those come from the market data and from cobbleDollarsPerUsd in tcgshop.json).
+ * Can be edited with the game running and applied with /tcgshop reload (clients receive the new values).
  */
 public class EconomyConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
@@ -31,126 +31,126 @@ public class EconomyConfig {
 
     public Map<String, String> _help = new LinkedHashMap<>();
 
-    /** Precio fijo de muebles, herramientas, núcleos de tienda y Mystery Box (id de objeto -> CobbleDollars). */
+    /** Fixed price of furniture, tools, shop cores and Mystery Box (item id -> CobbleDollars). */
     public Map<String, Long> itemPrices = new LinkedHashMap<>();
     public long defaultItemPrice = 5_000;
     public long pokedollPrice = 40_000, giganticPokedollPrice = 150_000;
 
-    /** Mayorista y Mercado del teléfono: factor sobre el precio de mercado de sobres, cajas y cartas. */
+    /** Wholesaler and phone Market: factor over the market price of packs, boxes and cards. */
     public double wholesalerBuyFactor = 0.6, phoneBuyFactor = 0.8;
-    /** Venta rápida de cartas: % del valor que pagan el teléfono y el Mayorista. */
+    /** Quick-sell of cards: % of the value paid by the phone and the Wholesaler. */
     public double phoneSellRate = 0.5, wholesalerSellRate = 0.4;
-    // ---- 0.3: muebles (CobbleFurnies / peluches) y reputación
+    // ---- 0.3: furniture (CobbleFurnies / plushies) and reputation
     public double furniturePriceMultiplier = 1.0, furnitureSellerFactor = 0.9, furnitureWholesalerFactor = 1.0, furniturePhoneFactor = 1.15;
     public double furnitureSellerBuyback = 0.5, furnitureOtherBuyback = 0.35;
     public double furnitureSellerChance = 0.35;
-    /** Reputación: por encima de repSoftCap hay rendimientos decrecientes (repTopExponent mayor = más difícil llegar a 100). */
+    /** Reputation: above repSoftCap there are diminishing returns (higher repTopExponent = harder to reach 100). */
     public int repSoftCap = 60;
     public double repTopExponent = 1.7;
-    /** Velocidad de la reputación hacia su objetivo cada recálculo (1 min): fracción de la diferencia al subir (con tope) y al bajar. */
+    /** Speed of reputation toward its target on each recalculation (1 min): fraction of the difference when rising (capped) and when falling. */
     public double repRiseRate = 0.06, repMaxRisePerUpdate = 1.0, repFallRate = 0.3;
-    /** Ventas necesarias para poder llegar a reputación 100 (techo = repSoftCap + resto*sqrt(ventas/esto)). 0 = sin techo. */
+    /** Sales needed to be able to reach reputation 100 (ceiling = repSoftCap + rest*sqrt(sales/this)). 0 = no ceiling. */
     public int repSalesForMax = 400;
-    /** Sobreprecio aceptado por reputación: 0 hasta repPremiumStart, luego hasta repPremiumMax (+30%) a 100 con la curva repPremiumCurve. */
+    /** Markup accepted by reputation: 0 up to repPremiumStart, then up to repPremiumMax (+30%) at 100 with the repPremiumCurve curve. */
     public int repPremiumStart = 40;
     public double repPremiumMax = 0.30, repPremiumCurve = 1.5;
-    /** Multiplicador del sobreprecio para sobres, cajas y Mystery Box. */
+    /** Markup multiplier for packs, boxes and Mystery Box. */
     public double repPremiumSealedBonus = 1.5;
-    /** Por debajo de esta reputación los clientes quieren precios bajo mercado (hasta -repPenaltyMax a reputación 0). */
+    /** Below this reputation customers want below-market prices (up to -repPenaltyMax at reputation 0). */
     public int repPenaltyBelow = 25;
     public double repPenaltyMax = 0.10;
-    /** Ánimo necesario para que un cliente deje 5 estrellas (empieza en 3). */
+    /** Mood a customer needs to leave 5 stars (starts at 3). */
     public int fiveStarMood = 6;
-    /** Precio mínimo de mercado. */
+    /** Minimum market price. */
     public long minPackPrice = 100, minBoxPrice = 1_000, minCardPrice = 10;
 
-    /** Empleados: contrato + sueldo diario. */
+    /** Employees: hiring fee + daily wage. */
     public long cashierHire = 30_000, cashierWage = 4_000, guardHire = 45_000, guardWage = 6_000;
-    /** Multiplicador de clientes que llegan a tu tienda (1 = normal, 2 = el doble). */
+    /** Multiplier for customers arriving at your shop (1 = normal, 2 = double). */
     public double customerDemand = 1.0;
 
-    /** Duelos contra la casa por nivel (fácil, normal, difícil, experto): premio al ganar, multa al perder en liga. */
+    /** House duels by level (easy, normal, hard, expert): reward on win, penalty on loss in league. */
     public long[] houseDuelRewards = {800, 1_500, 3_000, 6_000};
     public long[] houseDuelPenalties = {200, 400, 800, 1_500};
-    /** Multa al perder una partida de liga contra otro jugador. */
+    /** Penalty for losing a league match against another player. */
     public long pvpPenalty = 600;
 
-    /** Gradeo: coste fijo por carta + % del valor (económico, estándar, exprés). */
+    /** Grading: fixed cost per card + % of the value (economy, standard, express). */
     public long[] gradingBaseFees = {2_500, 6_000, 15_000};
     public double[] gradingValuePct = {0.03, 0.06, 0.10};
 
-    /** Probabilidad de que un cofre de estructura traiga un sobre (necesita /reload para aplicarse). */
+    /** Chance that a structure chest contains a pack (needs /reload to apply). */
     public double chestPackChance = 0.01;
-    /** Probabilidad por sobre abierto de que salga una moneda de botín. */
+    /** Chance per opened pack of a loot coin dropping. */
     public double lootCoinChancePerPack = 1 / 140.0;
-    /** Bloquea los N sets con el sobre más caro: no se venden ni salen en cofres, kits, Mystery Box ni NPCs (0 = nada). */
+    /** Locks the N sets with the most expensive pack: not sold nor found in chests, kits, Mystery Box or NPCs (0 = none). */
     public int lockTopPackSets = 5;
-    /** Nivel de tienda mínimo para poder COMPRAR esos sets en el teléfono y al Mayorista (wood, stone, iron, gold, diamond, emerald, netherite). */
+    /** Minimum shop tier to be able to BUY those sets on the phone and from the Wholesaler (wood, stone, iron, gold, diamond, emerald, netherite). */
     public String lockedPacksMinShopTier = "diamond";
-    /** Probabilidad, en cualquier cofre, de encontrar un sobre de los sets bloqueados (0.00001 = 0,001 %). */
+    /** Chance, in any chest, of finding a pack from the locked sets (0.00001 = 0.001 %). */
     public double lockedPackChestChance = 0.00001;
 
-    // --- Clientes y comerciantes ---
-    /** Segundos que espera como mucho un cliente que quiere un trato antes de irse. */
+    // --- Customers and merchants ---
+    /** Maximum seconds a customer who wants a deal waits before leaving. */
     public int customerWaitSeconds = 60;
-    /** Al rechazar un trato: probabilidad de reseña negativa (si no, neutral). Educado / de malas maneras. */
+    /** When rejecting a deal: chance of a negative review (otherwise neutral). Polite / rude. */
     public double rejectNegativeChancePolite = 0.18, rejectNegativeChanceRude = 0.75;
-    /** Como mucho estas reseñas negativas por rechazos al día y por tienda (las demás quedan neutrales). */
+    /** At most this many negative reviews from rejections per day and per shop (the rest stay neutral). */
     public int maxRejectPenaltiesPerDay = 2;
-    /** Paciencia de los comerciantes al regatear (multiplicador; 1 = normal). */
+    /** Merchants' patience when haggling (multiplier; 1 = normal). */
     public double merchantPatience = 1.0;
 
-    // --- Reputación ---
-    /** Peso de cada nota en la reputación total (se normalizan). */
+    // --- Reputation ---
+    /** Weight of each score in the total reputation (normalized). */
     public double repWeightAesthetics = 0.35, repWeightValue = 0.40, repWeightSafety = 0.25;
-    /** Reputación perdida por matar a un NPC de la tienda (clientes, Mayorista, comerciante, empleados) y cuánto se recupera por día. */
+    /** Reputation lost for killing a shop NPC (customers, Wholesaler, merchant, employees) and how much is recovered per day. */
     public int infamyPerKill = 12, infamyDecayPerDay = 3;
 
-    // --- Encuentros especiales ---
-    /** Probabilidad (cada medio día) de que aparezca el mendigo de cartas / el mercader negro. */
+    // --- Special encounters ---
+    /** Chance (every half day) of the card beggar / the black-market dealer appearing. */
     public double beggarChance = 0.25, blackMarketChance = 0.02;
-    /** Probabilidad de que el mercader negro ofrezca un sobre de los sets bloqueados. */
+    /** Chance that the black-market dealer offers a pack from the locked sets. */
     public double blackMarketLockedChance = 0.12;
 
-    // --- Notificaciones ---
-    /** Anunciar en el chat todos los logros del mod (no sólo los desafíos). */
+    // --- Notifications ---
+    /** Announce all of the mod's advancements in chat (not just challenges). */
     public boolean announceAllAdvancements = true;
 
     private void fillHelp() {
         _help.clear();
-        _help.put("aplicar", "Edita este archivo y usa /tcgshop reload (operador) o reinicia. Los precios de cartas/sobres se ajustan con cobbleDollarsPerUsd en tcgshop.json o con un datapack.");
-        _help.put("itemPrices", "Precio fijo de cada mueble/herramienta/núcleo de tienda (shop_core_*) en CobbleDollars.");
-        _help.put("wholesalerBuyFactor/phoneBuyFactor", "Lo que cuestan sobres, cajas y cartas al comprarlos al Mayorista / en el teléfono, sobre el precio de mercado (0.6 = 60%).");
-        _help.put("phoneSellRate/wholesalerSellRate", "Lo que pagan por tus cartas en la venta rápida (0.5 = 50% del valor).");
-        _help.put("customerDemand", "Multiplicador de llegada de clientes a tu tienda.");
-        _help.put("houseDuelRewards/houseDuelPenalties", "Premio y multa de los duelos contra la casa por nivel: fácil, normal, difícil, experto.");
-        _help.put("lockTopPackSets", "Los N sets con el sobre sellado más caro (p.ej. Base Set) no se pueden conseguir: ni tiendas, ni cofres, ni kit de inicio, ni Mystery Box, ni NPCs. 0 = desactivado. Los que ya tengas no se tocan.");
-        _help.put("lockedPacksMinShopTier", "Nivel de tienda que necesitas para comprar los sets bloqueados en el teléfono y al Mayorista.");
-        _help.put("lockedPackChestChance", "Probabilidad por cofre de encontrar un sobre de los sets bloqueados (0.00001 = 0,001%).");
-        _help.put("customerWaitSeconds", "Tiempo máximo que espera un cliente que quiere un trato (tiene una barra sobre la cabeza).");
-        _help.put("rejectNegativeChancePolite/Rude", "Probabilidad de reseña negativa al rechazar un trato con educación / de malas maneras. Si no, la reseña es neutral.");
-        _help.put("repWeightAesthetics/Value/Safety", "Peso de Estética, Calidad/precio y Seguridad en la reputación total.");
-        _help.put("infamyPerKill/infamyDecayPerDay", "Reputación que pierdes por matar a un NPC de la tienda y cuánta recuperas cada día.");
-        _help.put("beggarChance/blackMarketChance", "Probabilidad cada medio día de Minecraft de que aparezca el mendigo de cartas / el mercader negro (rarísimo).");
-        _help.put("gradingBaseFees/gradingValuePct", "Coste del gradeo por carta: fijo + % del valor (económico, estándar, exprés).");
-        _help.put("repSoftCap/repTopExponent", "Por encima de repSoftCap la reputación tiene rendimientos decrecientes (exponente mayor = cuesta más llegar a 100).");
-        _help.put("repRiseRate/repMaxRisePerUpdate/repFallRate", "Velocidad a la que la reputación se acerca a su objetivo cada minuto: fracción de la diferencia al subir (con tope de puntos) y al bajar.");
-        _help.put("repSalesForMax", "Ventas necesarias para poder llegar a reputación 100 (antes hay un techo más bajo). 0 = sin techo por ventas.");
-        _help.put("repPremiumStart/repPremiumMax/repPremiumCurve", "Sobreprecio que aceptan los clientes según la reputación: nada hasta repPremiumStart y luego hasta repPremiumMax (0.3 = +30%) a reputación 100, con esa curva.");
-        _help.put("repPremiumSealedBonus", "Multiplicador del sobreprecio aceptado para sobres, cajas y Mystery Box.");
-        _help.put("repPenaltyBelow/repPenaltyMax", "Por debajo de esa reputación los clientes quieren precios bajo mercado (hasta -repPenaltyMax a reputación 0).");
-        _help.put("fiveStarMood", "Ánimo que necesita un cliente para dejar 5 estrellas (empieza en 3; una buena compra suma 2-3).");
+        _help.put("aplicar", "Edit this file and run /tcgshop reload (operator) or restart. Card/pack prices are tuned with cobbleDollarsPerUsd in tcgshop.json or with a datapack.");
+        _help.put("itemPrices", "Fixed price of each furniture piece/tool/shop core (shop_core_*) in CobbleDollars.");
+        _help.put("wholesalerBuyFactor/phoneBuyFactor", "What packs, boxes and cards cost when bought from the Wholesaler / on the phone, relative to market price (0.6 = 60%).");
+        _help.put("phoneSellRate/wholesalerSellRate", "What they pay for your cards in quick-sell (0.5 = 50% of the value).");
+        _help.put("customerDemand", "Multiplier for customers arriving at your shop.");
+        _help.put("houseDuelRewards/houseDuelPenalties", "Reward and penalty of duels against the house per level: easy, normal, hard, expert.");
+        _help.put("lockTopPackSets", "The N sets with the most expensive sealed pack (e.g. Base Set) cannot be obtained: not from shops, chests, the starter kit, the Mystery Box or NPCs. 0 = off. Ones you already own are not touched.");
+        _help.put("lockedPacksMinShopTier", "Shop tier you need to buy the locked sets on the phone and from the Wholesaler.");
+        _help.put("lockedPackChestChance", "Chance per chest to find a pack from the locked sets (0.00001 = 0.001%).");
+        _help.put("customerWaitSeconds", "Maximum time a customer who wants a deal waits (shown as a bar above their head).");
+        _help.put("rejectNegativeChancePolite/Rude", "Chance of a negative review when you reject a deal politely / rudely. Otherwise the review is neutral.");
+        _help.put("repWeightAesthetics/Value/Safety", "Weight of Aesthetics, Value and Safety in the total reputation.");
+        _help.put("infamyPerKill/infamyDecayPerDay", "Reputation you lose for killing a shop NPC and how much you recover each day.");
+        _help.put("beggarChance/blackMarketChance", "Chance every half Minecraft day that the card beggar / the black marketeer (very rare) appears.");
+        _help.put("gradingBaseFees/gradingValuePct", "Grading cost per card: fixed + % of the value (economy, standard, express).");
+        _help.put("repSoftCap/repTopExponent", "Above repSoftCap reputation has diminishing returns (higher exponent = harder to reach 100).");
+        _help.put("repRiseRate/repMaxRisePerUpdate/repFallRate", "How fast reputation moves toward its target each minute: fraction of the gap when rising (with a points cap) and when falling.");
+        _help.put("repSalesForMax", "Sales needed to be able to reach reputation 100 (before that there is a lower ceiling). 0 = no sales ceiling.");
+        _help.put("repPremiumStart/repPremiumMax/repPremiumCurve", "Markup customers accept based on reputation: none up to repPremiumStart, then up to repPremiumMax (0.3 = +30%) at reputation 100, following that curve.");
+        _help.put("repPremiumSealedBonus", "Multiplier on the accepted markup for packs, boxes and the Mystery Box.");
+        _help.put("repPenaltyBelow/repPenaltyMax", "Below that reputation customers want below-market prices (down to -repPenaltyMax at reputation 0).");
+        _help.put("fiveStarMood", "Mood a customer needs to leave 5 stars (starts at 3; a good purchase adds 2-3).");
     }
 
-    // ------------------------------------------------------------------ carga
+    // ------------------------------------------------------------------ loading
 
-    /** Llamar después de registrar los objetos (ShopServer.init) para conocer los precios por defecto. */
+    /** Call after registering the items (ShopServer.init) so the default prices are known. */
     public static void load() {
         EconomyConfig c = null;
         try {
             if (Files.exists(FILE)) try (Reader r = Files.newBufferedReader(FILE)) { c = GSON.fromJson(r, EconomyConfig.class); }
         } catch (Exception e) {
-            TcgShop.LOGGER.error("No se pudo leer {} (se usan los valores por defecto)", FILE, e);
+            TcgShop.LOGGER.error("Could not read {} (using default values)", FILE, e);
         }
         if (c == null) c = new EconomyConfig();
         c.sanitize();
@@ -162,7 +162,7 @@ public class EconomyConfig {
 
     private void sanitize() {
         if (itemPrices == null) itemPrices = new LinkedHashMap<>();
-        // añade los objetos que falten con su precio por defecto (nuevos objetos en actualizaciones)
+        // add any missing items with their default price (new items in updates)
         Map<String, Long> merged = new LinkedHashMap<>(ShopServer.defaultFixedPrices());
         for (Map.Entry<String, Long> e : itemPrices.entrySet()) if (e.getValue() != null) merged.put(e.getKey(), Math.max(0, e.getValue()));
         itemPrices = merged;
@@ -224,11 +224,11 @@ public class EconomyConfig {
         try (Writer w = Files.newBufferedWriter(FILE)) {
             GSON.toJson(INSTANCE, w);
         } catch (Exception e) {
-            TcgShop.LOGGER.error("No se pudo guardar {}", FILE, e);
+            TcgShop.LOGGER.error("Could not save {}", FILE, e);
         }
     }
 
-    /** Copia los valores a las constantes de cada sistema (servidor y, al recibir la sincronización, cliente). */
+    /** Copies the values into each system's constants (server and, on receiving the sync, client). */
     private static void apply(EconomyConfig c) {
         ShopServer.applyEconomy(c);
         CardSales.PHONE_RATE = c.phoneSellRate;
@@ -253,7 +253,7 @@ public class EconomyConfig {
         ShopLife.DEMAND = c.customerDemand;
     }
 
-    /** Para enviar al cliente. */
+    /** For sending to the client. */
     public static String toJson() {
         com.google.gson.JsonObject o = new com.google.gson.JsonObject();
         o.add("economy", GSON.toJsonTree(INSTANCE));
@@ -261,7 +261,7 @@ public class EconomyConfig {
         return GSON.toJson(o);
     }
 
-    /** Cliente: aplica los valores del servidor (sin tocar el archivo local). */
+    /** Client: applies the server's values (without touching the local file). */
     public static void applyJson(String json) {
         if (json == null || json.isEmpty()) return;
         try {
@@ -273,7 +273,7 @@ public class EconomyConfig {
             INSTANCE = c;
             apply(c);
         } catch (Exception e) {
-            TcgShop.LOGGER.warn("Configuración de economía del servidor inválida", e);
+            TcgShop.LOGGER.warn("Invalid server economy configuration", e);
         }
     }
 }

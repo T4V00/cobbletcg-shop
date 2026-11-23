@@ -9,7 +9,7 @@ import net.minecraft.util.Identifier;
 
 import java.util.List;
 
-/** Cliente -> servidor: resultado del corte de cada sobre del grupo (true = cortado mal, cartas destruidas). Lista vacía = cancelar (se entregan limpias). */
+/** Client -> server: cut result of each pack in the group (true = badly cut, cards destroyed). Empty list = cancel (delivered undamaged). */
 public record GroupCutPayload(List<Boolean> damaged) implements CustomPayload {
     public static final Id<GroupCutPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "group_cut"));
     public static final PacketCodec<RegistryByteBuf, GroupCutPayload> CODEC = PacketCodec.tuple(

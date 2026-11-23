@@ -17,9 +17,9 @@ import net.minecraft.util.math.random.Random;
 import java.util.Locale;
 
 /**
- * CobbleGrade: gradeo profesional de cartas. La nota va de 1.0 a 10.0 en pasos de 0.1 y se guarda en la carta
- * (componente tcgshop:grade en décimas, 10..100) junto a un número de certificado. La nota multiplica el valor de
- * mercado de la carta.
+ * CobbleGrade: professional card grading. The grade goes from 1.0 to 10.0 in steps of 0.1 and is stored on the card
+ * (tcgshop:grade component in tenths, 10..100) together with a certificate number. The grade multiplies the card's
+ * market value.
  */
 public final class Grading {
     public static final ComponentType<Integer> GRADE = Registry.register(Registries.DATA_COMPONENT_TYPE, Identifier.of(TcgShop.MOD_ID, "grade"),
@@ -27,7 +27,7 @@ public final class Grading {
     public static final ComponentType<Integer> CERT = Registry.register(Registries.DATA_COMPONENT_TYPE, Identifier.of(TcgShop.MOD_ID, "grade_cert"),
             ComponentType.<Integer>builder().codec(Codec.INT).packetCodec(PacketCodecs.VAR_INT).build());
 
-    /** Tramos de nota (décimas, ambos incluidos) y su probabilidad en %. Dentro de cada tramo, cada décima es igual de probable. */
+    /** Grade bands (tenths, both inclusive) and their probability in %. Within each band, every tenth is equally likely. */
     public record Band(int from, int to, double percent) {}
 
     public static final Band[] ODDS = {
@@ -41,7 +41,7 @@ public final class Grading {
     new Band(10, 29, 20)
 };
 
-    /** Servicios: días/horas de Minecraft que tarda y coste por carta (fijo + % del valor de la carta). */
+    /** Services: Minecraft days/hours it takes and cost per card (fixed + % of the card's value). */
     public enum Service {
         ECONOMY("economy", 72_000, 2_500, 0.03),
         STANDARD("standard", 24_000, 6_000, 0.06),
@@ -79,14 +79,14 @@ public final class Grading {
     public static int cert(ItemStack st) { return st.getOrDefault(CERT, 0); }
 
     /**
-     * Grado al azar para esa carta: Grado 10 con probabilidad 0,45·e^(-1,7A) (A = antigüedad, ver GradeModel);
-     * si no, el resto de tramos de ODDS en la misma proporción. Cartas de OLD_YEAR o antes: OLD_CLUSTER_CHANCE de caer
-     * en 4.9/5.0/5.1 y, si no, castigo OLD_HIGH_FACTOR a todo Grado >= 5.0.
+     * Random grade for that card: Grade 10 with probability 0.45·e^(-1.7A) (A = age, see GradeModel);
+     * otherwise, the remaining ODDS bands in the same proportion. Cards from OLD_YEAR or earlier: OLD_CLUSTER_CHANCE of landing
+     * on 4.9/5.0/5.1 and, if not, an OLD_HIGH_FACTOR penalty on every Grade >= 5.0.
      */
     public static int roll(Random r, net.minecraft.util.Identifier card) {
-        boolean old = dev.tcgshop.pricing.GradeModel.year(card) <= OLD_YEAR; // impresión antigua: peor centrado y bordes
-        // Cartas antiguas: un tramo propio alrededor del 5 (4.9, 5.0 y 5.1, cada uno igual de probable). Este tramo
-        // no lleva OLD_HIGH_FACTOR: es la forma "realista" de que una carta vieja sobreviva bien conservada.
+        boolean old = dev.tcgshop.pricing.GradeModel.year(card) <= OLD_YEAR; // old print: worse centering and edges
+        // Old cards: a dedicated band around 5 (4.9, 5.0 and 5.1, each equally likely). This band
+        // does not carry OLD_HIGH_FACTOR: it is the "realistic" way for an old card to survive in good condition.
         if (old && r.nextDouble() < OLD_CLUSTER_CHANCE) return OLD_CLUSTER_FROM + r.nextInt(OLD_CLUSTER_TO - OLD_CLUSTER_FROM + 1);
         double p10 = dev.tcgshop.pricing.GradeModel.prob10(card) * (old ? OLD_HIGH_FACTOR : 1);
         if (r.nextDouble() < p10) return 100;
@@ -95,7 +95,7 @@ public final class Grading {
         for (Band b : ODDS) {
             if (b.from >= 100) continue;
             for (int g = b.from; g <= b.to; g++) {
-                // Para cartas antiguas se penaliza también el 5.0 exacto: todo Grado >= 5.0.
+                // For old cards an exact 5.0 is penalized too: every Grade >= 5.0.
                 w[g] = b.percent / (b.to - b.from + 1) * (old && g >= 50 ? OLD_HIGH_FACTOR : 1);
                 total += w[g];
             }
@@ -106,22 +106,22 @@ public final class Grading {
     }
 
     /**
-     * Las impresiones de 2017 o anteriores tienen una probabilidad extremadamente baja
-     * de alcanzar Grado 5.0 o superior. El factor se aplica a cada resultado >= 5.0.
-     * 0.005 significa que esos resultados conservan solo el 0.5% de su peso original.
+     * Prints from 2017 or earlier have an extremely low probability
+     * of reaching Grade 5.0 or higher. The factor is applied to every result >= 5.0.
+     * 0.005 means those results keep only 0.5% of their original weight.
      */
     public static final int OLD_YEAR = 2017;
     public static final double OLD_HIGH_FACTOR = 0.005;
     /**
-     * Excepción para cartas antiguas: el 30% de sus tiradas cae directamente en 4.9, 5.0 o 5.1 (10% cada uno),
-     * sin el castigo OLD_HIGH_FACTOR. El 70% restante sigue la tabla ODDS con el castigo de siempre.
+     * Exception for old cards: 30% of their rolls land directly on 4.9, 5.0 or 5.1 (10% each),
+     * without the OLD_HIGH_FACTOR penalty. The remaining 70% follows the ODDS table with the usual penalty.
      */
     public static final double OLD_CLUSTER_CHANCE = 0.30;
     public static final int OLD_CLUSTER_FROM = 49, OLD_CLUSTER_TO = 51;
 
     /**
-     * Tirada genérica sin identificar la carta. No aplica el modificador por antigüedad.
-     * Para graduar cartas reales, usar siempre roll(Random, Identifier).
+     * Generic roll without identifying the card. Does not apply the age modifier.
+     * To grade real cards, always use roll(Random, Identifier).
      */
     public static int roll(Random r) {
         double x = r.nextDouble() * 100, acc = 0;
@@ -132,7 +132,7 @@ public final class Grading {
         return 80;
     }
 
-    /** Parte del salto hasta el Grado 10 que se alcanza con el Grado g: ((grado-1)/9)^3 (0 en Grado 1, 1 en Grado 10). */
+    /** Fraction of the jump up to Grade 10 reached at Grade g: ((grade-1)/9)^3 (0 at Grade 1, 1 at Grade 10). */
     public static double multiplier(int g) {
         double v = Math.max(1, Math.min(10, g / 10.0));
         return Math.pow((v - 1) / 9.0, 3);
@@ -142,7 +142,7 @@ public final class Grading {
         return g >= 100 ? "10" : String.format(Locale.ROOT, "%.1f", g / 10.0);
     }
 
-    /** Nombre del grado (GEM MINT, MINT, NM...). */
+    /** Grade name (GEM MINT, MINT, NM...). */
     public static String labelKey(int g) {
         if (g >= 100) return "tcgshop.grade.label.10";
         if (g >= 95) return "tcgshop.grade.label.95";
@@ -158,7 +158,7 @@ public final class Grading {
         return 0xFFFF5A5A;
     }
 
-    /** Aplica la nota a una copia de la carta (nombre con la nota, certificado). */
+    /** Applies the grade to a copy of the card (name with the grade, certificate). */
     public static ItemStack apply(ItemStack card, int grade, int cert) {
         ItemStack out = card.copyWithCount(1);
         Text original = card.getName();

@@ -1,14 +1,14 @@
 package dev.tcgshop.pricing;
 
 /**
- * Mercado dinámico: multiplica el precio base por una tendencia que cambia cada "día de mercado".
+ * Dynamic market: multiplies the base price by a trend that changes every "market day".
  *
- * Es 100% determinista (ruido suave a partir de una semilla del servidor), así que:
- *  - cliente y servidor calculan exactamente lo mismo sin enviar miles de precios cada día,
- *  - el historial (gráficas del teléfono) se obtiene evaluando días pasados, sin guardar nada.
+ * It is 100% deterministic (smooth noise from a server seed), so:
+ *  - client and server compute exactly the same thing without sending thousands of prices every day,
+ *  - the history (phone charts) is obtained by evaluating past days, without storing anything.
  *
- * Tendencia = ola lenta por set (hype de una colección) + ola rápida del set + oscilación propia de la carta.
- * Las cartas más raras son más volátiles, como en el mercado real.
+ * Trend = slow per-set wave (hype for a collection) + fast set wave + the card's own oscillation.
+ * Rarer cards are more volatile, as in the real market.
  */
 public final class MarketModel {
     public static final double MIN_MULT = 0.5, MAX_MULT = 2.0;
@@ -23,7 +23,7 @@ public final class MarketModel {
         return Math.max(MIN_MULT, Math.min(MAX_MULT, m));
     }
 
-    /** Ruido de valor 1D suavizado, en [-1, 1]. */
+    /** Smoothed 1D value noise, in [-1, 1]. */
     static double noise(long seed, String key, double x) {
         long i = (long) Math.floor(x);
         double f = x - i;

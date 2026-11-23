@@ -25,17 +25,17 @@ import java.util.function.Predicate;
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
 /**
- * Binder General: todas tus cartas en un único inventario.
- *  · Pestañas laterales: ★ Todas, ♥ Deseadas, ✦ Nuevas y una por pack (con progreso).
- *  · Pestañas superiores por rareza (globales o dentro del pack elegido), buscador y huecos de cartas que faltan.
- *  · Notificaciones ★: se quitan tras ~1,5 s con el cursor encima, o al salir de «Nuevas» / cerrar (las que miraste);
- *    las cartas nuevas siguen en «Nuevas» mientras el binder esté abierto. Doble clic en una pestaña limpia todas las suyas.
- *  · Panel de detalle (precio, tendencia 7 días, deseada, sacar cartas) y selector de título.
+ * General Binder: all your cards in a single inventory.
+ *  · Side tabs: ★ All, ♥ Wishlist, ✦ New and one per pack (with progress).
+ *  · Top tabs by rarity (global or within the selected pack), search box and placeholders for missing cards.
+ *  · ★ notifications: cleared after ~1.5 s of hovering, or when leaving «New» / closing (the ones you looked at);
+ *    new cards stay in «New» while the binder is open. Double-clicking a tab clears all of its notifications.
+ *  · Detail panel (price, 7-day trend, wishlist, withdraw cards) and title picker.
  */
 public class GeneralBinderScreen extends Screen {
     private static final Rarity.Family[] RARITY_TABS = Rarity.Family.values();
     private static final int CELL_W = 36, CELL_H = 50, GAP = 5, HEADER_H = 20;
-    /** Tiempo con el cursor encima para dar una carta nueva por vista, y duración del desvanecido del brillo. */
+    /** Hover time needed to count a new card as seen, and duration of the glow fade-out. */
     private static final long SEEN_HOVER_MS = 1500, FADE_MS = 700;
 
     private enum Mode { SET, WISH, NEW }
@@ -58,14 +58,14 @@ public class GeneralBinderScreen extends Screen {
     private String lastClickedTab;
     private long lastClickTime;
     private int lastHash;
-    /** Cartas que han sido nuevas mientras el binder está abierto: «Nuevas» no las pierde aunque ya se hayan visto. */
+    /** Cards that have been new while the binder is open: «New» keeps them even after they have been seen. */
     private final Set<String> sessionNew = new HashSet<>();
-    /** Cartas nuevas que miraste (aunque fuera un instante): se marcan vistas al salir de «Nuevas» o al cerrar. */
+    /** New cards you looked at (even briefly): marked as seen when leaving «New» or closing. */
     private final Set<String> glanced = new HashSet<>();
-    /** Momento en que se marcó vista cada carta, para desvanecer su brillo en vez de quitarlo de golpe. */
+    /** Moment each card was marked as seen, to fade its glow out instead of removing it abruptly. */
     private final Map<String, Long> fadeStart = new HashMap<>();
     private String hoverKey;
-    /** Vista ampliada de la carta del panel derecho (superpuesta: el binder conserva scroll, filtros y pestaña). */
+    /** Zoomed view of the right-panel card (overlay: the binder keeps scroll, filters and tab). */
     private final CardZoom zoom = new CardZoom();
     private long hoverSince;
 
@@ -107,7 +107,7 @@ public class GeneralBinderScreen extends Screen {
         return false;
     }
 
-    // ------------------------------------------------------------------ filtros y layout
+    // ------------------------------------------------------------------ filters and layout
 
     private boolean matches(Catalog.Card c) {
         if (selectedRarity != null && c.rarity().family != selectedRarity) return false;
@@ -151,9 +151,9 @@ public class GeneralBinderScreen extends Screen {
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         int realX = mouseX, realY = mouseY;
-        if (zoom.isOpen()) { mouseX = -10000; mouseY = -10000; } // debajo de la vista ampliada no hay hover ni tooltips
+        if (zoom.isOpen()) { mouseX = -10000; mouseY = -10000; } // no hover or tooltips underneath the zoomed view
         ClientCollection.tick();
-        sessionNew.addAll(ClientCollection.fresh); // las que lleguen con el binder abierto también se quedan
+        sessionNew.addAll(ClientCollection.fresh); // cards that arrive while the binder is open stay too
         int hash = ClientCollection.counts.hashCode() * 31 + ClientCollection.wishlist.hashCode() + (mode == Mode.NEW ? sessionNew.hashCode() : 0);
         if (hash != lastHash) { lastHash = hash; dirty = true; }
         if (dirty) layout();
@@ -185,7 +185,7 @@ public class GeneralBinderScreen extends Screen {
     }
 
     private void renderHeader(DrawContext ctx, int mouseX, int mouseY) {
-        // emblema
+        // emblem
         StylePainter.circle(ctx, px + 18, py + 16, 8, 0xFF151515);
         StylePainter.circle(ctx, px + 18, py + 16, 7, 0xFFE8463C);
         ctx.fill(px + 11, py + 16, px + 26, py + 23, 0xFFF5F5F5);
@@ -203,12 +203,12 @@ public class GeneralBinderScreen extends Screen {
             owned++;
             value += PriceService.priceCd(c.stack()) * e.getValue();
         }
-        // botón de título
+        // title button
         Text tb = Text.translatable("tcgshop.binder.title_button");
         int tbw = Ui.chipWidth(tb) + 4, tbx = px + pw - tbw - 10;
         Ui.button(ctx, tbx, py + 8, tbw, 16, tb, mouseX, mouseY, true, 0xFF8E44AD);
         areas.add(new Area(tbx, py + 8, tbw, 16, () -> titlesOpen = !titlesOpen));
-        // pastillas de estadísticas
+        // stat pills
         String pct = String.format(Locale.ROOT, "%.1f%%", total == 0 ? 0 : owned * 100.0 / total);
         int x = tbx - 6;
         x = pill(ctx, x, py + 8, Text.literal("₽ " + PriceService.format(value)), 0xFF8A6A1C);
@@ -216,7 +216,7 @@ public class GeneralBinderScreen extends Screen {
         pill(ctx, x, py + 8, Text.literal(owned + "/" + total), 0xFF2E7D3A);
     }
 
-    /** Pastilla alineada a la derecha que termina en x; devuelve el nuevo x. */
+    /** Right-aligned pill ending at x; returns the new x. */
     private int pill(DrawContext ctx, int right, int y, Text text, int color) {
         int w = textRenderer.getWidth(text) + 10;
         int x = right - w;
@@ -384,7 +384,7 @@ public class GeneralBinderScreen extends Screen {
             }
         }
         trackHover(hovered == null ? null : hovered.key());
-        if (hovered != null) drawCell(ctx, hovered, hx, hy - 2, true, t); // encima, levantada
+        if (hovered != null) drawCell(ctx, hovered, hx, hy - 2, true, t); // on top, raised
         ctx.disableScissor();
         if (contentHeight > gridH) {
             int barH = Math.max(16, gridH * gridH / contentHeight);
@@ -397,7 +397,7 @@ public class GeneralBinderScreen extends Screen {
     private void drawCell(DrawContext ctx, Catalog.Card c, int x, int y, boolean hover, double t) {
         int count = ClientCollection.count(c.key());
         boolean fresh = ClientCollection.fresh.contains(c.key());
-        float freshA = fresh ? 1f : fadeAlpha(c.key()); // brillo de «nueva» (se desvanece tras verla)
+        float freshA = fresh ? 1f : fadeAlpha(c.key()); // «new» glow (fades out after it is seen)
         boolean selected = c.key().equals(selectedCard);
         boolean wish = ClientCollection.wishlist.contains(c.key());
         if (count > 0) {
@@ -413,7 +413,7 @@ public class GeneralBinderScreen extends Screen {
                 ctx.drawText(textRenderer, s, x + CELL_W - w + 2, y + CELL_H - 8, 0xFFFFFFFF, false);
             }
             if (freshA > 0.05f) ctx.drawText(textRenderer, "★", x + 2, y + 2, withAlpha(0xFFFFE066, (0.6f + 0.4f * (float) Math.sin(t * 6)) * freshA), true);
-            if (fresh && hover && c.key().equals(hoverKey)) { // barra de «vista» mientras mantienes el cursor
+            if (fresh && hover && c.key().equals(hoverKey)) { // «seen» bar while you keep hovering
                 float p = Math.min(1f, (System.currentTimeMillis() - hoverSince) / (float) SEEN_HOVER_MS);
                 ctx.fill(x + 1, y + CELL_H - 3, x + 1 + Math.round((CELL_W - 2) * p), y + CELL_H - 1, 0xFFFFE066);
             }
@@ -444,7 +444,7 @@ public class GeneralBinderScreen extends Screen {
         } else {
             int count = ClientCollection.count(c.key());
             int cw = Math.min(w, 100), ch = Math.round(cw / Draw.CARD_RATIO);
-            int maxH = sideH - 128; // 8 px para la pista «Clic para ver en grande»
+            int maxH = sideH - 128; // 8 px for the «Click to view larger» hint
             if (ch > maxH) { ch = maxH; cw = Math.round(ch * Draw.CARD_RATIO); }
             int cx = detX + (detW - cw) / 2, cy = sideY + 8;
             if (count > 0) {
@@ -454,11 +454,11 @@ public class GeneralBinderScreen extends Screen {
                 if (c.rarity().tier > 0) Draw.holo(ctx, cx, cy, cw, ch, c.rarity().tier, c.rarity().color, t, mouseX);
             } else {
                 Draw.cardFace(ctx, c.texture(), c.stack(), cx, cy, cw, ch, 1f);
-                ctx.fill(cx, cy, cx + cw, cy + ch, 0xC0101018); // velada: aún no la tienes
+                ctx.fill(cx, cy, cx + cw, cy + ch, 0xC0101018); // veiled: you don't own it yet
                 Ui.outline(ctx, cx, cy, cw, ch, withAlpha(c.rarity().color, 0.5f));
                 Ui.text(ctx, Text.translatable("tcgshop.binder.not_owned"), cx, cy + ch / 2 - 6, cw, 12, 0xFFDDDDDD, true);
             }
-            // clic en la carta grande = verla ampliada
+            // click on the large card = view it zoomed in
             boolean overCard = !titlesOpen && Ui.in(mouseX, mouseY, cx, cy, cw, ch);
             if (overCard) Ui.outline(ctx, cx - 1, cy - 1, cw + 2, ch + 2, 0xFFFFFFFF);
             final Catalog.Card zc = c;
@@ -528,7 +528,7 @@ public class GeneralBinderScreen extends Screen {
         areas.add(new Area(x + w - 58, y + h - 20, 50, 15, () -> titlesOpen = false));
     }
 
-    // ------------------------------------------------------------------ entrada
+    // ------------------------------------------------------------------ input
 
     private boolean isDoubleClick(String tabKey) {
         long now = System.currentTimeMillis();
@@ -548,7 +548,7 @@ public class GeneralBinderScreen extends Screen {
             return false;
         };
         ClientCollection.fresh.removeIf(cleared);
-        // limpiar a propósito sí las saca de «Nuevas» (a diferencia de mirarlas)
+        // clearing on purpose does remove them from «New» (unlike just looking at them)
         sessionNew.removeIf(cleared);
         glanced.removeIf(cleared);
         if (filter.startsWith("rarity:") && mode == Mode.SET && selectedSet != null) {
@@ -561,7 +561,7 @@ public class GeneralBinderScreen extends Screen {
         ClientCollection.action(BinderActionPayload.CLEAR_FRESH, filter, 0);
     }
 
-    /** Cambia de pestaña; si sales de «Nuevas», da por vistas las que miraste y las saca de la lista. */
+    /** Switches tab; if you leave «New», the ones you looked at count as seen and are removed from the list. */
     private void switchMode(Mode next) {
         if (mode == Mode.NEW && next != Mode.NEW) {
             commitGlanced();
@@ -570,7 +570,7 @@ public class GeneralBinderScreen extends Screen {
         mode = next;
     }
 
-    /** Seguimiento del cursor: una carta nueva se da por vista tras SEEN_HOVER_MS seguidos encima, nunca al instante. */
+    /** Cursor tracking: a new card counts as seen after SEEN_HOVER_MS of continuous hovering, never instantly. */
     private void trackHover(String key) {
         long now = System.currentTimeMillis();
         if (key == null) { hoverKey = null; return; }
@@ -605,7 +605,7 @@ public class GeneralBinderScreen extends Screen {
 
     @Override
     public void removed() {
-        commitGlanced(); // al cerrar: las que miraste quedan vistas
+        commitGlanced(); // on close: the ones you looked at stay seen
         super.removed();
     }
 

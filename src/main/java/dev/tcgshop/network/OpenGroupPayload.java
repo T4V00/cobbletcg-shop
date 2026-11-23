@@ -9,7 +9,7 @@ import net.minecraft.util.Identifier;
 
 import java.util.List;
 
-/** Cliente -> servidor: prepara un grupo de sobres para rasgarlos a la vez (1-100). */
+/** Client -> server: prepares a group of packs to tear them at once (1-100). */
 public record OpenGroupPayload(List<Identifier> items) implements CustomPayload {
     public static final Id<OpenGroupPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "open_group"));
     public static final PacketCodec<RegistryByteBuf, OpenGroupPayload> CODEC = PacketCodec.tuple(

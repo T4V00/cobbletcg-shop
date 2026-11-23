@@ -1,5 +1,5 @@
 {
-  "_comment": "#7 Psyduck confundido: tira productos de un expositor (1-3 casillas no se pueden comprar; los objetos NO se mueven). Con lluvia o cerca del agua.",
+  "_comment": "#7 confused Psyduck: knocks products off a display (1-3 slots cannot be bought; the items do NOT move). In rain or near water.",
   "category": "negative",
   "tier": "common",
   "template": "psyduck",

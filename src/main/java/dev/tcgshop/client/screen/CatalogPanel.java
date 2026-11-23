@@ -19,12 +19,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Rejilla de productos a la venta (Mayorista y Mercado del teléfono): buscar, elegir cantidad y comprar. */
+/** Grid of products for sale (Wholesaler and phone Market): search, choose quantity and buy. */
 public class CatalogPanel {
     private final int source;
     private final List<ItemStack> goods;
     private final List<Long> prices;
-    /** Nivel de teléfono necesario de cada producto (0.9, lo manda el servidor justo antes del catálogo). */
+    /** Phone level required for each product (0.9, sent by the server right before the catalog). */
     private final int[] req;
     private final List<Runnable> clicks = new ArrayList<>();
     private final List<int[]> rects = new ArrayList<>();
@@ -32,7 +32,7 @@ public class CatalogPanel {
     private int selected = -1, qty = 1;
     public String filter = "";
     public String category = "all";
-    public int sort; // 0 = catálogo, 1 = precio ascendente, 2 = descendente
+    public int sort; // 0 = catalog, 1 = price ascending, 2 = descending
 
     public static final String[] CATEGORIES = {"all", "boxes", "packs", "shop", "furniture", "plush", "tools", "special"};
 
@@ -46,7 +46,7 @@ public class CatalogPanel {
         return "tools";
     }
 
-    /** Fila de categorías + botón de orden. Devuelve el alto usado. */
+    /** Category row + sort button. Returns the height used. */
     public int renderFilters(DrawContext ctx, int x, int y, int w, int mouseX, int mouseY) {
         TextRenderer tr = MinecraftClient.getInstance().textRenderer;
         int cx = x;
@@ -74,12 +74,12 @@ public class CatalogPanel {
         this.req = dev.tcgshop.client.phone.PhoneClient.locksFor(source, goods.size());
     }
 
-    /** ¿Hace falta un teléfono mejor para comprar este producto? */
+    /** Is a better phone needed to buy this product? */
     public boolean locked(int i) {
         return i >= 0 && i < req.length && req[i] > dev.tcgshop.client.phone.PhoneClient.tier && dev.tcgshop.client.phone.PhoneClient.enabled;
     }
 
-    /** Conserva búsqueda, categoría, orden y scroll al refrescar el catálogo (p. ej. tras mejorar el teléfono). */
+    /** Keeps search, category, sort and scroll when the catalog refreshes (e.g. after upgrading the phone). */
     public void copyStateFrom(CatalogPanel o) {
         filter = o.filter;
         category = o.category;
@@ -91,7 +91,7 @@ public class CatalogPanel {
         return Text.translatable("tcgshop.phoneup.requires", dev.tcgshop.client.phone.PhoneClient.tierName(tier));
     }
 
-    /** Tooltip diferido (se dibuja fuera del recorte del teléfono). */
+    /** Deferred tooltip (drawn outside the phone's clipping). */
     private static void tooltip(List<Text> lines) {
         var screen = MinecraftClient.getInstance().currentScreen;
         if (screen == null) return;
@@ -113,7 +113,7 @@ public class CatalogPanel {
         return out;
     }
 
-    /** Productos de una categoría (para los contadores del carril del teléfono). */
+    /** Products in a category (for the counters on the phone's rail). */
     public int count(String cat) {
         if (cat.equals("all")) return goods.size();
         int n = 0;
@@ -126,7 +126,7 @@ public class CatalogPanel {
         selected = -1;
     }
 
-    /** Llamar al principio de cada fotograma (antes de renderFilters/render). */
+    /** Call at the start of each frame (before renderFilters/render). */
     public void beginFrame() {
         clicks.clear();
         rects.clear();
@@ -153,7 +153,7 @@ public class CatalogPanel {
             Ui.roundGradient(ctx, tx, ty, tileW, tileH, sel ? 0xFF2B4A7A : hover ? 0xFF2E3348 : 0xFF1E2232, sel ? 0xFF1A2E50 : 0xFF161925);
             Ui.outline(ctx, tx, ty, tileW, tileH, sel ? Ui.GOLD : hover ? 0xFFFFFFFF : 0xFF2B3045);
             drawProduct(ctx, st, tx + 6, ty + 4, tileW - 12, tileH - 30);
-            if (lock) { // producto de un nivel de teléfono superior: atenuado y con candado
+            if (lock) { // product for a higher phone level: dimmed and with a padlock
                 ctx.fill(tx + 1, ty + 1, tx + tileW - 1, ty + tileH - 1, 0x99101218);
                 int tc = dev.tcgshop.phone.PhoneTier.of(req[i]).color;
                 dev.tcgshop.client.phone.LockIcon.badge(ctx, tx + tileW / 2, ty + (tileH - 30) / 2 + 4, 12, tc);

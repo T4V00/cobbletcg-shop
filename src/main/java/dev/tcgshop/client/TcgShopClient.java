@@ -31,7 +31,7 @@ import net.minecraft.util.TypedActionResult;
 import org.lwjgl.glfw.GLFW;
 
 public class TcgShopClient implements ClientModInitializer {
-    /** Abre el Binder General (si lo llevas en el inventario o equipado en un slot de Accessories). */
+    /** Opens the General Binder (if you carry it in your inventory or have it equipped in an Accessories slot). */
     public static final KeyBinding OPEN_BINDER = KeyBindingHelper.registerKeyBinding(new KeyBinding(
             "key.tcgshop.open_binder", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_G, "key.categories.tcgshop"));
 
@@ -40,7 +40,7 @@ public class TcgShopClient implements ClientModInitializer {
         dev.tcgshop.client.ClientSettings.load();
         EntityRendererRegistry.register(TcgEntities.SCALPER, dev.tcgshop.client.render.TcgNpcRenderer::new);
         dev.tcgshop.client.ShopClient.init();
-        dev.tcgshop.events.incident.IncidentModule.initClient(); // 0.9: eventos aleatorios (parte de cliente del módulo de incidentes)
+        dev.tcgshop.events.incident.IncidentModule.initClient(); // 0.9: random events (client side of the incident module)
         dev.tcgshop.client.phone.PhoneClient.register();
         ClientPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.TradePayloads.Open.ID, (p, ctx) -> ctx.client().execute(() ->
                 ctx.client().setScreen(new dev.tcgshop.client.screen.TradeScreen(p.partner()))));
@@ -94,7 +94,7 @@ public class TcgShopClient implements ClientModInitializer {
             }
         }));
         ClientPlayNetworking.registerGlobalReceiver(DealOpenPayload.ID, (p, ctx) -> ctx.client().execute(() -> {
-            // la misma conversación: se actualiza en sitio (regateo); si terminó y no está abierta, nada
+            // same conversation: update in place (haggling); if it ended and is not open, do nothing
             if (ctx.client().currentScreen instanceof dev.tcgshop.client.screen.DealScreen ds && ds.entityId() == p.entityId()) ds.update(p);
             else if (p.mode() != DealOpenPayload.CLOSED) ctx.client().setScreen(new dev.tcgshop.client.screen.DealScreen(p));
         }));
@@ -119,14 +119,14 @@ public class TcgShopClient implements ClientModInitializer {
             }
         });
 
-        // Clic derecho con un sobre: preguntar (y permitir abrir varios) en vez de abrirlo al instante.
+        // Right-click with a pack: ask (and allow opening several) instead of opening it instantly.
         UseItemCallback.EVENT.register((player, world, hand) -> {
             ItemStack stack = player.getStackInHand(hand);
             if (!world.isClient || !TcgShopConfig.INSTANCE.packOpeningAnimation || !CardInfo.isPack(stack)) return TypedActionResult.pass(stack);
-            if (!ClientPlayNetworking.canSend(OpenGroupPayload.ID)) return TypedActionResult.pass(stack); // servidor sin el add-on
+            if (!ClientPlayNetworking.canSend(OpenGroupPayload.ID)) return TypedActionResult.pass(stack); // server without the add-on
             MinecraftClient mc = MinecraftClient.getInstance();
             mc.execute(() -> mc.setScreen(new PackSelectScreen(CardInfo.id(stack))));
-            return TypedActionResult.fail(stack); // FAIL en el cliente = no se envía el uso al servidor
+            return TypedActionResult.fail(stack); // FAIL on the client = the use is not sent to the server
         });
 
         ClientPlayNetworking.registerGlobalReceiver(GroupReadyPayload.ID, (p, ctx) -> ctx.client().execute(() -> {
@@ -163,7 +163,7 @@ public class TcgShopClient implements ClientModInitializer {
                 lines.add(2, Text.translatable("tcgshop.grade.cert", String.format(java.util.Locale.ROOT, "%06d",
                         dev.tcgshop.grading.Grading.cert(stack))).formatted(Formatting.DARK_GRAY));
             }
-            // rareza, variante y foil los añade MasterBall Traders API
+            // rarity, variant and foil are added by MasterBall Traders API
             if (!TcgShopConfig.INSTANCE.showPriceInTooltip) return;
             lines.add(Text.translatable("tcgshop.price", Text.literal(PriceService.format(PriceService.priceCd(stack))).formatted(Formatting.GOLD))
                     .formatted(Formatting.GRAY));

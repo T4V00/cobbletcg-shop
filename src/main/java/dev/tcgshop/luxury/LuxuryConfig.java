@@ -13,31 +13,31 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * config/tcgshop-luxury.json: estatuas de lujo (sumidero de dinero / símbolo de estatus).
- * Los precios son long: se pueden subir hasta 10^15 (p.ej. 1.000.000.000.000 para la estatua final).
+ * config/tcgshop-luxury.json: luxury statues (money sink / status symbol).
+ * Prices are long: they can go up to 10^15 (e.g. 1,000,000,000,000 for the final statue).
  */
 public class LuxuryConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("tcgshop-luxury.json");
-    /** Tope de seguridad de cualquier precio (10^15). */
+    /** Safety cap for any price (10^15). */
     public static final long MAX_PRICE = 1_000_000_000_000_000L;
 
     public static LuxuryConfig INSTANCE = new LuxuryConfig();
 
     public Map<String, String> _help = new LinkedHashMap<>();
-    /** Se venden las estatuas (Vendedor de muebles y app de muebles del teléfono). */
+    /** Statues are sold (Furniture Seller and the phone's furniture app). */
     public boolean enabled = true;
-    /** Precio de cada estatua en CobbleDollars, por nivel. */
+    /** Price of each statue in CobbleDollars, per tier. */
     public Map<String, Long> prices = new LinkedHashMap<>();
-    /** Anunciar en el chat del servidor la compra de estatuas a partir de este nivel (1-7; 0 = nunca). */
+    /** Announce statue purchases in server chat from this tier upward (1-7; 0 = never). */
     public int announceFromTier = 4;
-    /** 0.9.5: Llave de la Mansión MasterBall (finca de 100x100 que se construye con clic derecho). */
+    /** 0.9.5: MasterBall Mansion Key (100x100 estate built with a right click). */
     public boolean mansionEnabled = true;
-    /** Precio de la llave en CobbleDollars (por defecto mil millones, como la estatua MasterBall). */
+    /** Key price in CobbleDollars (default one billion, like the MasterBall statue). */
     public long mansionPrice = 1_000_000_000L;
-    /** Bloques que se colocan como máximo por tick al construir (menos = menos tirones, más lento). */
+    /** Maximum blocks placed per tick while building (fewer = less lag, slower). */
     public int mansionBlocksPerTick = 3000;
-    /** Sacar Pokémon residentes (Cobblemon) en la finca al terminarla. */
+    /** Spawn resident Pokémon (Cobblemon) on the estate once it is finished. */
     public boolean mansionPokemon = true;
 
     private void sanitize() {
@@ -52,15 +52,15 @@ public class LuxuryConfig {
         mansionPrice = Math.max(1L, Math.min(MAX_PRICE, mansionPrice));
         mansionBlocksPerTick = Math.max(200, Math.min(50_000, mansionBlocksPerTick));
         _help = new LinkedHashMap<>();
-        _help.put("aplicar", "Edita este archivo y usa /tcgshop reload (operador) o reinicia el servidor.");
-        _help.put("prices", "Precio de cada estatua (bronze, silver, gold, emerald, diamond, netherite, masterball) en CobbleDollars. "
-                + "Admite cifras enormes: 1000000000000 = un billón. Máximo 10^15.");
-        _help.put("enabled", "false = no se venden estatuas (las ya compradas se quedan).");
-        _help.put("announceFromTier", "Nivel mínimo (1-7) de estatua cuya compra se anuncia a todo el servidor. 0 = nunca.");
-        _help.put("mansionEnabled", "false = no se vende la Llave de la Mansión MasterBall (las llaves ya compradas siguen funcionando).");
-        _help.put("mansionPrice", "Precio de la Llave de la Mansión en CobbleDollars (por defecto 1000000000). Máximo 10^15.");
-        _help.put("mansionBlocksPerTick", "Bloques por tick al construir la mansión (200-50000). Bájalo si el servidor da tirones.");
-        _help.put("mansionPokemon", "true = la finca trae Pokémon residentes (sólo con Cobblemon): no se capturan, no combaten y no desaparecen.");
+        _help.put("aplicar", "Edit this file and use /tcgshop reload (operator) or restart the server.");
+        _help.put("prices", "Price of each statue (bronze, silver, gold, emerald, diamond, netherite, masterball) in CobbleDollars. "
+                + "Accepts huge numbers: 1000000000000 = one trillion. Maximum 10^15.");
+        _help.put("enabled", "false = statues are not sold (already purchased ones stay).");
+        _help.put("announceFromTier", "Minimum statue tier (1-7) whose purchase is announced to the whole server. 0 = never.");
+        _help.put("mansionEnabled", "false = the MasterBall Mansion Key is not sold (keys already purchased keep working).");
+        _help.put("mansionPrice", "Price of the Mansion Key in CobbleDollars (default 1000000000). Maximum 10^15.");
+        _help.put("mansionBlocksPerTick", "Blocks per tick while building the mansion (200-50000). Lower it if the server lags.");
+        _help.put("mansionPokemon", "true = the estate comes with resident Pokémon (Cobblemon only): they cannot be caught, do not battle and do not despawn.");
     }
 
     public long price(StatueTier t) {
@@ -74,14 +74,14 @@ public class LuxuryConfig {
         try {
             if (Files.exists(FILE)) try (Reader r = Files.newBufferedReader(FILE)) { c = GSON.fromJson(r, LuxuryConfig.class); }
         } catch (Exception e) {
-            TcgShop.LOGGER.error("No se pudo leer {} (se usan los valores por defecto y NO se sobrescribe)", FILE, e);
+            TcgShop.LOGGER.error("Could not read {} (using default values and NOT overwriting it)", FILE, e);
             broken = true;
         }
         if (c == null) c = new LuxuryConfig();
         c.sanitize();
         INSTANCE = c;
         if (!broken) save();
-        LuxuryShop.syncAll(); // /tcgshop reload: los clientes ven enseguida los precios / el interruptor nuevos
+        LuxuryShop.syncAll(); // /tcgshop reload: clients see the new prices / toggle right away
     }
 
     public static void save() {
@@ -89,7 +89,7 @@ public class LuxuryConfig {
             Files.createDirectories(FILE.getParent());
             try (Writer w = Files.newBufferedWriter(FILE)) { GSON.toJson(INSTANCE, w); }
         } catch (Exception e) {
-            TcgShop.LOGGER.warn("No se pudo guardar {}", FILE, e);
+            TcgShop.LOGGER.warn("Could not save {}", FILE, e);
         }
     }
 }

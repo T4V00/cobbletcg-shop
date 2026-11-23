@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Pedidos de CobbleGrade en el cliente (para la app del teléfono). */
+/** CobbleGrade orders on the client (for the phone app). */
 public final class ClientGrading {
     public static List<GradePayloads.Order> orders = new ArrayList<>();
     private static long serverNow, localAtSync;
@@ -27,7 +27,7 @@ public final class ClientGrading {
         return mc.world == null ? 0 : mc.world.getTime();
     }
 
-    /** Hora del servidor estimada (la del último sync + lo que ha pasado desde entonces). */
+    /** Estimated server time (the one from the last sync + what has elapsed since then). */
     public static long now() { return serverNow + Math.max(0, localTime() - localAtSync); }
 
     public static int readyCount() {
@@ -41,7 +41,7 @@ public final class ClientGrading {
         if (ClientPlayNetworking.canSend(GradePayloads.Action.ID)) ClientPlayNetworking.send(new GradePayloads.Action(GradePayloads.SYNC, 0, List.of(), 0));
     }
 
-    /** Ticks de Minecraft a "1 d 4 h" / "3 h 20 min" (1000 ticks = 1 hora del juego). */
+    /** Minecraft ticks to "1 d 4 h" / "3 h 20 min" (1000 ticks = 1 in-game hour). */
     public static Text duration(long ticks) {
         long min = Math.max(0, ticks) * 60 / 1000;
         long d = min / (24 * 60), h = (min / 60) % 24, m = min % 60;

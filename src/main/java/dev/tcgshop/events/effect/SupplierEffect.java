@@ -13,12 +13,12 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * P5 "supplier" (ligero, sin sistema de pedidos nuevo):
- *  · perk: "wholesale_discount" (factor &lt; 1 en la próxima compra al Mayorista o en el teléfono), "phone_markup"
- *    (factor &gt; 1 en el teléfono mientras dure: "retraso del proveedor"), "grading_discount" (próximo envío a
- *    CobbleGrade), "hire_discount" (próxima contratación). Valen mientras dura el evento (uses = cuántas compras).
- *  · spawn: "wholesaler" o "black_market" junto al dueño (los mismos que llama el teléfono).
- *  · speedup: fracción (0-0.9) del tiempo que le queda a UN pedido pendiente de CobbleGrade.
+ * P5 "supplier" (lightweight, no new order system):
+ *  · perk: "wholesale_discount" (factor &lt; 1 on the next purchase from the Wholesaler or on the phone), "phone_markup"
+ *    (factor &gt; 1 on the phone while it lasts: "supplier delay"), "grading_discount" (next shipment to
+ *    CobbleGrade), "hire_discount" (next hire). Valid while the event lasts (uses = how many purchases).
+ *  · spawn: "wholesaler" or "black_market" next to the owner (the same ones the phone calls).
+ *  · speedup: fraction (0-0.9) of the remaining time of ONE pending CobbleGrade order.
  */
 public final class SupplierEffect implements EventEffect {
     static final List<String> PERKS = List.of("", "wholesale_discount", "phone_markup", "grading_discount", "hire_discount");
@@ -32,10 +32,10 @@ public final class SupplierEffect implements EventEffect {
         factor = EventDef.dbl(o, "factor", 1);
         speedup = EventDef.clamp(EventDef.dbl(o, "speedup", 0), 0, 0.9);
         uses = Math.max(1, EventDef.integer(o, "uses", 1));
-        if (!PERKS.contains(perk)) throw new IllegalArgumentException("supplier.perk desconocido: " + perk);
-        if (!List.of("", "wholesaler", "black_market").contains(spawn)) throw new IllegalArgumentException("supplier.spawn desconocido: " + spawn);
+        if (!PERKS.contains(perk)) throw new IllegalArgumentException("unknown supplier.perk: " + perk);
+        if (!List.of("", "wholesaler", "black_market").contains(spawn)) throw new IllegalArgumentException("unknown supplier.spawn: " + spawn);
         if (perk.equals("phone_markup") ? factor < 1 || factor > 1.5 : !perk.isEmpty() && (factor <= 0.3 || factor > 1))
-            throw new IllegalArgumentException("supplier.factor fuera de rango");
+            throw new IllegalArgumentException("supplier.factor out of range");
     }
 
     @Override

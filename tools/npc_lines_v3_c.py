@@ -1,6 +1,6 @@
-"""Frases v3 (bloque C): entorno de la tienda, NPCs especiales, vendedor de muebles/peluches
-y clientes que pagan por encima del mercado por la reputación de la tienda.
-Formato: {"categoria": [("es", "en"), ...]}. Sin placeholders."""
+"""v3 lines (block C): shop surroundings, special NPCs, furniture/plushie seller
+and customers who pay above market because of the shop's reputation.
+Format: {"category": [("es", "en"), ...]}. No placeholders."""
 
 EXTRA = {
     "comment_cozy": [

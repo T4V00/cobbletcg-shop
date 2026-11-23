@@ -23,8 +23,8 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * /tcgshop event (operador): list | start &lt;id&gt; [variante] | end &lt;uid&gt; | log | deck [reroll] | roll.
- * start funciona aunque los eventos estén desactivados o la frecuencia sea 0 (no comprueba condiciones ni mazo).
+ * /tcgshop event (operator): list | start &lt;id&gt; [variant] | end &lt;uid&gt; | log | deck [reroll] | roll.
+ * start works even if events are disabled or the frequency is 0 (it does not check conditions or the deck).
  */
 public final class EventCommands {
     private EventCommands() {}

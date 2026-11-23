@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Rueda de interacción de jugador de Cobblemon: añade la opción de intercambiar cartas. */
+/** Cobblemon player interaction wheel: adds the option to trade cards. */
 @Pseudo
 @Mixin(targets = "com.cobblemon.mod.common.client.gui.interact.wheel.InteractWheelGuiFactoryKt", remap = false)
 public class InteractWheelMixin {

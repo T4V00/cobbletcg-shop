@@ -17,17 +17,17 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * 0.9.5 · Asiento invisible en el que se sienta un cliente (una silla de CobbleFurnies, un sofá, un banco...).
+ * 0.9.5 · Invisible seat a customer sits on (a CobbleFurnies chair, a sofa, a bench...).
  *
- * Es un soporte de armadura "marcador" (invisible, sin gravedad, sin caja de colisión) con lógica propia en el servidor:
- * así no hace falta registrar un tipo de entidad ni un renderizador, y el cliente lo ve como un soporte vanilla
- * invisible. La pose de sentado la pone sola el modelo bípedo al ir montado.
+ * It is a "marker" armor stand (invisible, no gravity, no collision box) with its own server-side logic:
+ * that way there is no need to register an entity type or a renderer, and the client sees it as an invisible vanilla
+ * armor stand. The biped model applies the sitting pose by itself while riding.
  *
- * Nunca se guarda (ni sola ni como montura del cliente): si se descarga el chunk o se para el servidor desaparece, y
- * se borra sola en cuanto se queda sin pasajero o el bloque deja de ser un asiento.
+ * It is never saved (neither on its own nor as the customer's mount): if the chunk unloads or the server stops it
+ * disappears, and it removes itself as soon as it has no passenger or the block is no longer a seat.
  */
 public class ShopSeatEntity extends ArmorStandEntity {
-    /** Etiqueta de comando de todos los asientos (sólo en el servidor: las etiquetas no se sincronizan). */
+    /** Command tag of all seats (server only: tags are not synced). */
     public static final String TAG = "tcgshop_seat";
     @Nullable
     private BlockPos seatPos;
@@ -42,11 +42,11 @@ public class ShopSeatEntity extends ArmorStandEntity {
         setInvulnerable(true);
         setSilent(true);
         dataTracker.set(ARMOR_STAND_FLAGS, (byte) (dataTracker.get(ARMOR_STAND_FLAGS) | MARKER_FLAG));
-        // etiqueta para que admins y otros mods puedan excluirlo: /kill @e[type=armor_stand,tag=!tcgshop_seat]
+        // tag so admins and other mods can exclude it: /kill @e[type=armor_stand,tag=!tcgshop_seat]
         addCommandTag(TAG);
     }
 
-    /** Crea y pone en el mundo el asiento (y = altura a la que van los pies del que se sienta). */
+    /** Creates the seat and places it in the world (y = height of the sitter's feet). */
     public static ShopSeatEntity spawn(ServerWorld world, BlockPos seat, double y, float yaw, @Nullable Vec3d stand) {
         ShopSeatEntity e = new ShopSeatEntity(world);
         e.seatPos = seat.toImmutable();
@@ -68,7 +68,7 @@ public class ShopSeatEntity extends ArmorStandEntity {
     public void tick() {
         super.tick();
         if (getWorld().isClient) return;
-        // sin pasajero (se levantó, desapareció...) o sin silla debajo: fuera
+        // no passenger (stood up, despawned...) or no chair underneath: remove
         if (!hasPassengers()) {
             if (++emptyTicks > 2) discard();
             return;
@@ -80,7 +80,7 @@ public class ShopSeatEntity extends ArmorStandEntity {
         }
     }
 
-    /** Al levantarse aparece en el sitio de al lado del asiento (no encima de la silla). */
+    /** On standing up it appears at the spot next to the seat (not on top of the chair). */
     @Override
     public Vec3d updatePassengerForDismount(LivingEntity passenger) {
         return standPos != null ? standPos : super.updatePassengerForDismount(passenger);
@@ -92,12 +92,12 @@ public class ShopSeatEntity extends ArmorStandEntity {
         super.remove(reason);
     }
 
-    // ---- nunca se guarda
+    // ---- never saved
     @Override public boolean saveNbt(NbtCompound nbt) { return false; }
     @Override public boolean saveSelfNbt(NbtCompound nbt) { return false; }
     @Override public boolean shouldSave() { return false; }
 
-    // ---- intocable
+    // ---- untouchable
     @Override public boolean damage(DamageSource source, float amount) { return false; }
     @Override public boolean handleAttack(Entity attacker) { return true; }
     @Override public ActionResult interactAt(PlayerEntity player, Vec3d hitPos, Hand hand) { return ActionResult.PASS; }

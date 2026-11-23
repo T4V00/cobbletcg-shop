@@ -14,12 +14,12 @@ import net.minecraft.util.math.BlockPos;
 import java.util.Set;
 
 /**
- * Ruleta Poké: rueda europea de 37 números (0 verde). Apuestas a rojo o negro; si aciertas cobras el doble.
- * El 0 verde da la ventaja de la casa (2,7%), como en una ruleta real.
+ * Poké Roulette: 37-number European wheel (green 0). Bet on red or black; if you win you get double.
+ * The green 0 gives the house edge (2.7%), like a real roulette.
  */
 public final class Roulette {
     public static final Set<Integer> RED = Set.of(1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36);
-    /** Orden de los números en una rueda europea (para la animación). */
+    /** Order of the numbers on a European wheel (for the animation). */
     public static final int[] WHEEL = {0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14,
             31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26};
 

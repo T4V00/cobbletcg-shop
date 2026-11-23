@@ -12,9 +12,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Cartas del Binder General como "casillas" extra para todo lo que antes sólo usaba el inventario (Coleccionista,
- * gradeo, Mayorista, intercambios entre jugadores...). Casillas 0-35 = inventario; 1000+i = la carta i del Binder
- * (ids ordenados alfabéticamente, igual en cliente y servidor). Siempre se revalida en el servidor al usarla.
+ * General Binder cards as extra "slots" for everything that used to use only the inventory (Collector,
+ * grading, Wholesaler, player-to-player trades...). Slots 0-35 = inventory; 1000+i = card i of the Binder
+ * (ids sorted alphabetically, same on client and server). Always revalidated on the server when used.
  */
 public final class BinderSlots {
     private BinderSlots() {}
@@ -23,7 +23,7 @@ public final class BinderSlots {
 
     public static boolean isBinder(int slot) { return slot >= BASE; }
 
-    /** Ids del Binder con al menos una copia, en orden estable. */
+    /** Binder ids with at least one copy, in stable order. */
     public static List<String> ids(Map<String, Integer> counts) {
         List<String> out = new ArrayList<>();
         for (Map.Entry<String, Integer> e : counts.entrySet()) if (e.getValue() != null && e.getValue() > 0) out.add(e.getKey());
@@ -37,7 +37,7 @@ public final class BinderSlots {
         return item == null || count <= 0 ? ItemStack.EMPTY : new ItemStack(item, count);
     }
 
-    // ------------------------------------------------------------------ servidor
+    // ------------------------------------------------------------------ server
 
     private static String binderId(ServerPlayerEntity p, int slot) {
         BinderData b = CollectionService.ownedBinder(p);
@@ -47,7 +47,7 @@ public final class BinderSlots {
         return i >= 0 && i < ids.size() ? ids.get(i) : null;
     }
 
-    /** Lo que hay en esa casilla (copia de vista para el Binder: no modificar). */
+    /** What is in that slot (view copy for the Binder: do not modify). */
     public static ItemStack peek(ServerPlayerEntity p, int slot) {
         if (slot >= 0 && slot < 36) return p.getInventory().getStack(slot);
         if (!isBinder(slot)) return ItemStack.EMPTY;
@@ -56,7 +56,7 @@ public final class BinderSlots {
         return b == null || id == null ? ItemStack.EMPTY : stackFor(id, b.count(id));
     }
 
-    /** Saca n cartas de esa casilla (del inventario o del Binder) y las devuelve. */
+    /** Takes n cards out of that slot (from the inventory or the Binder) and returns them. */
     public static ItemStack take(ServerPlayerEntity p, int slot, int n) {
         if (slot >= 0 && slot < 36) return p.getInventory().getStack(slot).split(n);
         if (!isBinder(slot)) return ItemStack.EMPTY;
@@ -68,7 +68,7 @@ public final class BinderSlots {
         return stackFor(id, got);
     }
 
-    /** ¿Tiene esta carta exacta (sin gradear) en el Binder? Devuelve su casilla o -1. */
+    /** Does the Binder hold this exact (ungraded) card? Returns its slot or -1. */
     public static int findInBinder(ServerPlayerEntity p, ItemStack want) {
         if (!CardInfo.isCard(want) || dev.tcgshop.grading.Grading.isGraded(want)) return -1;
         BinderData b = CollectionService.ownedBinder(p);
@@ -78,7 +78,7 @@ public final class BinderSlots {
         return BASE + ids(b.counts).indexOf(id);
     }
 
-    /** Tras sacar cartas del Binder: guardar y avisar al cliente. */
+    /** After taking cards out of the Binder: save and notify the client. */
     public static void sync(ServerPlayerEntity p) {
         CollectionService.dirty(p);
         CollectionService.sync(p);

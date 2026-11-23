@@ -8,7 +8,7 @@ import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 import net.minecraft.util.Identifier;
 
-/** Servidor -> cliente: dato curioso / hito especial para mostrar como banner. */
+/** Server -> client: fun fact / special milestone to show as a banner. */
 public record FactPayload(Text title, Text body) implements CustomPayload {
     public static final Id<FactPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "fact"));
     public static final PacketCodec<RegistryByteBuf, FactPayload> CODEC = PacketCodec.tuple(

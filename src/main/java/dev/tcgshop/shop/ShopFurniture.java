@@ -1,7 +1,7 @@
 package dev.tcgshop.shop;
 
-/** Marca los bloques de categoría "tienda": sólo se pueden colocar dentro de una zona de tienda propia. */
+/** Marks "shop" category blocks: they can only be placed inside your own shop zone. */
 public interface ShopFurniture {
-    /** false = mueble "de casa": se puede colocar en cualquier sitio. */
+    /** false = "home" furniture: can be placed anywhere. */
     default boolean shopOnly() { return true; }
 }

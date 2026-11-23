@@ -14,8 +14,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * P7 "staff": el cajero cobra más lento (serviceMult &gt; 1) o más rápido (&lt; 1). Con "distracted": true se le ve
- * distraído (notas musicales y frases) y se arregla con clic derecho del dueño al cajero (EventManager.onEmployeeInteract).
+ * P7 "staff": the cashier checks out slower (serviceMult &gt; 1) or faster (&lt; 1). With "distracted": true they look
+ * distracted (music notes and lines) and it is fixed by the owner right-clicking the cashier (EventManager.onEmployeeInteract).
  */
 public final class StaffEffect implements EventEffect {
     final double serviceMult;

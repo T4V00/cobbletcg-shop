@@ -6,8 +6,8 @@ import net.minecraft.client.gui.DrawContext;
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
 /**
- * Dibuja por código los estilos del Personal Binder: escenas de fondo inspiradas en biomas de Cobblemon,
- * patrones inspirados en tipos Pokémon y paletas (colores y degradados). Estilo pixel-art acorde a Minecraft.
+ * Draws the Personal Binder styles in code: background scenes inspired by Cobblemon biomes,
+ * patterns inspired by Pokémon types, and palettes (colors and gradients). Pixel-art style in line with Minecraft.
  */
 public final class StylePainter {
     private StylePainter() {}
@@ -36,7 +36,7 @@ public final class StylePainter {
         ctx.fill(cx - r, cy, cx + r + 1, cy + 1, color);
     }
 
-    /** Terreno: columnas cuya altura sigue una suma de senos. */
+    /** Terrain: columns whose height follows a sum of sines. */
     private static void hills(DrawContext ctx, int x, int y, int w, int h, double base, double amp, double freq, double phase, int top, int bottom) {
         for (int i = 0; i < w; i += 2) {
             double v = base + amp * (Math.sin(i * freq + phase) * 0.6 + Math.sin(i * freq * 2.3 + phase * 1.7) * 0.4);
@@ -45,7 +45,7 @@ public final class StylePainter {
         }
     }
 
-    // ------------------------------------------------------------------ fondos
+    // ------------------------------------------------------------------ backgrounds
 
     public static void background(DrawContext ctx, String id, int x, int y, int w, int h, double t) {
         switch (id) {
@@ -170,7 +170,7 @@ public final class StylePainter {
         }
     }
 
-    // ------------------------------------------------------------------ tapa: paleta + patrón
+    // ------------------------------------------------------------------ cover: palette + pattern
 
     public static void cover(DrawContext ctx, String paletteId, String patternId, int x, int y, int w, int h, double t) {
         BinderStyles.Style p = BinderStyles.find("palette", paletteId);

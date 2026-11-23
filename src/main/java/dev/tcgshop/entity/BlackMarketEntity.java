@@ -38,10 +38,10 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Mercader negro: aparece rarísima vez cerca de un jugador, encapuchado, y le ofrece UN sobre sellado concreto a
- * cambio de cualquier Pokémon de su equipo. Se ve el sobre antes de aceptar, hay que confirmar, y el Pokémon sólo
- * desaparece si Cobblemon confirma que salió del equipo (y entonces se entrega el sobre). Nunca te deja sin Pokémon.
- * Se esfuma a los pocos minutos o tras el trato.
+ * Black marketeer: very rarely appears near a player, hooded, and offers them ONE specific sealed pack in
+ * exchange for any Pokémon from their party. The pack is shown before accepting, it must be confirmed, and the Pokémon only
+ * disappears if Cobblemon confirms it left the party (and then the pack is handed over). Never leaves you without Pokémon.
+ * Vanishes after a few minutes or after the deal.
  */
 public class BlackMarketEntity extends PathAwareEntity implements TcgNpc {
     private static final TrackedData<Integer> SKIN = DataTracker.registerData(BlackMarketEntity.class, TrackedDataHandlerRegistry.INTEGER);
@@ -77,7 +77,7 @@ public class BlackMarketEntity extends PathAwareEntity implements TcgNpc {
     @Override public int emote() { return EMOTE_NONE; }
     @Override public boolean wantsAttention() { return !traded; }
 
-    /** Elige el sobre que ofrece: casi siempre uno normal; a veces, uno de los sets bloqueados. */
+    /** Picks the pack it offers: almost always a normal one; sometimes, one from the locked sets. */
     public void rollOffer() {
         List<Item> normal = new ArrayList<>(), rare = new ArrayList<>();
         for (Identifier id : Registries.ITEM.getIds())
@@ -147,10 +147,10 @@ public class BlackMarketEntity extends PathAwareEntity implements TcgNpc {
         return ActionResult.SUCCESS;
     }
 
-    /** El jugador confirmó: entrega ese Pokémon y recibe el sobre (sólo si el Pokémon salió de verdad del equipo). */
+    /** The player confirmed: hands over that Pokémon and gets the pack (only if the Pokémon really left the party). */
     public void trade(ServerPlayerEntity p, UUID mon) {
         if (traded || offer.isEmpty() || !isAlive() || squaredDistanceTo(p) > 8 * 8) return;
-        traded = true; // bloquea dobles clics / dos jugadores a la vez
+        traded = true; // blocks double clicks / two players at once
         boolean removed = CobblemonParty.remove(p, mon);
         if (!removed) {
             traded = false;

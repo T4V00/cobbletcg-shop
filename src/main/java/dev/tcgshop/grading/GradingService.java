@@ -29,9 +29,9 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Pedidos a CobbleGrade: eliges cartas del inventario y un servicio, pagas, las cartas "viajan" y cuando pasa el
- * tiempo (de Minecraft, mientras el servidor está en marcha) las recoges desde el teléfono ya gradeadas.
- * La nota se tira al recoger (revelado con animación en el cliente).
+ * CobbleGrade orders: you pick cards from your inventory and a service, pay, the cards "travel" and once the
+ * time passes (Minecraft time, while the server is running) you collect them already graded from the phone.
+ * The grade is rolled on collection (revealed with an animation on the client).
  */
 public final class GradingService extends PersistentState {
     private static final Type<GradingService> TYPE = new Type<>(GradingService::new, GradingService::fromNbt, null);
@@ -52,19 +52,19 @@ public final class GradingService extends PersistentState {
 
     private static long now(MinecraftServer server) { return server.getOverworld().getTime(); }
 
-    /** Número de certificado nuevo (comandos de administración, etc.); comparte contador con los pedidos. */
+    /** New certificate number (admin commands, etc.); shares the counter with orders. */
     public static int nextCert(MinecraftServer server) {
         GradingService s = get(server);
         s.markDirty();
         return s.nextCert++;
     }
 
-    // ------------------------------------------------------------------ acciones
+    // ------------------------------------------------------------------ actions
 
     public static void handle(ServerPlayerEntity p, GradePayloads.Action a) {
         switch (a.action()) {
             case GradePayloads.SUBMIT -> {
-                // 0.9: CobbleGrade es una app del teléfono con nivel mínimo; recoger pedidos ya hechos sigue libre
+                // 0.9: CobbleGrade is a phone app with a minimum level; collecting existing orders stays free
                 if (dev.tcgshop.phone.PhoneUpgrades.requireApp(p, "grade")) submit(p, Grading.Service.of(a.service()), a);
             }
             case GradePayloads.COLLECT -> collect(p, a.order());
@@ -84,8 +84,8 @@ public final class GradingService extends PersistentState {
             if (slot < 0 || (slot >= 36 && !dev.tcgshop.collection.BinderSlots.isBinder(slot))) continue;
             ItemStack st = dev.tcgshop.collection.BinderSlots.peek(p, slot);
             if (!CardInfo.isCard(st) || Grading.isGraded(st)) continue;
-            // la carta del hueco debe ser la que el jugador confirmó: si el Binder se reordenó (entró o salió otra
-            // carta) o el hueco cambió mientras el paquete viajaba, se salta en vez de gradear otra carta
+            // the card in the slot must be the one the player confirmed: if the Binder was reordered (another card came in
+            // or left) or the slot changed while the packet was in flight, it is skipped instead of grading another card
             String want = a.expectedAt(i);
             if (!want.isEmpty() && !want.equals(CardInfo.id(st).toString())) continue;
             valid.add(slot);
@@ -96,7 +96,7 @@ public final class GradingService extends PersistentState {
             p.sendMessage(Text.translatable("tcgshop.grade.none_selected").formatted(Formatting.RED), true);
             return;
         }
-        double evf = dev.tcgshop.events.EventManager.gradingFeeFactor(p, false); // 0.9 eventos: "visita de un experto"
+        double evf = dev.tcgshop.events.EventManager.gradingFeeFactor(p, false); // 0.9 events: "expert visit"
         if (evf < 1) fee = Math.max(1, Math.round(fee * evf));
         if (!CobbleDollarsBridge.tryCharge(p, fee)) {
             p.sendMessage(Text.translatable("tcgshop.shop.no_money", PriceService.format(fee)).formatted(Formatting.RED), true);
@@ -109,8 +109,8 @@ public final class GradingService extends PersistentState {
         o.service = service.ordinal();
         o.submitted = now(p.getServer());
         o.ready = o.submitted + service.ticks;
-        // una carta de cada hueco (del inventario o del Binder); primero las del Binder de mayor a menor casilla
-        // para que sacar una no mueva el índice de las demás
+        // one card from each slot (inventory or Binder); Binder ones first, from highest to lowest slot,
+        // so taking one out does not shift the index of the others
         List<Integer> order = new ArrayList<>(valid);
         order.sort((x, y) -> Integer.compare(y, x));
         for (int slot : order) {
@@ -139,8 +139,8 @@ public final class GradingService extends PersistentState {
         List<ItemStack> graded = new ArrayList<>();
         long before = 0, after = 0;
         for (ItemStack card : o.cards) {
-            // Pasamos el ID de cada carta para que Grading aplique el penalizador
-            // extremo a las impresiones de 2017 y anteriores.
+            // We pass each card's ID so Grading applies the extreme
+            // penalty to prints from 2017 and earlier.
             int g = Grading.roll(p.getRandom(), CardInfo.id(card));
             ItemStack out = Grading.apply(card, g, s.nextCert++);
             before += PriceService.priceCd(card);
@@ -157,14 +157,14 @@ public final class GradingService extends PersistentState {
         if (ServerPlayNetworking.canSend(p, GradePayloads.Reveal.ID)) ServerPlayNetworking.send(p, new GradePayloads.Reveal(graded, before, after));
     }
 
-    /** 0.9 eventos: ¿tiene este jugador algún pedido aún sin terminar? */
+    /** 0.9 events: does this player have any order still unfinished? */
     public static boolean hasPending(MinecraftServer server, UUID player) {
         long now = now(server);
         for (Order o : get(server).orders.getOrDefault(player, List.of())) if (o.ready > now) return true;
         return false;
     }
 
-    /** 0.9 eventos: acelera UN pedido pendiente (el que más tarde), quitándole esa fracción de lo que le queda. */
+    /** 0.9 events: speeds up ONE pending order (the latest one), removing that fraction of its remaining time. */
     public static boolean speedUpOne(MinecraftServer server, UUID player, double fraction) {
         long now = now(server);
         Order best = null;
@@ -187,7 +187,7 @@ public final class GradingService extends PersistentState {
         ServerPlayNetworking.send(p, new GradePayloads.Sync(now(p.getServer()), out));
     }
 
-    /** Avisa a los jugadores cuando su pedido está listo para recoger. */
+    /** Notifies players when their order is ready to collect. */
     public static void tick(MinecraftServer server) {
         if (server.getTicks() % 100 != 0) return;
         GradingService s = get(server);
@@ -208,7 +208,7 @@ public final class GradingService extends PersistentState {
         }
     }
 
-    // ------------------------------------------------------------------ guardado
+    // ------------------------------------------------------------------ persistence
 
     private static GradingService fromNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         GradingService s = new GradingService();

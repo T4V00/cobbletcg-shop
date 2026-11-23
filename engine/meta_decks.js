@@ -1,6 +1,6 @@
-// Mazos del metajuego competitivo (arquetipos top recientes) para la IA Difícil / Campeón.
-// Resuelve cada nombre a la carta del motor (prefiere las que tienen imagen en cobbletcg y sets modernos),
-// completa hasta 60 y comprueba que el motor los acepta. Uso: node meta_decks.js
+// Competitive metagame decks (recent top archetypes) for the Hard / Champion AI.
+// Resolves each name to the engine's card (prefers ones with an image in cobbletcg and modern sets),
+// fills up to 60 and checks that the engine accepts them. Usage: node meta_decks.js
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -79,7 +79,7 @@ for (const d of DECKS) {
     if (!f) { missing.push(name); continue; }
     add(f, n);
   }
-  // completar con básicas del tipo y staples hasta 60; recortar energía si sobra
+  // fill with basics of the type and staples up to 60; trim energy if there is too much
   let i = 0;
   while (deck.length < 60) {
     const fill = i % 3 === 2 ? resolve(FILL[(i / 3 | 0) % FILL.length]) : resolve(ENERGY[d.energy[i % d.energy.length]]);
@@ -94,20 +94,20 @@ for (const d of DECKS) {
     deck.splice(idx >= 0 ? idx : deck.length - 1, 1);
   }
   const problem = P.validateDeck(JSON.stringify(deck));
-  console.log(d.name.padEnd(16), problem === '' ? 'OK' : 'INVALIDO ' + problem, missing.length ? 'faltan: ' + missing.join(', ') : '');
+  console.log(d.name.padEnd(16), problem === '' ? 'OK' : 'INVALID ' + problem, missing.length ? 'missing: ' + missing.join(', ') : '');
   if (problem === '') out.push({ id: d.id, name: d.name, cards: deck });
 }
-// prueba rápida: cada mazo juega contra otro hasta terminar
+// quick test: each deck plays against another until the end
 for (let k = 0; k < out.length; k++) {
   const a = out[k], b = out[(k + 1) % out.length];
   P.create('m' + k, JSON.stringify({ id: 1, name: 'A', deck: a.cards, bot: true }), JSON.stringify({ id: 2, name: 'B', deck: b.cards, bot: true }));
   let steps = 0, v;
   while (steps++ < 3000) { if (!P.botStep('m' + k)) { v = JSON.parse(P.view('m' + k, 1)); if (v.phase === 7 || v.winner !== -1) break; } }
   v = JSON.parse(P.view('m' + k, 1));
-  console.log('  partida', a.name, 'vs', b.name, '-> ganador', v.winner, 'turno', v.turn);
+  console.log('  match', a.name, 'vs', b.name, '-> winner', v.winner, 'turn', v.turn);
   P.dispose('m' + k);
 }
 fs.writeFileSync(path.join(__dirname, 'meta_decks.json'), JSON.stringify(out, null, 1));
 fs.mkdirSync(path.join(root, 'src/main/resources/data/tcgshop'), { recursive: true });
 fs.writeFileSync(path.join(root, 'src/main/resources/data/tcgshop/ptcg_meta_decks.json'), JSON.stringify(out));
-console.log('mazos meta:', out.length);
+console.log('meta decks:', out.length);

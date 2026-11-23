@@ -17,8 +17,8 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * Gafas de Gerente: puestas en la cabeza (o en el slot "face" de Accessories) muestran el borde de las tiendas,
- * de quién son, y el beneficio o la pérdida de las tuyas.
+ * Manager Goggles: worn on the head (or in the Accessories "face" slot) they show shop borders,
+ * who owns them, and the profit or loss of your own.
  */
 public class ManagerGogglesItem extends Item implements Equipment {
     public ManagerGogglesItem(Settings settings) {

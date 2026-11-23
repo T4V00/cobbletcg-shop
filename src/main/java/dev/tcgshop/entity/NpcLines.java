@@ -13,8 +13,8 @@ import net.minecraft.util.math.random.Random;
 import java.util.Map;
 
 /**
- * Frases de los NPC (claves tcgshop.npc.<categoría>.<n> en los archivos de idioma). El número de frases de cada
- * categoría debe coincidir con tools/gen_npc_lines.py.
+ * NPC lines (keys tcgshop.npc.<category>.<n> in the language files). The number of lines in each
+ * category must match tools/gen_npc_lines.py.
  */
 public final class NpcLines {
     public static final Map<String, Integer> COUNTS = Map.ofEntries(
@@ -57,14 +57,14 @@ public final class NpcLines {
         return Text.translatable("tcgshop.npc." + cat + "." + r.nextInt(count(cat)));
     }
 
-    /** Igual, con argumentos (%s) en la frase. */
+    /** Same, with arguments (%s) in the line. */
     public static net.minecraft.text.MutableText random(Random r, String cat, Object... args) {
         return Text.translatable("tcgshop.npc." + cat + "." + r.nextInt(count(cat)), args);
     }
 
     /**
-     * El NPC dice algo: bocadillo sobre su cabeza (con sonidos de "hablar") para los jugadores que lo ven.
-     * Los jugadores sin el add-on en el cliente lo reciben por el chat.
+     * The NPC says something: a speech bubble above its head (with "talking" sounds) for the players who see it.
+     * Players without the add-on on the client receive it through chat.
      */
     public static void speak(LivingEntity who, Text line) {
         if (who.getWorld().isClient) return;
@@ -77,12 +77,12 @@ public final class NpcLines {
         }
     }
 
-    /** Frase al hablar con un jugador (se ve en el bocadillo). */
+    /** Line when talking to a player (shown in the speech bubble). */
     public static void say(LivingEntity who, ServerPlayerEntity to, String cat) {
         speak(who, random(who.getRandom(), cat));
     }
 
-    /** Frase al aire (bocadillo). */
+    /** Line spoken to no one in particular (speech bubble). */
     public static void sayNear(LivingEntity who, String cat) {
         speak(who, random(who.getRandom(), cat));
     }

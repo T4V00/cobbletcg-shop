@@ -19,7 +19,7 @@ import net.minecraft.util.Rarity;
 import java.util.EnumMap;
 import java.util.Map;
 
-/** Bloques de la tienda: zonas por nivel, expositores, decoración, caja registradora, ruleta y cajas de sobres. */
+/** Shop blocks: tiered zones, displays, decoration, cash register, roulette and booster boxes. */
 public final class TcgBlocks {
     public static final ComponentType<String> BOX_SET = Registry.register(Registries.DATA_COMPONENT_TYPE,
             Identifier.of(TcgShop.MOD_ID, "box_set"),
@@ -43,7 +43,7 @@ public final class TcgBlocks {
                 .pistonBehavior(net.minecraft.block.piston.PistonBehavior.BLOCK);
     }
 
-    // --- expositores ---
+    // --- displays ---
     public static final ShopDisplayBlock CARD_STAND = register("card_stand", new ShopDisplayBlock(DisplayKind.CARD_STAND, furniture(BlockSoundGroup.WOOD)));
     public static final ShopDisplayBlock DISPLAY_CASE = register("display_case", new ShopDisplayBlock(DisplayKind.DISPLAY_CASE, furniture(BlockSoundGroup.GLASS)));
     public static final ShopDisplayBlock PACK_SHELF = register("pack_shelf", new ShopDisplayBlock(DisplayKind.PACK_SHELF, furniture(BlockSoundGroup.WOOD)));
@@ -57,13 +57,13 @@ public final class TcgBlocks {
     public static final ShopDisplayBlock CARD_LEDGE = register("card_ledge", new ShopDisplayBlock(DisplayKind.LEDGE, furniture(BlockSoundGroup.WOOD)));
     public static final ShopDisplayBlock BOX_SHELF = register("box_shelf", new ShopDisplayBlock(DisplayKind.BOX_SHELF, furniture(BlockSoundGroup.WOOD)));
     public static final ShopDisplayBlock CARD_FRAME = register("card_frame", new ShopDisplayBlock(DisplayKind.FRAME, furniture(BlockSoundGroup.WOOD).noCollision()));
-    // --- expositores de casa (cualquier sitio, sin venta)
+    // --- home displays (anywhere, no selling)
     public static final ShopDisplayBlock HOME_FRAME = register("home_frame", new ShopDisplayBlock(DisplayKind.FRAME, true, furniture(BlockSoundGroup.WOOD).noCollision()));
     public static final ShopDisplayBlock HOME_LEDGE = register("home_ledge", new ShopDisplayBlock(DisplayKind.LEDGE, true, furniture(BlockSoundGroup.WOOD)));
     public static final ShopDisplayBlock HOME_SHOWCASE = register("home_showcase", new ShopDisplayBlock(DisplayKind.SHOWCASE, true, furniture(BlockSoundGroup.GLASS).luminance(st -> 10)));
     public static final ShopDisplayBlock HOME_CARD_WALL = register("home_card_wall", new ShopDisplayBlock(DisplayKind.CARD_WALL, true, furniture(BlockSoundGroup.WOOD)));
     public static final ShopDisplayBlock HOME_PEDESTAL = register("home_pedestal", new ShopDisplayBlock(DisplayKind.PEDESTAL, true, furniture(BlockSoundGroup.STONE).luminance(st -> 8)));
-    // --- decoración / servicio ---
+    // --- decoration / service ---
     public static final DecorBlocks.RegisterBlock CASH_REGISTER = register("cash_register", new DecorBlocks.RegisterBlock(furniture(BlockSoundGroup.METAL)));
     public static final DecorBlocks.PosterBlock POSTER = register("poster", new DecorBlocks.PosterBlock(furniture(BlockSoundGroup.WOOL).noCollision()));
     public static final DecorBlocks.PlayTableBlock PLAY_TABLE = register("play_table", new DecorBlocks.PlayTableBlock(furniture(BlockSoundGroup.WOOD)));
@@ -73,8 +73,8 @@ public final class TcgBlocks {
     public static final BoosterBox.BoxBlock BOOSTER_BOX = register("booster_box", new BoosterBox.BoxBlock(
             AbstractBlock.Settings.create().strength(0.6f).sounds(BlockSoundGroup.WOOL).nonOpaque()));
     /**
-     * 0.9 eventos: incidente (charco, escombros, chispas...). Sin objeto ni pestaña creativa; irrompible a mano, sin
-     * drops, sin colisión, "sólido" para que el agua no lo arrastre, no inflamable, los pistones no lo mueven.
+     * 0.9 events: incident (puddle, debris, sparks...). No item or creative tab; unbreakable by hand, no
+     * drops, no collision, "solid" so water does not wash it away, non-flammable, pistons cannot move it.
      */
     public static final dev.tcgshop.events.incident.IncidentBlock INCIDENT = register("incident", new dev.tcgshop.events.incident.IncidentBlock(
             AbstractBlock.Settings.create().mapColor(MapColor.CLEAR).strength(-1.0f, 3_600_000.0f).noCollision().nonOpaque().dropsNothing()
@@ -99,7 +99,7 @@ public final class TcgBlocks {
     public static final Item HOME_SHOWCASE_ITEM = item("home_showcase", new BlockItem(HOME_SHOWCASE, new Item.Settings().rarity(Rarity.UNCOMMON)));
     public static final Item HOME_CARD_WALL_ITEM = item("home_card_wall", new BlockItem(HOME_CARD_WALL, new Item.Settings().rarity(Rarity.UNCOMMON)));
     public static final Item HOME_PEDESTAL_ITEM = item("home_pedestal", new BlockItem(HOME_PEDESTAL, new Item.Settings().rarity(Rarity.UNCOMMON)));
-    /** Muebles nuevos (para el catálogo y la pestaña creativa). */
+    /** New furniture (for the catalog and the creative tab). */
     public static final Item[] NEW_SHOP_DISPLAYS = {COUNTER_DISPLAY_ITEM, SHOWCASE_ITEM, CARD_LEDGE_ITEM, BOX_SHELF_ITEM, CARD_FRAME_ITEM};
     public static final Item[] HOME_DISPLAYS = {HOME_FRAME_ITEM, HOME_LEDGE_ITEM, HOME_SHOWCASE_ITEM, HOME_CARD_WALL_ITEM, HOME_PEDESTAL_ITEM};
     public static final Item CASH_REGISTER_ITEM = item("cash_register", new BlockItem(CASH_REGISTER, new Item.Settings()));

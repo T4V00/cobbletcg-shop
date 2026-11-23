@@ -40,25 +40,25 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Lo social y de gestión que va por el teléfono / el Binder:
- *  · Mercado del Binder: venta rápida de varias cartas a la vez directamente desde tu Binder General, cartas
- *    favoritas protegidas, ofertas de venta a otros jugadores con precio y confirmación, e historial.
- *  · Amigos: solicitudes, lista, y las tiendas y estadísticas de cada amigo.
- *  · Gestor de expositores: todos los productos de tus tiendas con su precio, editable desde el teléfono.
- * Todo se valida en el servidor en el momento de aplicarse (sin duplicar ni perder cartas).
+ * The social and management features that go through the phone / the Binder:
+ *  · Binder Market: quick-sell several cards at once directly from your General Binder, protected
+ *    favorite cards, sale offers to other players with price and confirmation, and history.
+ *  · Friends: requests, list, and each friend's shops and stats.
+ *  · Display manager: every product in your shops with its price, editable from the phone.
+ * Everything is validated on the server at the moment it is applied (no duplicated or lost cards).
  */
 public final class SocialServer {
     private SocialServer() {}
 
-    // ================================================================== datos guardados
+    // ================================================================== saved data
 
     public static final class Data extends PersistentState {
         final Map<UUID, Set<String>> favorites = new HashMap<>();
         final Map<UUID, List<NbtCompound>> history = new HashMap<>();
         final Map<UUID, Set<UUID>> friends = new HashMap<>();
-        final Map<UUID, Set<UUID>> requests = new HashMap<>(); // destinatario -> quién se lo pidió
+        final Map<UUID, Set<UUID>> requests = new HashMap<>(); // recipient -> who requested it
         final Map<UUID, String> names = new HashMap<>();
-        final Map<UUID, NbtCompound> stats = new HashMap<>(); // última foto de cada jugador (para verla desconectado)
+        final Map<UUID, NbtCompound> stats = new HashMap<>(); // latest snapshot of each player (to view it while offline)
 
         static final Type<Data> TYPE = new Type<>(Data::new, Data::read, null);
 
@@ -77,7 +77,7 @@ public final class SocialServer {
                 Set<String> fav = new LinkedHashSet<>();
                 for (NbtElement e : c.getList("fav", NbtElement.STRING_TYPE)) {
                     String id = dev.masterball.api.card.CardInfo.migrate(e.asString());
-                    if (!dev.masterball.api.card.CardCatalog.isRemovedId(id)) fav.add(id); // TCG Pocket: quitado en la 0.9
+                    if (!dev.masterball.api.card.CardCatalog.isRemovedId(id)) fav.add(id); // TCG Pocket: removed in 0.9
                 }
                 if (!fav.isEmpty()) d.favorites.put(u, fav);
                 List<NbtCompound> h = new ArrayList<>();
@@ -85,7 +85,7 @@ public final class SocialServer {
                     NbtCompound he = (NbtCompound) e;
                     if (he.contains("c")) {
                         String id = dev.masterball.api.card.CardInfo.migrate(he.getString("c"));
-                        if (dev.masterball.api.card.CardCatalog.isRemovedId(id)) continue; // TCG Pocket: quitado en la 0.9
+                        if (dev.masterball.api.card.CardCatalog.isRemovedId(id)) continue; // TCG Pocket: removed in 0.9
                         he.putString("c", id);
                     }
                     h.add(he);
@@ -157,7 +157,7 @@ public final class SocialServer {
         if (ServerPlayNetworking.canSend(p, UiPayloads.Open.ID)) ServerPlayNetworking.send(p, new UiPayloads.Open(kind, data));
     }
 
-    /** Recuerda nombre y estadísticas actuales del jugador (para que sus amigos le vean aunque no esté). */
+    /** Remembers the player's current name and stats (so their friends can see them even when they are offline). */
     public static void snapshot(ServerPlayerEntity p) {
         Data d = Data.get(p.getServer());
         d.names.put(p.getUuid(), p.getName().getString());
@@ -165,7 +165,7 @@ public final class SocialServer {
         d.markDirty();
     }
 
-    // ================================================================== mercado del Binder
+    // ================================================================== Binder market
 
     public static void openBinderMarket(ServerPlayerEntity p, boolean update) {
         Data d = Data.get(p.getServer());
@@ -212,7 +212,7 @@ public final class SocialServer {
                     Identifier ident = Identifier.tryParse(id);
                     Item item = ident == null ? null : CardInfo.item(ident);
                     if (item == null || !CardInfo.isCard(ident)) continue;
-                    if (d.fav(p.getUuid()).contains(id)) { skipped++; continue; } // las favoritas no se venden
+                    if (d.fav(p.getUuid()).contains(id)) { skipped++; continue; } // favorites are not sold
                     int want = Math.max(1, Math.min(9999, it.getInt("q")));
                     int got = b.remove(id, want);
                     if (got <= 0) continue;
@@ -235,7 +235,7 @@ public final class SocialServer {
         openBinderMarket(p, true);
     }
 
-    // --- ofertas a otros jugadores (la carta sigue en tu Binder hasta que el otro acepta y paga)
+    // --- offers to other players (the card stays in your Binder until the other player accepts and pays)
     private record Offer(int id, UUID seller, String sellerName, UUID buyer, String card, int qty, long price, long expires) {}
 
     private static final Map<Integer, Offer> OFFERS = new HashMap<>();
@@ -268,7 +268,7 @@ public final class SocialServer {
         to.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_CHIME.value(), SoundCategory.PLAYERS, 0.8f, 1.4f);
     }
 
-    /** /tcgshop offer accept|deny <id>: todo se comprueba al aceptar (que el vendedor aún la tenga, que tengas dinero). */
+    /** /tcgshop offer accept|deny <id>: everything is checked on accept (that the seller still has it, that you have the money). */
     public static void answerOffer(ServerPlayerEntity buyer, int id, boolean accept) {
         Offer o = OFFERS.get(id);
         if (o == null || !o.buyer.equals(buyer.getUuid()) || o.expires < System.currentTimeMillis()) {
@@ -296,7 +296,7 @@ public final class SocialServer {
             return;
         }
         int got = b.remove(o.card, o.qty);
-        if (got < o.qty) { // carrera muy improbable: devolver todo
+        if (got < o.qty) { // very unlikely race: refund everything
             if (got > 0) b.add(o.card, got);
             CobbleDollarsBridge.add(buyer, o.price);
             buyer.sendMessage(Text.translatable("tcgshop.bm2.gone").formatted(Formatting.RED), false);
@@ -317,7 +317,7 @@ public final class SocialServer {
         seller.playSoundToPlayer(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 0.8f, 1.2f);
     }
 
-    // ================================================================== amigos
+    // ================================================================== friends
 
     private static NbtCompound liveStats(MinecraftServer server, UUID u, ServerPlayerEntity online) {
         NbtCompound s = new NbtCompound();
@@ -370,7 +370,7 @@ public final class SocialServer {
         switch (a.getString("a")) {
             case "request" -> {
                 if (other == null || other.equals(me) || d.fr(me).contains(other)) break;
-                if (d.req(me).remove(other)) { befriend(d, me, other); notifyFriend(p, other, "tcgshop.friends.accepted_you"); break; } // ya te lo había pedido
+                if (d.req(me).remove(other)) { befriend(d, me, other); notifyFriend(p, other, "tcgshop.friends.accepted_you"); break; } // they had already asked you
                 d.req(other).add(me);
                 ServerPlayerEntity o = p.getServer().getPlayerManager().getPlayer(other);
                 if (o != null) o.sendMessage(Text.translatable("tcgshop.friends.request_got", p.getDisplayName()).formatted(Formatting.AQUA), false);
@@ -412,7 +412,7 @@ public final class SocialServer {
             c.putUuid("u", u);
             c.putString("n", on != null ? on.getName().getString() : d.names.getOrDefault(u, "?"));
             c.putBoolean("on", on != null);
-            c.put("s", liveStats(server, u, on)); // sólo amigos ven esto
+            c.put("s", liveStats(server, u, on)); // only friends see this
             fl.add(c);
         }
         o.put("friends", fl);
@@ -437,7 +437,7 @@ public final class SocialServer {
         send(p, "friends", o);
     }
 
-    // ================================================================== gestor de expositores
+    // ================================================================== display manager
 
     public static void sendDisplays(ServerPlayerEntity p) {
         NbtCompound o = new NbtCompound();
@@ -482,7 +482,7 @@ public final class SocialServer {
         send(p, "displays", o);
     }
 
-    /** price: una casilla; all_market: todo a precio de mercado (× factor). */
+    /** price: one slot; all_market: everything at market price (× factor). */
     public static void displaysAction(ServerPlayerEntity p, NbtCompound a) {
         ServerWorld world = p.getServerWorld();
         ShopZones zones = ShopZones.get(world);
@@ -517,7 +517,7 @@ public final class SocialServer {
         sendDisplays(p);
     }
 
-    /** Valor de mercado de una unidad de una carta por id (para el historial y el cliente). */
+    /** Market value of one unit of a card by id (for the history and the client). */
     public static long unit(String id) {
         Identifier ident = Identifier.tryParse(id);
         Item item = ident == null ? null : CardInfo.item(ident);

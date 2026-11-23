@@ -21,15 +21,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Mystery Box: producto sorpresa. Quien la abre recibe sobres o una carta rara al azar.
- * Al venderla en tu tienda cobras su precio multiplicado por la suerte (de x0,3 a x1,9): puedes ganar o perder.
+ * Mystery Box: a surprise product. Whoever opens it gets packs or a random rare card.
+ * When sold in your shop you earn its price multiplied by luck (from x0.3 to x1.9): you can win or lose.
  */
 public class MysteryBoxItem extends Item {
     public MysteryBoxItem(Settings settings) {
         super(settings);
     }
 
-    /** Lo que cobra el dueño de la tienda al vender una Mystery Box de precio `price`. */
+    /** What the shop owner earns when selling a Mystery Box priced `price`. */
     public static long ownerEarning(long price, Random r) {
         return Math.round(price * (0.3 + r.nextDouble() * 1.6));
     }

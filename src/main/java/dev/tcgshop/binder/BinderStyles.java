@@ -6,9 +6,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Personalizaciones del Personal Binder y el logro que desbloquea cada una (null = desbloqueada de serie).
- * Todo se dibuja por código (sin imágenes con copyright): fondos inspirados en biomas de Cobblemon,
- * patrones inspirados en tipos Pokémon, colores sólidos y degradados.
+ * Personal Binder customizations and the advancement that unlocks each one (null = unlocked by default).
+ * Everything is drawn in code (no copyrighted images): backgrounds inspired by Cobblemon biomes,
+ * patterns inspired by Pokémon types, solid colors and gradients.
  */
 public final class BinderStyles {
     public record Style(String kind, String id, int c1, int c2, @Nullable String advancement) {
@@ -17,7 +17,7 @@ public final class BinderStyles {
 
     public static final List<Style> ALL = new ArrayList<>();
 
-    // --- paletas: colores sólidos (c1 == c2) y degradados (tapas del binder) ---
+    // --- palettes: solid colors (c1 == c2) and gradients (binder covers) ---
     static {
         palette("classic_red", 0xFFB3262E, 0xFFB3262E, null);
         palette("ocean_blue", 0xFF1F4FA8, 0xFF1F4FA8, null);
@@ -36,7 +36,7 @@ public final class BinderStyles {
         palette("grad_gold", 0xFFFFE27A, 0xFFB8860B, "tcgshop:pull_hyper_rare");
         palette("grad_master", 0xFF8E44AD, 0xFFE84393, "tcgshop:god_pack");
 
-        // --- patrones (inspirados en tipos Pokémon) ---
+        // --- patterns (inspired by Pokémon types) ---
         pattern("none", null);
         pattern("dots", null);
         pattern("pokeballs", "tcgshop:first_binder");
@@ -50,7 +50,7 @@ public final class BinderStyles {
         pattern("diamonds", "tcgshop:value_100k");
         pattern("crystals", "tcgshop:set_complete");
 
-        // --- fondos (escenas inspiradas en biomas de Cobblemon) ---
+        // --- backgrounds (scenes inspired by Cobblemon biomes) ---
         background("none", null);
         background("meadow", "tcgshop:first_binder");
         background("beach", "tcgshop:packs_50");

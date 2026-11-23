@@ -12,23 +12,23 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Suma de todos los modificadores de los eventos activos de una tienda, ya con los topes globales
- * (EventsConfig.clamps). La cachea EventManager.mods(zone) y se reconstruye cuando cambia algún evento.
- * {@link #NONE} = sin eventos (todo neutro).
+ * Sum of all modifiers of a shop's active events, with the global caps already applied
+ * (EventsConfig.clamps). Cached by EventManager.mods(zone) and rebuilt when any event changes.
+ * {@link #NONE} = no events (all neutral).
  */
 public final class Mods {
     public final double spawnMult, buyMult, perceivedMult, haggleMult, patienceMult, serviceMult, revenueMult;
     public final int maxCustAdd, moodStart, repDelta, lightDelta, decorDelta, lightingOverride;
-    /** Peso de cada tipo de cliente (índice = CustomerEntity.Type.ordinal()), 1 = normal. */
+    /** Weight of each customer type (index = CustomerEntity.Type.ordinal()), 1 = normal. */
     private final double[] typeW;
     private final List<FilteredMult> buyFilters;
     private final Set<Long> disabledDisplays, closedDoors;
     private final Set<String> disabledSlots;
     public final boolean registerDown;
-    /** Sólo para el teléfono / depuración: hay algún evento activo. */
+    /** Only for the phone / debugging: some event is active. */
     public final boolean any;
 
-    /** Multiplicador de compra que sólo se aplica a ciertos productos ("packs", "cards", "fair_price", "newest_set", "set:&lt;id&gt;"). */
+    /** Purchase multiplier that only applies to certain products ("packs", "cards", "fair_price", "newest_set", "set:&lt;id&gt;"). */
     public record FilteredMult(String filter, double mult) {}
 
     public static final Mods NONE = new Builder().build(false);
@@ -76,8 +76,8 @@ public final class Mods {
     public boolean hasClosedDoors() { return !closedDoors.isEmpty(); }
 
     /**
-     * Multiplicador de probabilidad de compra para ese producto: el general por los filtrados que encajen, con el tope
-     * global de buyMult. ratio = precio expuesto / mercado.
+     * Purchase-chance multiplier for that product: the general one times the matching filtered ones, with the global
+     * buyMult cap. ratio = displayed price / market.
      */
     public double buyMultFor(ItemStack st, double ratio) {
         double m = buyMult;
@@ -96,9 +96,9 @@ public final class Mods {
         return false;
     }
 
-    // ------------------------------------------------------------------ construcción
+    // ------------------------------------------------------------------ building
 
-    /** Acumulador: multiplicadores se multiplican, sumandos se suman (los efectos llaman a esto en contribute). */
+    /** Accumulator: multipliers are multiplied, addends are added (effects call this in contribute). */
     public static final class Builder {
         public double spawnMult = 1, buyMult = 1, perceivedMult = 1, haggleMult = 1, patienceMult = 1, serviceMult = 1, revenueMult = 1;
         public int maxCustAdd, moodStart, repDelta, lightDelta, decorDelta, lightingOverride = -1;
@@ -120,7 +120,7 @@ public final class Mods {
             return this;
         }
 
-        /** Añade los bloqueos de una instancia (expositores, puertas, caja, luz). */
+        /** Adds an instance's locks (displays, doors, register, light). */
         public Builder locks(EventInstance e) {
             disabledDisplays.addAll(e.disabledDisplays);
             disabledSlots.addAll(e.disabledSlots);

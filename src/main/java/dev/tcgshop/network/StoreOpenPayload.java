@@ -11,7 +11,7 @@ import net.minecraft.util.Identifier;
 import java.util.List;
 
 /**
- * Servidor -> cliente: catálogo a la venta. source = id de entidad del Mayorista, o -1 = teléfono (abre el móvil).
+ * Server -> client: catalog for sale. source = Wholesaler entity id, or -1 = phone (opens the phone).
  */
 public record StoreOpenPayload(int source, List<ItemStack> goods, List<Long> prices) implements CustomPayload {
     public static final Id<StoreOpenPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "store_open"));

@@ -34,9 +34,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * P4 "visitor": clientes especiales que llegan andando como los demás (respetan el aforo y la cola; si la tienda está
- * llena, se reintenta). Precio máximo ~1.15x el mercado y NO se anuncian antes de llegar (sólo después de la visita).
- * Al terminar todos: resultado opcional (outcome) por estrellas o por inspección. Ver EFFECTS.md.
+ * P4 "visitor": special customers that walk in like the others (they respect capacity and the queue; if the shop is
+ * full, it retries). Max price ~1.15x market and they are NOT announced before arriving (only after the visit).
+ * When they are all done: optional result (outcome) by stars or by inspection. See EFFECTS.md.
  */
 public final class VisitorEffect implements EventEffect {
     final CustomerEntity.Type type;
@@ -63,9 +63,9 @@ public final class VisitorEffect implements EventEffect {
         try {
             type = CustomerEntity.Type.valueOf(EventDef.str(o, "customer", "REGULAR").toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("visitor.customer desconocido");
+            throw new IllegalArgumentException("unknown visitor.customer");
         }
-        if (type == CustomerEntity.Type.THIEF) throw new IllegalArgumentException("visitor: los ladrones van por typeW, no como visitante");
+        if (type == CustomerEntity.Type.THIEF) throw new IllegalArgumentException("visitor: thieves go through typeW, not as a visitor");
         count = EventDef.range(o.get("count"), 1);
         count[0] = Math.max(1, Math.min(6, count[0]));
         count[1] = Math.max(count[0], Math.min(6, count[1]));
@@ -90,11 +90,11 @@ public final class VisitorEffect implements EventEffect {
         resolveOnVisit = EventDef.bool(o, "resolveOnVisit", false);
         minStars = Math.max(1, Math.min(5, EventDef.integer(o, "minStars", 3)));
         if (!List.of("", "most_stocked_set", "old_sets", "newest_set", "packs", "cards").contains(filter))
-            throw new IllegalArgumentException("visitor.filter desconocido: " + filter);
+            throw new IllegalArgumentException("unknown visitor.filter: " + filter);
         if (o.has("outcome")) {
             JsonObject oc = o.getAsJsonObject("outcome");
             String grade = EventDef.str(oc, "grade", inspector ? "inspection" : "stars");
-            if (!grade.equals("stars") && !grade.equals("inspection")) throw new IllegalArgumentException("visitor.outcome.grade inválido");
+            if (!grade.equals("stars") && !grade.equals("inspection")) throw new IllegalArgumentException("invalid visitor.outcome.grade");
             outcome = new Outcome(grade, EventDef.dbl(oc, "goodAt", grade.equals("inspection") ? 5 : 4), EventDef.dbl(oc, "badAt", grade.equals("inspection") ? 3 : 2),
                     Result.parse(oc.has("good") ? oc.getAsJsonObject("good") : null), Result.parse(oc.has("bad") ? oc.getAsJsonObject("bad") : null));
         } else outcome = null;
@@ -131,7 +131,7 @@ public final class VisitorEffect implements EventEffect {
             } else d.putLong("next", now + 200);
             ctx.markDirty();
         }
-        // visitantes que ya no están (se fueron, se recargó el mundo...): cuentan como terminados, nunca se vuelven a crear
+        // visitors who are no longer here (they left, the world reloaded...): count as finished, never recreated
         NbtList vis = d.getList("vis", NbtElement.STRING_TYPE), fin = d.getList("fin", NbtElement.STRING_TYPE);
         for (int i = vis.size() - 1; i >= 0; i--) {
             UUID u;
@@ -149,7 +149,7 @@ public final class VisitorEffect implements EventEffect {
         if (d.getInt("left") <= 0 && d.getInt("spawned") > 0 && d.getInt("done") >= d.getInt("spawned")) complete(ctx);
     }
 
-    /** El cliente molesto: el guardia lo calma solo si lleva un rato dentro; mientras, refunfuña. */
+    /** The troublemaker customer: the guard calms them down only after they have been inside a while; meanwhile, they grumble. */
     private void troublemakerTick(EventContext ctx, Entity e) {
         NbtCompound d = ctx.data();
         if (!ctx.zone.contains(e.getBlockPos())) return;
@@ -195,7 +195,7 @@ public final class VisitorEffect implements EventEffect {
         return s;
     }
 
-    /** "set:&lt;id&gt;" del set con más productos expuestos (o null). */
+    /** "set:&lt;id&gt;" of the set with the most products on display (or null). */
     @Nullable
     private static String mostStockedSet(EventContext ctx) {
         ShopZones.Zone z = ctx.zone;
@@ -220,7 +220,7 @@ public final class VisitorEffect implements EventEffect {
         return best == null ? null : "set:" + best;
     }
 
-    /** Lo llama EventManager.visitorFinished cuando un visitante deja su reseña. */
+    /** Called by EventManager.visitorFinished when a visitor leaves their review. */
     public EventManager.VisitorResult finished(EventContext ctx, CustomerEntity c, VisitorSpec spec, int stars) {
         NbtCompound d = ctx.data();
         NbtList fin = d.getList("fin", NbtElement.STRING_TYPE);
@@ -244,7 +244,7 @@ public final class VisitorEffect implements EventEffect {
         return new EventManager.VisitorResult(key, forced);
     }
 
-    /** Nota de la inspección (0-7): olor, luz, monstruos, techo y paredes, expositores con género, sin otros problemas sin arreglar, reseñas. */
+    /** Inspection score (0-7): smell, light, monsters, roof and walls, stocked displays, no other unfixed problems, reviews. */
     public static int inspectionScore(EventContext ctx) {
         ShopZones.Zone z = ctx.zone;
         int s = 0;
@@ -289,12 +289,12 @@ public final class VisitorEffect implements EventEffect {
                 ctx.invalidate();
             }
         }
-        // anuncio DESPUÉS de la visita (nunca antes: así no se pueden subir precios para el coleccionista)
+        // announcement AFTER the visit (never before: so prices cannot be raised for the collector)
         String res = good ? "good" : bad ? "bad" : "neutral";
         ctx.tellOwner(Text.translatable("tcgshop.event.visitor.done_" + res, EventManager.name(ctx.def))
                 .formatted(good ? Formatting.GREEN : bad ? Formatting.RED : Formatting.GRAY), false);
         if (ctx.instance.resolved()) return;
-        if (inspector) { // la inspección ya pasó: "resuelto" en ambos casos (el resultado, bueno o malo, dura o_until)
+        if (inspector) { // the inspection is over: "resolved" in both cases (the result, good or bad, lasts o_until)
             ctx.resolve(bad ? "failed_inspection" : "inspected");
             return;
         }

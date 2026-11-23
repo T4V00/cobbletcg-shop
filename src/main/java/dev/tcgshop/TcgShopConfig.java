@@ -15,47 +15,47 @@ public class TcgShopConfig {
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("tcgshop.json");
 
     public static TcgShopConfig INSTANCE = new TcgShopConfig();
-    /** Último error al leer el archivo (null = bien). Si el JSON está roto NO se sobrescribe y se avisa. */
+    /** Last error when reading the file (null = fine). If the JSON is broken it is NOT overwritten and a warning is shown. */
     public static String lastError;
 
     /**
-     * Cuántos CobbleDollars vale 1 USD de mercado real.
-     * 250 => un sobre moderno (~5-10 USD) cuesta 1.250-2.500 ₽ (3-6 Poké Balls de la tienda de CobbleDollars),
-     * una común (~0,27 USD) ~70 ₽ y una carta top de 100 USD 25.000 ₽ (una élitra en el banco).
+     * How many CobbleDollars 1 real-market USD is worth.
+     * 250 => a modern pack (~5-10 USD) costs 1,250-2,500 ₽ (3-6 Poké Balls from the CobbleDollars shop),
+     * a common (~0.27 USD) ~70 ₽ and a top 100 USD card 25,000 ₽ (an elytra at the bank).
      */
     public double cobbleDollarsPerUsd = 1000.0;
-    /** Versión del archivo de configuración (para migrar valores por defecto antiguos). */
+    /** Config file version (to migrate old default values). */
     public int configVersion = 2;
-    /** Texto tras las cifras de dinero. */
+    /** Text after money amounts. */
     public String currencySuffix = " ₽";
 
-    /** Mercado dinámico: los precios suben y bajan cada día de mercado. */
+    /** Dynamic market: prices go up and down every market day. */
     public boolean marketEnabled = true;
-    /** 0 = precios fijos, 1 = normal (±20-40%), 2 = mercado loco. */
+    /** 0 = fixed prices, 1 = normal (±20-40%), 2 = crazy market. */
     public double marketVolatility = 1.0;
-    /** Duración de un día de mercado en ticks (24000 = un día de Minecraft, 20 min). */
+    /** Length of a market day in ticks (24000 = one Minecraft day, 20 min). */
     public int marketDayTicks = 24000;
-    /** Semilla del mercado (se genera sola la primera vez). Cambiarla "reinicia" las tendencias. */
+    /** Market seed (generated automatically the first time). Changing it "resets" the trends. */
     public long marketSeed = 0;
-    /** Rareza mínima (tier 0-3) para anunciar el pull en el chat. -1 = nunca. */
+    /** Minimum rarity (tier 0-3) to announce the pull in chat. -1 = never. */
     public int announcePullMinTier = 3;
-    /** Radio en bloques del anuncio (0 = todo el servidor). */
+    /** Announcement radius in blocks (0 = whole server). */
     public int announceRadius = 0;
 
-    /** CobbleDollars que paga el Mayorista misterioso por cada esmeralda (un bloque = 9). */
+    /** CobbleDollars the mysterious Wholesaler pays per emerald (one block = 9). */
     public long emeraldPriceCd = 300;
-    /** Al entrar por primera vez en un mundo recibes sobres sellados al azar. */
+    /** When joining a world for the first time you receive random sealed packs. */
     public boolean starterPacks = true;
-    /** Cuántos sobres de bienvenida (al azar de los sets más baratos; 0 = ninguno). */
+    /** How many welcome packs (random from the cheapest sets; 0 = none). */
     public int starterPackCount = 3;
-    /** 0.9.5: los clientes se sientan un rato en sillas/sofás/bancos de la tienda (CobbleFurnies, Cozyhome...). */
+    /** 0.9.5: customers sit for a while on the shop's chairs/sofas/benches (CobbleFurnies, Cozyhome...). */
     public boolean customerSeats = true;
-    /** Probabilidad de sentarse quien sólo mira (no compra). */
+    /** Chance of sitting down for customers who only browse (don't buy). */
     public double customerSitChance = 0.45;
-    /** Probabilidad de sentarse después de pagar. */
+    /** Chance of sitting down after paying. */
     public double customerSitChanceBuyer = 0.35;
 
-    // --- Cliente ---
+    // --- Client ---
     public boolean packOpeningAnimation = true;
     public boolean showPriceInTooltip = true;
 
@@ -68,7 +68,7 @@ public class TcgShopConfig {
                     if (c != null) INSTANCE = c;
                 }
             }
-            if (INSTANCE.configVersion < 2) { // v2: precios x4 para una economía de tienda equilibrada
+            if (INSTANCE.configVersion < 2) { // v2: prices x4 for a balanced shop economy
                 if (INSTANCE.cobbleDollarsPerUsd == 250.0) INSTANCE.cobbleDollarsPerUsd = 1000.0;
                 INSTANCE.configVersion = 2;
             }
@@ -77,7 +77,7 @@ public class TcgShopConfig {
             save();
         } catch (Exception e) {
             lastError = String.valueOf(e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
-            TcgShop.LOGGER.error("No se pudo leer {}", FILE, e);
+            TcgShop.LOGGER.error("Could not read {}", FILE, e);
         }
     }
 
@@ -85,7 +85,7 @@ public class TcgShopConfig {
         try (Writer w = Files.newBufferedWriter(FILE)) {
             GSON.toJson(INSTANCE, w);
         } catch (Exception e) {
-            TcgShop.LOGGER.error("No se pudo guardar {}", FILE, e);
+            TcgShop.LOGGER.error("Could not save {}", FILE, e);
         }
     }
 }

@@ -6,7 +6,7 @@ const stats={}, kinds={};
 for (let g=0; g<Number(process.argv[2]||6); g++){
   const d1=P.buildDeck('',300+g), d2=P.buildDeck('',400+g);
   P.create('g',JSON.stringify({id:1,name:'H',deck:JSON.parse(d1),bot:false}),JSON.stringify({id:2,name:'B',deck:JSON.parse(d2),bot:true}));
-  // el humano usa el bot de twinleaf para decidir, pero registramos los prompts
+  // the human uses twinleaf's bot to decide, but we record the prompts
   const P2 = P; let steps=0;
   while(steps++<3000){
     if (P.botStep('g')) continue;

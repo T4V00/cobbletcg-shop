@@ -33,18 +33,18 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 0.9.5 · Asientos de la tienda para los clientes: sillas, taburetes, bancos, sofás... de cualquier mod (CobbleFurnies,
- * Lucky's Cozyhome y similares, por el nombre del bloque) y, si no hay ninguno, escaleras colocadas como banco.
- * También guarda los muebles y peluches que los clientes se paran a mirar.
+ * 0.9.5 · Shop seats for customers: chairs, stools, benches, sofas... from any mod (CobbleFurnies,
+ * Lucky's Cozyhome and similar, by block name) and, if there are none, stairs placed as a bench.
+ * Also stores the furniture and plushies that customers stop to look at.
  *
- * Todo es del servidor y sin dependencia de compilación con esos mods. La lista se cachea por tienda y se refresca
- * como mucho cada 30 s (sólo cuando alguien la pide). Cada asiento lo reserva un único cliente.
+ * Everything is server-side with no compile dependency on those mods. The list is cached per shop and refreshed
+ * at most every 30 s (only when someone asks for it). Each seat is reserved by a single customer.
  */
 public final class ShopSeats {
-    /** Un asiento: bloque, altura (Y absoluta) a la que va la entidad asiento, hacia dónde se mira y si es un mueble de verdad. */
+    /** A seat: block, height (absolute Y) where the seat entity goes, which way it faces and whether it's real furniture. */
     public record Seat(BlockPos pos, double seatY, float yaw, boolean furniture) {}
 
-    /** Asiento elegido para un cliente: el asiento y el sitio de al lado desde el que se sienta (y al que vuelve al levantarse). */
+    /** Seat chosen for a customer: the seat and the spot next to it from which they sit down (and return to when getting up). */
     public record Pick(Seat seat, Vec3d stand) {}
 
     private static final class Cache {
@@ -57,31 +57,31 @@ public final class ShopSeats {
 
     private static final Map<UUID, Cache> CACHE = new HashMap<>();
     private static final Map<Key, UUID> RESERVED = new HashMap<>();
-    /** Última alarma (robo detectado...) por tienda: los que están sentados se levantan. */
+    /** Last alarm (theft detected...) per shop: those sitting get up. */
     private static final Map<UUID, Long> ALARM = new HashMap<>();
     private static final long REFRESH = 20 * 30;
-    /** Del suelo de los pies a la parte de abajo de los muslos en la pose de sentado (modelo bípedo a escala 1). */
+    /** From the floor under the feet to the underside of the thighs in the sitting pose (biped model at scale 1). */
     private static final double THIGH = 0.62;
     private static final Set<String> SEAT_WORDS = Set.of("chair", "armchair", "stool", "sofa", "couch", "bench", "seat", "loveseat", "ottoman");
-    /** Frases (tcgshop.seat.<cat>.<n>, tools/gen_lang_095_seat.py). */
+    /** Lines (tcgshop.seat.<cat>.<n>, tools/gen_lang_095_seat.py). */
     public static final int SIT_LINES = 8, SIT_BUYER_LINES = 6, STAND_LINES = 6, TALK_LINES = 5, STARTLED_LINES = 4, FURNITURE_LINES = 7, PLUSH_LINES = 7;
 
     private ShopSeats() {}
 
-    // ------------------------------------------------------------------ configuración (opcional, por reflexión)
+    // ------------------------------------------------------------------ configuration (optional, via reflection)
 
-    /** ¿Los clientes se sientan? (TcgShopConfig.customerSeats si existe; si no, sí). */
+    /** Do customers sit down? (TcgShopConfig.customerSeats if it exists; otherwise, yes). */
     public static boolean enabled() {
         Object v = cfg("customerSeats");
         return !(v instanceof Boolean b) || b;
     }
 
-    /** Probabilidad de sentarse un rato quien no ha comprado nada (TcgShopConfig.customerSitChance). */
+    /** Chance of sitting for a while for someone who hasn't bought anything (TcgShopConfig.customerSitChance). */
     public static double sitChance() {
         return cfg("customerSitChance") instanceof Number n ? clamp(n.doubleValue(), 0, 1) : 0.45;
     }
 
-    /** Probabilidad de sentarse después de pagar (TcgShopConfig.customerSitChanceBuyer). */
+    /** Chance of sitting down after paying (TcgShopConfig.customerSitChanceBuyer). */
     public static double buyerSitChance() {
         return cfg("customerSitChanceBuyer") instanceof Number n ? clamp(n.doubleValue(), 0, 1) : 0.35;
     }
@@ -98,9 +98,9 @@ public final class ShopSeats {
 
     private static double clamp(double v, double lo, double hi) { return Math.max(lo, Math.min(hi, v)); }
 
-    // ------------------------------------------------------------------ detección
+    // ------------------------------------------------------------------ detection
 
-    /** ¿El nombre del bloque es de un asiento? (palabra a palabra: "oak_chair", "red_sofa_2", "bar_stools"...). */
+    /** Is the block name a seat's? (word by word: "oak_chair", "red_sofa_2", "bar_stools"...). */
     public static boolean seatWord(String path) {
         int slash = path.lastIndexOf('/');
         for (String w : path.substring(slash + 1).split("_")) {
@@ -110,14 +110,14 @@ public final class ShopSeats {
         return false;
     }
 
-    /** ¿Es un asiento de mueble (cualquier mod, también los de este)? */
+    /** Is it a furniture seat (any mod, including this one's)? */
     public static boolean isFurnitureSeat(BlockState s) {
         if (s.isAir()) return false;
         Identifier id = Registries.BLOCK.getId(s.getBlock());
         return !"minecraft".equals(id.getNamespace()) && seatWord(id.getPath());
     }
 
-    /** Escalera "de banco": mitad de abajo, recta, apoyada en el suelo, con el hueco de delante libre y nada encima. */
+    /** "Bench" stairs: bottom half, straight, resting on the ground, with the space in front clear and nothing on top. */
     private static boolean isBenchStairs(ServerWorld w, BlockPos p, BlockState s) {
         if (!(s.getBlock() instanceof StairsBlock) || s.get(StairsBlock.HALF) != BlockHalf.BOTTOM) return false;
         if (s.get(StairsBlock.SHAPE) != net.minecraft.block.enums.StairShape.STRAIGHT) return false;
@@ -125,11 +125,11 @@ public final class ShopSeats {
         BlockPos f = p.offset(front), back = p.offset(front.getOpposite());
         if (!w.getBlockState(p.down()).isSolidBlock(w, p.down())) return false;
         if (!standable(w, f)) return false;
-        // si detrás hay otra escalera más alta es una escalera de verdad, no un banco
+        // if there's another higher stair behind, it's a real staircase, not a bench
         return !(w.getBlockState(back.up()).getBlock() instanceof StairsBlock) && !(w.getBlockState(back).getBlock() instanceof StairsBlock && w.getBlockState(back).get(StairsBlock.HALF) == BlockHalf.TOP);
     }
 
-    /** ¿Sigue habiendo un asiento en ese bloque? (lo comprueban el cliente y la entidad asiento). */
+    /** Is there still a seat at that block? (checked by the customer and the seat entity). */
     public static boolean stillSeat(ServerWorld w, BlockPos p) {
         if (!w.isChunkLoaded(p)) return false;
         BlockState s = w.getBlockState(p);
@@ -141,7 +141,7 @@ public final class ShopSeats {
                 && w.getBlockState(p.down()).isSolidBlock(w, p.down());
     }
 
-    /** Altura de la superficie del asiento (0-1 dentro del bloque): rayo por el centro del bloque de arriba abajo. */
+    /** Height of the seat surface (0-1 within the block): ray through the block's center from top to bottom. */
     private static double surface(ServerWorld w, BlockPos p, BlockState s) {
         if (s.getBlock() instanceof StairsBlock) return 0.5;
         VoxelShape sh = s.getCollisionShape(w, p);
@@ -152,7 +152,7 @@ public final class ShopSeats {
         return clamp(top, 0.25, 0.8);
     }
 
-    /** Hacia dónde se mira sentado: los muebles miran hacia su FACING (el frente, hacia quien lo colocó); las escaleras, al revés. */
+    /** Which way one faces when seated: furniture faces its FACING (the front, toward whoever placed it); stairs, the opposite. */
     private static float yawOf(BlockState s, BlockPos p, ShopZones.Zone z) {
         if (s.getBlock() instanceof StairsBlock) return s.get(StairsBlock.FACING).getOpposite().asRotation();
         if (s.contains(Properties.HORIZONTAL_FACING)) return s.get(Properties.HORIZONTAL_FACING).asRotation();
@@ -170,12 +170,12 @@ public final class ShopSeats {
         return c;
     }
 
-    /** Fuerza a recalcular la lista de una tienda en la próxima consulta. */
+    /** Forces a shop's list to be recomputed on the next query. */
     public static void invalidate(UUID zone) { CACHE.remove(zone); }
 
     private static Cache scan(ServerWorld w, ShopZones.Zone z) {
         Cache c = new Cache();
-        // toda la caja real de la tienda (también el piso de arriba, entreplantas y sótano): como mucho cada 30 s
+        // the shop's whole real box (also the upper floor, mezzanines and basement): at most every 30 s
         Box box = z.box();
         int minY = Math.max(w.getBottomY(), (int) Math.floor(box.minY)), maxY = Math.min(w.getTopY() - 1, (int) Math.ceil(box.maxY) - 1);
         List<Seat> furn = new ArrayList<>(), stairs = new ArrayList<>();
@@ -199,14 +199,14 @@ public final class ShopSeats {
                 decor.add(p.toImmutable());
             }
         }
-        // las escaleras sólo sirven de banco si la tienda no tiene ningún asiento de verdad
+        // stairs only serve as a bench if the shop has no real seat at all
         c.seats = List.copyOf(furn.isEmpty() ? stairs : furn);
         if (decor.size() > 96) { java.util.Collections.shuffle(decor, new java.util.Random(z.id.hashCode())); decor = decor.subList(0, 96); }
         c.decor = List.copyOf(decor);
         return c;
     }
 
-    /** Decoración propia que también se mira (estatuas, pósters...). */
+    /** This mod's own decoration that is also looked at (statues, posters...). */
     private static boolean ownDecor(Identifier id) {
         return dev.tcgshop.TcgShop.MOD_ID.equals(id.getNamespace()) && (id.getPath().contains("statue") || id.getPath().contains("poster"));
     }
@@ -215,11 +215,11 @@ public final class ShopSeats {
 
     public static List<BlockPos> decor(ServerWorld w, ShopZones.Zone z) { return cache(w, z).decor; }
 
-    // ------------------------------------------------------------------ reservas
+    // ------------------------------------------------------------------ reservations
 
     private static Key key(World w, BlockPos p) { return new Key(w.getRegistryKey(), p.asLong()); }
 
-    /** ¿La reserva de ese asiento es de alguien que ya no está? */
+    /** Does that seat's reservation belong to someone who's no longer there? */
     private static boolean stale(ServerWorld w, UUID who) {
         Entity e = w.getEntity(who);
         return e == null || !e.isAlive();
@@ -239,12 +239,12 @@ public final class ShopSeats {
         return true;
     }
 
-    /** Suelta lo que tuviera reservado ese cliente. */
+    /** Releases whatever that customer had reserved. */
     public static void release(UUID who) {
         RESERVED.values().removeIf(who::equals);
     }
 
-    /** Asiento libre: sin jugadores ni otras criaturas encima, sin nadie montado y con hueco para la cabeza. */
+    /** Free seat: no players or other creatures on it, nobody riding it and with headroom. */
     public static boolean isFree(ServerWorld w, BlockPos p, Entity self) {
         if (w.getBlockState(p.up()).isSolidBlock(w, p.up())) return false;
         Box b = new Box(p).stretch(0, 1, 0).contract(0.05);
@@ -252,7 +252,7 @@ public final class ShopSeats {
                 && (e instanceof LivingEntity || e.hasPassengers())).isEmpty();
     }
 
-    /** Sitio de al lado del asiento desde el que se sienta: primero delante, luego a los lados y detrás. */
+    /** Spot next to the seat from which one sits down: first in front, then the sides and behind. */
     @Nullable
     public static Vec3d standSpot(ServerWorld w, ShopZones.Zone z, Seat s) {
         Direction front = Direction.fromRotation(s.yaw());
@@ -264,12 +264,12 @@ public final class ShopSeats {
         return null;
     }
 
-    /** Búsquedas de camino (A*) como mucho por llamada: se llama desde el tick del cliente y desde el paquete del dueño. */
+    /** Maximum pathfinding searches (A*) per call: called from the customer's tick and from the owner's packet. */
     private static final int MAX_PATH_TRIES = 3;
 
     /**
-     * Busca un asiento libre al que pueda llegar andando (los más cercanos primero, como mucho a 32 bloques) y se lo
-     * reserva. null si no hay ninguno. Como mucho MAX_PATH_TRIES A* por llamada (no son baratos).
+     * Finds a free seat it can walk to (closest first, at most 32 blocks away) and
+     * reserves it. null if there's none. At most MAX_PATH_TRIES A* per call (they aren't cheap).
      */
     @Nullable
     public static Pick pickSeat(ServerWorld w, ShopZones.Zone z, MobEntity mob) {
@@ -293,7 +293,7 @@ public final class ShopSeats {
         return null;
     }
 
-    /** Un mueble o peluche cercano para pararse a mirarlo. */
+    /** A nearby piece of furniture or plushie to stop and look at. */
     @Nullable
     public static BlockPos randomDecorNear(ServerWorld w, ShopZones.Zone z, BlockPos from, int radius, Random r) {
         List<BlockPos> near = new ArrayList<>();
@@ -305,9 +305,9 @@ public final class ShopSeats {
         return CobbleFurniesCompat.isPlushBlock(Registries.BLOCK.getId(w.getBlockState(p).getBlock()));
     }
 
-    // ------------------------------------------------------------------ alarmas
+    // ------------------------------------------------------------------ alarms
 
-    /** Algo asusta a la tienda (robo detectado...): los que están sentados se levantan. */
+    /** Something startles the shop (theft detected...): those sitting get up. */
     public static void alarm(UUID zone, long time) { ALARM.put(zone, time); }
 
     public static boolean alarmSince(UUID zone, long since) {
@@ -315,7 +315,7 @@ public final class ShopSeats {
         return t != null && t >= since;
     }
 
-    // ------------------------------------------------------------------ frases
+    // ------------------------------------------------------------------ lines
 
     private static Text line(Random r, String cat, int n) { return Text.translatable("tcgshop.seat." + cat + "." + r.nextInt(n)); }
 

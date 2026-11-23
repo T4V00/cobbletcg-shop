@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""0.9 · stream phone: textos de las mejoras del teléfono (es_es + en_us). Idempotente: sólo fija estas claves."""
+"""0.9 · stream phone: texts for the phone upgrades (es_es + en_us). Idempotent: only sets these keys."""
 import json
 import os
 from collections import OrderedDict
@@ -8,10 +8,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LANG = os.path.join(HERE, "..", "src", "main", "resources", "assets", "tcgshop", "lang")
 
 KEYS = {
-    # app y ajustes
+    # app and settings
     "tcgshop.phone.upgrades": ("Mejoras", "Upgrades"),
     "tcgshop.settings.phone_upgrades": ("Mejoras del teléfono", "Phone upgrades"),
-    # niveles
+    # tiers
     "tcgshop.phoneup.tier.basic": ("Básico", "Basic"),
     "tcgshop.phoneup.tier.plus": ("Plus", "Plus"),
     "tcgshop.phoneup.tier.pro": ("Pro", "Pro"),
@@ -19,7 +19,7 @@ KEYS = {
     "tcgshop.phoneup.tier.max": ("Max", "Max"),
     "tcgshop.phoneup.tier.elite": ("Élite", "Elite"),
     "tcgshop.phoneup.tier.masterball": ("MasterBall Edition", "MasterBall Edition"),
-    # ventajas de cada nivel
+    # perks of each tier
     "tcgshop.phoneup.perks.basic": (
         "Mercado básico (sobres modernos baratos, muebles, bloques de tienda y herramientas), Mi tienda, Colección, Venta rápida, Amigos, Títulos, Logros y Ajustes.",
         "Basic Market (cheap modern packs, furniture, shop blocks and tools), My shop, Collection, Quick sell, Friends, Titles, Advancements and Settings."),
@@ -41,7 +41,7 @@ KEYS = {
     "tcgshop.phoneup.perks.masterball": (
         "TODO desbloqueado (también los sets reservados a tiendas de nivel alto) · −12% en el Mercado · Mayorista −5% · venta rápida +8% · 1 llamada al día: Coleccionista o Mayorista.",
         "EVERYTHING unlocked (even the sets reserved for high-tier shops) · −12% in the Market · Wholesaler −5% · quick sell +8% · 1 call per day: Collector or Wholesaler."),
-    # interfaz
+    # interface
     "tcgshop.phoneup.requires": ("Requiere teléfono %s", "Requires %s phone"),
     "tcgshop.phoneup.locked_btn": ("Bloqueado", "Locked"),
     "tcgshop.phoneup.disabled": ("Las mejoras del teléfono están desactivadas en este servidor: lo tienes todo.",
@@ -63,7 +63,7 @@ KEYS = {
     "tcgshop.phoneup.see_upgrades": ("Ver mejoras", "See upgrades"),
     "tcgshop.phoneup.close": ("Cerrar", "Close"),
     "tcgshop.phoneup.bought": ("¡Teléfono mejorado a %s! (%s)", "Phone upgraded to %s! (%s)"),
-    # llamada diaria
+    # daily call
     "tcgshop.phoneup.call.title": ("Llamada diaria", "Daily call"),
     "tcgshop.phoneup.call.ready": ("Disponible hoy", "Available today"),
     "tcgshop.phoneup.call.used_today": ("Usada hoy · vuelve mañana", "Used today · back tomorrow"),
@@ -97,4 +97,4 @@ def update(path, idx):
 if __name__ == "__main__":
     update(os.path.join(LANG, "es_es.json"), 0)
     update(os.path.join(LANG, "en_us.json"), 1)
-    print("gen_lang_09_phone: %d claves" % len(KEYS))
+    print("gen_lang_09_phone: %d keys" % len(KEYS))

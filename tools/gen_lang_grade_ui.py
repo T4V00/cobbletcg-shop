@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Textos de la nueva pestaña «Enviar cartas» de CobbleGrade (filtros, selección arrastrando, servicios, valor
-esperado). Fusiona las claves en es_es / en_us. Uso: python tools/gen_lang_grade_ui.py"""
+"""Texts for CobbleGrade's new «Submit cards» tab (filters, drag selection, services, expected
+value). Merges the keys into es_es / en_us. Usage: python tools/gen_lang_grade_ui.py"""
 import json
 from pathlib import Path
 
 LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
 
-# clave -> (español, inglés)
+# key -> (Spanish, English)
 KEYS = {
     "tcgshop.grade.f.search": ("Buscar nombre, set o nº…", "Search name, set or no.…"),
     "tcgshop.grade.f.set_all": ("Todos los sets", "All sets"),
@@ -69,7 +69,7 @@ def main():
         for k, v in KEYS.items():
             d[k] = v[idx]
         p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print("textos CobbleGrade UI:", len(KEYS))
+    print("CobbleGrade UI texts:", len(KEYS))
 
 
 if __name__ == "__main__":

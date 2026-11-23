@@ -36,13 +36,13 @@ import java.util.function.Supplier;
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
 /**
- * Teléfono TCG. La pantalla de inicio va en vertical (reloj, widgets de caja, reputación y colección, apps con
- * iconos 3D y dock); al abrir una app el teléfono gira a horizontal con una animación para dejar sitio:
- * barra superior, carril lateral de secciones y panel principal.
- *  · Mercado      TODO lo del Mayorista + sobres + peluches + Ruleta Poké, por categorías, con buscador y orden.
- *  · Precios      buscador, filtro de set y de rareza, ficha con la carta y gráfica de 30 días.
- *  · Mi tienda    resumen, personal (cajero / guardia), seguridad, reputación y reseñas de los clientes.
- *  · Colección (Binder General) · Títulos · Logros.
+ * TCG phone. The home screen is portrait (clock, register, reputation and collection widgets, apps with
+ * 3D icons and a dock); opening an app rotates the phone to landscape with an animation to make room:
+ * top bar, side rail of sections and main panel.
+ *  · Market       EVERYTHING from the Wholesaler + packs + plushies + Poké Roulette, by category, with search and sort.
+ *  · Prices       search, set and rarity filter, card detail with the card and a 30-day chart.
+ *  · My shop      summary, staff (cashier / guard), security, reputation and customer reviews.
+ *  · Collection (General Binder) · Titles · Advancements.
  */
 public class PhoneScreen extends Screen {
     private enum App { HOME, MARKET, PRICES, SHOP, TITLES, GRADE, LEAGUE, SELL, FRIENDS, DISPLAYS, SETTINGS, FURNITURE, UPGRADES }
@@ -54,9 +54,9 @@ public class PhoneScreen extends Screen {
     private static final int SURF = 0xF0171A26, SURF2 = 0xF01F2333, LINE = 0xFF2C3149;
 
     private CatalogPanel market;
-    /** App Mejoras (0.9): niveles del teléfono, compra de mejoras y llamada diaria. */
+    /** Upgrades app (0.9): phone tiers, buying upgrades and the daily call. */
     private final dev.tcgshop.client.phone.UpgradesPanel upgrades = new dev.tcgshop.client.phone.UpgradesPanel();
-    /** App bloqueada que se ha intentado abrir (muestra el aviso «Requiere teléfono X») o null. */
+    /** Locked app the player tried to open (shows the «Requires phone X» prompt), or null. */
     private String lockedPrompt;
     private final List<Area> areas = new ArrayList<>();
     private final List<AppDef> apps = new ArrayList<>();
@@ -65,22 +65,22 @@ public class PhoneScreen extends Screen {
     private float morphFrom, morphTo;
     private TextFieldWidget search;
     private String priceCard, priceSet = "", shopTab = "summary", gradeTab = "send";
-    /** CobbleGrade · «Enviar cartas»: filtros, selección arrastrando, servicios y valor esperado (ver GradeSendPanel). */
+    /** CobbleGrade · «Send cards»: filters, drag selection, services and expected value (see GradeSendPanel). */
     private final dev.tcgshop.client.screen.grade.GradeSendPanel gradePanel = new dev.tcgshop.client.screen.grade.GradeSendPanel(() -> {
         gradeTab = "orders";
         listScroll = 0;
     });
     private String leagueTab = "play";
-    /** Submenú de Venta rápida: cartas del inventario o del Binder. */
+    /** Quick Sell submenu: cards from the inventory or from the Binder. */
     private String sellTab = "inv";
     private final CosmeticsPanel cosPanel = new CosmeticsPanel();
-    /** App Muebles (CobbleFurnies / peluches) con precios del teléfono (envío a domicilio). */
+    /** Furniture app (CobbleFurnies / plushies) with phone prices (home delivery). */
     private final FurnitureApp furniture = new FurnitureApp(-1, this);
     private int aiLevel = 1;
     private double lastLeagueSync;
     private final List<String> deckEdit = new ArrayList<>();
     private boolean deckDirty;
-    /** Editor de mazos y ayuda de la Liga TCG (client/screen/league). */
+    /** Deck editor and TCG League help (client/screen/league). */
     private final dev.tcgshop.client.screen.league.DeckBuilderPanel deckPanel = new dev.tcgshop.client.screen.league.DeckBuilderPanel(new dev.tcgshop.client.screen.league.DeckBuilderPanel.Host() {
         @Override public List<String> deck() { return deckEdit; }
         @Override public boolean dirty() { return deckDirty; }
@@ -90,19 +90,19 @@ public class PhoneScreen extends Screen {
     private final dev.tcgshop.client.screen.league.LeagueHelpPanel leagueHelp = new dev.tcgshop.client.screen.league.LeagueHelpPanel();
 
     private Rarity.Family priceRarity;
-    // filtro y orden de precios (app Precios)
+    // price filter and sort (Prices app)
     private int priceBand, priceSort;
     private static final long[] BAND_MIN = {0, 0, 1_000, 10_000, 100_000}, BAND_MAX = {Long.MAX_VALUE, 1_000, 10_000, 100_000, Long.MAX_VALUE};
     private static final String[] BAND_LABEL = {"all", "<1k", "1k-10k", "10k-100k", ">100k"};
     private final java.util.Map<String, Long> priceCache = new java.util.HashMap<>();
     private long priceCacheDay = Long.MIN_VALUE;
-    // venta rápida
+    // quick sell
     private final CardPickGrid quickSell = new CardPickGrid();
     private double sellArmedAt = -10;
     private int zoneIndex;
     private double listScroll;
 
-    // marco y pantalla de este fotograma
+    // frame and screen for this render frame
     private int fx, fy, fw, fh, sx, sy, sw, sh;
 
     public PhoneScreen(List<ItemStack> goods, List<Long> prices) {
@@ -129,8 +129,8 @@ public class PhoneScreen extends Screen {
     }
 
     /**
-     * El servidor manda el catálogo del teléfono: si el teléfono ya está abierto (p. ej. tras comprar una mejora) se
-     * refresca el Mercado sin cerrar la app actual; si no, se abre.
+     * The server sends the phone catalog: if the phone is already open (e.g. after buying an upgrade) the
+     * Market is refreshed without closing the current app; otherwise it is opened.
      */
     public static void openOrRefresh(List<ItemStack> goods, List<Long> prices) {
         var mc = net.minecraft.client.MinecraftClient.getInstance();
@@ -141,8 +141,8 @@ public class PhoneScreen extends Screen {
     }
 
     /**
-     * El próximo catálogo del teléfono sólo refresca un teléfono ya abierto (lo marca el Sync "refresh" que manda el
-     * servidor tras comprar una mejora): si el jugador lo cerró o abrió otra pantalla, no se le reabre encima.
+     * The next phone catalog only refreshes an already-open phone (set by the "refresh" Sync the server sends
+     * after buying an upgrade): if the player closed it or opened another screen, it is not reopened on top.
      */
     public static boolean refreshOnlyNext;
 
@@ -187,7 +187,7 @@ public class PhoneScreen extends Screen {
         search.setFocused(false);
     }
 
-    /** 0 = vertical, 1 = horizontal (con easing). */
+    /** 0 = portrait, 1 = landscape (with easing). */
     private float morph() {
         double p = MathHelper.clamp((now() - morphStart) / 0.38, 0, 1);
         double e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
@@ -211,7 +211,7 @@ public class PhoneScreen extends Screen {
         sh = fh - bezel * 2;
     }
 
-    // ------------------------------------------------------------------ dibujo
+    // ------------------------------------------------------------------ drawing
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
@@ -221,16 +221,16 @@ public class PhoneScreen extends Screen {
         layout();
         ctx.fillGradient(0, 0, width, height, 0x99080A12, 0xCC020306);
         float p = morph();
-        // halo del color de la app detrás del teléfono
+        // halo in the app's color behind the phone
         int aura = app == App.HOME ? 0xFF6B4FD8 : def(app.name().toLowerCase(Locale.ROOT)).color;
         for (int k = 5; k >= 1; k--) Ui.rounded(ctx, fx - k * 6, fy - k * 6, fw + k * 12, fh + k * 12, 22 + k * 6, withAlpha(aura, 0.03f));
-        // carcasa metálica con canto pulido
+        // metal casing with a polished edge
         Ui.rounded(ctx, fx + 4, fy + 10, fw + 2, fh + 2, 22, 0x70000000);
         Ui.roundedGradient(ctx, fx - 4, fy - 4, fw + 8, fh + 8, 24, 0xFF9AA0B2, 0xFF2A2D36);
         Ui.roundedGradient(ctx, fx - 3, fy - 3, fw + 6, fh + 6, 23, 0xFF5A6070, 0xFF1C1E26);
         Ui.roundedGradient(ctx, fx - 1, fy - 1, fw + 2, fh + 2, 21, 0xFF15161C, 0xFF07080A);
         ctx.fill(fx + 20, fy - 4, fx + fw - 20, fy - 3, 0x88FFFFFF);
-        // botones laterales
+        // side buttons
         if (p < 0.5f) {
             Ui.rounded(ctx, fx + fw + 3, fy + 64, 3, 34, 1, 0xFF6A7080);
             Ui.rounded(ctx, fx - 6, fy + 56, 3, 18, 1, 0xFF6A7080);
@@ -241,7 +241,7 @@ public class PhoneScreen extends Screen {
         }
         wallpaper(ctx, t);
         statusBar(ctx, p);
-        // isla de la cámara
+        // camera island
         if (p < 0.5f) {
             Ui.rounded(ctx, sx + sw / 2 - 24, sy + 3, 48, 10, 5, 0xFF000000);
             StylePainter.circle(ctx, sx + sw / 2 + 16, sy + 8, 2, 0xFF1A2A44);
@@ -249,12 +249,12 @@ public class PhoneScreen extends Screen {
             Ui.rounded(ctx, sx + 3, sy + sh / 2 - 24, 10, 48, 5, 0xFF000000);
             StylePainter.circle(ctx, sx + 8, sy + sh / 2 + 16, 2, 0xFF1A2A44);
         }
-        // indicador de inicio
+        // home indicator
         boolean hh = Ui.in(mouseX, mouseY, sx + sw / 2 - 40, sy + sh - 10, 80, 10);
         Ui.rounded(ctx, sx + sw / 2 - 30, sy + sh - 6, 60, 4, 2, hh ? 0xFFFFFFFF : 0xCCDDDDDD);
         areas.add(new Area(sx + sw / 2 - 40, sy + sh - 10, 80, 10, () -> open(App.HOME)));
 
-        if (morphing()) { Ui.cornerMask(ctx, sx, sy, sw, sh, 16, 0xFF0A0B0E); return; } // mientras gira sólo se ve el fondo
+        if (morphing()) { Ui.cornerMask(ctx, sx, sy, sw, sh, 16, 0xFF0A0B0E); return; } // while rotating only the background is shown
         float fade = (float) MathHelper.clamp((t - Math.max(appOpened, morphStart + 0.38)) / 0.18, 0, 1);
         ctx.enableScissor(sx, sy + 13, sx + sw, sy + sh - 8);
         switch (app) {
@@ -265,7 +265,7 @@ public class PhoneScreen extends Screen {
             case TITLES -> titlesApp(ctx, mouseX, mouseY);
             case GRADE -> gradeApp(ctx, mouseX, mouseY, t);
             case LEAGUE -> {
-                boolean helpOpen = leagueHelp.isOpen(); // con la ayuda abierta, lo de debajo no reacciona al ratón
+                boolean helpOpen = leagueHelp.isOpen(); // with the help open, what's underneath does not react to the mouse
                 leagueApp(ctx, helpOpen ? -9999 : mouseX, helpOpen ? -9999 : mouseY, t);
                 leagueHelp.render(ctx, lg(), sx, sy, sw, sh, mouseX, mouseY, t);
             }
@@ -285,20 +285,20 @@ public class PhoneScreen extends Screen {
         boolean home = app == App.HOME || morphing();
         if (home) {
             ctx.fillGradient(sx, sy, sx + sw, sy + sh, 0xFF2B2A8A, 0xFF0B0A26);
-            // aurora: manchas de color que se mueven despacio
+            // aurora: slowly moving color blobs
             int[] cols = {0xFF7A4FE8, 0xFF2EA8E8, 0xFFE84FA8, 0xFF4FE8B0};
             for (int i = 0; i < 4; i++) {
                 int gx = sx + (int) (sw * (0.15 + i * 0.25) + Math.sin(t * 0.27 + i * 2.1) * sw * 0.12);
                 int gy = sy + (int) (sh * (0.22 + 0.18 * i) + Math.cos(t * 0.21 + i * 1.3) * sh * 0.06);
                 for (int r = Math.min(sw, sh) / 3; r > 0; r -= 7) StylePainter.circle(ctx, gx, gy, r, withAlpha(cols[i], 0.03f));
             }
-            // estrellitas que parpadean
+            // twinkling little stars
             for (int k = 0; k < 26; k++) {
                 int px = sx + 6 + (int) ((k * 97L) % Math.max(1, sw - 12)), py = sy + 16 + (int) ((k * 61L) % Math.max(1, sh - 30));
                 float tw = 0.3f + 0.7f * (float) Math.max(0, Math.sin(t * 1.7 + k * 1.9));
                 ctx.fill(px, py, px + 1, py + 1, withAlpha(0xFFFFFFFF, 0.25f + 0.55f * tw));
             }
-            // marca de agua de Poké Ball
+            // Poké Ball watermark
             int cx = sx + sw / 2, cy = sy + sh - 70, r = Math.min(sw, sh) / 4;
             StylePainter.circle(ctx, cx, cy, r, 0x0CFFFFFF);
             ctx.fill(cx - r, cy - 1, cx + r, cy + 2, 0x10000000);
@@ -323,21 +323,21 @@ public class PhoneScreen extends Screen {
             ctx.drawText(textRenderer, wallet, wx, y, Ui.GOLD, false);
         }
         int rx = sx + sw - 8;
-        // batería
+        // battery
         ctx.fill(rx - 14, y, rx - 1, y + 7, 0xFFFFFFFF);
         ctx.fill(rx - 13, y + 1, rx - 2, y + 6, 0xFF000000);
         ctx.fill(rx - 12, y + 2, rx - 4, y + 5, 0xFF43C463);
         ctx.fill(rx - 1, y + 2, rx, y + 5, 0xFFFFFFFF);
-        // cobertura
+        // signal
         for (int i = 0; i < 4; i++) ctx.fill(rx - 30 + i * 3, y + 6 - i * 2, rx - 28 + i * 3, y + 7, 0xFFFFFFFF);
         ctx.drawText(textRenderer, "5G", rx - 44, y, 0xFFDDDDDD, false);
     }
 
-    // ------------------------------------------------------------------ componentes
+    // ------------------------------------------------------------------ components
 
     private void appIcon(DrawContext ctx, AppDef a, int x, int y, int s, boolean hover) {
         appIconBase(ctx, a, x, y, s, hover);
-        if (!dev.tcgshop.client.phone.PhoneClient.appUnlocked(a.key)) { // app de un nivel de teléfono superior: gris y con candado
+        if (!dev.tcgshop.client.phone.PhoneClient.appUnlocked(a.key)) { // app from a higher phone tier: greyed out with a padlock
             int lift = hover ? 2 : 0, r = Math.max(3, s / 4);
             Ui.rounded(ctx, x, y - lift, s, s, r, 0xB0141620);
             int ls = Math.max(8, s / 2);
@@ -363,7 +363,7 @@ public class PhoneScreen extends Screen {
             m.scale(k, k, 1);
             ctx.drawItem(icon, -8, -8);
             m.pop();
-        } else if (a.key.equals("grade")) { // funda de carta gradeada dibujada
+        } else if (a.key.equals("grade")) { // drawn graded-card slab
             int w = s * 9 / 20, h = s * 13 / 20, gx = x + (s - w) / 2, gy = y + (s - h) / 2 - lift + 1;
             ctx.fill(gx - 1, gy - 1, gx + w + 1, gy + h + 1, 0xCCFFFFFF);
             ctx.fill(gx, gy, gx + w, gy + h / 4, 0xFFF2F2F2);
@@ -372,7 +372,7 @@ public class PhoneScreen extends Screen {
             ctx.fill(gx + 4, gy + h / 4 + 4, gx + w - 4, gy + h - 4, 0xFF6BC5FF);
             int ready = dev.tcgshop.client.ClientGrading.readyCount();
             if (ready > 0) Ui.badge(ctx, x + s - 3, y - 2 - lift, ready);
-        } else { // gráfica de precios dibujada
+        } else { // drawn price chart
             int bx = x + s / 5, by = y + s - s / 4 - lift, bw = Math.max(2, s / 9);
             int[] hs = {4, 7, 5, 10, 13};
             for (int i = 0; i < hs.length; i++) {
@@ -395,7 +395,7 @@ public class PhoneScreen extends Screen {
         m.pop();
     }
 
-    /** Anillo de progreso (aro de puntos). */
+    /** Progress ring (ring of dots). */
     private static void ring(DrawContext ctx, int cx, int cy, int r, int thick, float frac, int color) {
         int steps = Math.max(24, r * 5);
         for (int i = 0; i < steps; i++) {
@@ -432,7 +432,7 @@ public class PhoneScreen extends Screen {
         search.render(ctx, mouseX, mouseY, delta);
     }
 
-    /** Carril lateral de secciones. Devuelve el ancho usado. */
+    /** Side rail of sections. Returns the width used. */
     private float railSelY = -1;
 
     private int rail(DrawContext ctx, String[] keys, String[] labels, int[] counts, String selected, int accent, int mouseX, int mouseY,
@@ -495,7 +495,7 @@ public class PhoneScreen extends Screen {
         return y;
     }
 
-    // ------------------------------------------------------------------ inicio
+    // ------------------------------------------------------------------ home
 
     private void home(DrawContext ctx, int mouseX, int mouseY, double t) {
         long tod = client != null && client.world != null ? client.world.getTimeOfDay() : 0;
@@ -518,7 +518,7 @@ public class PhoneScreen extends Screen {
         Ui.text(ctx, Text.literal(rep < 0 ? "—" : String.valueOf(rep)).formatted(Formatting.BOLD), sx + 14 + ww + 8, wy + 13, 24, 14, 0xFFFFFFFF, true);
         ctx.drawText(textRenderer, Text.translatable("tcgshop.phone.w_rep"), sx + 14 + ww + 38, wy + 9, 0xFFD8DCF0, false);
         ctx.drawText(textRenderer, Text.literal((profit >= 0 ? "+" : "") + compact(profit)), sx + 14 + ww + 38, wy + 22, profit >= 0 ? 0xFF6BE07B : 0xFFFF6B6B, true);
-        // progreso de colección
+        // collection progress
         int total = Math.max(1, Catalog.totalCards()), have = ClientCollection.counts.size();
         int cy = wy + 46;
         Ui.glass(ctx, sx + 8, cy, sw - 16, 24, 8);
@@ -568,7 +568,7 @@ public class PhoneScreen extends Screen {
 
     private void openApp(String key) {
         lockedPrompt = null;
-        if (!dev.tcgshop.client.phone.PhoneClient.appUnlocked(key)) { // en vez de la app, el aviso para desbloquearla
+        if (!dev.tcgshop.client.phone.PhoneClient.appUnlocked(key)) { // instead of the app, the prompt to unlock it
             lockedPrompt = key;
             return;
         }
@@ -625,7 +625,7 @@ public class PhoneScreen extends Screen {
         }
     }
 
-    // ------------------------------------------------------------------ mejoras del teléfono (0.9)
+    // ------------------------------------------------------------------ phone upgrades (0.9)
 
     private void upgradesApp(DrawContext ctx, int mouseX, int mouseY, double t) {
         topBar(ctx, def("upgrades"), mouseX, mouseY);
@@ -633,13 +633,13 @@ public class PhoneScreen extends Screen {
                 (x, y, w, h, r) -> areas.add(new Area(x, y, w, h, r)));
     }
 
-    // ------------------------------------------------------------------ muebles
+    // ------------------------------------------------------------------ furniture
 
     private void furnitureApp(DrawContext ctx, int mouseX, int mouseY, float delta) {
         topBar(ctx, def("furniture"), mouseX, mouseY);
         furniture.render(ctx, sx + 8, sy + 41, sw - 16, sh - 52, mouseX, mouseY, delta);
     }
-    // ------------------------------------------------------------------ amigos
+    // ------------------------------------------------------------------ friends
 
     private void friendsApp(DrawContext ctx, int mouseX, int mouseY) {
         AppDef a = def("friends");
@@ -698,7 +698,7 @@ public class PhoneScreen extends Screen {
                 y += 14;
             }
         }
-        // detalle del amigo
+        // friend details
         int dx = px + lw + 6, dw = pw - lw - 6;
         if (selected == null) {
             paragraph(ctx, Text.translatable("tcgshop.friends.tip"), dx + 4, py + 6, dw - 8, Ui.MUTED);
@@ -742,14 +742,14 @@ public class PhoneScreen extends Screen {
         dev.tcgshop.client.ClientSocial.act("friends", d);
     }
 
-    // ------------------------------------------------------------------ gestor de expositores
+    // ------------------------------------------------------------------ display case manager
 
     private void displaysApp(DrawContext ctx, int mouseX, int mouseY) {
         AppDef a = def("displays");
         topBar(ctx, a, mouseX, mouseY);
         var data = dev.tcgshop.client.ClientSocial.displays;
         int px = sx + 8, py = sy + 41, pw = sw - 16, ph = sh - 52;
-        // acciones en bloque
+        // bulk actions
         int bx = px;
         String[][] bulk = {{"tcgshop.displays.all_market", "1.0"}, {"tcgshop.displays.all_90", "0.9"}, {"tcgshop.displays.all_110", "1.1"}, {"tcgshop.displays.all_125", "1.25"}};
         for (String[] b : bulk) {
@@ -765,7 +765,7 @@ public class PhoneScreen extends Screen {
             }));
             bx += w + 4;
         }
-        // lista de productos expuestos
+        // list of displayed products
         java.util.List<Object[]> rows = new java.util.ArrayList<>();
         var zones = data.getList("zones", 10);
         long totalValue = 0;
@@ -826,9 +826,9 @@ public class PhoneScreen extends Screen {
         ctx.disableScissor();
     }
 
-    // ------------------------------------------------------------------ ajustes
+    // ------------------------------------------------------------------ settings
 
-    /** Ajustes del jugador: cómo se ven los bocadillos de los NPC (color, fondo, tamaño), barras y apertura de sobres. */
+    /** Player settings: how NPC speech bubbles look (color, background, size), bars and pack opening. */
     private void settingsApp(DrawContext ctx, int mouseX, int mouseY) {
         AppDef a = def("settings");
         topBar(ctx, a, mouseX, mouseY);
@@ -855,9 +855,9 @@ public class PhoneScreen extends Screen {
         });
         y = settingRow(ctx, px, y, lw, "tcgshop.settings.phone_upgrades",
                 "tcgshop.phoneup.tier." + dev.tcgshop.phone.PhoneTier.of(dev.tcgshop.client.phone.PhoneClient.tier).key, mouseX, mouseY, () -> openApp("upgrades"));
-        // vista previa del bocadillo con los ajustes actuales
+        // speech bubble preview with the current settings
         int vx = px + lw + 10, vw = pw - lw - 10, vy = py;
-        Ui.roundGradient(ctx, vx, vy, vw, ph, 0xFF3A6A3A, 0xFF1E3A24); // "hierba" de fondo
+        Ui.roundGradient(ctx, vx, vy, vw, ph, 0xFF3A6A3A, 0xFF1E3A24); // background "grass"
         ctx.drawText(textRenderer, Text.translatable("tcgshop.settings.preview").formatted(Formatting.BOLD), vx + 6, vy + 5, 0xFFFFFFFF, true);
         if (cs.bubbles) {
             Text sample = Text.translatable("tcgshop.settings.sample");
@@ -880,7 +880,7 @@ public class PhoneScreen extends Screen {
             m.pop();
         }
         if (cs.patienceBars) {
-            int wcx = vx + vw / 2, wcy = vy + ph - 20; // rueda de paciencia (65% restante)
+            int wcx = vx + vw / 2, wcy = vy + ph - 20; // patience wheel (65% remaining)
             for (int i = 0; i < 24; i++) {
                 double ang = Math.toRadians(i * 15 - 90);
                 int sx = wcx + (int) Math.round(Math.cos(ang) * 10), sy = wcy + (int) Math.round(Math.sin(ang) * 10);
@@ -907,7 +907,7 @@ public class PhoneScreen extends Screen {
         return apps.get(0);
     }
 
-    // ------------------------------------------------------------------ mercado
+    // ------------------------------------------------------------------ market
 
     private void marketApp(DrawContext ctx, int mouseX, int mouseY, float delta, double t) {
         AppDef a = def("market");
@@ -928,13 +928,13 @@ public class PhoneScreen extends Screen {
         market.render(ctx, sx + rw, sy + 40, sw - rw - 8, sh - 50, mouseX, mouseY, t);
     }
 
-    // ------------------------------------------------------------------ precios
+    // ------------------------------------------------------------------ prices
 
     private void pricesApp(DrawContext ctx, int mouseX, int mouseY, float delta, double t) {
         AppDef a = def("prices");
         topBar(ctx, a, mouseX, mouseY);
         int barY = sy + 13;
-        // selector de set en la barra
+        // set selector in the bar
         List<Catalog.CardSet> sets = Catalog.sets();
         int si = -1;
         for (int i = 0; i < sets.size(); i++) if (sets.get(i).id().equals(priceSet)) si = i;
@@ -948,7 +948,7 @@ public class PhoneScreen extends Screen {
         areas.add(new Area(selX, barY + 4, 12, 15, () -> { priceSet = fsi <= 0 ? (fsi == 0 ? "" : sets.get(sets.size() - 1).id()) : sets.get(fsi - 1).id(); listScroll = 0; }));
         areas.add(new Area(selX + selW - 12, barY + 4, 12, 15, () -> { priceSet = fsi + 1 < sets.size() ? sets.get(fsi + 1).id() : ""; listScroll = 0; }));
         searchBox(ctx, sx + sw - 162, barY + 4, 152, mouseX, mouseY, delta);
-        // carril: rarezas
+        // rail: rarities
         Rarity.Family[] rs = new Rarity.Family[Rarity.Family.values().length + 1];
         System.arraycopy(Rarity.Family.values(), 0, rs, 1, rs.length - 1);
         String[] keys = new String[rs.length], labels = new String[rs.length];
@@ -963,7 +963,7 @@ public class PhoneScreen extends Screen {
         });
         int px = sx + rw, py = sy + 41, pw = sw - rw - 8, ph = sh - 52;
         int listW = pw * 55 / 100, detX = px + listW + 8, detW = pw - listW - 8;
-        // lista de resultados
+        // results list
         String q = search.getText().trim().toLowerCase(Locale.ROOT);
         List<Catalog.Card> res = new ArrayList<>();
         int cap = priceBand != 0 || priceSort != 0 ? 20_000 : 600;
@@ -988,7 +988,7 @@ public class PhoneScreen extends Screen {
         if (res.size() > 600) res = new ArrayList<>(res.subList(0, 600));
         Ui.roundGradient(ctx, px, py, listW, ph, SURF2, SURF);
         Ui.outline(ctx, px, py, listW, ph, LINE);
-        // chips de rango de precio + orden
+        // price range chips + sort
         int chx = px + 4, chy = py + 3;
         for (int b = 0; b < BAND_LABEL.length; b++) {
             Text lbl = b == 0 ? Text.translatable("tcgshop.cat.all") : Text.literal(BAND_LABEL[b]);
@@ -1029,7 +1029,7 @@ public class PhoneScreen extends Screen {
         }
         ctx.disableScissor();
         if (res.isEmpty()) Ui.text(ctx, Text.translatable("tcgshop.phone.no_results"), px, py + ph / 2 - 5, listW, 10, Ui.MUTED, false);
-        // ficha
+        // detail card
         Ui.roundGradient(ctx, detX, py, detW, ph, SURF2, SURF);
         Ui.outline(ctx, detX, py, detW, ph, LINE);
         Catalog.Card sel = priceCard == null ? null : Catalog.card(priceCard);
@@ -1050,7 +1050,7 @@ public class PhoneScreen extends Screen {
         Draw.scaledCentered(ctx, Text.literal(PriceService.format(PriceService.priceCd(sel.stack()))).formatted(Formatting.BOLD), tx + tw / 2f, ty + 16, 1.4f, Ui.GOLD);
         int owned = ClientCollection.count(sel.key());
         ctx.drawText(textRenderer, Text.translatable("tcgshop.phone.owned", owned), tx, ty + 34, owned > 0 ? 0xFF6BE07B : Ui.MUTED, false);
-        // gráfica
+        // chart
         int gx = detX + 8, gy = py + ch + 16, gw = detW - 16, gh = Math.max(36, py + ph - gy - 8);
         Ui.round(ctx, gx, gy, gw, gh, 0x55000000);
         long day = PriceService.marketDay();
@@ -1079,14 +1079,14 @@ public class PhoneScreen extends Screen {
         ctx.drawText(textRenderer, Text.translatable("tcgshop.phone.chart").append(String.format(Locale.ROOT, "  %+.1f%%", ch30)), gx + 4, gy + 3, col, false);
     }
 
-    // ------------------------------------------------------------------ venta rápida
+    // ------------------------------------------------------------------ quick sell
 
     private void sellApp(DrawContext ctx, int mouseX, int mouseY, double t) {
         AppDef a = def("sell");
         topBar(ctx, a, mouseX, mouseY);
         Text slogan = Text.translatable("tcgshop.sell.phone_slogan");
         ctx.drawText(textRenderer, slogan, sx + sw - 10 - textRenderer.getWidth(slogan), sy + 20, 0xCCFFFFFF, false);
-        // submenú: vender lo del inventario o lo del Binder (antes eran dos apps separadas)
+        // submenu: sell from the inventory or from the Binder (these used to be two separate apps)
         int invCount = client == null || client.player == null ? 0 : CardPickGrid.cardSlots(client.player).size();
         int rw = rail(ctx, new String[]{"inv", "binder"}, new String[]{Text.translatable("tcgshop.sell.tab_inv").getString(),
                 Text.translatable("tcgshop.sell.tab_binder").getString()}, new int[]{invCount, -1}, sellTab, a.color, mouseX, mouseY, k -> sellTab = k);
@@ -1104,7 +1104,7 @@ public class PhoneScreen extends Screen {
         ctx.fill(x + 1, y + 1, x + sideW - 1, y + 3, a.color);
         ctx.drawText(textRenderer, Text.translatable("tcgshop.phone.sell").formatted(Formatting.BOLD), x + 7, y + 8, 0xFFFFFFFF, false);
         int ty = paragraph(ctx, Text.translatable("tcgshop.sell.phone_hint"), x + 7, y + 21, sideW - 14, 0xFFB8BED6);
-        // elegir todas / ninguna
+        // select all / none
         int hb = (sideW - 18) / 2;
         Ui.button(ctx, x + 6, ty + 4, hb, 14, Text.translatable("tcgshop.sell.all"), mouseX, mouseY, true, 0xFF4A5070);
         areas.add(new Area(x + 6, ty + 4, hb, 14, () -> { if (client != null) quickSell.sel.addAll(CardPickGrid.cardSlots(client.player)); }));
@@ -1134,12 +1134,12 @@ public class PhoneScreen extends Screen {
             long v = dev.tcgshop.shop.CardSales.unitValue(hov);
             List<Text> tip = List.of(hov.getName(), Text.translatable("tcgshop.sell.market", PriceService.format(v)).formatted(Formatting.GRAY),
                     Text.translatable("tcgshop.sell.you_get", PriceService.format(quickSell.price.applyAsLong(hov))).formatted(Formatting.GOLD));
-            // fuera del scissor del teléfono: lo dibuja el Screen al final del frame
+            // outside the phone's scissor: the Screen draws it at the end of the frame
             setTooltip(tip.stream().map(Text::asOrderedText).toList(), net.minecraft.client.gui.tooltip.HoveredTooltipPositioner.INSTANCE, true);
         }
     }
 
-    /** Pestaña Binder de la venta: resumen de tu colección y acceso al Mercado del Binder (venta en bloque, favoritas, ofertas). */
+    /** Binder tab of the sell app: summary of your collection and access to the Binder Market (bulk sale, favorites, offers). */
     private void sellBinderTab(DrawContext ctx, AppDef a, int px, int py, int pw, int ph, int mouseX, int mouseY) {
         Ui.roundGradient(ctx, px, py, pw, ph, SURF2, SURF);
         Ui.outline(ctx, px, py, pw, ph, LINE);
@@ -1181,7 +1181,7 @@ public class PhoneScreen extends Screen {
         return true;
     }
 
-    // ------------------------------------------------------------------ mi tienda
+    // ------------------------------------------------------------------ my shop
 
     private void shopApp(DrawContext ctx, int mouseX, int mouseY, double t) {
         AppDef a = def("shop");
@@ -1193,7 +1193,7 @@ public class PhoneScreen extends Screen {
         }
         zoneIndex = Math.floorMod(zoneIndex, mine.size());
         ShopClient.ZoneInfo z = mine.get(zoneIndex);
-        // selector de tienda en la barra
+        // shop selector in the bar
         int barY = sy + 13, selW = 190, selX = sx + sw - selW - 10;
         Ui.round(ctx, selX, barY + 4, selW, 15, 0xAA0E1018);
         ctx.fill(selX + 3, barY + 7, selX + 6, barY + 16, z.tierInfo().color | 0xFF000000);
@@ -1242,7 +1242,7 @@ public class PhoneScreen extends Screen {
             int x = px + (i % cols) * (tw + gap), y = py + (i / cols) * (th + gap);
             tile(ctx, x, y, tw, th, (String) tiles[i][0], (String) tiles[i][1], (int) tiles[i][2]);
         }
-        // retirar el dinero de la caja a tu cuenta, desde cualquier sitio
+        // withdraw the register's money to your account, from anywhere
         int rows = (tiles.length + cols - 1) / cols, by = Math.min(py + ph - 20, py + rows * (th + gap) + 4), bw = (pw - gap) / 2;
         boolean has = z.balance() > 0;
         Ui.button(ctx, px, by, bw, 18, Text.translatable("tcgshop.phone.collect_all", PriceService.format(z.balance())), mouseX, mouseY, has, 0xFF2E8A4A);
@@ -1261,7 +1261,7 @@ public class PhoneScreen extends Screen {
     }
 
     private void staffTab(DrawContext ctx, ShopClient.ZoneInfo z, int px, int py, int pw, int mouseX, int mouseY) {
-        // dos puestos de caja (turno de día) y el guardia (siempre)
+        // two cashier posts (day shift) and the guard (always)
         int cw = (pw - 12) / 3;
         staffCard(ctx, z, px, py, cw, "cashier", z.cashier(), z.cashierName(), ShopServer.CASHIER_HIRE, ShopServer.CASHIER_WAGE,
                 new ItemStack(TcgBlocks.CASH_REGISTER_ITEM), mouseX, mouseY);
@@ -1328,7 +1328,7 @@ public class PhoneScreen extends Screen {
             paragraph(ctx, Text.translatable("tcgshop.phone.rep_wait"), x, y + 4, w, Ui.MUTED);
             return;
         }
-        // tres notas independientes (Estética, Calidad/precio, Seguridad)
+        // three independent scores (Aesthetics, Value for money, Security)
         String[] mk = {"m_aesthetics", "m_value", "m_safety"};
         int[] mc = {0xFFE07BD8, 0xFFFFD34D, 0xFF6BC5FF};
         if (z.factors().containsKey("m_value")) {
@@ -1400,8 +1400,8 @@ public class PhoneScreen extends Screen {
     }
 
     /**
-     * 0.9 eventos aleatorios: evento activo (qué pasa, cómo arreglarlo y cuánto le queda) y lo que pasó hoy y los
-     * últimos 7 días. Datos: ext.ev de la sincronización de zonas (EventManager.writeSync).
+     * 0.9 random events: active event (what is happening, how to fix it and how long it has left) and what happened today and
+     * over the last 7 days. Data: ext.ev from the zone sync (EventManager.writeSync).
      */
     private void eventsTab(DrawContext ctx, ShopClient.ZoneInfo z, int px, int py, int pw, int ph) {
         net.minecraft.nbt.NbtCompound ev = z.ext().getCompound("ev");
@@ -1478,7 +1478,7 @@ public class PhoneScreen extends Screen {
         return "★".repeat(n) + "☆".repeat(5 - n);
     }
 
-    // ------------------------------------------------------------------ títulos
+    // ------------------------------------------------------------------ titles
 
     private void titlesApp(DrawContext ctx, int mouseX, int mouseY) {
         AppDef a = def("titles");
@@ -1525,7 +1525,7 @@ public class PhoneScreen extends Screen {
         }
     }
 
-    /** Pestaña «Enviar cartas»: todo lo dibuja y gestiona GradeSendPanel (client/screen/grade). */
+    /** «Send cards» tab: everything is drawn and handled by GradeSendPanel (client/screen/grade). */
     private void gradeSend(DrawContext ctx, int px, int py, int pw, int ph, int mouseX, int mouseY, double t) {
         gradePanel.render(ctx, px, py, pw, ph, mouseX, mouseY, 0f);
     }
@@ -1547,7 +1547,7 @@ public class PhoneScreen extends Screen {
             boolean ready = now >= o.ready();
             Ui.roundGradient(ctx, px, y, pw, rowH - 4, ready ? 0xF0213A2C : SURF2, SURF);
             Ui.outline(ctx, px, y, pw, rowH - 4, ready ? 0xFF43C463 : LINE);
-            // miniaturas
+            // thumbnails
             int tw = 16, th = Math.round(tw / Draw.CARD_RATIO);
             for (int k = 0; k < Math.min(5, o.cards().size()); k++) {
                 ItemStack st = o.cards().get(k);
@@ -1598,12 +1598,12 @@ public class PhoneScreen extends Screen {
     }
 
 
-    /** Explicación del sistema de Grado (textos tcgshop.gradeinfo.N; "#" = título) + ejemplos calculados con GradeModel. */
+    /** Explanation of the Grade system (texts tcgshop.gradeinfo.N; "#" = title) + examples computed with GradeModel. */
     private void gradeInfo(DrawContext ctx, int px, int py, int pw, int ph) {
         List<Text> parts = new ArrayList<>();
         for (int n = 0; net.minecraft.client.resource.language.I18n.hasTranslation("tcgshop.gradeinfo." + n); n++)
             parts.add(Text.translatable("tcgshop.gradeinfo." + n));
-        // ejemplos en vivo: mismos cálculos que el precio real
+        // live examples: same calculations as the real price
         parts.add(Text.translatable("tcgshop.gradeinfo.ex_pop_head"));
         for (int rank : new int[]{1, 50, 150, 300, 301, 500, 800, 1025})
             parts.add(Text.literal(String.format(Locale.ROOT, "  #%d → Pfinal = %.3f", rank, dev.tcgshop.pricing.GradeModel.popularity(rank))));
@@ -1634,7 +1634,7 @@ public class PhoneScreen extends Screen {
         ctx.disableScissor();
     }
 
-    // ------------------------------------------------------------------ Liga TCG (TCG real)
+    // ------------------------------------------------------------------ TCG League (real TCG)
 
     private com.google.gson.JsonObject lg() { return dev.tcgshop.client.ClientPtcg.league; }
 
@@ -1749,7 +1749,7 @@ public class PhoneScreen extends Screen {
     private int deckFilter;
     private static final String[] DECK_FILTERS = {"all", "pokemon", "trainer", "energy"};
 
-    /** Imagen real de la carta (cobbletcg) o una tarjeta de color con el nombre si no hay imagen. */
+    /** Real card image (cobbletcg), or a colored card with the name if there is no image. */
     private void deckCard(DrawContext ctx, String f, com.google.gson.JsonObject info, int x, int y, int w, int h, float alpha) {
         ItemStack st = dev.tcgshop.client.ClientPtcg.stack(f);
         ctx.fill(x, y + 1, x + w + 1, y + h + 2, Draw.withAlpha(0xFF000000, 0.35f * alpha));
@@ -1782,7 +1782,7 @@ public class PhoneScreen extends Screen {
         String msg = gs(L, "msg");
         boolean checked = deckDirty && L.has("check") && L.get("check").getAsBoolean();
         String shown = !deckDirty || checked ? valid : "";
-        // ---- cabecera: contador con barra, estado y botones
+        // ---- header: counter with bar, status and buttons
         int n = deckEdit.size();
         int col = n == 60 ? 0xFF6BE07B : n > 60 ? 0xFFFF6B6B : 0xFFFFC233;
         ctx.drawText(textRenderer, Text.literal(n + "/60").formatted(Formatting.BOLD), px + 2, py + 1, col, true);
@@ -1820,7 +1820,7 @@ public class PhoneScreen extends Screen {
         int colW = Math.round((pw - 6) * 0.6f), dw = pw - 6 - colW, dx = px + colW + 6;
         String hoverF = null;
         com.google.gson.JsonObject hoverInfo = null;
-        // ---- izquierda: tu colección como cartas (clic = añadir)
+        // ---- left: your collection as cards (click = add)
         Ui.roundGradient(ctx, px, top, colW, h, SURF2, SURF);
         Ui.outline(ctx, px, top, colW, h, LINE);
         int fx = px + 4;
@@ -1833,7 +1833,7 @@ public class PhoneScreen extends Screen {
             areas.add(new Area(fx, top + 3, w, 12, () -> { deckFilter = kk; listScroll = 0; }));
             fx += w + 3;
         }
-        // lista de lo que se puede añadir: energías básicas (gratis) + tus cartas
+        // list of what can be added: basic energies (free) + your cards
         List<com.google.gson.JsonObject> items = new ArrayList<>();
         for (var en : L.getAsJsonArray("energies")) {
             var eo = en.getAsJsonObject().deepCopy();
@@ -1890,7 +1890,7 @@ public class PhoneScreen extends Screen {
         }
         ctx.disableScissor();
         if (items.isEmpty()) paragraph(ctx, Text.translatable("tcgshop.league.no_pool"), px + 6, gy + 6, colW - 12, Ui.MUTED);
-        // ---- derecha: el mazo como cartas agrupadas (clic = quitar una)
+        // ---- right: the deck as grouped cards (click = remove one)
         Ui.roundGradient(ctx, dx, top, dw, h, SURF2, SURF);
         Ui.outline(ctx, dx, top, dw, h, LINE);
         java.util.LinkedHashMap<String, Integer> counts = new java.util.LinkedHashMap<>();
@@ -1946,7 +1946,7 @@ public class PhoneScreen extends Screen {
         ctx.disableScissor();
         if (keys.isEmpty()) paragraph(ctx, Text.translatable("tcgshop.ptcg.deck_empty_hint"), dx + 4, dgy + 4, dw - 8, Ui.MUTED);
         hoverDeckList = Ui.in(mouseX, mouseY, dx, top, dw, h);
-        // ---- vista previa grande de la carta bajo el ratón
+        // ---- large preview of the card under the mouse
         if (hoverF != null) {
             int pwid = Math.min(96, sh / 2), phgt = Math.round(pwid / Draw.CARD_RATIO);
             int prx = mouseX < px + pw / 2 ? Math.min(sx + sw - pwid - 6, mouseX + 14) : Math.max(sx + 6, mouseX - 14 - pwid);
@@ -1965,7 +1965,7 @@ public class PhoneScreen extends Screen {
         if (L != null) L.remove("check");
     }
 
-    /** Motivo legible de un mazo inválido ("ACE_SPEC:Nombre" -> texto traducido con el nombre). */
+    /** Readable reason for an invalid deck ("ACE_SPEC:Name" -> translated text with the name). */
     private static String deckErr(String code) {
         String[] parts = code.split(":", 2);
         return Text.translatable("tcgshop.ptcg.deck_err." + parts[0], parts.length > 1 ? parts[1] : "").getString();
@@ -1981,7 +1981,7 @@ public class PhoneScreen extends Screen {
         boolean hasPool = L.has("pool") && L.getAsJsonArray("pool").size() > 0;
         boolean empty = valid.equals("EMPTY");
         boolean ready = valid.isEmpty() || (empty && hasPool);
-        // --- tarjeta del mazo
+        // --- deck card
         int lw = Math.min(150, pw / 3);
         Ui.roundGradient(ctx, px, py, lw, ph, SURF2, SURF);
         Ui.outline(ctx, px, py, lw, ph, LINE);
@@ -2002,7 +2002,7 @@ public class PhoneScreen extends Screen {
         Ui.button(ctx, px + 8, py + ph - 20, lw - 16, 14, Text.translatable("tcgshop.league.auto"), mouseX, mouseY, hasPool, 0xFF5A4AA0);
         if (hasPool) areas.add(new Area(px + 8, py + ph - 20, lw - 16, 14, () -> { deckDirty = false; leagueSend("auto", deckEdit.size() < 60 ? new ArrayList<>(deckEdit) : null); }));
         int x = px + lw + 8, w = pw - lw - 8, y = py;
-        // --- partida en curso
+        // --- match in progress
         if (inMatch) {
             Ui.roundGradient(ctx, x, y, w, 30, 0xF0203A2A, 0xF0142418);
             Ui.outline(ctx, x, y, w, 30, 0xFF4ADE80);
@@ -2011,7 +2011,7 @@ public class PhoneScreen extends Screen {
             areas.add(new Area(x + w - 98, y + 8, 90, 14, () -> playMode("casual")));
             y += 36;
         }
-        // --- nivel de la IA
+        // --- AI level
         ctx.drawText(textRenderer, Text.translatable("tcgshop.league.play.vs_ai").formatted(Formatting.BOLD), x, y + 2, 0xFFFFFFFF, false);
         y += 13;
         com.google.gson.JsonArray levels = L.has("levels") ? L.getAsJsonArray("levels") : new com.google.gson.JsonArray();
@@ -2043,7 +2043,7 @@ public class PhoneScreen extends Screen {
         Ui.text(ctx, lvOk ? Text.literal("+" + gain + " / -" + loss + " pts · -$" + dev.tcgshop.ptcg.PtcgDuels.LEVEL_PENALTY[lvi])
                 : Text.translatable("tcgshop.league.level_locked_short"), x + half + 6, y + 33, half, 9, lvOk ? 0xFFFFE08A : 0xFFFF7A7A, false);
         y += 52;
-        // --- cola contra jugadores
+        // --- queue against players
         ctx.drawText(textRenderer, Text.translatable("tcgshop.league.play.vs_players").formatted(Formatting.BOLD), x, y + 2, 0xFFFFFFFF, false);
         y += 13;
         int qh = Math.max(30, Math.min(44, py + ph - y));
@@ -2088,7 +2088,7 @@ public class PhoneScreen extends Screen {
 
     private boolean hoverDeckList;
 
-    // ------------------------------------------------------------------ entrada
+    // ------------------------------------------------------------------ input
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
@@ -2117,7 +2117,7 @@ public class PhoneScreen extends Screen {
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
-        if (app == App.LEAGUE && leagueHelp.isOpen()) return true; // con la ayuda abierta no se escribe en el buscador de debajo
+        if (app == App.LEAGUE && leagueHelp.isOpen()) return true; // with the help open, typing does not go into the search box underneath
         if (app == App.LEAGUE && leagueTab.equals("deck") && deckPanel.charTyped(chr)) return true;
         if (app == App.FURNITURE && furniture.charTyped(chr, modifiers)) return true;
         if (app == App.GRADE && gradeTab.equals("send") && gradePanel.charTyped(chr, modifiers)) return true;
@@ -2146,10 +2146,10 @@ public class PhoneScreen extends Screen {
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
-    /** Venta rápida: mantener pulsado y arrastrar por encima de varias cartas para elegirlas (o quitarlas) de golpe. */
+    /** Quick sell: hold and drag over several cards to select (or deselect) them all at once. */
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
-        if (button == 0 && app == App.GRADE && gradePanel.mouseDragged(mouseX, mouseY)) return true; // CobbleGrade: pintar selección
+        if (button == 0 && app == App.GRADE && gradePanel.mouseDragged(mouseX, mouseY)) return true; // CobbleGrade: paint selection
         if (button == 0 && app == App.SELL && sellTab.equals("inv") && quickSell.drag(mouseX, mouseY)) return true;
         return super.mouseDragged(mouseX, mouseY, button, dx, dy);
     }

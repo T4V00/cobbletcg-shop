@@ -8,8 +8,8 @@ import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
 /**
- * Cliente -> servidor: respuesta al trato de un NPC. counter = tu contraoferta (sólo al regatear).
- * ACCEPT/REJECT_* valen para cualquier trato; el resto sólo con un comerciante que te vende algo.
+ * Client -> server: answer to an NPC's deal. counter = your counteroffer (only when haggling).
+ * ACCEPT/REJECT_* work for any deal; the rest only with a merchant who is selling you something.
  */
 public record DealAnswerPayload(int entityId, int action, long counter) implements CustomPayload {
     public static final int ACCEPT = 0, REJECT_POLITE = 1, REJECT_RUDE = 2, COUNTER = 3, ARG_MARKET = 4, ARG_ELSEWHERE = 5, ARG_BROKE = 6,

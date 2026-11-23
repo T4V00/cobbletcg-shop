@@ -16,8 +16,8 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * Binder General: un único inventario con todas tus cartas. Clic derecho o tecla (G).
- * Al abrirlo por primera vez queda vinculado a tu nombre: es único y nadie más puede abrirlo.
+ * General Binder: a single inventory with all your cards. Right click or key (G).
+ * The first time you open it, it becomes bound to your name: it is unique and nobody else can open it.
  */
 public class GeneralBinderItem extends Item {
     public GeneralBinderItem(Settings settings) {

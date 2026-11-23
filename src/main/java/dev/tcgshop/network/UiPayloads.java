@@ -9,9 +9,9 @@ import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
 /**
- * Canal genérico para las ventanas nuevas (editar carta de un expositor, mendigo, mercader negro...):
- * Open (servidor -> cliente) abre una ventana con sus datos; Act (cliente -> servidor) manda lo que eligió el jugador.
- * El servidor valida siempre todo lo que llega.
+ * Generic channel for the new windows (edit a display's card, beggar, black market dealer...):
+ * Open (server -> client) opens a window with its data; Act (client -> server) sends what the player chose.
+ * The server always validates everything that arrives.
  */
 public final class UiPayloads {
     private UiPayloads() {}

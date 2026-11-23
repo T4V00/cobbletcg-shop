@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Empareja cada carta de cobbletcg con la carta equivalente del motor real (twinleaf.gg).
-Entrada: engine/twinleaf_cards.json (lo exporta el motor) y el lang en_us de cobbletcg.
-Salida: src/main/resources/data/tcgshop/tcgshop_ptcg/cards.json -> {"cobbletcg:<set>/cards/<id>": "<fullName del motor>"}
-Reglas: mismo código de set y número; si no (rarezas secretas con otro número), mismo nombre dentro del set;
-los Entrenadores y Energías también valen por nombre en cualquier set (son reimpresiones con el mismo efecto).
-Uso: python tools/gen_ptcg_map.py   (cartas: catálogo de ../masterball-api)
+Matches each cobbletcg card with the equivalent card in the real engine (twinleaf.gg).
+Input: engine/twinleaf_cards.json (exported by the engine) and the cobbletcg en_us lang.
+Output: src/main/resources/data/tcgshop/tcgshop_ptcg/cards.json -> {"cobbletcg:<set>/cards/<id>": "<engine fullName>"}
+Rules: same set code and number; otherwise (secret rarities with a different number), same name within the set;
+Trainers and Energies also match by name in any set (they are reprints with the same effect).
+Usage: python tools/gen_ptcg_map.py   (cards: catalog from ../masterball-api)
 """
 import json
 import re
@@ -37,15 +37,15 @@ def main():
     codes = set(c["s"] for c in tl)
 
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from fetch_prices import load_cards  # catálogo de MasterBall Traders API
-    cards = defaultdict(list)  # set -> [(id, código, número, nombre)]
+    from fetch_prices import load_cards  # MasterBall Traders API catalog
+    cards = defaultdict(list)  # set -> [(id, code, number, name)]
     for c in load_cards():
         if c["num"] > 0 and not c["promo"]:
             cards[c["set"]].append((c["id"], c["code"], str(c["num"]), c["name"]))
 
     out, stats = {}, {}
     for cset, lst in cards.items():
-        # código del motor para este set: el que más coincide por número + nombre
+        # engine code for this set: the one with the most number + name matches
         votes = Counter()
         for _, code, num, name in lst:
             for cand in [code] + [c for c in codes if c != code]:
@@ -61,7 +61,7 @@ def main():
                 same = by_code_name.get((tcode, norm(name)))
                 t = sorted(same, key=lambda c: int(re.sub(r"\D", "", str(c["num"])) or 0))[0] if same else None
             if t is None:
-                anyset = [c for c in by_name_any.get(norm(name), []) if c["st"] in (2, 3)]  # Entrenador / Energía
+                anyset = [c for c in by_name_any.get(norm(name), []) if c["st"] in (2, 3)]  # Trainer / Energy
                 t = anyset[0] if anyset else None
             if t:
                 out[cid] = t["f"]
@@ -69,7 +69,7 @@ def main():
         stats[cset] = (tcode, ok, len(lst))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(out, indent=0, sort_keys=True), encoding="utf-8")
-    # copia para el cliente (pantalla de duelo), idéntica
+    # identical copy for the client (duel screen)
     (ROOT / "src/main/resources/assets/tcgshop/ptcg/cards.json").write_text(json.dumps(out, indent=0, sort_keys=True), encoding="utf-8")
     total = sum(v[2] for v in stats.values())
     for k, (code, ok, n) in sorted(stats.items(), key=lambda x: x[1][1] / max(1, x[1][2])):

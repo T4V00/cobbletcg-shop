@@ -38,17 +38,17 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Vendedor de muebles: visita a los jugadores que TIENEN tienda (como el Mendigo o el Mayorista, aparece cerca de su
- * tienda) y vende muebles de CobbleFurnies, peluches de Pokéblocks y las estatuas de lujo (Exclusivos, v0.9); te recompra
- * muebles y peluches a un precio reducido (las estatuas no).
- * Ronda cerca de la tienda y se marcha pasado un día de Minecraft. Si no están esos mods, no aparece.
+ * Furniture seller: visits players who HAVE a shop (like the Beggar or the Wholesaler, it appears near their
+ * shop) and sells CobbleFurnies furniture, Pokéblocks plushies and the luxury statues (Exclusives, v0.9); it buys back
+ * furniture and plushies at a reduced price (not statues).
+ * Wanders near the shop and leaves after one Minecraft day. If those mods are missing, it does not appear.
  */
 public class FurnitureSellerEntity extends PathAwareEntity implements TcgNpc {
     private static final TrackedData<String> TITLE = DataTracker.registerData(FurnitureSellerEntity.class, TrackedDataHandlerRegistry.STRING);
     private static final TrackedData<Integer> SKIN = DataTracker.registerData(FurnitureSellerEntity.class, TrackedDataHandlerRegistry.INTEGER);
     private static final TrackedData<Integer> EMOTE = DataTracker.registerData(FurnitureSellerEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
-    /** Un día de Minecraft. */
+    /** One Minecraft day. */
     public static final int LIFE = 24_000;
     private int lifeTicks = LIFE, emoteTicks, helloCooldown;
     private boolean saidBye;
@@ -84,7 +84,7 @@ public class FurnitureSellerEntity extends PathAwareEntity implements TcgNpc {
     @Override public int npcSkin() { return dataTracker.get(SKIN); }
     @Override public int emote() { return dataTracker.get(EMOTE); }
 
-    /** Bocadillo de emoción unos segundos (tras una compra o una venta). */
+    /** Emotion bubble for a few seconds (after a purchase or a sale). */
     public void flashEmote(int emote) {
         dataTracker.set(EMOTE, emote);
         emoteTicks = 60;
@@ -92,7 +92,7 @@ public class FurnitureSellerEntity extends PathAwareEntity implements TcgNpc {
 
     public void setForPlayer(@Nullable UUID id) { forPlayer = id; }
 
-    /** Se queda rondando cerca de este punto (la tienda del jugador). */
+    /** Stays wandering near this point (the player's shop). */
     public void setHome(BlockPos pos) {
         home = pos.toImmutable();
         setPositionTarget(home, 14);
@@ -174,12 +174,12 @@ public class FurnitureSellerEntity extends PathAwareEntity implements TcgNpc {
         if (nbt.contains("Home")) setHome(BlockPos.fromLong(nbt.getLong("Home")));
     }
 
-    // ------------------------------------------------------------------ aparición
+    // ------------------------------------------------------------------ spawning
 
     /**
-     * Cada medio día de Minecraft (fase 10500), con probabilidad FurnitureShop.SELLER_CHANCE, llega un Vendedor de
-     * muebles a la tienda de un jugador conectado que tenga tienda (si está lejos de ella, cerca del jugador).
-     * Registrar en ServerTickEvents.END_WORLD_TICK (ver hooks).
+     * Every half Minecraft day (phase 10500), with probability FurnitureShop.SELLER_CHANCE, a Furniture seller
+     * arrives at the shop of an online player who owns a shop (if they are far from it, near the player).
+     * Register in ServerTickEvents.END_WORLD_TICK (see hooks).
      */
     public static void spawner(ServerWorld world) {
         if (world.getRegistryKey() != World.OVERWORLD) return;
@@ -189,11 +189,11 @@ public class FurnitureSellerEntity extends PathAwareEntity implements TcgNpc {
     }
 
     /**
-     * Intenta traer al Vendedor de muebles. target = jugador concreto (pruebas / comando) o null = un dueño de tienda al
-     * azar. Devuelve si apareció.
+     * Tries to bring the Furniture seller. target = specific player (testing / command) or null = a random shop
+     * owner. Returns whether it spawned.
      */
     public static boolean trySpawn(ServerWorld world, @Nullable ServerPlayerEntity target) {
-        // sin CobbleFurnies/Pokéblocks sigue viniendo si vende estatuas de lujo (pestaña Exclusivos)
+        // without CobbleFurnies/Pokéblocks it still comes if it sells luxury statues (Exclusives tab)
         if (!CobbleFurniesCompat.available() && !dev.tcgshop.luxury.LuxuryShop.enabled()) return false;
         ShopZones zones = ShopZones.get(world);
         List<ServerPlayerEntity> owners = new ArrayList<>();
@@ -204,7 +204,7 @@ public class FurnitureSellerEntity extends PathAwareEntity implements TcgNpc {
         }
         if (owners.isEmpty()) return false;
         ServerPlayerEntity p = owners.get(world.random.nextInt(owners.size()));
-        // su tienda más cercana, si está a menos de 96 bloques; si no, junto al jugador
+        // their nearest shop, if it is within 96 blocks; otherwise, next to the player
         Vec3d center = p.getPos();
         BlockPos shop = null;
         double best = 96 * 96;
@@ -214,8 +214,8 @@ public class FurnitureSellerEntity extends PathAwareEntity implements TcgNpc {
             if (d < best) { best = d; shop = z.core; }
         }
         if (shop != null) center = shop.toCenterPos();
-        // nada de vendedores repetidos: se mira alrededor del jugador Y alrededor del sitio donde va a aparecer (la tienda
-        // puede estar a 96 bloques del jugador y el vendedor anterior seguir al otro lado de ella)
+        // no duplicate sellers: check around the player AND around the spot where it will spawn (the shop
+        // may be 96 blocks from the player and the previous seller may still be on the other side of it)
         if (!world.getEntitiesByClass(FurnitureSellerEntity.class, p.getBoundingBox().expand(96), e -> true).isEmpty()) return false;
         if (!world.getEntitiesByClass(FurnitureSellerEntity.class, Box.of(center, 192, 192, 192), e -> true).isEmpty()) return false;
         BlockPos pos = groundNear(world, center, shop != null ? 5 : 8, shop != null ? 14 : 18);
@@ -231,7 +231,7 @@ public class FurnitureSellerEntity extends PathAwareEntity implements TcgNpc {
         return true;
     }
 
-    /** Un sitio de suelo libre entre minD y maxD bloques de c (o null). */
+    /** A free ground spot between minD and maxD blocks from c (or null). */
     @Nullable
     private static BlockPos groundNear(ServerWorld world, Vec3d c, int minD, int maxD) {
         for (int attempt = 0; attempt < 14; attempt++) {

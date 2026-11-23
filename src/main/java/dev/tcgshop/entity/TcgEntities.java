@@ -57,7 +57,7 @@ public final class TcgEntities {
     public static void init() {
         FabricDefaultAttributeRegistry.register(SCALPER, ScalperEntity.createAttributes());
         SpawnRestriction.register(SCALPER, SpawnLocationTypes.ON_GROUND, Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, HostileEntity::canSpawnInDark);
-        // poco frecuente: aparece de noche o en zonas oscuras del Overworld
+        // uncommon: spawns at night or in dark areas of the Overworld
         BiomeModifications.addSpawn(BiomeSelectors.foundInOverworld(), SpawnGroup.MONSTER, SCALPER, 3, 1, 1);
         FabricDefaultAttributeRegistry.register(WHOLESALER, WholesalerEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(TRADER, TraderEntity.createAttributes());
@@ -66,10 +66,10 @@ public final class TcgEntities {
         FabricDefaultAttributeRegistry.register(BEGGAR, BeggarEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(BLACK_MARKET, BlackMarketEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(FURNITURE_SELLER, FurnitureSellerEntity.createAttributes());
-        // Vendedor de muebles: visita a los jugadores con tienda (fase 10500 de cada medio día)
+        // Furniture seller: visits players who have a shop (phase 10500 of every half day)
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_WORLD_TICK.register(FurnitureSellerEntity::spawner);
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_WORLD_TICK.register(TcgEntities::wholesalerSpawner);
-        // los monstruos normales de Minecraft también van a por los Scalpers (y ellos se defienden)
+        // regular Minecraft monsters also go after Scalpers (and they fight back)
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
             if (entity instanceof HostileEntity h && !(h instanceof ScalperEntity) && !(h instanceof net.minecraft.entity.mob.Angerable)
                     && !(h instanceof net.minecraft.entity.mob.AbstractPiglinEntity) && !(h instanceof net.minecraft.entity.mob.WardenEntity))
@@ -79,8 +79,8 @@ public final class TcgEntities {
     }
 
     /**
-     * Cada medio día de Minecraft, 35% de que llegue un Mayorista misterioso cerca de un jugador al azar; a mitad de
-     * camino, 40% de que llegue un Coleccionista ambulante (intercambia cartas y compra la que le guste).
+     * Every half Minecraft day, 35% chance that a mysterious Wholesaler arrives near a random player; halfway
+     * through, 40% chance that a wandering Collector arrives (trades cards and buys the one it likes).
      */
     private static void wholesalerSpawner(net.minecraft.server.world.ServerWorld world) {
         if (world.getRegistryKey() != net.minecraft.world.World.OVERWORLD) return;
@@ -111,7 +111,7 @@ public final class TcgEntities {
         }
     }
 
-    /** Busca un sitio de suelo libre a dist bloques (o null). */
+    /** Finds a free ground spot at dist blocks (or null). */
     @org.jetbrains.annotations.Nullable
     private static net.minecraft.util.math.BlockPos groundNear(net.minecraft.server.world.ServerWorld world, net.minecraft.util.math.Vec3d c, int minD, int maxD) {
         for (int attempt = 0; attempt < 12; attempt++) {
@@ -126,7 +126,7 @@ public final class TcgEntities {
         return null;
     }
 
-    /** Mendigo de cartas: a veces ronda la tienda de un jugador conectado (o cerca de él si no tiene). */
+    /** Card beggar: sometimes hangs around an online player's shop (or near the player if they have none). */
     private static void beggarSpawner(net.minecraft.server.world.ServerWorld world) {
         var players = world.getPlayers();
         if (players.isEmpty() || world.random.nextDouble() > dev.tcgshop.EconomyConfig.INSTANCE.beggarChance) return;
@@ -144,7 +144,7 @@ public final class TcgEntities {
         p.sendMessage(net.minecraft.text.Text.translatable("tcgshop.beggar.arrived").formatted(net.minecraft.util.Formatting.GRAY), false);
     }
 
-    /** Mercader negro: rarísimo, aparece cerca de un jugador y sólo se lo dice a él. */
+    /** Black marketeer: extremely rare, appears near a player and only tells that player. */
     private static void blackMarketSpawner(net.minecraft.server.world.ServerWorld world) {
         var players = world.getPlayers();
         if (players.isEmpty() || world.random.nextDouble() > dev.tcgshop.EconomyConfig.INSTANCE.blackMarketChance) return;
@@ -163,7 +163,7 @@ public final class TcgEntities {
         p.playSoundToPlayer(net.minecraft.sound.SoundEvents.AMBIENT_CAVE.value(), net.minecraft.sound.SoundCategory.AMBIENT, 1f, 0.8f);
     }
 
-    /** Para pruebas: forzar la aparición. */
+    /** For testing: force the spawn. */
     public static void debugSpawn(net.minecraft.server.world.ServerWorld world, boolean beggar) {
         if (beggar) beggarSpawner(world); else blackMarketSpawner(world);
     }

@@ -27,12 +27,12 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Logros de cartas. NO hay rastreador aparte de cartas vistas: todo se acredita en el momento en que
- * el jugador ABRE un binder (general, personal o álbum de set), con las cartas que contiene.
+ * Card advancements. There is NO separate tracker of seen cards: everything is credited at the moment
+ * the player OPENS a binder (general, personal or set album), with the cards it contains.
  *
- *  · Logros de colección de otros mods (criterio "inventory_changed" de una sola carta): se otorgan
- *    directamente (así cuentan aunque la carta esté guardada en un binder y no en el inventario).
- *  · Logros propios (data/tcgshop/advancement): cartas únicas, valor de la colección, sets completos...
+ *  · Collection advancements from other mods ("inventory_changed" criterion for a single card): granted
+ *    directly (so they count even if the card is stored in a binder and not in the inventory).
+ *  · Our own advancements (data/tcgshop/advancement): unique cards, collection value, complete sets...
  */
 public final class CardAdvancements {
     private record Crit(AdvancementEntry entry, String name) {}
@@ -45,7 +45,7 @@ public final class CardAdvancements {
 
     private CardAdvancements() {}
 
-    /** Se llama al recargar datapacks: el índice se reconstruye la próxima vez. */
+    /** Called when datapacks are reloaded: the index is rebuilt the next time. */
     public static void invalidate() {
         index = null;
     }
@@ -67,12 +67,12 @@ public final class CardAdvancements {
                 if (CardInfo.isCard(id)) map.computeIfAbsent(id.toString(), k -> new ArrayList<>()).add(new Crit(e, c.getKey()));
             }
         }
-        TcgShop.LOGGER.info("Logros de cartas indexados: {} cartas con criterios de colección", map.size());
+        TcgShop.LOGGER.info("Card advancements indexed: {} cards with collection criteria", map.size());
         index = map;
         return map;
     }
 
-    /** Todas las cartas registradas, agrupadas por set. */
+    /** All registered cards, grouped by set. */
     public static Map<String, Set<String>> setCards() {
         if (setCards != null) return setCards;
         Map<String, Set<String>> m = new HashMap<>();
@@ -83,12 +83,12 @@ public final class CardAdvancements {
         return m;
     }
 
-    /** Acredita las cartas de un binder recién abierto. */
+    /** Credits the cards of a just-opened binder. */
     public static void credit(ServerPlayerEntity player, CardCollection c, dev.tcgshop.collection.BinderData binder, Collection<String> ids) {
         Map<String, List<Crit>> idx = index(player.getServer());
         int oldUnique = c.credited.size();
         for (String id : ids) {
-            if (dev.masterball.api.card.CardCatalog.isRemovedId(id)) continue; // TCG Pocket: quitado en la 0.9
+            if (dev.masterball.api.card.CardCatalog.isRemovedId(id)) continue; // TCG Pocket: removed in 0.9
             c.credited.add(id);
             List<Crit> crits = idx.get(id);
             if (crits != null) for (Crit k : crits) player.getAdvancementTracker().grantCriterion(k.entry, k.name);
@@ -115,7 +115,7 @@ public final class CardAdvancements {
         }
     }
 
-    /** Logros por sacar cartas de cierta rareza (se llama al abrir un sobre limpio). */
+    /** Advancements for pulling cards of a certain rarity (called when opening a clean pack). */
     public static void creditPull(ServerPlayerEntity player, List<ItemStack> cards, List<Long> prices) {
         for (int i = 0; i < cards.size(); i++) {
             switch (Rarity.of(cards.get(i)).family) {

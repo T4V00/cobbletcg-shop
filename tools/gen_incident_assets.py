@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Recursos del módulo de incidentes (v0.9 eventos): texturas 16x16 del bloque tcgshop:incident (charco, escombros,
-tierra, excrementos, quemadura, chispas, desorden, paquete) y de las herramientas (fregona, kit de reparación),
-modelos de bloque/objeto, blockstate, tags #tcgshop:fix/*, recetas y la tabla de botín tcgshop:events/package.
-Sólo biblioteca estándar (PNG con zlib + struct). Semilla fija: idempotente.
+Incident module resources (v0.9 events): 16x16 textures for the tcgshop:incident block (puddle, debris,
+dirt, droppings, scorch, sparks, mess, package) and for the tools (mop, repair kit),
+block/item models, blockstate, #tcgshop:fix/* tags, recipes and the tcgshop:events/package loot table.
+Standard library only (PNG with zlib + struct). Fixed seed: idempotent.
 
-Uso:  python -I -X utf8 tools/gen_incident_assets.py
-Escribe únicamente dentro de src/main/resources.
+Usage:  python -I -X utf8 tools/gen_incident_assets.py
+Writes only inside src/main/resources.
 """
 import json
 import random
@@ -48,7 +48,7 @@ def blank():
 
 
 def blob(rng, cx, cy, r, jitter=0.35):
-    """Máscara de una mancha irregular (conjunto de (x, y))."""
+    """Mask of an irregular blob (set of (x, y))."""
     pts = set()
     for y in range(16):
         for x in range(16):
@@ -62,7 +62,7 @@ def shade(c, k):
     return (c[0] * k, c[1] * k, c[2] * k)
 
 
-# ------------------------------------------------------------------ texturas
+# ------------------------------------------------------------------ textures
 
 def tex_puddle(rng):
     px = blank()
@@ -148,7 +148,7 @@ def tex_debris(rng, chunk=False):
             g = 110 + rng.randint(-30, 30)
             px[y][x] = (g, g - 5, g - 10, 255)
         elif rng.random() < 0.35:
-            px[y][x] = (150, 110, 70, 255)  # astillas de madera
+            px[y][x] = (150, 110, 70, 255)  # wood splinters
     return px
 
 
@@ -159,13 +159,13 @@ def tex_package(rng, top=False):
             k = 0.92 + rng.random() * 0.12
             px[y][x] = (190 * k, 145 * k, 95 * k, 255)
     for i in range(16):
-        px[i][7] = px[i][8] = (225, 200, 140, 255)  # cinta
+        px[i][7] = px[i][8] = (225, 200, 140, 255)  # tape
         if top:
             px[7][i] = px[8][i] = (225, 200, 140, 255)
     for i in range(16):
         px[0][i] = px[15][i] = px[i][0] = px[i][15] = (150, 110, 70, 255)
     if not top:
-        # etiqueta blanca con "?" (sin remitente)
+        # white label with "?" (no sender)
         for y in range(10, 14):
             for x in range(2, 6):
                 px[y][x] = (240, 240, 235, 255)
@@ -175,11 +175,11 @@ def tex_package(rng, top=False):
 
 def tex_mop(rng):
     px = blank()
-    for i in range(3, 14):  # palo diagonal
+    for i in range(3, 14):  # diagonal stick
         px[15 - i][i] = (150, 105, 60, 255)
         if i < 13:
             px[15 - i][i + 1] = (120, 85, 48, 255)
-    for (x, y) in blob(rng, 4.5, 11.5, 3.6, 0.2):  # cabeza de la fregona
+    for (x, y) in blob(rng, 4.5, 11.5, 3.6, 0.2):  # mop head
         if 0 <= x < 16 and 0 <= y < 16:
             g = 215 + rng.randint(-20, 20)
             px[y][x] = (g, g, g + 5, 255)
@@ -198,15 +198,15 @@ def tex_repair_kit(rng):
     for x in range(2, 14):
         px[6][x] = (230, 80, 70, 255)
         px[14][x] = (140, 30, 28, 255)
-    for x in range(6, 10):  # asa
+    for x in range(6, 10):  # handle
         px[3][x] = (90, 90, 95, 255)
     px[4][5] = px[5][5] = px[4][10] = px[5][10] = (90, 90, 95, 255)
-    for x in range(7, 9):  # cierre
+    for x in range(7, 9):  # clasp
         px[9][x] = px[10][x] = (235, 205, 80, 255)
     return px
 
 
-# ------------------------------------------------------------------ modelos
+# ------------------------------------------------------------------ models
 
 def flat(t, extra=None):
     m = {
@@ -299,7 +299,7 @@ def main():
     for it in ("mop", "repair_kit"):
         dump(A / "models" / "item" / f"{it}.json", {"parent": "minecraft:item/handheld", "textures": {"layer0": f"tcgshop:item/{it}"}})
 
-    # tags de arreglo: nunca cubos ni fuego (crítica E3)
+    # fix tags: never buckets or fire (review E3)
     fix = {"puddle": ["tcgshop:mop"], "droppings": ["tcgshop:mop"], "mess": ["tcgshop:mop"],
            "sparks": ["tcgshop:repair_kit"], "scorch": ["tcgshop:repair_kit"], "dirt": ["#minecraft:shovels"],
            "debris": [], "package": []}
@@ -330,7 +330,7 @@ def main():
             entry("minecraft:string", 2, 1, 4), entry("minecraft:candle", 2, 1, 2), entry("minecraft:flower_pot", 2),
             entry("minecraft:sweet_berries", 2, 2, 5), entry("minecraft:lantern", 1), entry("minecraft:name_tag", 1),
             entry("minecraft:book", 1)]}]})
-    print("gen_incident_assets: OK —", len(tex) + 2, "texturas,", len(KINDS), "modelos de bloque")
+    print("gen_incident_assets: OK —", len(tex) + 2, "textures,", len(KINDS), "block models")
 
 
 if __name__ == "__main__":

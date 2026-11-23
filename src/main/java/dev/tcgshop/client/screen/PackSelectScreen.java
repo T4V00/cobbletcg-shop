@@ -26,11 +26,11 @@ import java.util.Map;
 import static dev.tcgshop.client.screen.Draw.*;
 
 /**
- * Pantalla que aparece al hacer clic derecho con un sobre. Escaparate con el sobre destacado, rejilla con todos
- * tus sobres (sellados y abiertos), contador por tipo, cuántos sobres rasgar a la vez (1, 5, 10, 20, 50, 100),
- * resumen con el valor de mercado y un botón grande para abrir. "Ahora no" no toca nada.
+ * Screen shown when right-clicking with a pack. Showcase with the featured pack, a grid with all
+ * your packs (sealed and opened), a counter per type, how many packs to tear at once (1, 5, 10, 20, 50, 100),
+ * a summary with the market value and a big button to open. "Not now" changes nothing.
  *
- * Controles en la rejilla: clic = +1 · clic derecho = -1 · rueda = ±1 · Mayús = ±10.
+ * Grid controls: click = +1 · right-click = -1 · wheel = ±1 · Shift = ±10.
  */
 public class PackSelectScreen extends Screen {
     private static final int[] PER_TEAR = {1, 5, 10, 20, 50, 100};
@@ -136,7 +136,7 @@ public class PackSelectScreen extends Screen {
     @Override
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
         ctx.fillGradient(0, 0, width, height, 0xE80D0F1C, 0xF5050609);
-        // patrón animado de reversos de carta muy tenue
+        // very faint animated pattern of card backs
         double t = System.nanoTime() / 1e9;
         int off = (int) (t * 8) % 40;
         for (int y = -40 + off; y < height; y += 40)
@@ -157,7 +157,7 @@ public class PackSelectScreen extends Screen {
         m.push();
         m.translate(0, (1 - appear) * 20, 0);
 
-        // cabecera
+        // header
         int bannerW = Math.min(width - 40, 360);
         Ui.roundGradient(ctx, (width - bannerW) / 2, 8, bannerW, 22, 0xFFB3262E, 0xFF6E1218);
         Ui.outline(ctx, (width - bannerW) / 2, 8, bannerW, 22, 0xFF000000);
@@ -210,7 +210,7 @@ public class PackSelectScreen extends Screen {
         long price = PriceService.sealedCd(CardInfo.setId(e.id), PriceService.Sealed.PACK);
         ctx.drawCenteredTextWithShadow(textRenderer, Text.translatable("tcgshop.select.market", PriceService.format(price)), Math.round(cx), ty, Ui.GOLD);
         ty += 14;
-        // contador del destacado
+        // counter for the featured pack
         int bw = 18, gap = 4, cw = 34;
         int rowW = bw * 2 + cw + gap * 2 + 40;
         int bx = Math.round(cx - rowW / 2f);
@@ -254,7 +254,7 @@ public class PackSelectScreen extends Screen {
             String own = (e.tier == 0 ? "" : "✂ ") + "x" + e.owned;
             ctx.drawText(textRenderer, own, tx + (tileW - textRenderer.getWidth(own)) / 2, Math.round(ty - lift + tileH - 10), Ui.MUTED, false);
             if (sel) {
-                // contador grande en la esquina
+                // big counter in the corner
                 String s = String.valueOf(e.selected);
                 int bw = Math.max(14, textRenderer.getWidth(s) + 6);
                 Ui.round(ctx, tx + tileW - bw - 2, Math.round(ty - lift + 2), bw, 12, 0xFF3A7BD5);
@@ -274,7 +274,7 @@ public class PackSelectScreen extends Screen {
     private void renderBottomBar(DrawContext ctx, int x, int y, int w, int h, int mouseX, int mouseY, double t) {
         Ui.leather(ctx, x, y, w, h, 0xFF2B2F42, 0xFF181B27);
         int total = total();
-        // selector "por rasgada"
+        // "per tear" selector
         ctx.drawTextWithShadow(textRenderer, Text.translatable("tcgshop.select.per_tear"), x + 10, y + 8, Ui.TEXT);
         int cx = x + 10, cy = y + 20, chipW = 28;
         for (int n : PER_TEAR) {
@@ -284,7 +284,7 @@ public class PackSelectScreen extends Screen {
             areas.add(new Area(cx, cy, chipW, 18, 0, () -> { perTear = nn; sound(1.0f + Math.min(nn, 40) / 40f); }));
             cx += chipW + 4;
         }
-        // resumen
+        // summary
         int tears = total == 0 ? 0 : (total + perTear - 1) / perTear;
         long value = 0;
         for (Entry e : entries) value += e.selected * PriceService.sealedCd(CardInfo.setId(e.id), PriceService.Sealed.PACK);
@@ -292,7 +292,7 @@ public class PackSelectScreen extends Screen {
         ctx.drawTextWithShadow(textRenderer, Text.translatable("tcgshop.select.summary", total, tears), sx, y + 10, total > 0 ? Ui.TEXT : Ui.MUTED);
         ctx.drawTextWithShadow(textRenderer, Text.translatable("tcgshop.select.value", PriceService.format(value)), sx, y + 24, Ui.GOLD);
 
-        // botones
+        // buttons
         int ow = 128, oh = 30, ox = x + w - ow - 10, oy = y + (h - oh) / 2;
         boolean can = total > 0;
         if (can) glow(ctx, ox + ow / 2f, oy + oh / 2f, ow, oh, 0xFFFFD34D, 0.2f + 0.12f * (float) Math.sin(t * 4));
@@ -304,7 +304,7 @@ public class PackSelectScreen extends Screen {
         areas.add(new Area(nx, oy + 6, nw, 18, 0, this::close));
     }
 
-    // ------------------------------------------------------------------ entrada
+    // ------------------------------------------------------------------ input
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
@@ -320,7 +320,7 @@ public class PackSelectScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double h, double v) {
-        // rueda sobre un sobre = ±1; en otra parte de la rejilla = desplazar
+        // wheel over a pack = ±1; elsewhere in the grid = scroll
         for (Tile tl : tiles) {
             if (Ui.in(mouseX, mouseY, tl.x, tl.y, tl.w, tl.h)) {
                 change(tl.entry, v > 0 ? 1 : -1);
@@ -340,7 +340,7 @@ public class PackSelectScreen extends Screen {
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
-    /** Mini helper para el fondo. */
+    /** Mini helper for the background. */
     private static final class StylePainterLite {
         static void dot(DrawContext ctx, int x, int y) {
             ctx.fill(x - 2, y - 2, x + 2, y + 2, 0x0EFFFFFF);

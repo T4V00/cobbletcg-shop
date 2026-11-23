@@ -14,13 +14,13 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Dibuja el título TCG del jugador ("Fan de Pikachu"...) encima de su nombre. */
+/** Draws the player's TCG title ("Pikachu Fan"...) above their name. */
 @Mixin(PlayerEntityRenderer.class)
 public abstract class PlayerEntityRendererMixin {
     @Unique
     private static boolean tcgshop$drawing;
 
-    /** Minecraft no dibuja la etiqueta de tu propio jugador: en tercera persona dibujamos tu título igualmente. */
+    /** Minecraft does not draw your own player's label: in third person we draw your title anyway. */
     @Inject(method = "render(Lnet/minecraft/client/network/AbstractClientPlayerEntity;FFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V",
             at = @At("TAIL"))
     private void tcgshop$selfTitle(AbstractClientPlayerEntity player, float yaw, float tickDelta, MatrixStack matrices,

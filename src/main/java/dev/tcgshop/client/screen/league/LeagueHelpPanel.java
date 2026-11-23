@@ -29,17 +29,17 @@ import java.util.Locale;
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
 /**
- * Panel de ayuda de la Liga TCG: se abre solo la primera vez que entras en la app (o siempre, si lo marcas) y se
- * vuelve a abrir con el botón «?» de la barra superior. Explica en corto qué significa cada número: puntos de Liga y
- * rangos, lo que da y quita cada nivel de la IA, el ELO contra jugadores, el récord y las rachas, cómo se consiguen
- * monedas y tableros, y las reglas del mazo. Todos los valores salen del código (League, PtcgDuels, Cosmetics), no
- * están escritos a mano en los textos.
+ * TCG League help panel: opens by itself the first time you enter the app (or always, if you tick it) and
+ * reopens with the "?" button in the top bar. Briefly explains what each number means: League points and
+ * ranks, what each AI level gives and takes, ELO against players, record and streaks, how coins and boards
+ * are earned, and the deck rules. All values come from the code (League, PtcgDuels, Cosmetics), they are not
+ * hand-written into the texts.
  */
 public final class LeagueHelpPanel {
     private static final String[] SECTIONS = {"points", "ai", "pvp", "stats", "rewards", "deck"};
     private static final int[] SECTION_COLORS = {0xFFFFC233, 0xFF5BD68A, 0xFF4FB4FF, 0xFFE05AFF, 0xFFFF9F43, 0xFFE0604A};
     private static final int[] RANK_COLORS = {0xFFB0763A, 0xFFC0C8D4, 0xFFFFC233, 0xFF6FE3D9, 0xFF7FC8FF, 0xFFE05AFF};
-    /** Igual que League: se empieza con 1000 puntos y nunca se baja de 100; ELO con K = 32 y mínimo 4 por partida. */
+    /** Same as League: you start with 1000 points and never drop below 100; ELO with K = 32 and a minimum of 4 per match. */
     private static final int START_RATING = 1000, MIN_RATING = 100, ELO_K = 32, ELO_MIN = 4;
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("tcgshop-league-help.txt");
 
@@ -63,7 +63,7 @@ public final class LeagueHelpPanel {
 
     private static int gi(@Nullable JsonObject o, String k) { return o != null && o.has(k) && !o.get(k).isJsonNull() ? o.get(k).getAsInt() : 0; }
 
-    // ------------------------------------------------------------------ estado (se recuerda en config/tcgshop-league-help.txt)
+    // ------------------------------------------------------------------ state (remembered in config/tcgshop-league-help.txt)
 
     private void load() {
         if (loaded) return;
@@ -83,7 +83,7 @@ public final class LeagueHelpPanel {
         } catch (Exception ignored) {}
     }
 
-    /** Llamar al abrir la app de la Liga: la primera vez (o siempre, si está marcado) se abre la ayuda. */
+    /** Call when opening the League app: the first time (or always, if ticked) the help opens. */
     public void onEnter() {
         load();
         if (!seen || always) {
@@ -112,17 +112,17 @@ public final class LeagueHelpPanel {
         if (mc.player != null) mc.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5f, 1.3f);
     }
 
-    // ------------------------------------------------------------------ dibujo
+    // ------------------------------------------------------------------ drawing
 
     /**
-     * Dibuja el botón «?» en la barra superior y, si está abierta, la ayuda encima de todo. (sx, sy, sw, sh) es la
-     * pantalla del teléfono; L son los datos de la Liga (puede ser null mientras carga).
+     * Draws the "?" button in the top bar and, if open, the help on top of everything. (sx, sy, sw, sh) is the
+     * phone screen; L is the League data (may be null while loading).
      */
     public void render(DrawContext ctx, @Nullable JsonObject L, int sx, int sy, int sw, int sh, int mx, int my, double t) {
         load();
         hits.clear();
         lastRender = System.currentTimeMillis();
-        // botón «?» (a la derecha de la barra superior de la app)
+        // "?" button (on the right of the app's top bar)
         qs = 16;
         qx = sx + sw - 28;
         qy = sy + 16;
@@ -135,12 +135,12 @@ public final class LeagueHelpPanel {
         if (qh || open) Ui.roundedOutline(ctx, qx, qy, qs, qs, 8, 0xAAFFFFFF);
         Ui.text(ctx, Text.literal("?").formatted(Formatting.BOLD), qx, qy, qs, qs, open ? 0xFF1A1D2A : 0xFFFFFFFF, !open);
         if (!open) {
-            // diferido: el teléfono nos dibuja dentro de su recorte y el tooltip saldría cortado por la derecha
+            // deferred: the phone draws us inside its scissor and the tooltip would be cut off on the right
             if (qh) DeckBuilderPanel.deferTooltip(List.of(Text.translatable("tcgshop.league.help.button").asOrderedText()));
             return;
         }
 
-        // fondo oscuro sobre toda la app
+        // dark backdrop over the whole app
         MatrixStack m = ctx.getMatrices();
         m.push();
         m.translate(0, 0, 300);
@@ -149,7 +149,7 @@ public final class LeagueHelpPanel {
         Ui.rounded(ctx, x0 + 2, y0 + 3, w, h, 8, 0x80000000);
         Ui.roundedGradient(ctx, x0, y0, w, h, 8, 0xFA1C2030, 0xFA11131D);
         Ui.roundedOutline(ctx, x0, y0, w, h, 8, 0xFF3A4060);
-        // cabecera
+        // header
         ctx.fillGradient(x0 + 1, y0 + 1, x0 + w - 1, y0 + 19, 0x60C62828, 0x10C62828);
         ctx.drawText(tr(), Text.translatable("tcgshop.league.help.title").formatted(Formatting.BOLD), x0 + 8, y0 + 6, 0xFFFFFFFF, true);
         if (L != null) {
@@ -165,7 +165,7 @@ public final class LeagueHelpPanel {
         Ui.text(ctx, Text.literal("✕"), cxb, cyb, 14, 14, 0xFFFFFFFF, false);
         hits.add(new Hit(cxb, cyb, 14, 14, () -> { click(); close(); }));
 
-        // secciones (izquierda)
+        // sections (left)
         int tabsW = Math.min(104, Math.max(70, w / 4));
         int ty = y0 + 24;
         for (int i = 0; i < SECTIONS.length; i++) {
@@ -183,7 +183,7 @@ public final class LeagueHelpPanel {
             hits.add(new Hit(x0 + 6, ry, tabsW, 15, () -> { click(); section = ii; scroll = 0; }));
         }
 
-        // contenido (derecha, con desplazamiento)
+        // content (right, scrollable)
         contentX = x0 + tabsW + 14;
         contentY = y0 + 24;
         contentW = w - tabsW - 22;
@@ -206,7 +206,7 @@ public final class LeagueHelpPanel {
             Ui.rounded(ctx, contentX + contentW + 3, contentY + Math.round((contentH - bh) * frac), 2, bh, 1, 0x88FFFFFF);
         }
 
-        // pie: «mostrar al entrar» y «Entendido»
+        // footer: "show on enter" and "Got it"
         int fy = y0 + h - 18;
         ctx.fill(x0 + 6, fy - 3, x0 + w - 6, fy - 2, 0x22FFFFFF);
         boolean cbh = Ui.in(mx, my, x0 + 8, fy + 1, 120, 12);
@@ -232,7 +232,7 @@ public final class LeagueHelpPanel {
 
     private static int rankColor(int rank) { return RANK_COLORS[MathHelper.clamp(rank, 0, RANK_COLORS.length - 1)]; }
 
-    // ------------------------------------------------------------------ contenido
+    // ------------------------------------------------------------------ content
 
     private static Row gap(int h) {
         return new Row() {
@@ -267,7 +267,7 @@ public final class LeagueHelpPanel {
         };
     }
 
-    /** Fila de tabla: celdas centradas que se encogen si no caben; la primera, alineada a la izquierda. */
+    /** Table row: centered cells that shrink if they do not fit; the first one is left-aligned. */
     private static Row tableRow(Text[] cells, int[] colors, float[] weights, boolean header, boolean highlight, int accent) {
         return new Row() {
             public int height() { return 12; }
@@ -304,7 +304,7 @@ public final class LeagueHelpPanel {
 
     private static String rankName(int r) { return Text.translatable("tcgshop.league.rank." + r).getString(); }
 
-    /** Cambio ELO del ganador (mismo cálculo que League.record). */
+    /** Winner's ELO change (same calculation as League.record). */
     private static int elo(int winner, int loser) {
         double expected = 1 / (1 + Math.pow(10, (loser - winner) / 400.0));
         return Math.max(ELO_MIN, (int) Math.round(ELO_K * (1 - expected)));
@@ -364,7 +364,7 @@ public final class LeagueHelpPanel {
                 rows.add(para(tx("ai.cols"), soft, w, false));
                 rows.add(para(tx("ai.casual"), body, w, true));
                 rows.add(para(tx("ai.ranked"), body, w, true));
-                // niveles que se bloquean en Liga al subir de rango
+                // levels that get locked in League as you rank up
                 List<String> blocks = new ArrayList<>();
                 for (int k = 0; k < nLevels; k++)
                     if (League.AI_BLOCKED_FROM[k] < at.length) blocks.add(tx("ai.block_item", levelName(k), rankName(League.AI_BLOCKED_FROM[k])).getString());
@@ -437,11 +437,11 @@ public final class LeagueHelpPanel {
         return rows;
     }
 
-    // ------------------------------------------------------------------ entrada (el teléfono la reenvía)
+    // ------------------------------------------------------------------ input (forwarded by the phone)
 
     private boolean shown() { return System.currentTimeMillis() - lastRender < 250; }
 
-    /** Clic: el botón «?» abre / cierra; con la ayuda abierta se queda con todos los clics. */
+    /** Click: the "?" button opens / closes; while the help is open it takes all clicks. */
     public boolean mouseClicked(double mx, double my, int button) {
         if (!shown()) return false;
         if (Ui.in(mx, my, qx, qy, qs, qs)) {
@@ -464,7 +464,7 @@ public final class LeagueHelpPanel {
         return true;
     }
 
-    /** Esc cierra la ayuda; flechas / Re Pág cambian de sección. Con la ayuda abierta no deja pasar teclas. */
+    /** Esc closes the help; arrows / Page Up/Down change section. While the help is open no keys get through. */
     public boolean keyPressed(int keyCode) {
         if (!open || !shown()) return false;
         switch (keyCode) {

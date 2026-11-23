@@ -27,9 +27,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Binder General: cada binder es ÚNICO. Al abrirlo por primera vez queda vinculado a quien lo abre (id + dueño
- * en el ítem) y su contenido se guarda en BinderRegistry. Si tienes dos binders, el segundo que registres
- * empieza vacío. Los binders de otro jugador no se pueden abrir.
+ * General Binder: each binder is UNIQUE. When first opened it becomes bound to whoever opens it (id + owner
+ * on the item) and its contents are stored in BinderRegistry. If you have two binders, the second one you register
+ * starts empty. Another player's binders cannot be opened.
  */
 public final class CollectionService {
     @SuppressWarnings("UnstableApiUsage")
@@ -39,7 +39,7 @@ public final class CollectionService {
             .initializer(CardCollection::new)
             .buildAndRegister(Identifier.of(TcgShop.MOD_ID, "collection"));
 
-    /** Binder que cada jugador tiene abierto en pantalla (las acciones de la pantalla van a ese). */
+    /** Binder each player has open on screen (screen actions go to that one). */
     private static final Map<UUID, UUID> OPEN = new HashMap<>();
 
     private CollectionService() {}
@@ -51,9 +51,9 @@ public final class CollectionService {
         return player.getAttachedOrCreate(PLAYER_DATA);
     }
 
-    // ------------------------------------------------------------------ localizar / vincular binders
+    // ------------------------------------------------------------------ locate / bind binders
 
-    /** Todos los Binders Generales que lleva el jugador (inventario + slots de Accessories). */
+    /** All General Binders the player carries (inventory + Accessories slots). */
     public static List<ItemStack> carried(ServerPlayerEntity player) {
         List<ItemStack> out = new ArrayList<>();
         PlayerInventory inv = player.getInventory();
@@ -67,8 +67,8 @@ public final class CollectionService {
     }
 
     /**
-     * Vincula el binder al jugador si aún no tiene dueño. Devuelve su contenido, o null si es de otro jugador.
-     * La primera vez que un jugador registra un binder, recibe la colección de versiones anteriores del mod.
+     * Binds the binder to the player if it has no owner yet. Returns its contents, or null if it belongs to another player.
+     * The first time a player registers a binder, they receive their collection from previous versions of the mod.
      */
     @Nullable
     public static BinderData bind(ServerPlayerEntity player, ItemStack stack) {
@@ -79,7 +79,7 @@ public final class CollectionService {
             stack.set(TcgItems.BINDER_TAG, new BinderTag(id, player.getUuid(), player.getName().getString()));
             BinderData d = reg.create(id, player.getUuid(), player.getName().getString());
             CardCollection pd = playerData(player);
-            if (!pd.legacyCounts.isEmpty()) { // migración desde la versión anterior
+            if (!pd.legacyCounts.isEmpty()) { // migration from the previous version
                 d.counts.putAll(pd.legacyCounts);
                 d.fresh.addAll(pd.legacyFresh);
                 pd.legacyCounts.clear();
@@ -91,11 +91,11 @@ public final class CollectionService {
         }
         if (!tag.owner().equals(player.getUuid())) return null;
         BinderData d = reg.get(tag.id());
-        if (d == null) d = reg.create(tag.id(), player.getUuid(), player.getName().getString()); // datos perdidos: vacío
+        if (d == null) d = reg.create(tag.id(), player.getUuid(), player.getName().getString()); // lost data: empty
         return d;
     }
 
-    /** El binder propio que lleva el jugador (si no tiene ninguno vinculado, vincula uno sin dueño). */
+    /** The player's own binder they carry (if none is bound, binds an unowned one). */
     @Nullable
     public static UUID ownedBinderId(ServerPlayerEntity player) {
         ItemStack unbound = null;
@@ -114,7 +114,7 @@ public final class CollectionService {
         return id == null ? null : BinderRegistry.get(player.getServer()).get(id);
     }
 
-    /** Binder abierto en pantalla, si el jugador todavía lo lleva encima. */
+    /** Binder open on screen, if the player still carries it. */
     @Nullable
     private static BinderData openBinder(ServerPlayerEntity player) {
         UUID id = OPEN.get(player.getUuid());
@@ -126,7 +126,7 @@ public final class CollectionService {
         return null;
     }
 
-    /** Binder para acciones: el abierto en pantalla o, si no, el propio. */
+    /** Binder for actions: the one open on screen or, failing that, the player's own. */
     @Nullable
     public static BinderData activeBinder(ServerPlayerEntity player) {
         BinderData d = openBinder(player);
@@ -137,9 +137,9 @@ public final class CollectionService {
         BinderRegistry.get(player.getServer()).markDirty();
     }
 
-    // ------------------------------------------------------------------ operaciones
+    // ------------------------------------------------------------------ operations
 
-    /** Abre un binder concreto (clic derecho) o el propio (tecla). Cuenta sus cartas para los logros. */
+    /** Opens a specific binder (right click) or the player's own (key). Counts its cards for advancements. */
     public static boolean openGeneral(ServerPlayerEntity player, @Nullable ItemStack stack) {
         BinderData d;
         if (stack != null) {
@@ -164,15 +164,15 @@ public final class CollectionService {
         return true;
     }
 
-    /** Guarda cartas en el binder propio. false si el jugador no lleva ningún binder suyo. */
+    /** Stores cards in the player's own binder. false if the player carries no binder of their own. */
     public static boolean store(ServerPlayerEntity player, List<ItemStack> cards) {
         BinderData d = ownedBinder(player);
         if (d == null) return false;
         CardCollection pd = playerData(player);
         for (ItemStack st : cards) {
             if (!CardInfo.isCard(st)) continue;
-            if (dev.tcgshop.grading.Grading.isGraded(st)) { player.getInventory().offerOrDrop(st.copy()); continue; } // las gradeadas no van al binder
-            if (dev.masterball.api.card.PrintVariant.isSpecial(st)) { // las variantes (reverse, 1ª edición...) tampoco, pero cuentan para la colección
+            if (dev.tcgshop.grading.Grading.isGraded(st)) { player.getInventory().offerOrDrop(st.copy()); continue; } // graded cards don't go into the binder
+            if (dev.masterball.api.card.PrintVariant.isSpecial(st)) { // neither do variants (reverse, 1st edition...), but they count toward the collection
                 player.getInventory().offerOrDrop(st.copy());
                 pd.totalObtained += st.getCount();
                 String vid = CardInfo.id(st).toString();
@@ -222,7 +222,7 @@ public final class CollectionService {
         if (d != null && d.fresh.removeAll(ids)) dirty(player);
     }
 
-    /** Doble clic en una pestaña: quita las notificaciones de ese filtro ("all", "set:<id>", "rarity:<clave>"). */
+    /** Double click on a tab: clears the notifications for that filter ("all", "set:<id>", "rarity:<key>"). */
     public static void clearFresh(ServerPlayerEntity player, String filter) {
         BinderData d = openBinder(player);
         if (d == null) return;

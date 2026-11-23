@@ -13,12 +13,12 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Un evento en marcha en una tienda. Se guarda en la zona (ext.events.active). Su fin es un tiempo ABSOLUTO del mundo
- * (world.getTime()) que nunca se alarga por estar la zona descargada.
+ * An event running in a shop. Saved in the zone (ext.events.active). Its end is an ABSOLUTE world time
+ * (world.getTime()) that is never extended because the zone is unloaded.
  *
- * Los "bloqueos" (disabledSlots, closedDoors, registerDown, lightingOverride) los ponen los módulos con los métodos de
- * abajo; el núcleo los junta en {@link Mods} para los clientes, la caja, las puertas y la luz. Al terminar el evento
- * desaparecen solos (son parte de la instancia).
+ * The "locks" (disabledSlots, closedDoors, registerDown, lightingOverride) are set by modules with the methods
+ * below; the core merges them into {@link Mods} for customers, the register, doors and light. When the event ends
+ * they disappear on their own (they are part of the instance).
  */
 public final class EventInstance {
     public final long uid;
@@ -30,16 +30,16 @@ public final class EventInstance {
     public long end;
     public long resolvedAt = -1;
     public String resolvedHow = "";
-    /** Fase libre para los efectos (p. ej. el visitante ya llegó). */
+    /** Free-form stage for the effects (e.g. the visitor has already arrived). */
     public int stage;
-    /** Datos por efecto: data.getCompound("e" + índice) — ver EventContext.data(). Y datos comunes ("o_*" = resultado). */
+    /** Per-effect data: data.getCompound("e" + index) — see EventContext.data(). Plus shared data ("o_*" = outcome). */
     public NbtCompound data = new NbtCompound();
-    /** Visitantes de este evento todavía en camino o dentro (uuid de entidad). */
+    /** Visitors of this event still on their way or inside (entity uuid). */
     public final List<UUID> visitors = new ArrayList<>();
     public int visitorsDone;
-    /** Tag de reseña que sustituye al de la definición (lo puede poner un módulo/variante). Vacío = el de la definición. */
+    /** Review tag that replaces the definition's (a module/variant may set it). Empty = the definition's. */
     public String reviewTag = "";
-    // ---- bloqueos del mundo (módulos)
+    // ---- world locks (modules)
     final Set<Long> disabledDisplays = new HashSet<>();
     final Set<String> disabledSlots = new HashSet<>();
     final Set<Long> closedDoors = new HashSet<>();
@@ -59,12 +59,12 @@ public final class EventInstance {
 
     public boolean resolved() { return resolvedAt >= 0; }
 
-    // ------------------------------------------------------------------ API de bloqueos (llamar y luego EventManager.invalidate(zone))
+    // ------------------------------------------------------------------ Locks API (call, then EventManager.invalidate(zone))
 
-    /** Expositor entero inutilizable (los clientes no lo miran ni compran de él). */
+    /** Whole display unusable (customers neither look at it nor buy from it). */
     public void disableDisplay(BlockPos pos) { disabledDisplays.add(pos.asLong()); }
 
-    /** Una casilla concreta inutilizable (p. ej. "producto tirado por el suelo"): el objeto NO se mueve del expositor. */
+    /** A specific slot unusable (e.g. "product knocked onto the floor"): the item is NOT moved out of the display. */
     public void disableSlot(BlockPos pos, int slot) { disabledSlots.add(pos.asLong() + ":" + slot); }
 
     public void enableDisplay(BlockPos pos) {
@@ -72,15 +72,15 @@ public final class EventInstance {
         disabledSlots.removeIf(s -> s.startsWith(pos.asLong() + ":"));
     }
 
-    /** Puerta bloqueada: no entran clientes por ella (si todas lo están, esperan fuera). pos = mitad inferior. */
+    /** Blocked door: customers do not come in through it (if all are blocked, they wait outside). pos = lower half. */
     public void closeDoor(BlockPos door) { closedDoors.add(door.asLong()); }
 
     public void openDoor(BlockPos door) { closedDoors.remove(door.asLong()); }
 
-    /** Caja averiada: el CAJERO no puede cobrar sobres/cajas (el dueño junto a la caja sí). */
+    /** Broken register: the CASHIER cannot ring up packs/boxes (the owner at the register can). */
     public void setRegisterDown(boolean down) { registerDown = down; }
 
-    /** Luz que "ven" los clientes en el recálculo (0-15), -1 = la real. */
+    /** Light that customers "see" during the recompute (0-15), -1 = the real one. */
     public void setLightingOverride(int level) { lightingOverride = Math.max(-1, Math.min(15, level)); }
 
     public void clearLocks() {

@@ -44,9 +44,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Renderizado de la tienda: productos a tamaño real en los muebles de varios bloques (las cartas se dibujan con el
- * mismo sistema que un marco de objetos vanilla, más la inclinación de cada mueble), resaltado del producto
- * apuntado, cajas de sobres de cartón con pliegues y animación de apertura, pósteres, mesa, caja y ruleta.
+ * Shop rendering: life-size products on multi-block furniture (cards are drawn with the
+ * same system as a vanilla item frame, plus each furniture piece's tilt), highlight of the targeted
+ * product, cardboard booster boxes with folds and opening animation, posters, table, register and roulette.
  */
 public final class ShopRenderers {
     private static final Identifier WHITE = Identifier.ofVanilla("textures/block/white_concrete.png");
@@ -57,7 +57,7 @@ public final class ShopRenderers {
     private static final Identifier WRAP = Identifier.of("tcgshop", "textures/block/shrink_wrap.png");
     private static final Map<String, Identifier> PACK_TEX = new HashMap<>();
     private static final int FULL = 0xF000F0;
-    /** Alto de una carta en el espacio del modo FIXED (modelo card_template de la API: 0,85 x escala 2,2). */
+    /** Height of a card in FIXED mode space (the API's card_template model: 0.85 x scale 2.2). */
     private static final float FRAME_CARD_H = dev.masterball.api.client.CardItemRenderer.FIXED_HEIGHT;
 
     private ShopRenderers() {}
@@ -75,14 +75,14 @@ public final class ShopRenderers {
         return 0xFF000000 | MathHelper.hsvToRgb(hue, 0.62f, 0.62f);
     }
 
-    // ------------------------------------------------------------------ primitivas
+    // ------------------------------------------------------------------ primitives
 
     private static void quad(VertexConsumer vc, MatrixStack.Entry e, float ax, float ay, float az, float bx, float by, float bz,
                              float cx, float cy, float cz, float dx, float dy, float dz, float nx, float ny, float nz,
                              int argb, int light, int overlay, float u0, float v0, float u1, float v1) {
         Matrix4f m = e.getPositionMatrix();
         int a = (argb >>> 24) & 0xFF, r = (argb >> 16) & 0xFF, g = (argb >> 8) & 0xFF, b = argb & 0xFF;
-        // el juego descarta las caras cuyo orden de vértices no es antihorario visto desde fuera: se ordenan según la normal
+        // the game culls faces whose vertex order is not counter-clockwise seen from outside: they are ordered by the normal
         float e1x = bx - ax, e1y = by - ay, e1z = bz - az, e2x = cx - ax, e2y = cy - ay, e2z = cz - az;
         float gx = e1y * e2z - e1z * e2y, gy = e1z * e2x - e1x * e2z, gz = e1x * e2y - e1y * e2x;
         if (gx * nx + gy * ny + gz * nz >= 0) {
@@ -98,7 +98,7 @@ public final class ShopRenderers {
         }
     }
 
-    /** Rectángulo vertical en z, visto desde -Z (u de izquierda a derecha según el espectador). */
+    /** Vertical rectangle at z, seen from -Z (u from left to right from the viewer's point of view). */
     private static void front(VertexConsumer vc, MatrixStack.Entry e, float x0, float y0, float x1, float y1, float z, int argb, int light, int overlay) {
         front(vc, e, x0, y0, x1, y1, z, argb, light, overlay, 0, 0, 1, 1);
     }
@@ -109,8 +109,8 @@ public final class ShopRenderers {
     }
 
     /**
-     * Caja texturizada (cuboide) en coordenadas de bloque. tex = null usa blanco liso; las UV se repiten cada `tile`
-     * bloques para que el cartón no se estire.
+     * Textured box (cuboid) in block coordinates. tex = null uses plain white; UVs repeat every `tile`
+     * blocks so the cardboard does not stretch.
      */
     private static void cuboid(MatrixStack m, VertexConsumerProvider vcp, Identifier tex, float tile, float x0, float y0, float z0,
                                float x1, float y1, float z1, int argb, int light, int overlay) {
@@ -139,12 +139,12 @@ public final class ShopRenderers {
         front(vc.get(), m.peek(), -w / 2, -h / 2, w / 2, h / 2, 0, 0xFFFFFFFF, light, overlay);
     }
 
-    /** Carta dibujada exactamente como en un marco (modo FIXED), centrada y de `h` bloques de alto. */
+    /** Card drawn exactly as in an item frame (FIXED mode), centered and `h` blocks tall. */
     public static void frameCard(ItemStack st, MatrixStack m, VertexConsumerProvider vcp, int light, int overlay, float h) {
         MinecraftClient mc = MinecraftClient.getInstance();
         float k = h / FRAME_CARD_H;
         m.push();
-        m.translate(0, -0.025f * k, 0.025f * k); // el modelo card_template deja la carta 0,025 arriba y delante del centro
+        m.translate(0, -0.025f * k, 0.025f * k); // the card_template model puts the card 0.025 above and in front of the center
         m.scale(k, k, k);
         mc.getItemRenderer().renderItem(st, ModelTransformationMode.FIXED, light, OverlayTexture.DEFAULT_UV, m, vcp, mc.world, 0);
         m.pop();
@@ -180,9 +180,9 @@ public final class ShopRenderers {
         m.pop();
     }
 
-    // ------------------------------------------------------------------ caja de sobres
+    // ------------------------------------------------------------------ booster box
 
-    /** Estado de animación de una caja: tapa (0 cerrada .. 1 abierta), sobres saliendo (0..1), plástico (1 = intacto). */
+    /** Animation state of a box: lid (0 closed .. 1 open), packs coming out (0..1), plastic wrap (1 = intact). */
     public record BoxAnim(float lid, float packs, float wrap, float shake, float time) {
         public static final BoxAnim SEALED = new BoxAnim(0, 0, 1, 0, 0);
     }
@@ -193,10 +193,10 @@ public final class ShopRenderers {
     }
 
     /**
-     * Caja de sobres de cartón (36 sobres) centrada en (0.5, 0, 0.5), frontal hacia -Z. Bandeja impresa con el color
-     * del set, tapa que sobresale con sus pliegues, canto de cartón ondulado, solapa con muesca, arte del sobre
-     * enmarcado al frente y arriba, nombre del set, faja dorada "36 SOBRES", plástico retráctil con brillo animado y,
-     * al abrirse, la tapa gira sobre la bisagra trasera y se ven (y salen) los sobres de dentro.
+     * Cardboard booster box (36 packs) centered at (0.5, 0, 0.5), front facing -Z. Tray printed in the set's
+     * color, overhanging lid with its folds, corrugated cardboard edge, notched flap, framed pack art
+     * on the front and top, set name, gold "36 SOBRES" band, shrink wrap with an animated shine and,
+     * when opening, the lid swings on the back hinge and the packs inside become visible (and fly out).
      */
     public static void drawBox(MatrixStack m, VertexConsumerProvider vcp, int light, int overlay, String set, float w, float h, float d, BoxAnim a) {
         float x0 = 0.5f - w / 2, x1 = 0.5f + w / 2, z0 = 0.5f - d / 2, z1 = 0.5f + d / 2;
@@ -212,7 +212,7 @@ public final class ShopRenderers {
         }
         MatrixStack.Entry e = m.peek();
 
-        // --- bandeja (cuerpo): cartón por dentro y por debajo, impresa por fuera
+        // --- tray (body): cardboard inside and underneath, printed outside
         cuboid(m, vcp, CARDBOARD, tile, x0, 0, z0, x1, 0.004f, z1, 0xFFFFFFFF, light, overlay); // base
         java.util.function.Supplier<VertexConsumer> print = () -> vcp.getBuffer(RenderLayer.getEntityCutout(PRINT));
         float bw = (x1 - x0) / tile, bh = lidY / tile, bd = (z1 - z0) / tile;
@@ -220,34 +220,34 @@ public final class ShopRenderers {
         quad(print.get(), e, x0, 0, z1, x0, lidY, z1, x1, lidY, z1, x1, 0, z1, 0, 0, 1, dark, light, overlay, 0, 0, bw, bh);
         quad(print.get(), e, x0, 0, z0, x0, lidY, z0, x0, lidY, z1, x0, 0, z1, -1, 0, 0, shade(col, 0.85f), light, overlay, 0, 0, bd, bh);
         quad(print.get(), e, x1, 0, z1, x1, lidY, z1, x1, lidY, z0, x1, 0, z0, 1, 0, 0, shade(col, 0.85f), light, overlay, 0, 0, bd, bh);
-        // pliegues verticales de las esquinas (cartón doblado)
+        // vertical corner folds (folded cardboard)
         java.util.function.Supplier<VertexConsumer> solid = () -> vcp.getBuffer(RenderLayer.getEntityCutout(WHITE));
         float fold = w * 0.035f;
         int crease = shade(col, 0.72f);
         front(solid.get(), e, x0, 0.01f, x0 + fold * 0.18f, lidY - 0.01f, z0 - 0.0008f, crease, light, overlay);
         front(solid.get(), e, x1 - fold * 0.18f, 0.01f, x1, lidY - 0.01f, z0 - 0.0008f, crease, light, overlay);
-        // faja dorada inferior con "36 SOBRES"
+        // lower gold band with "36 SOBRES"
         float bandY0 = h * 0.06f, bandY1 = h * 0.17f;
         front(solid.get(), e, x0 + 0.002f, bandY0, x1 - 0.002f, bandY1, z0 - 0.001f, 0xFFE8B730, light, overlay);
         front(solid.get(), e, x0 + 0.002f, bandY1, x1 - 0.002f, bandY1 + h * 0.012f, z0 - 0.001f, 0xFFFFF0B0, light, overlay);
-        // arte del sobre enmarcado en el frontal de la bandeja (marco blanco + sombra)
+        // framed pack art on the front of the tray (white frame + shadow)
         float artH = lidY - bandY1 - h * 0.08f, artW = Math.min(artH * 0.78f, w * 0.5f);
         float ax0 = 0.5f - artW / 2, ay0 = bandY1 + h * 0.035f;
         front(solid.get(), e, ax0 - 0.012f, ay0 - 0.012f, ax0 + artW + 0.012f, ay0 + artH + 0.012f, z0 - 0.0015f, 0xFFF8F8F8, light, overlay);
         front(solid.get(), e, ax0 - 0.006f + 0.008f, ay0 - 0.02f, ax0 + artW + 0.02f, ay0 + artH - 0.004f, z0 - 0.0012f, shade(col, 0.45f), light, overlay);
         java.util.function.Supplier<VertexConsumer> art = () -> vcp.getBuffer(RenderLayer.getEntityCutout(packTextureForSet(set)));
         front(art.get(), e, ax0, ay0, ax0 + artW, ay0 + artH, z0 - 0.002f, 0xFFFFFFFF, light, overlay, 0, 0.06f, 1, 0.94f);
-        // franjas de color a los lados del arte
+        // color stripes beside the art
         front(solid.get(), e, x0 + w * 0.06f, ay0, x0 + w * 0.09f, ay0 + artH, z0 - 0.0015f, light2, light, overlay);
         front(solid.get(), e, x1 - w * 0.09f, ay0, x1 - w * 0.06f, ay0 + artH, z0 - 0.0015f, light2, light, overlay);
-        // laterales: arte pequeño
+        // sides: small art
         float sa = Math.min(d * 0.55f, lidY * 0.6f);
         quad(art.get(), e, x1 + 0.0015f, lidY * 0.25f, 0.5f + sa * 0.39f, x1 + 0.0015f, lidY * 0.25f + sa, 0.5f + sa * 0.39f,
                 x1 + 0.0015f, lidY * 0.25f + sa, 0.5f - sa * 0.39f, x1 + 0.0015f, lidY * 0.25f, 0.5f - sa * 0.39f, 1, 0, 0, 0xFFEEEEEE, light, overlay, 0, 0, 1, 1);
         quad(art.get(), e, x0 - 0.0015f, lidY * 0.25f, 0.5f - sa * 0.39f, x0 - 0.0015f, lidY * 0.25f + sa, 0.5f - sa * 0.39f,
                 x0 - 0.0015f, lidY * 0.25f + sa, 0.5f + sa * 0.39f, x0 - 0.0015f, lidY * 0.25f, 0.5f + sa * 0.39f, -1, 0, 0, 0xFFEEEEEE, light, overlay, 0, 0, 1, 1);
 
-        // --- interior (visible al abrir)
+        // --- interior (visible when open)
         if (a.lid > 0.02f) {
             float in = 0.012f;
             java.util.function.Supplier<VertexConsumer> cb = () -> vcp.getBuffer(RenderLayer.getEntityCutoutNoCull(CARDBOARD));
@@ -256,7 +256,7 @@ public final class ShopRenderers {
             quad(cb.get(), e, x1 - in, 0.01f, z1 - in, x1 - in, lidY, z1 - in, x0 + in, lidY, z1 - in, x0 + in, 0.01f, z1 - in, 0, 0, -1, shade(inner, 0.8f), light, overlay, 0, 0, bw, bh);
             quad(cb.get(), e, x0 + in, 0.01f, z1 - in, x0 + in, lidY, z1 - in, x0 + in, lidY, z0 + in, x0 + in, 0.01f, z0 + in, 1, 0, 0, shade(inner, 0.9f), light, overlay, 0, 0, bd, bh);
             quad(cb.get(), e, x1 - in, 0.01f, z0 + in, x1 - in, lidY, z0 + in, x1 - in, lidY, z1 - in, x1 - in, 0.01f, z1 - in, -1, 0, 0, shade(inner, 0.9f), light, overlay, 0, 0, bd, bh);
-            // tres filas de sobres de pie (se ven los bordes sellados)
+            // three rows of standing packs (the sealed edges show)
             Identifier ptex = packTextureForSet(set);
             java.util.function.Supplier<VertexConsumer> pv = () -> vcp.getBuffer(RenderLayer.getEntityCutoutNoCull(ptex));
             int perRow = 12;
@@ -274,18 +274,18 @@ public final class ShopRenderers {
             }
         }
 
-        // --- tapa (gira sobre la bisagra trasera)
+        // --- lid (swings on the back hinge)
         m.push();
         if (a.lid > 0) {
             float ang = (float) Draw.easeOutCubic(a.lid) * 112f;
             m.translate(0, h, z1 + ov);
-            m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(ang)); // el frente (z0) sube y gira hacia atrás sobre la bisagra trasera
+            m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(ang)); // the front (z0) rises and swings back on the back hinge
             m.translate(0, -h, -(z1 + ov));
         }
         drawLid(m, vcp, light, overlay, set, x0 - ov, lidY - h * 0.02f, z0 - ov, x1 + ov, h, z1 + ov, col, dark, tile);
         m.pop();
 
-        // --- plástico retráctil con un brillo que recorre la caja
+        // --- shrink wrap with a shine sweeping across the box
         if (a.wrap > 0.01f && a.lid < 0.05f) {
             java.util.function.Supplier<VertexConsumer> wv = () -> vcp.getBuffer(RenderLayer.getEntityTranslucent(WRAP));
             int wa = (int) (255 * a.wrap) << 24 | 0xFFFFFF;
@@ -299,7 +299,7 @@ public final class ShopRenderers {
             quad(wv.get(), we, wx0, wy, wz0, wx0, wy, wz1, wx1, wy, wz1, wx1, wy, wz0, 0, 1, 0, wa, light, overlay, sweep, 0, sweep + 1.4f, 0.8f);
         }
 
-        // --- textos: "36 SOBRES" en la faja y el nombre del set en los laterales de la tapa
+        // --- texts: "36 SOBRES" on the band and the set name on the sides of the lid
         TextRenderer tr = MinecraftClient.getInstance().textRenderer;
         if (a.lid < 0.05f) {
             Text name = Text.translatable("masterball.set." + set).formatted(Formatting.BOLD);
@@ -326,7 +326,7 @@ public final class ShopRenderers {
                 0xFF3A2A00, 0, light);
         m.pop();
 
-        // --- sobres saliendo volando
+        // --- packs flying out
         if (a.packs > 0) {
             Identifier ptex = packTextureForSet(set);
             for (int i = 0; i < 8; i++) {
@@ -358,17 +358,17 @@ public final class ShopRenderers {
         quad(print.get(), e, x0, y0, z0, x0, y1, z0, x0, y1, z1, x0, y0, z1, -1, 0, 0, shade(side, 0.88f), light, overlay, 0, 0, d, hgt);
         quad(print.get(), e, x1, y0, z1, x1, y1, z1, x1, y1, z0, x1, y0, z0, 1, 0, 0, shade(side, 0.88f), light, overlay, 0, 0, d, hgt);
         quad(print.get(), e, x0, y1, z0, x0, y1, z1, x1, y1, z1, x1, y1, z0, 0, 1, 0, col, light, overlay, 0, 0, w, d);
-        // por dentro: cartón (se ve al abrir)
+        // inside: cardboard (visible when open)
         java.util.function.Supplier<VertexConsumer> cb = () -> vcp.getBuffer(RenderLayer.getEntityCutout(CARDBOARD));
         float yi = y1 - 0.004f;
         quad(cb.get(), e, x0, yi, z1, x0, yi, z0, x1, yi, z0, x1, yi, z1, 0, -1, 0, 0xFFB89268, light, overlay, 0, 0, w, d);
-        // canto de cartón ondulado en el borde inferior de la tapa
+        // corrugated cardboard edge on the lower rim of the lid
         java.util.function.Supplier<VertexConsumer> edge = () -> vcp.getBuffer(RenderLayer.getEntityCutout(CARDBOARD_EDGE));
         float eh = (y1 - y0) * 0.14f;
         front(edge.get(), e, x0, y0, x1, y0 + eh, z0 - 0.0008f, 0xFFFFFFFF, light, overlay, 0, 0, (x1 - x0) / 0.08f, 1);
         quad(edge.get(), e, x0 - 0.0008f, y0, z0, x0 - 0.0008f, y0 + eh, z0, x0 - 0.0008f, y0 + eh, z1, x0 - 0.0008f, y0, z1, -1, 0, 0, 0xFFE0E0E0, light, overlay, 0, 0, (z1 - z0) / 0.08f, 1);
         quad(edge.get(), e, x1 + 0.0008f, y0, z1, x1 + 0.0008f, y0 + eh, z1, x1 + 0.0008f, y0 + eh, z0, x1 + 0.0008f, y0, z0, 1, 0, 0, 0xFFE0E0E0, light, overlay, 0, 0, (z1 - z0) / 0.08f, 1);
-        // pliegues de la tapa: líneas de doblez a lo largo de los bordes de arriba
+        // lid folds: crease lines along the top edges
         java.util.function.Supplier<VertexConsumer> solid = () -> vcp.getBuffer(RenderLayer.getEntityCutout(WHITE));
         float yt = y1 + 0.0009f, inset = (x1 - x0) * 0.035f, lw = 0.0035f;
         int crease = shade(col, 0.7f);
@@ -376,11 +376,11 @@ public final class ShopRenderers {
         quad(solid.get(), e, x0 + inset, yt, z1 - inset - lw, x0 + inset, yt, z1 - inset, x1 - inset, yt, z1 - inset, x1 - inset, yt, z1 - inset - lw, 0, 1, 0, crease, light, overlay, 0, 0, 1, 1);
         quad(solid.get(), e, x0 + inset, yt, z0 + inset, x0 + inset, yt, z1 - inset, x0 + inset + lw, yt, z1 - inset, x0 + inset + lw, yt, z0 + inset, 0, 1, 0, crease, light, overlay, 0, 0, 1, 1);
         quad(solid.get(), e, x1 - inset - lw, yt, z0 + inset, x1 - inset - lw, yt, z1 - inset, x1 - inset, yt, z1 - inset, x1 - inset, yt, z0 + inset, 0, 1, 0, crease, light, overlay, 0, 0, 1, 1);
-        // muesca para el dedo en la solapa frontal
+        // finger notch on the front flap
         float nw = (x1 - x0) * 0.12f;
         front(solid.get(), e, 0.5f - nw / 2, y0, 0.5f + nw / 2, y0 + (y1 - y0) * 0.38f, z0 - 0.0012f, shade(col, 0.4f), light, overlay);
         front(solid.get(), e, 0.5f - nw / 2 + 0.006f, y0 + (y1 - y0) * 0.38f, 0.5f + nw / 2 - 0.006f, y0 + (y1 - y0) * 0.46f, z0 - 0.0012f, shade(col, 0.4f), light, overlay);
-        // arte del sobre en la tapa (con marco blanco) y bandas de color
+        // pack art on the lid (with white frame) and color bands
         java.util.function.Supplier<VertexConsumer> art = () -> vcp.getBuffer(RenderLayer.getEntityCutout(packTextureForSet(set)));
         float ty = y1 + 0.0018f, ad = (z1 - z0) * 0.62f, aw = Math.min((x1 - x0) * 0.42f, ad * 1.3f);
         float acx = 0.5f, acz = (z0 + z1) / 2;
@@ -398,13 +398,13 @@ public final class ShopRenderers {
         m.push();
         m.translate(-size / 2, -size / 2, -size / 2);
         cuboid(m, vcp, 0, 0, 0, size, size, size, 0xFF5B2A86, light, overlay);
-        cuboid(m, vcp, size * 0.42f, -0.002f, -0.004f, size * 0.58f, size + 0.004f, size + 0.004f, 0xFFF2C230, light, overlay); // lazo
+        cuboid(m, vcp, size * 0.42f, -0.002f, -0.004f, size * 0.58f, size + 0.004f, size + 0.004f, 0xFFF2C230, light, overlay); // ribbon
         java.util.function.Supplier<VertexConsumer> vc = () -> vcp.getBuffer(RenderLayer.getEntityCutout(MYSTERY));
         front(vc.get(), m.peek(), size * 0.1f, size * 0.15f, size * 0.9f, size * 0.85f, -0.006f, 0xFFFFFFFF, light, overlay);
         m.pop();
     }
 
-    /** Un producto centrado en el origen, de `size` bloques de alto, mirando a -Z. */
+    /** A product centered at the origin, `size` blocks tall, facing -Z. */
     public static void product(ItemStack st, MatrixStack m, VertexConsumerProvider vcp, int light, int overlay, float size) {
         if (CardInfo.isCard(st)) {
             frameCard(st, m, vcp, light, overlay, size);
@@ -434,7 +434,7 @@ public final class ShopRenderers {
         return CardInfo.isCard(st) ? size * Draw.CARD_RATIO : CardInfo.isPack(st) ? size * Draw.PACK_RATIO : size;
     }
 
-    // ------------------------------------------------------------------ expositores
+    // ------------------------------------------------------------------ displays
 
     public static class DisplayRenderer implements BlockEntityRenderer<ShopDisplayBlockEntity> {
         public DisplayRenderer(BlockEntityRendererFactory.Context ctx) {}
@@ -461,7 +461,7 @@ public final class ShopRenderers {
             }
             float time = (be.getWorld() == null ? 0 : be.getWorld().getTime()) + tickDelta;
             SlotAnim anim = SlotAnim.of(be, time);
-            // ¿llevas un producto en la mano y puedes colocarlo aquí? -> huecos marcados y vista previa
+            // holding a product and allowed to place it here? -> marked slots and preview
             ItemStack held = mc.player == null ? ItemStack.EMPTY : mc.player.getMainHandStack();
             boolean canPlace = !held.isEmpty() && ShopServer.isProduct(held) && mc.player != null && mayPlace(be, mc.player.getUuid(), master);
             m.push();
@@ -484,7 +484,7 @@ public final class ShopRenderers {
                 boolean restock = canPlace && hover && ItemStack.areItemsAndComponentsEqual(st, held) && st.getCount() < st.getMaxCount();
                 m.push();
                 if (kind.layout == DisplayKind.Layout.BOXES) {
-                    // caja apoyada por su base
+                    // box resting on its base
                     float bw = (float) s.size(), bh = bw * 0.62f, bd = bw * 0.8f;
                     float k0 = (0.6f + 0.4f * ease) * be.lookScale(i);
                     m.translate(s.x(), s.y() + (hover ? 0.03 : 0) + drop, s.z());
@@ -494,7 +494,7 @@ public final class ShopRenderers {
                     m.scale(bw, bw, bw);
                     if (st.isOf(TcgBlocks.BOOSTER_BOX_ITEM)) {
                         String set = st.getOrDefault(TcgBlocks.BOX_SET, "mew151");
-                        // más de una caja: se apilan detrás, un poco desplazadas
+                        // more than one box: stacked behind, slightly offset
                         for (int k = Math.min(st.getCount(), 3) - 1; k >= 1; k--) {
                             m.push();
                             m.translate(0.04f * k, 0, 0.16f * k);
@@ -521,19 +521,19 @@ public final class ShopRenderers {
                     m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(time * 1.5f));
                 } else if (pa < 1) m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((1 - ease) * 35f));
                 m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(s.tilt()));
-                if (be.hasLook(i)) { // tamaño y giro elegidos por el dueño (menú Editar)
+                if (be.hasLook(i)) { // size and rotation chosen by the owner (Edit menu)
                     m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(be.lookRot(i, 1)));
                     m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(be.lookRot(i, 0)));
                     m.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(be.lookRot(i, 2)));
                 }
-                // un toque de desorden natural: cada producto un pelín girado (fijo por casilla)
+                // a touch of natural messiness: each product slightly rotated (fixed per slot)
                 if (!s.spin() && kind != DisplayKind.FRAME && kind != DisplayKind.CARD_WALL) {
                     float j = jitter(master, i);
                     m.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(j * (CardInfo.isPack(st) ? 2.6f : 0.9f)));
                 }
                 int grade = dev.tcgshop.grading.Grading.grade(st);
                 if (CardInfo.isCard(st) && grade == 0) {
-                    // sin gradear: estuche transparente (las gradeadas traen su funda desde ItemRendererMixin)
+                    // ungraded: clear case (graded ones bring their slab from ItemRendererMixin)
                     slab(m, vcp, st, size, sl, overlay, 0);
                     if (kind != DisplayKind.CARD_WALL && kind != DisplayKind.FRAME && !s.spin()) standFoot(m, vcp, size, sl, overlay);
                 } else if (CardInfo.isCard(st) && kind != DisplayKind.FRAME && !s.spin() && kind != DisplayKind.CARD_WALL) standFoot(m, vcp, size * 1.05f, sl, overlay);
@@ -545,7 +545,7 @@ public final class ShopRenderers {
                     m.pop();
                     m.translate(0, 0, -0.03);
                 }
-                if (!hover && CardInfo.isCard(st)) { // vitrina premium: las cartas raras brillan suavemente
+                if (!hover && CardInfo.isCard(st)) { // premium showcase: rare cards glow softly
                     Rarity rr = Rarity.of(st);
                     if (rr.tier >= 2) {
                         m.push();
@@ -564,7 +564,7 @@ public final class ShopRenderers {
                 }
                 m.pop();
                 if (pa < 1) sparkle(m, vcp, s.x(), s.y(), s.face() < 0 ? s.z() + 0.06 : s.z() - 0.06, (float) s.size(), pa, time);
-                // etiqueta de precio
+                // price tag
                 ItemStack rs = restock ? held : null;
                 if (kind.layout == DisplayKind.Layout.SPIN) {
                     if (hover) priceTag(m, vcp, be, i, st, 0, 0, 0, 0, true, s.y() + s.size() / 2 + 0.25, s.x(), s.z() - 0.6, sl, rs);
@@ -578,7 +578,7 @@ public final class ShopRenderers {
                             s.y() + s.size() / 2 + 0.2, s.x(), s.face() < 0 ? s.z() + 0.45 : s.z() - 0.45, sl, rs);
                 }
             }
-            // haz de luz del pedestal
+            // pedestal light beam
             if (kind == DisplayKind.PEDESTAL && !be.getStack(0).isEmpty()) {
                 java.util.function.Supplier<VertexConsumer> beam = () -> vcp.getBuffer(RenderLayer.getEntityTranslucentEmissive(WHITE));
                 float a = 0.16f + 0.06f * (float) Math.sin(time * 0.1);
@@ -596,7 +596,7 @@ public final class ShopRenderers {
             m.pop();
         }
 
-        /** Luz del bloque donde está el producto (en muebles altos cada balda tiene la suya). */
+        /** Light of the block the product is in (on tall furniture each shelf has its own). */
         private static int slotLight(ShopDisplayBlockEntity be, DisplayKind kind, Direction facing, DisplayKind.Slot s, int fallback) {
             if (be.getWorld() == null) return fallback;
             Vec3d rel = DisplayKind.toWorld(facing, new Vec3d(s.x(), s.y(), s.face() < 0 ? s.z() + 0.3 : s.z() - 0.3));
@@ -606,9 +606,9 @@ public final class ShopRenderers {
         }
 
         /**
-         * Estuche de la carta, centrado en la carta (que mide `size` de alto en z = 0 y mira a -Z). Sin capas transparentes
-         * por delante de la carta (cortaban la imagen): placa trasera, cantos de metacrilato en relieve alrededor de la
-         * ventana y, si está gradeada, la etiqueta de CobbleGrade (marca, nombre, calificación, certificado y nota grande).
+         * Card case, centered on the card (which is `size` tall at z = 0 and faces -Z). No transparent layers
+         * in front of the card (they clipped the image): back plate, raised acrylic edges around the
+         * window and, if graded, the CobbleGrade label (brand, name, grade, certificate and big score).
          */
         public static void slab(MatrixStack m, VertexConsumerProvider vcp, ItemStack st, float size, int light, int overlay, int grade) {
             float cw = size * Draw.CARD_RATIO, ch = size;
@@ -617,15 +617,15 @@ public final class ShopRenderers {
             float winTop = ch / 2, labelY0 = winTop + gap, labelY1 = labelY0 + labelH, y1 = (grade > 0 ? labelY1 : winTop) + side;
             float t = size * (grade > 0 ? 0.045f : 0.03f), zb = size * 0.012f;
             int rail = grade > 0 ? 0xFFDCE5F0 : 0xFFE4ECF5, back = grade > 0 ? 0xFFC9D5E3 : 0xFFD5DFEA, bevel = 0xFF9FB2C8;
-            // placa trasera
+            // back plate
             cuboid(m, vcp, x0, y0, zb, x1, y1, zb + t * 0.6f, back, light, overlay);
-            // cantos alrededor de la ventana de la carta (no tapan la carta)
+            // edges around the card window (they do not cover the card)
             float wx0 = -cw / 2 - size * 0.006f, wx1 = cw / 2 + size * 0.006f, wy0 = -ch / 2 - size * 0.006f, wy1 = winTop + size * 0.006f;
             cuboid(m, vcp, x0, y0, -t, wx0, y1, zb, rail, light, overlay);
             cuboid(m, vcp, wx1, y0, -t, x1, y1, zb, rail, light, overlay);
             cuboid(m, vcp, wx0, y0, -t, wx1, wy0, zb, rail, light, overlay);
             cuboid(m, vcp, wx0, wy1, -t, wx1, y1, zb, rail, light, overlay);
-            // bisel oscuro del borde de la ventana
+            // dark bevel on the window edge
             MatrixStack.Entry e = m.peek();
             java.util.function.Supplier<VertexConsumer> solid = () -> vcp.getBuffer(RenderLayer.getEntityCutout(WHITE));
             float zf = -t - 0.0006f, bw = size * 0.008f;
@@ -633,18 +633,18 @@ public final class ShopRenderers {
             front(solid.get(), e, wx0 - bw, wy1, wx1 + bw, wy1 + bw, zf, bevel, light, overlay);
             front(solid.get(), e, wx0 - bw, wy0, wx0, wy1, zf, bevel, light, overlay);
             front(solid.get(), e, wx1, wy0, wx1 + bw, wy1, zf, bevel, light, overlay);
-            // brillo del metacrilato: línea clara en el canto superior izquierdo
+            // acrylic shine: light line on the top-left edge
             front(solid.get(), e, x0 + side * 0.25f, y1 - side * 0.45f, x1 - side * 0.25f, y1 - side * 0.3f, zf, 0xFFFFFFFF, light, overlay);
             front(solid.get(), e, x1 - side * 0.45f, y0 + side * 0.3f, x1 - side * 0.3f, y1 - side * 0.3f, zf, 0xFFFFFFFF, light, overlay);
             if (grade <= 0) return;
-            // etiqueta
+            // label
             int col = dev.tcgshop.grading.Grading.color(grade) | 0xFF000000;
             float lx0 = wx0, lx1 = wx1, lh = labelY1 - labelY0, zl = zf - 0.0006f;
             front(solid.get(), e, lx0, labelY0, lx1, labelY1, zl, 0xFFFAFAF7, light, overlay);
             front(solid.get(), e, lx0, labelY1 - lh * 0.16f, lx1, labelY1, zl - 0.0004f, col, light, overlay);
             front(solid.get(), e, lx0, labelY0, lx1, labelY0 + lh * 0.05f, zl - 0.0004f, col, light, overlay);
             float boxW = (lx1 - lx0) * 0.27f;
-            // +x es la izquierda del espectador: textos a la izquierda, nota a la derecha (como una funda real)
+            // +x is the viewer's left: texts on the left, score on the right (like a real slab)
             front(solid.get(), e, lx0 + lh * 0.06f, labelY0 + lh * 0.1f, lx0 + boxW, labelY1 - lh * 0.22f, zl - 0.0004f, col, light, overlay);
             float textW = (lx1 - lx0) - boxW - lh * 0.15f, tcx = -(lx1 - lh * 0.08f - textW / 2);
             TextRenderer tr = MinecraftClient.getInstance().textRenderer;
@@ -662,7 +662,7 @@ public final class ShopRenderers {
             labelText(m, vcp, num, bcx, labelY0 + lh * 0.1f + bh * 0.2f, zl - 0.0008f, Math.min(bh * 0.62f / 8f, (boxW * 0.85f) / Math.max(1, tr.getWidth(num))), 0xFFFFFFFF, light);
         }
 
-        /** Texto de la etiqueta centrado en (x, y) del espacio de la funda (base del texto en y), mirando a -Z. */
+        /** Label text centered at (x, y) in slab space (text baseline at y), facing -Z. */
         private static void labelText(MatrixStack m, VertexConsumerProvider vcp, Text t, float x, float y, float z, float scale, int color, int light) {
             m.push();
             m.translate(x, y + scale * 8f, z);
@@ -670,7 +670,7 @@ public final class ShopRenderers {
             m.pop();
         }
 
-        /** Peana de metacrilato bajo la carta (expositores verticales). */
+        /** Acrylic stand under the card (vertical displays). */
         private static void standFoot(MatrixStack m, VertexConsumerProvider vcp, float size, int light, int overlay) {
             float cw = size * Draw.CARD_RATIO, y = -size / 2 - size * 0.045f;
             cuboid(m, vcp, -cw * 0.42f, y - size * 0.05f, -size * 0.07f, cw * 0.42f, y, size * 0.09f, 0xFFE9F0F8, light, overlay);
@@ -682,9 +682,9 @@ public final class ShopRenderers {
             return (r << 16) | (g << 8) | b;
         }
 
-        // ------------------------------------------------------------------ colocación: animación, huecos y vista previa
+        // ------------------------------------------------------------------ placement: animation, slots and preview
 
-        /** Recuerda qué había en cada casilla para animar lo que se acaba de colocar o reponer (sólo en el cliente). */
+        /** Remembers what was in each slot to animate what was just placed or restocked (client only). */
         private static final class SlotAnim {
             private static final java.util.Map<ShopDisplayBlockEntity, SlotAnim> ALL = new java.util.WeakHashMap<>();
             ItemStack[] last;
@@ -701,7 +701,7 @@ public final class ShopRenderers {
                     java.util.Arrays.fill(a.placedAt, -1000);
                     java.util.Arrays.fill(a.bumpAt, -1000);
                     for (int i = 0; i < n; i++) a.last[i] = be.getStack(i).copy();
-                    return a; // al cargar el mundo no se anima nada
+                    return a; // nothing is animated when the world loads
                 }
                 for (int i = 0; i < n; i++) {
                     ItemStack now = be.getStack(i), was = a.last[i];
@@ -717,26 +717,26 @@ public final class ShopRenderers {
                 return a;
             }
 
-            /** 0 recién colocado .. 1 asentado (9 ticks). */
+            /** 0 just placed .. 1 settled (9 ticks). */
             float progress(int i, float time) {
                 return MathHelper.clamp((time - placedAt[i]) / 9f, 0, 1);
             }
 
-            /** Pequeño salto al reponer (1 .. 0 en 6 ticks). */
+            /** Small hop when restocking (1 .. 0 over 6 ticks). */
             float bump(int i, float time) {
                 float b = (time - bumpAt[i]) / 6f;
                 return b < 0 || b > 1 ? 0 : (float) Math.sin(b * Math.PI);
             }
         }
 
-        /** ¿Puede este jugador colocar productos en el mueble? (expositor de casa: su dueño; de tienda: el dueño de la tienda). */
+        /** Can this player place products on the furniture? (home display: its owner; shop display: the shop owner). */
         private static boolean mayPlace(ShopDisplayBlockEntity be, java.util.UUID me, BlockPos master) {
             if (be.isHome()) return be.owner == null || be.owner.equals(me);
             dev.tcgshop.client.ShopClient.ZoneInfo z = dev.tcgshop.client.ShopClient.zoneAt(Vec3d.ofCenter(master));
             return z != null && z.owner().equals(me);
         }
 
-        /** Giro aleatorio pero fijo de cada casilla (-1 .. 1). */
+        /** Random but fixed rotation of each slot (-1 .. 1). */
         private static float jitter(BlockPos p, int slot) {
             long h = p.asLong() * 31 + slot * 0x9E3779B97F4A7C15L;
             h ^= h >>> 29;
@@ -745,7 +745,7 @@ public final class ShopRenderers {
             return ((h & 0xFFFF) / 32767.5f) - 1f;
         }
 
-        /** Varias unidades en la misma casilla: se ven detrás (sobres en fila hacia el fondo, cartas en abanico). */
+        /** Several units in the same slot: shown behind (packs in a row toward the back, cards fanned out). */
         private static void stackBehind(ItemStack st, MatrixStack m, VertexConsumerProvider vcp, int light, int overlay, float size, boolean lying) {
             int extra = Math.min(st.getCount() - 1, CardInfo.isPack(st) ? 5 : 3);
             if (extra <= 0) return;
@@ -765,7 +765,7 @@ public final class ShopRenderers {
             }
         }
 
-        /** Destello blanco que se apaga al terminar de colocar el producto. */
+        /** White flash that fades out when the product finishes being placed. */
         private static void flash(MatrixStack m, VertexConsumerProvider vcp, float w, float h, float p) {
             float a = (1 - p) * 0.55f;
             if (a <= 0.01f) return;
@@ -773,7 +773,7 @@ public final class ShopRenderers {
             front(vc, m.peek(), -w / 2, -h / 2, w / 2, h / 2, 0, ((int) (a * 255) << 24) | 0xFFFFFF, FULL, OverlayTexture.DEFAULT_UV);
         }
 
-        /** Chispas doradas que salen del producto al colocarlo. */
+        /** Gold sparks that come out of the product when it is placed. */
         private static void sparkle(MatrixStack m, VertexConsumerProvider vcp, double x, double y, double z, float size, float p, float time) {
             VertexConsumer vc = vcp.getBuffer(RenderLayer.getEntityTranslucentEmissive(WHITE));
             float a = 1 - p;
@@ -792,8 +792,8 @@ public final class ShopRenderers {
         }
 
         /**
-         * Hueco libre mientras llevas un producto: esquinas marcadas y, en el hueco apuntado, una vista previa
-         * translúcida del producto con su precio sugerido.
+         * Free slot while holding a product: marked corners and, on the targeted slot, a translucent
+         * preview of the product with its suggested price.
          */
         private static void placeHint(MatrixStack m, VertexConsumerProvider vcp, DisplayKind kind, DisplayKind.Slot s, ItemStack held,
                                       boolean hover, float time, ShopDisplayBlockEntity be, int slot) {
@@ -815,7 +815,7 @@ public final class ShopRenderers {
             int a = (int) ((hover ? 0.75f : 0.22f + 0.12f * pulse) * 255);
             float cl = Math.min(w, h) * 0.28f, th = hover ? 0.014f : 0.009f;
             float x0 = -w / 2, x1 = w / 2, y0 = -h / 2, y1 = h / 2;
-            // esquinas
+            // corners
             MatrixStack.Entry e = m.peek();
             int c = (a << 24) | col;
             front(vc, e, x0, y1 - th, x0 + cl, y1, 0, c, FULL, OverlayTexture.DEFAULT_UV);
@@ -826,10 +826,10 @@ public final class ShopRenderers {
             front(vc, e, x0, y0, x0 + th, y0 + cl, 0, c, FULL, OverlayTexture.DEFAULT_UV);
             front(vc, e, x1 - cl, y0, x1, y0 + th, 0, c, FULL, OverlayTexture.DEFAULT_UV);
             front(vc, e, x1 - th, y0, x1, y0 + cl, 0, c, FULL, OverlayTexture.DEFAULT_UV);
-            // relleno suave
+            // soft fill
             front(vc, e, x0 + th, y0 + th, x1 - th, y1 - th, 0.001f, ((int) ((hover ? 0.10f : 0.04f) * 255) << 24) | col, FULL, OverlayTexture.DEFAULT_UV);
             if (hover && !boxes) {
-                // vista previa translúcida del producto
+                // translucent product preview
                 Identifier tex = CardInfo.isPack(held) ? CardInfo.packTexture(CardInfo.id(held)) : CardInfo.isCard(held) ? CardInfo.texture(CardInfo.id(held)) : null;
                 if (tex != null && Draw.textureExists(tex)) {
                     float bob = 0.012f * (float) Math.sin(time * 0.2f);
@@ -840,7 +840,7 @@ public final class ShopRenderers {
             }
             m.pop();
             if (hover) {
-                // ayuda flotante: qué vas a colocar y a qué precio
+                // floating hint: what you are placing and at what price
                 double hx = s.x(), hy = boxes ? s.y() + size * 0.62f + 0.3 : s.y() + size / 2 + 0.22, hz = s.face() < 0 ? s.z() + 0.45 : s.z() - 0.45;
                 m.push();
                 m.translate(hx, hy, hz);
@@ -856,12 +856,12 @@ public final class ShopRenderers {
             }
         }
 
-        /** Giro del mueble actual (para deshacerlo en los textos que miran a la cámara). */
+        /** Current furniture rotation (to undo it on camera-facing texts). */
         private static float facingDeg;
 
         /**
-         * Etiqueta de precio de papel pegada al mueble (con las unidades si hay varias) o, si apuntas al producto,
-         * nombre + precio + ayuda flotando delante y siempre de cara a la cámara. Con el mismo producto en la mano: "reponer".
+         * Paper price tag stuck to the furniture (with the unit count if there are several) or, if you target the product,
+         * name + price + hint floating in front and always facing the camera. With the same product in hand: "restock".
          */
         private static void priceTag(MatrixStack m, VertexConsumerProvider vcp, ShopDisplayBlockEntity be, int i, ItemStack st,
                                      double tx, double ty, double tz, float rotY, boolean hover, double hy, double hx, double hz, int light,
@@ -880,10 +880,10 @@ public final class ShopRenderers {
                     facingText(m, vcp, Text.translatable("tcgshop.display.restock", add).formatted(Formatting.BOLD), 0.0095f, 0xFF7CFFB0, -0.115f, 0);
                 } else facingText(m, vcp, Text.translatable("tcgshop.home.hover"), 0.0075f, 0xFFB8F5B8, -0.11f, 0);
             } else if (home) {
-                // sin etiqueta de precio
+                // no price tag
             } else if (hover) {
                 m.translate(hx, hy, hz);
-                m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-facingDeg)); // vuelve a ejes del mundo
+                m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-facingDeg)); // back to world axes
                 m.multiply(mc.getEntityRenderDispatcher().getRotation());
                 Text hint = ShopServer.needsCashier(st) ? Text.translatable("tcgshop.display.hint_cashier") : Text.translatable("tcgshop.display.hint");
                 Text name = st.getCount() > 1 ? Text.literal(st.getCount() + "× ").append(st.getName()) : st.getName().copy();
@@ -898,14 +898,14 @@ public final class ShopRenderers {
             m.pop();
         }
 
-        /** Etiqueta de papel: tarjetita blanca con franja de color, precio en negro y, si hay varias unidades, "×N". */
+        /** Paper tag: small white card with a color stripe, price in black and, if there are several units, "×N". */
         private static void paperTag(MatrixStack m, VertexConsumerProvider vcp, String price, int count, int accent, int light) {
             TextRenderer tr = MinecraftClient.getInstance().textRenderer;
             float sc = 0.0052f;
             String cnt = count > 1 ? " ×" + count : "";
             float tw = (tr.getWidth(price) + (cnt.isEmpty() ? 0 : tr.getWidth(cnt))) * sc;
             float w = tw + 0.05f, h = 0.068f, y0 = -0.012f;
-            // tarjeta (ligeramente separada del mueble) con sombra
+            // card (slightly offset from the furniture) with shadow
             cuboid(m, vcp, -w / 2 + 0.004f, y0 - 0.004f, 0.0015f, w / 2 + 0.004f, y0 + h - 0.004f, 0.003f, 0xFF2A2A2A, light, OverlayTexture.DEFAULT_UV);
             cuboid(m, vcp, -w / 2, y0, -0.002f, w / 2, y0 + h, 0.0015f, 0xFFF8F5EC, light, OverlayTexture.DEFAULT_UV);
             VertexConsumer vc = vcp.getBuffer(RenderLayer.getEntityCutout(WHITE));
@@ -920,7 +920,7 @@ public final class ShopRenderers {
             m.pop();
         }
 
-        /** Texto centrado que mira a la cámara (como los nombres de las entidades), visible a través de los bloques. */
+        /** Centered camera-facing text (like entity names), visible through blocks. */
         private static void facingText(MatrixStack m, VertexConsumerProvider vcp, Text t, float scale, int color, float dy, int unused) {
             TextRenderer tr = MinecraftClient.getInstance().textRenderer;
             m.push();
@@ -934,7 +934,7 @@ public final class ShopRenderers {
         }
     }
 
-    // ------------------------------------------------------------------ caja de sobres (bloque)
+    // ------------------------------------------------------------------ booster box (block)
 
     public static class BoxRenderer implements BlockEntityRenderer<BoosterBox.BoxEntity> {
         public BoxRenderer(BlockEntityRendererFactory.Context ctx) {}
@@ -958,7 +958,7 @@ public final class ShopRenderers {
         }
     }
 
-    // ------------------------------------------------------------------ decoración animada
+    // ------------------------------------------------------------------ animated decoration
 
     public static class DecorRenderer implements BlockEntityRenderer<DecorBlocks.DecorEntity> {
         public DecorRenderer(BlockEntityRendererFactory.Context ctx) {}
@@ -986,7 +986,7 @@ public final class ShopRenderers {
         }
 
         private void table(DecorBlocks.DecorEntity be, MatrixStack m, VertexConsumerProvider vcp, int light, int overlay, float since) {
-            if (be.board.size() == 8) { // partida en curso: Activo grande y Banca de cada jugador
+            if (be.board.size() == 8) { // match in progress: large Active and each player's Bench
                 for (int side = 0; side < 2; side++) {
                     for (int k = 0; k < 4; k++) {
                         String id = be.board.get(side * 4 + k);
@@ -1017,7 +1017,7 @@ public final class ShopRenderers {
                 frameCard(cards.get(i), m, vcp, light, overlay, 0.22f);
                 m.pop();
             }
-            // mazos
+            // decks
             cuboid(m, vcp, 0.06f, 0.815f, 0.12f, 0.16f, 0.86f, 0.26f, 0xFF22408F, light, overlay);
             cuboid(m, vcp, 0.84f, 0.815f, 0.74f, 0.94f, 0.86f, 0.88f, 0xFF8F2222, light, overlay);
         }
@@ -1038,7 +1038,7 @@ public final class ShopRenderers {
         private void register(MatrixStack m, VertexConsumerProvider vcp, int light, int overlay, float since, float now) {
             float open = since < 8 ? since / 8f : since < 30 ? 1 : since < 38 ? 1 - (since - 30) / 8f : 0;
             float dz = open * 0.22f;
-            cuboid(m, vcp, 0.16f, 0.02f, 0.2f - dz, 0.84f, 0.16f, 0.62f - dz, 0xFF3A3F4A, light, overlay); // cajón
+            cuboid(m, vcp, 0.16f, 0.02f, 0.2f - dz, 0.84f, 0.16f, 0.62f - dz, 0xFF3A3F4A, light, overlay); // drawer
             if (open > 0.3f) {
                 for (int i = 0; i < 4; i++) cuboid(m, vcp, 0.24f + i * 0.14f, 0.16f, 0.26f - dz, 0.34f + i * 0.14f, 0.18f, 0.36f - dz,
                         i % 2 == 0 ? 0xFFF2C230 : 0xFFD8D8D8, light, overlay);
@@ -1055,7 +1055,7 @@ public final class ShopRenderers {
             int idx = 0;
             for (int i = 0; i < Roulette.WHEEL.length; i++) if (Roulette.WHEEL[i] == be.value) idx = i;
             float sector = 360f / 37;
-            float target = 360 * 6 + 270 - idx * sector; // el número ganador acaba frente al puntero (norte)
+            float target = 360 * 6 + 270 - idx * sector; // the winning number ends up in front of the pointer (north)
             float p = MathHelper.clamp(since / 100f, 0, 1);
             float ease = 1 - (float) Math.pow(1 - p, 3);
             float angle = be.value < 0 ? now * 0.5f : target * ease;
@@ -1072,12 +1072,12 @@ public final class ShopRenderers {
                 float c0 = (float) Math.cos(a0), s0 = (float) Math.sin(a0), c1 = (float) Math.cos(a1), s1 = (float) Math.sin(a1);
                 quad(vc.get(), e, c0 * r0, 0, s0 * r0, c0 * r1, 0, s0 * r1, c1 * r1, 0, s1 * r1, c1 * r0, 0, s1 * r0, 0, 1, 0, col, light, overlay, 0, 0, 1, 1);
             }
-            cuboid(m, vcp, -r0, -0.005f, -r0, r0, 0.03f, r0, 0xFFC8A040, light, overlay); // eje dorado
+            cuboid(m, vcp, -r0, -0.005f, -r0, r0, 0.03f, r0, 0xFFC8A040, light, overlay); // gold axle
             m.pop();
             float ballA = p >= 1 ? 0 : (float) Math.toRadians(now * 9);
             cuboid(m, vcp, 0.5f + (float) Math.sin(ballA) * 0.33f - 0.02f, 0.89f, 0.5f - (float) Math.cos(ballA) * 0.33f - 0.02f,
                     0.5f + (float) Math.sin(ballA) * 0.33f + 0.02f, 0.93f, 0.5f - (float) Math.cos(ballA) * 0.33f + 0.02f, 0xFFFFFFFF, light, overlay);
-            cuboid(m, vcp, 0.48f, 0.88f, 0.03f, 0.52f, 0.96f, 0.08f, 0xFFF2C230, light, overlay); // puntero
+            cuboid(m, vcp, 0.48f, 0.88f, 0.03f, 0.52f, 0.96f, 0.08f, 0xFFF2C230, light, overlay); // pointer
         }
     }
 }

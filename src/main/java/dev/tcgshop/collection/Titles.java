@@ -25,9 +25,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Títulos por Pokémon según cuántas cartas suyas has sacado de sobres:
- * Fan (5) · Entusiasta (15) · Obsesionado (40) · Totalmente demente (100).
- * El título elegido se muestra sobre tu nombre para todos los jugadores.
+ * Per-Pokémon titles based on how many of its cards you have pulled from packs:
+ * Fan (5) · Enthusiast (15) · Obsessed (40) · Totally Demented (100).
+ * The chosen title is shown above your name to all players.
  */
 public final class Titles {
     public enum Tier {
@@ -37,7 +37,7 @@ public final class Titles {
         Tier(String key, int needed) { this.key = key; this.needed = needed; }
     }
 
-    /** Pokémon con logros propios por cada nivel. */
+    /** Pokémon with their own advancements for each tier. */
     public static final Set<String> FEATURED = Set.of("pikachu", "charizard", "eevee", "mewtwo", "mew", "gengar", "umbreon",
             "rayquaza", "lucario", "greninja", "snorlax", "gardevoir");
 
@@ -45,7 +45,7 @@ public final class Titles {
 
     private Titles() {}
 
-    /** Todas las especies que tienen cartas (para los títulos aleatorios de los NPC). */
+    /** All species that have cards (for the NPCs' random titles). */
     public static java.util.Collection<String> allSpecies() {
         return new java.util.HashSet<>(cardSpecies.values());
     }
@@ -66,7 +66,7 @@ public final class Titles {
         return Text.translatable("tcgshop.title." + p[1], Text.translatable("cobblemon.species." + p[0] + ".name"));
     }
 
-    /** Suma las cartas sacadas de cada Pokémon y otorga los logros de nivel alcanzados. */
+    /** Adds up the cards pulled for each Pokémon and grants the tier advancements reached. */
     public static void creditPulls(ServerPlayerEntity player, CardCollection c, List<ItemStack> cards) {
         for (ItemStack st : cards) {
             String sp = speciesOf(st);
@@ -86,7 +86,7 @@ public final class Titles {
         }
     }
 
-    /** Títulos que el jugador puede elegir ("especie|tier"), del más alto al más bajo. */
+    /** Titles the player can choose ("species|tier"), from highest to lowest. */
     public static List<String> available(CardCollection c) {
         List<String> out = new ArrayList<>();
         c.species.entrySet().stream()
@@ -103,7 +103,7 @@ public final class Titles {
         broadcast(player.getServer());
     }
 
-    /** Envía a todos los títulos de todos los jugadores conectados. */
+    /** Sends everyone the titles of all online players. */
     public static void broadcast(MinecraftServer server) {
         Map<String, String> map = new HashMap<>();
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
@@ -127,7 +127,7 @@ public final class Titles {
                     JsonObject o = JsonParser.parseReader(r).getAsJsonObject();
                     for (Map.Entry<String, JsonElement> kv : o.entrySet()) map.put(kv.getKey(), kv.getValue().getAsString());
                 } catch (Exception ex) {
-                    TcgShop.LOGGER.error("Especies inválidas: {}", e.getKey(), ex);
+                    TcgShop.LOGGER.error("Invalid species: {}", e.getKey(), ex);
                 }
             }
             cardSpecies = map;

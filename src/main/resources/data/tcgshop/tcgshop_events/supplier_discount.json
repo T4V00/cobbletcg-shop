@@ -1,5 +1,5 @@
 {
-  "_comment": "#51 descuento del proveedor: viene el Mayorista y la próxima compra (Mayorista o teléfono) sale un 15% más barata",
+  "_comment": "#51 supplier discount: the Wholesaler comes and the next purchase (Wholesaler or phone) is 15% cheaper",
   "category": "positive",
   "tier": "uncommon",
   "template": "supplier",

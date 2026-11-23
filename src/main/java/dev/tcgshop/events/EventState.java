@@ -15,11 +15,11 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Estado global de los eventos (overworld, "tcgshop_events"):
- *  · deck      qué eventos existen en este mundo (sorteado una vez por evento y guardado; /tcgshop event deck reroll)
- *  · owners    por dueño: tirada del día, enfriamientos, historial, dinero de premios y ventajas pendientes
- *  · actors    entidades vivas de los actores de eventos (uuid -> uid del evento): API para ActorModule
- *  · nextUid   contador de instancias
+ * Global event state (overworld, "tcgshop_events"):
+ *  · deck      which events exist in this world (drawn once per event and saved; /tcgshop event deck reroll)
+ *  · owners    per owner: day's roll, cooldowns, history, reward money and pending perks
+ *  · actors    live entities of event actors (uuid -> event uid): API for ActorModule
+ *  · nextUid   instance counter
  */
 public final class EventState extends PersistentState {
     private static final Type<EventState> TYPE = new Type<>(EventState::new, EventState::fromNbt, null);
@@ -30,7 +30,7 @@ public final class EventState extends PersistentState {
     final Map<UUID, OwnerData> owners = new HashMap<>();
     final Map<UUID, Long> actors = new HashMap<>();
 
-    /** Ventaja pendiente de un dueño (descuento en la próxima compra al Mayorista, contratación, gradeo...). */
+    /** An owner's pending perk (discount on the next Wholesaler purchase, hire, grading...). */
     public static final class Perk {
         public String kind;
         public double factor;
@@ -62,18 +62,18 @@ public final class EventState extends PersistentState {
     public record Hist(String id, String template, long day) {}
 
     public static final class OwnerData {
-        /** Día de la última tirada, si salió evento, momento del día (tick 0-24000) en que empieza y cuántos van hoy. */
+        /** Day of the last roll, whether an event hit, time of day (tick 0-24000) when it starts and how many so far today. */
         public long rollDay = -1;
         public boolean rollHit;
         public int fireTod = -1;
         public int firedToday;
-        /** Evento ya elegido hoy que espera a su franja horaria (p. ej. de noche); empieza en fireTod. "" = ninguno. */
+        /** Event already chosen today that waits for its time window (e.g. at night); starts at fireTod. "" = none. */
         public String pendingDef = "";
-        /** Último día en que se usó cada evento (enfriamiento). */
+        /** Last day each event was used (cooldown). */
         public final Map<String, Long> cooldown = new HashMap<>();
-        /** Historial (el más reciente al final), hasta 40. */
+        /** History (most recent last), up to 40. */
         public final List<Hist> hist = new ArrayList<>();
-        /** Dinero de premios: anillo de 7 días (money[0] = hoy). */
+        /** Reward money: 7-day ring (money[0] = today). */
         public final long[] money = new long[7];
         public long moneyDay = -1;
         public final List<Perk> perks = new ArrayList<>();
@@ -128,9 +128,9 @@ public final class EventState extends PersistentState {
         return nextUid++;
     }
 
-    // ------------------------------------------------------------------ mazo del mundo
+    // ------------------------------------------------------------------ world deck
 
-    /** ¿Existe este evento en este mundo? Se sortea la primera vez que se pregunta (semilla del mundo + sal) y se guarda. */
+    /** Does this event exist in this world? Drawn the first time it is asked (world seed + salt) and saved. */
     public boolean inDeck(EventDef def, long worldSeed) {
         Boolean b = deck.get(def.id());
         if (b == null) {
@@ -150,9 +150,9 @@ public final class EventState extends PersistentState {
 
     public Map<String, Boolean> deckView() { return java.util.Collections.unmodifiableMap(deck); }
 
-    // ------------------------------------------------------------------ actores (API para ActorModule)
+    // ------------------------------------------------------------------ actors (API for ActorModule)
 
-    /** Registra una entidad de evento ANTES de hacer world.spawnEntity (ENTITY_LOAD salta al aparecer). */
+    /** Registers an event entity BEFORE calling world.spawnEntity (ENTITY_LOAD fires on spawn). */
     public void registerActor(UUID entity, long uid) {
         actors.put(entity, uid);
         markDirty();
@@ -164,7 +164,7 @@ public final class EventState extends PersistentState {
 
     public boolean isLiveActor(UUID entity) { return actors.containsKey(entity); }
 
-    /** uid del evento al que pertenece la entidad, o -1. */
+    /** uid of the event the entity belongs to, or -1. */
     public long actorEvent(UUID entity) { return actors.getOrDefault(entity, -1L); }
 
     public List<UUID> actorsOf(long uid) {
@@ -260,7 +260,7 @@ public final class EventState extends PersistentState {
         return nbt;
     }
 
-    /** Para eventtest: ida y vuelta por NBT. */
+    /** For eventtest: NBT round trip. */
     EventState roundTrip(RegistryWrapper.WrapperLookup lookup) {
         return fromNbt(writeNbt(new NbtCompound(), lookup), lookup);
     }

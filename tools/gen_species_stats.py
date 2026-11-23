@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Estadísticas base y tipo de cada especie (para el modo competitivo TCG: PS, daño, retirada y tipo de cada carta).
-Lee data/cobblemon/species/**.json del jar de Cobblemon y escribe
+Base stats and type of each species (for the competitive TCG mode: HP, damage, retreat and type of each card).
+Reads data/cobblemon/species/**.json from the Cobblemon jar and writes
 src/main/resources/data/tcgshop/tcgshop_stats/species.json -> {"pikachu": [hp, atk, def, spa, spd, spe, "electric"], ...}
-La clave es la misma que usa gen_card_species.py (nombre en minúsculas con "_" en vez de espacios).
-Uso: python tools/gen_species_stats.py <cobblemon.jar>
+The key is the same one gen_card_species.py uses (lowercase name with "_" instead of spaces).
+Usage: python tools/gen_species_stats.py <cobblemon.jar>
 """
 import json
 import re
@@ -33,7 +33,7 @@ def main():
                     bs.get("special_defence", 50), bs.get("speed", 50), d.get("primaryType", "normal")]
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(out, separators=(",", ":"), sort_keys=True), encoding="utf-8")
-    print("especies:", len(out))
+    print("species:", len(out))
 
 
 if __name__ == "__main__":

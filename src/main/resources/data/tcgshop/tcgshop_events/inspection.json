@@ -1,5 +1,5 @@
 {
-  "_comment": "#20 (+85 inspección amistosa): se anuncia con antelación; la nota depende de cómo esté la tienda",
+  "_comment": "#20 (+85 friendly inspection): announced in advance; the score depends on the state of the shop",
   "category": "negative",
   "tier": "uncommon",
   "template": "inspection",

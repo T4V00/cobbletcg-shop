@@ -12,9 +12,9 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Protección de zonas de tienda para las estatuas de varios bloques. ShopProtection sólo mira el bloque que se rompe o
- * coloca; una estatua ocupa varios: la base y las piezas de encima ({@link StatuePartBlock}). Aquí se comprueban todas.
- * Mismo criterio que ShopProtection: sólo el dueño construye dentro de su zona; creativo + operador lo salta todo.
+ * Shop zone protection for multi-block statues. ShopProtection only checks the block being broken or
+ * placed; a statue occupies several: the base and the parts above ({@link StatuePartBlock}). All of them are checked here.
+ * Same rule as ShopProtection: only the owner builds inside their zone; creative + operator bypasses everything.
  */
 public final class StatueProtection {
     private StatueProtection() {}
@@ -24,8 +24,8 @@ public final class StatueProtection {
     }
 
     /**
-     * Zona ajena que impide a ese jugador construir/romper en pos, o null si puede (o fuera del servidor: en el cliente no
-     * hay zonas y manda el servidor). player null (sin jugador) = cualquier zona lo impide.
+     * Someone else's zone that prevents that player from building/breaking at pos, or null if allowed (or off the server: the client has no
+     * zones and the server is authoritative). player null (no player) = any zone prevents it.
      */
     @Nullable
     public static ShopZones.Zone blocking(World world, @Nullable PlayerEntity player, BlockPos pos) {
@@ -39,7 +39,7 @@ public final class StatueProtection {
         return blocking(world, player, pos) == null;
     }
 
-    /** Primera zona ajena que pisa la estatua de ese nivel colocada con la base en base (base y piezas), o null. */
+    /** First foreign zone overlapped by the statue of that tier placed with its base at base (base and parts), or null. */
     @Nullable
     public static ShopZones.Zone blockingStatue(World world, @Nullable PlayerEntity player, BlockPos base, StatueTier tier) {
         for (int i = 0; i <= tier.parts; i++) {
@@ -54,8 +54,8 @@ public final class StatueProtection {
     }
 
     /**
-     * Romper una pieza rompe (y suelta) la base: si la base está en una zona ajena, no se deja romper la pieza aunque ella
-     * quede fuera de la zona (si no, se podría sacar una estatua de una tienda protegida rompiéndola desde arriba).
+     * Breaking a part breaks (and drops) the base: if the base is in someone else's zone, the part cannot be broken even if it
+     * is outside the zone (otherwise a statue could be taken out of a protected shop by breaking it from above).
      */
     static void register() {
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, be) -> {

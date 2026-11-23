@@ -16,8 +16,8 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Sonido de la mesa del TCG: usa en tiempo de ejecución la música de combate y los gritos de Pokémon que trae
- * Cobblemon (no se copia ningún audio). Si Cobblemon no está, se usan sonidos vanilla y no hay música.
+ * TCG table audio: uses at runtime the battle music and Pokémon cries that ship with
+ * Cobblemon (no audio is copied). If Cobblemon is not present, vanilla sounds are used and there is no music.
  */
 public final class PtcgAudio {
     private static final Map<String, Identifier> CRY_CACHE = new HashMap<>();
@@ -35,7 +35,7 @@ public final class PtcgAudio {
 
     public static Identifier cobblemon(String path) { return Identifier.of("cobblemon", path); }
 
-    /** Reproduce un sonido de Cobblemon (o el de respaldo vanilla si no existe). */
+    /** Plays a Cobblemon sound (or the vanilla fallback if it doesn't exist). */
     public static void play(String cobblemonPath, @Nullable SoundEvent fallback, float pitch, float volume) {
         Identifier id = cobblemon(cobblemonPath);
         if (has(id)) playId(id, pitch, volume);
@@ -47,7 +47,7 @@ public final class PtcgAudio {
                 SoundInstance.createRandom(), false, 0, SoundInstance.AttenuationType.NONE, 0, 0, 0, true));
     }
 
-    /** Especie de Cobblemon a partir del nombre de la carta ("Iono's Bellibolt ex" -> bellibolt, "Mr. Mime" -> mrmime). */
+    /** Cobblemon species from the card name ("Iono's Bellibolt ex" -> bellibolt, "Mr. Mime" -> mrmime). */
     public static String species(String cardName) {
         String n = cardName.trim();
         int amp = n.indexOf(" & ");
@@ -60,7 +60,7 @@ public final class PtcgAudio {
         return n.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
     }
 
-    /** Grito del Pokémon de la carta (si Cobblemon lo tiene). */
+    /** Cry of the card's Pokémon (if Cobblemon has it). */
     public static void cry(String cardName, float pitch, float volume) {
         Identifier id = CRY_CACHE.computeIfAbsent(cardName, n -> {
             Identifier c = cobblemon("pokemon." + species(n) + ".cry");
@@ -69,9 +69,9 @@ public final class PtcgAudio {
         if (id != null) playId(id, pitch, volume);
     }
 
-    // ------------------------------------------------------------------ música
+    // ------------------------------------------------------------------ music
 
-    /** Empieza (o mantiene) una pista de combate de Cobblemon en bucle, con fundido. */
+    /** Starts (or keeps) a looping Cobblemon battle track, with fade. */
     public static void startMusic(String track) {
         Identifier id = cobblemon(track);
         if (!has(id)) return;
@@ -117,7 +117,7 @@ public final class PtcgAudio {
                 return;
             }
             if (volume < target) volume = Math.min(target, volume + 0.02f);
-            // la música normal del juego no se mezcla con la del combate
+            // the game's normal music does not mix with the battle music
             if (age % 20 == 0) MinecraftClient.getInstance().getSoundManager().stopSounds(null, SoundCategory.MUSIC);
         }
     }

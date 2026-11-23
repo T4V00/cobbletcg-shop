@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genera texturas, modelos, blockstates y loot tables de los bloques de la tienda."""
+"""Generates textures, models, blockstates and loot tables for the shop blocks."""
 import json
 import random
 import importlib.util
@@ -24,13 +24,13 @@ def core_side(base):
     rnd = random.Random(base)
     c = hexc(base)
     px = [[shade(c, 0.85 + rnd.random() * 0.25) for _ in range(16)] for _ in range(16)]
-    # toldo a rayas rojo/blanco
+    # red/white striped awning
     for y in range(0, 5):
         for x in range(16):
             px[y][x] = hexc("D63A3A") if (x // 2) % 2 == 0 else hexc("F4F0E8")
     for x in range(16):
         px[5][x] = hexc("8E1F1F") if x % 2 == 0 else hexc("C9C2B4")
-    # escaparate con una carta
+    # shop window with a card
     for y in range(7, 14):
         for x in range(3, 13):
             px[y][x] = hexc("9FD8F0") if (x + y) % 5 else hexc("CDEFFB")
@@ -52,7 +52,7 @@ def core_top(base):
     px = [[shade(c, 0.85 + rnd.random() * 0.25) for _ in range(16)] for _ in range(16)]
     for i in range(16):
         px[0][i] = px[15][i] = px[i][0] = px[i][15] = shade(c, 0.55)
-    # símbolo ₽ simplificado
+    # simplified ₽ symbol
     for (x, y) in [(6, 4), (7, 4), (8, 4), (9, 4), (6, 5), (10, 5), (6, 6), (10, 6), (6, 7), (7, 7), (8, 7), (9, 7),
                    (6, 8), (6, 9), (6, 10), (6, 11), (4, 9), (5, 9), (7, 9), (8, 9)]:
         px[y][x] = hexc("FFFFFF")
@@ -151,7 +151,7 @@ def main():
     mod = importlib.util.module_from_spec(fm)
     fm.loader.exec_module(mod)
     mod.main()
-    print("recursos de la tienda generados")
+    print("shop assets generated")
 
 
 if __name__ == "__main__":

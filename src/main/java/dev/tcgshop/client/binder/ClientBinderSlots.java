@@ -7,7 +7,7 @@ import net.minecraft.item.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Cliente: las cartas de tu Binder como casillas 1000+ (ver BinderSlots), para elegirlas igual que las del inventario. */
+/** Client: the cards in your Binder as slots 1000+ (see BinderSlots), so they can be picked just like inventory ones. */
 public final class ClientBinderSlots {
     private ClientBinderSlots() {}
 
@@ -18,7 +18,7 @@ public final class ClientBinderSlots {
         return out;
     }
 
-    /** Lo que hay en una casilla (inventario o Binder). */
+    /** What is in a slot (inventory or Binder). */
     public static ItemStack stack(PlayerEntity p, int slot) {
         if (slot >= 0 && slot < 36) return p == null ? ItemStack.EMPTY : p.getInventory().getStack(slot);
         if (!BinderSlots.isBinder(slot)) return ItemStack.EMPTY;

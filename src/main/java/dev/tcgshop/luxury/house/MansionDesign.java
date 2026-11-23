@@ -37,27 +37,27 @@ import java.util.Optional;
 import java.util.Random;
 
 /**
- * Diseño procedural de la finca de la Mansión MasterBall (100x100), sin archivos NBT. Coordenadas LOCALES: x 0..99 de
- * oeste a este, z 0..99 de norte a sur (la verja está en z = 0 y mira al norte), y relativa al suelo (y = -1 es la capa
- * de hierba; se camina en y = 0). Los bloques con orientación se guardan mirando en direcciones locales y
- * {@link MansionBuilder} los gira según {@link MansionPlan}.
+ * Procedural design of the MasterBall Mansion estate (100x100), without NBT files. LOCAL coordinates: x 0..99 from
+ * west to east, z 0..99 from north to south (the gate is at z = 0 and faces north), y relative to the ground (y = -1 is the grass
+ * layer; you walk at y = 0). Oriented blocks are stored facing local directions and
+ * {@link MansionBuilder} rotates them according to {@link MansionPlan}.
  * <p>
- * Dos capas:
- *  · estructura ({@link #cells}): muros, suelos, tejado, caminos... se colocan de abajo arriba;
- *  · decoración ({@link #decor}, en orden de inserción): muebles, alfombras, faroles, plantas, agua, camas, puertas...
- *    se colocan después, cuando ya existe todo lo que los sostiene.
- * Muebles de CobbleFurnies, peluches de Pokéblocks y bloques de Cobblemon por id de registro: si el mod no está, se usa
- * un equivalente vanilla (o se omite la pieza). Nada de arte con copyright: sólo bloques de los mods instalados.
+ * Two layers:
+ *  · structure ({@link #cells}): walls, floors, roof, paths... placed bottom to top;
+ *  · decoration ({@link #decor}, in insertion order): furniture, carpets, lanterns, plants, water, beds, doors...
+ *    placed afterwards, once everything that supports them exists.
+ * CobbleFurnies furniture, Pokéblocks plushies and Cobblemon blocks by registry id: if the mod is missing, a
+ * vanilla equivalent is used (or the piece is skipped). No copyrighted art: only blocks from the installed mods.
  */
 public final class MansionDesign {
     public static final int W = 100, D = 100, Y_MIN = -8, Y_MAX = 40, H = Y_MAX - Y_MIN + 1;
-    /** Valores especiales de {@link #cells}: no tocar (subsuelo) y aire (se despeja). */
+    /** Special values of {@link #cells}: don't touch (subsoil) and air (cleared). */
     public static final short KEEP = 0, AIR = 1;
 
-    /** Una pieza de decoración. hook = llamar a Block.onPlaced (estatuas y expositores de varios bloques). */
+    /** A decoration piece. hook = call Block.onPlaced (multi-block statues and displays). */
     public record Deco(int x, int y, int z, BlockState state, boolean hook) {}
 
-    /** Pokémon residente: especie, posición local, nivel, radio que puede alejarse y si se queda quieto (sin IA). */
+    /** Resident Pokémon: species, local position, level, radius it may wander and whether it stays still (no AI). */
     public record ResidentSpec(String species, double x, double y, double z, int level, int radius, boolean still) {}
 
     final short[] cells = new short[W * D * H];
@@ -69,7 +69,7 @@ public final class MansionDesign {
     public final boolean furnies, cobblemon, plush;
     private final Random rnd;
 
-    // ------------------------------------------------------------------ paleta base
+    // ------------------------------------------------------------------ base palette
     private static final BlockState GRASS = Blocks.GRASS_BLOCK.getDefaultState();
     private static final BlockState QUARTZ = Blocks.QUARTZ_BLOCK.getDefaultState();
     private static final BlockState SMOOTH_QUARTZ = Blocks.SMOOTH_QUARTZ.getDefaultState();
@@ -106,14 +106,14 @@ public final class MansionDesign {
         index.put(Blocks.AIR.getDefaultState(), AIR);
     }
 
-    /** Genera la finca entera (determinista para una semilla). */
+    /** Generates the whole estate (deterministic for a seed). */
     public static MansionDesign generate(long seed) {
         MansionDesign d = new MansionDesign(seed);
         d.build();
         return d;
     }
 
-    // ------------------------------------------------------------------ acceso (MansionBuilder)
+    // ------------------------------------------------------------------ access (MansionBuilder)
 
     public static int idx(int x, int y, int z) {
         return ((y - Y_MIN) * D + z) * W + x;
@@ -132,14 +132,14 @@ public final class MansionDesign {
         return decoMap.values();
     }
 
-    /** Bloques de estructura (sin contar aire ni subsuelo) + piezas de decoración: para la prueba en seco. */
+    /** Structure blocks (not counting air or subsoil) + decoration pieces: for the dry run. */
     public int blockCount() {
         int n = 0;
         for (short c : cells) if (c > AIR) n++;
         return n + decoMap.size();
     }
 
-    // ------------------------------------------------------------------ utilidades de bloques
+    // ------------------------------------------------------------------ block utilities
 
     @Nullable
     static BlockState block(String id) {
@@ -149,7 +149,7 @@ public final class MansionDesign {
         return b == Blocks.AIR ? null : b.getDefaultState();
     }
 
-    /** Pone una propiedad por nombre y valor de texto (si el bloque la tiene y el valor es válido). */
+    /** Sets a property by name and text value (if the block has it and the value is valid). */
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Nullable
     static BlockState prop(@Nullable BlockState s, String name, String value) {
@@ -162,13 +162,13 @@ public final class MansionDesign {
         return s;
     }
 
-    /** Orienta un bloque (propiedad "facing", si la tiene). */
+    /** Orients a block ("facing" property, if it has one). */
     @Nullable
     static BlockState face(@Nullable BlockState s, Direction d) {
         return prop(s, "facing", d.asString());
     }
 
-    /** Valor máximo de una propiedad entera (p.ej. la edad de un apricorn: maduro). */
+    /** Maximum value of an integer property (e.g. an apricorn's age: ripe). */
     @Nullable
     static BlockState maxInt(@Nullable BlockState s, String name) {
         if (s == null) return null;
@@ -180,7 +180,7 @@ public final class MansionDesign {
         return s;
     }
 
-    /** Mueble de CobbleFurnies (si está el mod) o el equivalente vanilla (puede ser null = no se pone nada). */
+    /** CobbleFurnies furniture (if the mod is present) or the vanilla equivalent (may be null = nothing is placed). */
     @Nullable
     private BlockState furn(String path, @Nullable BlockState fallback) {
         if (furnies) {
@@ -216,7 +216,7 @@ public final class MansionDesign {
         return s.contains(LeavesBlock.PERSISTENT) ? s.with(LeavesBlock.PERSISTENT, true) : prop(s, "persistent", "true");
     }
 
-    // ------------------------------------------------------------------ escritura del lienzo
+    // ------------------------------------------------------------------ canvas writing
 
     private short id(BlockState s) {
         Short v = index.get(s);
@@ -235,7 +235,7 @@ public final class MansionDesign {
         if (s == null || !in(x, y, z)) return;
         int i = idx(x, y, z);
         cells[i] = s.isAir() ? AIR : id(s);
-        decoMap.remove(i); // la estructura manda sobre una decoración anterior en el mismo sitio
+        decoMap.remove(i); // structure overrides an earlier decoration in the same spot
     }
 
     private void air(int x, int y, int z) {
@@ -258,7 +258,7 @@ public final class MansionDesign {
                 for (int x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) air(x, y, z);
     }
 
-    /** Decoración (null = nada). El sitio queda en aire en la estructura; si ya había decoración ahí, se sustituye. */
+    /** Decoration (null = nothing). The spot is left as air in the structure; if there was already decoration there, it is replaced. */
     private void deco(int x, int y, int z, @Nullable BlockState s) {
         deco(x, y, z, s, false);
     }
@@ -282,20 +282,20 @@ public final class MansionDesign {
         return in(x, y, z) && cells[idx(x, y, z)] > AIR;
     }
 
-    /** Bloque de dos alturas (planta alta, PC...): mitad de abajo y de arriba con la propiedad "half"/"part". */
+    /** Two-tall block (tall plant, PC...): lower and upper half with the "half"/"part" property. */
     private void deco2(int x, int y, int z, @Nullable BlockState s, String prop, String lower, String upper) {
         if (s == null) return;
         deco(x, y, z, prop(s, prop, lower));
         deco(x, y + 1, z, prop(s, prop, upper));
     }
 
-    /** Asiento: mueble mirando hacia front o, sin CobbleFurnies, escalera de madera (que se sienta al revés). */
+    /** Seat: furniture facing front or, without CobbleFurnies, wooden stairs (which sit the other way round). */
     private void seat(int x, int y, int z, String furniesId, BlockState stairsFallback, Direction front) {
         BlockState f = furnies ? block(F + furniesId) : null;
         deco(x, y, z, f != null ? face(f, front) : stairs(stairsFallback, front.getOpposite()));
     }
 
-    /** Mueble orientado (o su equivalente). */
+    /** Oriented furniture (or its equivalent). */
     private void piece(int x, int y, int z, String furniesId, @Nullable BlockState fallback, Direction front) {
         deco(x, y, z, face(furn(furniesId, fallback), front));
     }
@@ -344,14 +344,14 @@ public final class MansionDesign {
             }
     }
 
-    /** Faroles colgados del techo en cuadrícula (y = altura del farol, justo bajo el techo). */
+    /** Lanterns hanging from the ceiling in a grid (y = lantern height, right under the ceiling). */
     private void hangGrid(int x0, int z0, int x1, int z1, int y, int step) {
         for (int z = z0 + step / 2; z <= z1; z += step)
             for (int x = x0 + step / 2; x <= x1; x += step)
                 if (isAir(x, y, z) && solidAt(x, y + 1, z)) deco(x, y, z, HANGING);
     }
 
-    /** Color del motivo de Poké Ball en el punto (du, dv) de un disco de radio r (dv < 0 = mitad roja). null = fuera. */
+    /** Color of the Poké Ball motif at point (du, dv) of a disc of radius r (dv < 0 = red half). null = outside. */
     @Nullable
     private static BlockState ball(double du, double dv, double r) {
         double d = Math.sqrt(du * du + dv * dv);
@@ -364,7 +364,7 @@ public final class MansionDesign {
         return dv < 0 ? RED : WHITE;
     }
 
-    /** Medallón de Poké Ball en el suelo (capa y), centrado en (cx, cz) (coordenadas de borde de bloque). */
+    /** Poké Ball medallion on the floor (layer y), centered at (cx, cz) (block-edge coordinates). */
     private void floorBall(double cx, double cz, double r, int y) {
         for (int z = (int) Math.floor(cz - r); z <= (int) Math.ceil(cz + r); z++)
             for (int x = (int) Math.floor(cx - r); x <= (int) Math.ceil(cx + r); x++) {
@@ -373,10 +373,10 @@ public final class MansionDesign {
             }
     }
 
-    // ------------------------------------------------------------------ diseño
+    // ------------------------------------------------------------------ design
 
     private void build() {
-        // suelo: hierba en toda la finca (y = -1); el resto del subsuelo se respeta (los cimientos rellenan huecos)
+        // ground: grass across the whole estate (y = -1); the rest of the subsoil is kept (foundations fill gaps)
         fill(0, -1, 0, W - 1, -1, D - 1, GRASS);
         fillAir(0, 0, 0, W - 1, Y_MAX, D - 1);
 
@@ -402,7 +402,7 @@ public final class MansionDesign {
             wallColumn(0, i);
             wallColumn(W - 1, i);
         }
-        // verja: hueco de 10 con columnas, dintel negro/rojo (franja de Poké Ball) y faroles
+        // gate: 10-wide opening with pillars, black/red lintel (Poké Ball band) and lanterns
         fillAir(45, 0, 0, 54, 4, 0);
         fill(45, -1, 0, 54, -1, 0, PATH);
         fill(44, 0, 0, 44, 6, 0, PILLAR);
@@ -433,21 +433,21 @@ public final class MansionDesign {
     }
 
     private void paths() {
-        // avenida de la verja al pórtico
+        // avenue from the gate to the portico
         for (int z = 1; z <= 25; z++)
             for (int x = 46; x <= 53; x++) set(x, -1, z, x == 46 || x == 53 ? PATH_EDGE : PATH);
-        // plaza con el gran medallón de Poké Ball
+        // plaza with the large Poké Ball medallion
         floorBall(50.0, 16.0, 7.0, -1);
-        // camino transversal a las fuentes y de las fuentes a la piscina
+        // cross path to the fountains and from the fountains to the pool
         fill(25, -1, 15, 42, -1, 16, PATH_EDGE);
         fill(57, -1, 15, 74, -1, 16, PATH_EDGE);
         fill(19, -1, 21, 20, -1, 77, PATH_EDGE);
         fill(79, -1, 21, 80, -1, 77, PATH_EDGE);
         fill(19, -1, 76, 27, -1, 77, PATH_EDGE);
         fill(72, -1, 76, 80, -1, 77, PATH_EDGE);
-        // salida trasera del comedor a la piscina
+        // back exit from the dining room to the pool
         fill(29, -1, 72, 30, -1, 75, PATH_EDGE);
-        // farolas de la avenida
+        // avenue lamp posts
         for (int z : new int[]{4, 23}) {
             lampPost(45, z);
             lampPost(54, z);
@@ -460,7 +460,7 @@ public final class MansionDesign {
         deco(x, 2, z, LANTERN);
     }
 
-    /** Fuente redonda con una Poké Ball de 3x3x3 encima del pilar central. */
+    /** Round fountain with a 3x3x3 Poké Ball on top of the central pillar. */
     private void fountain(int cx, int cz) {
         BlockState floor = furn("pool_ceramic", Blocks.PRISMARINE_BRICKS.getDefaultState());
         for (int z = cz - 5; z <= cz + 5; z++)
@@ -478,7 +478,7 @@ public final class MansionDesign {
                     deco(x, 0, z, WATER);
                 }
             }
-        // la bola: blanca abajo, franja negra con botón blanco en cada cara y roja arriba
+        // the ball: white at the bottom, black band with a white button on each face and red on top
         for (int dz = -1; dz <= 1; dz++)
             for (int dx = -1; dx <= 1; dx++) {
                 boolean cross = dx == 0 || dz == 0;
@@ -491,16 +491,16 @@ public final class MansionDesign {
 
     private void pool() {
         BlockState ceramic = furn("pool_ceramic", Blocks.LIGHT_BLUE_CONCRETE.getDefaultState());
-        // terraza
+        // terrace
         fill(28, -1, 76, 71, -1, 95, SMOOTH_QUARTZ);
-        // vaso: suelo en y = -4, paredes hasta y = -2, agua de y = -3 a y = -1
+        // basin: floor at y = -4, walls up to y = -2, water from y = -3 to y = -1
         fill(31, -4, 79, 68, -2, 92, ceramic);
         for (int z = 80; z <= 91; z++)
             for (int x = 32; x <= 67; x++) {
                 for (int y = -3; y <= -1; y++) deco(x, y, z, WATER);
             }
         floorBall(50.0, 86.0, 5.0, -4);
-        // focos en las paredes
+        // lights in the walls
         for (int x = 34; x <= 66; x += 6) {
             set(x, -2, 79, Blocks.SEA_LANTERN.getDefaultState());
             set(x, -2, 92, Blocks.SEA_LANTERN.getDefaultState());
@@ -509,14 +509,14 @@ public final class MansionDesign {
             set(31, -2, z, Blocks.SEA_LANTERN.getDefaultState());
             set(68, -2, z, Blocks.SEA_LANTERN.getDefaultState());
         }
-        // escalones para entrar (sumergidos)
+        // entry steps (submerged)
         BlockState step = stairs(Blocks.QUARTZ_STAIRS.getDefaultState(), Direction.NORTH).with(StairsBlock.WATERLOGGED, true);
         for (int x = 48; x <= 51; x++) {
             deco(x, -2, 80, step);
             deco(x, -3, 81, step);
             deco(x, -3, 80, QUARTZ);
         }
-        // tumbonas mirando a la piscina y sombrillas de Poké Ball
+        // loungers facing the pool and Poké Ball parasols
         for (int x : new int[]{33, 36, 39, 60, 63, 66}) seat(x, 0, 77, "light_blue_armchair", Blocks.QUARTZ_STAIRS.getDefaultState(), Direction.SOUTH);
         for (int x : new int[]{42, 57}) {
             fill(x, 0, 77, x, 2, 77, FENCE);
@@ -527,12 +527,12 @@ public final class MansionDesign {
         for (int[] c : new int[][]{{28, 76}, {71, 76}, {28, 95}, {71, 95}}) tallPlant(c[0], 0, c[1], "mini_topiary");
     }
 
-    // ------------------------------------------------------------------ la casa
+    // ------------------------------------------------------------------ the house
 
     private static final int X0 = 20, X1 = 79, Z0 = 32, Z1 = 71;
 
     private void house() {
-        // suelos (planta baja en y = 0, primera planta en y = 7) y techo (y = 13)
+        // floors (ground floor at y = 0, first floor at y = 7) and ceiling (y = 13)
         fill(X0, 0, Z0, X1, 0, Z1, STONE_BRICKS);
         fill(X0 + 1, 7, Z0 + 1, X1 - 1, 7, Z1 - 1, DARK_PLANKS);
         floors();
@@ -554,7 +554,7 @@ public final class MansionDesign {
     }
 
     private void floors() {
-        // vestíbulo: cuarzo liso con cenefa negra y medallón
+        // entrance hall: smooth quartz with a black border and medallion
         fill(41, 0, 33, 58, 0, 50, SMOOTH_QUARTZ);
         for (int x = 41; x <= 58; x++) {
             set(x, 0, 33, BLACKSTONE);
@@ -565,20 +565,20 @@ public final class MansionDesign {
             set(58, 0, z, BLACKSTONE);
         }
         floorBall(50.0, 40.0, 5.0, 0);
-        // Centro Pokémon: blanco con cenefa roja
+        // Pokémon Center: white with a red border
         fill(41, 0, 51, 58, 0, 70, WHITE);
         for (int x = 41; x <= 58; x++) set(x, 0, 70, RED);
         for (int z = 51; z <= 70; z++) {
             set(41, 0, z, RED);
             set(58, 0, z, RED);
         }
-        fill(21, 0, 33, 39, 0, 52, DARK_PLANKS); // salón
-        fill(21, 0, 54, 39, 0, 70, SPRUCE_PLANKS); // comedor
-        fill(60, 0, 33, 78, 0, 52, Blocks.DEEPSLATE_TILES.getDefaultState()); // trofeos
+        fill(21, 0, 33, 39, 0, 52, DARK_PLANKS); // living room
+        fill(21, 0, 54, 39, 0, 70, SPRUCE_PLANKS); // dining room
+        fill(60, 0, 33, 78, 0, 52, Blocks.DEEPSLATE_TILES.getDefaultState()); // trophies
         BlockState kf = furn("kitchen_floor", null);
         for (int z = 54; z <= 70; z++)
             for (int x = 60; x <= 78; x++) set(x, 0, z, kf != null ? kf : ((x + z) & 1) == 0 ? SMOOTH_QUARTZ : BLACKSTONE);
-        // hueco a doble altura del vestíbulo
+        // double-height void over the entrance hall
         fillAir(41, 7, 33, 58, 7, 50);
     }
 
@@ -591,14 +591,14 @@ public final class MansionDesign {
             wallColumnHouse(X0, z, false, z);
             wallColumnHouse(X1, z, false, z);
         }
-        // puerta principal (doble) y puerta trasera del comedor
+        // main door (double) and dining room back door
         door(49, 1, Z0, Direction.SOUTH, DoorHinge.LEFT);
         door(50, 1, Z0, Direction.SOUTH, DoorHinge.RIGHT);
         set(49, 3, Z0, GLASS);
         set(50, 3, Z0, GLASS);
         door(29, 1, Z1, Direction.NORTH, DoorHinge.RIGHT);
         door(30, 1, Z1, Direction.NORTH, DoorHinge.LEFT);
-        // mural de Poké Ball en la fachada trasera (Centro Pokémon)
+        // Poké Ball mural on the back facade (Pokémon Center)
         for (int y = 1; y <= 6; y++)
             for (int x = 46; x <= 53; x++) {
                 BlockState s = ball(x + 0.5 - 50.0, -(y + 0.5 - 4.0), 3.6);
@@ -606,7 +606,7 @@ public final class MansionDesign {
             }
     }
 
-    /** Columna de muro exterior: zócalo, blanco, franja negra en y = 7, blanco y ventanas. */
+    /** Exterior wall column: plinth, white, black band at y = 7, white and windows. */
     private void wallColumnHouse(int x, int z, boolean longWall, int along) {
         int base = longWall ? X0 : Z0;
         boolean corner = (x == X0 || x == X1) && (z == Z0 || z == Z1);
@@ -635,7 +635,7 @@ public final class MansionDesign {
             for (int x = 21; x <= 39; x++) set(x, y, 53, QUARTZ);
             for (int x = 60; x <= 78; x++) set(x, y, 53, QUARTZ);
         }
-        // pasos de 2 de ancho y 3 de alto (planta baja y primera)
+        // doorways 2 wide and 3 tall (ground and first floor)
         fillAir(40, 1, 42, 40, 3, 43);
         fillAir(59, 1, 42, 59, 3, 43);
         fillAir(29, 1, 53, 30, 3, 53);
@@ -646,13 +646,13 @@ public final class MansionDesign {
         fillAir(59, 8, 51, 59, 10, 52);
         fillAir(40, 8, 61, 40, 10, 62);
         fillAir(59, 8, 61, 59, 10, 62);
-        // columnas del Centro Pokémon bajo el rellano
+        // Pokémon Center pillars under the landing
         fill(41, 1, 51, 41, 6, 51, PILLAR);
         fill(58, 1, 51, 58, 6, 51, PILLAR);
     }
 
     private void roof() {
-        // techo interior de cuarzo y tejado rojo escalonado (anillos de escaleras hacia dentro)
+        // quartz interior ceiling and stepped red roof (rings of stairs going inward)
         fill(X0, 13, Z0, X1, 13, Z1, SMOOTH_QUARTZ);
         for (int k = 0; k <= 6; k++) {
             int x0 = X0 - 1 + k, x1 = X1 + 1 - k, z0 = Z0 - 1 + k, z1 = Z1 + 1 - k, y = 13 + k;
@@ -670,13 +670,13 @@ public final class MansionDesign {
     }
 
     private void portico() {
-        // pórtico abierto delante de la puerta y torre con el emblema de Poké Ball
+        // open portico in front of the door and tower with the Poké Ball emblem
         fill(43, 0, 26, 56, 0, 31, QUARTZ_BRICKS);
         for (int x = 45; x <= 54; x++) set(x, 0, 25, stairs(Blocks.QUARTZ_STAIRS.getDefaultState(), Direction.SOUTH));
         for (int[] c : new int[][]{{43, 26}, {46, 26}, {53, 26}, {56, 26}, {43, 31}, {56, 31}})
             fill(c[0], 1, c[1], c[0], 6, c[1], PILLAR);
         fill(43, 7, 26, 56, 21, 31, QUARTZ);
-        fill(43, 7, 26, 56, 7, 31, BLACK); // la franja negra rodea también la torre
+        fill(43, 7, 26, 56, 7, 31, BLACK); // the black band also wraps around the tower
         for (int x = 43; x <= 56; x++) {
             set(x, 21, 26, CHISELED);
             set(x, 21, 31, CHISELED);
@@ -686,7 +686,7 @@ public final class MansionDesign {
                 BlockState s = ball(x + 0.5 - 50.0, -(y + 0.5 - 15.0), 6.0);
                 if (s != null) set(x, y, 26, s);
             }
-        // tejadillo de la torre
+        // tower's small roof
         for (int j = 0; j <= 3; j++) {
             int x0 = 42 + j, x1 = 57 - j, z0 = 25 + j, z1 = 32 - j, y = 22 + j;
             if (z1 - z0 >= 2) fill(x0 + 1, y, z0 + 1, x1 - 1, y, z1 - 1, ROOF);
@@ -707,7 +707,7 @@ public final class MansionDesign {
     }
 
     private void hall() {
-        // escalera de 6 de ancho que sube hacia el sur hasta el rellano (el último peldaño, en y = 7, ya es el rellano)
+        // 6-wide staircase going up southward to the landing (the last step, at y = 7, is already the landing)
         BlockState st = stairs(Blocks.DARK_OAK_STAIRS.getDefaultState(), Direction.SOUTH);
         for (int k = 0; k <= 6; k++) {
             int z = 45 + k, y = 1 + k;
@@ -720,15 +720,15 @@ public final class MansionDesign {
             set(46, y + 1, z, FENCE);
             set(53, y + 1, z, FENCE);
         }
-        // lámpara de araña
+        // chandelier
         for (int x = 49; x <= 50; x++)
             for (int z = 39; z <= 40; z++) {
                 fill(x, 10, z, x, 12, z, Blocks.CHAIN.getDefaultState());
                 deco(x, 9, z, HANGING);
             }
-        // alfombra roja de la puerta al medallón
+        // red carpet from the door to the medallion
         for (int x = 49; x <= 50; x++) deco(x, 1, 34, block("red_carpet"));
-        // sofás a los lados, lámparas, estatuas y plantas
+        // sofas on the sides, lamps, statues and plants
         for (int z = 36; z <= 38; z++) {
             seat(42, 1, z, "red_sofa", Blocks.DARK_OAK_STAIRS.getDefaultState(), Direction.EAST);
             seat(57, 1, z, "red_sofa", Blocks.DARK_OAK_STAIRS.getDefaultState(), Direction.WEST);
@@ -749,7 +749,7 @@ public final class MansionDesign {
     }
 
     private void pokemonCenter() {
-        // mostrador rojo con la máquina de curación y el PC
+        // red counter with the healing machine and the PC
         fill(45, 1, 65, 54, 1, 65, RED);
         BlockState heal = face(cob("healing_machine", Blocks.BREWING_STAND.getDefaultState()), Direction.NORTH);
         deco(49, 1, 65, heal);
@@ -757,7 +757,7 @@ public final class MansionDesign {
         if (pc != null) deco2(51, 1, 65, face(pc, Direction.NORTH), "part", "bottom", "top");
         else deco(51, 1, 65, face(Blocks.LECTERN.getDefaultState(), Direction.NORTH));
         seat(47, 1, 67, "pink_stool", Blocks.QUARTZ_STAIRS.getDefaultState(), Direction.NORTH);
-        // sala de espera
+        // waiting room
         for (int x = 43; x <= 46; x++) seat(x, 1, 57, "red_sofa", Blocks.QUARTZ_STAIRS.getDefaultState(), Direction.SOUTH);
         for (int x = 53; x <= 56; x++) seat(x, 1, 57, "red_sofa", Blocks.QUARTZ_STAIRS.getDefaultState(), Direction.SOUTH);
         table(44, 59, 45, 59, 1, "white_table");
@@ -833,7 +833,7 @@ public final class MansionDesign {
     }
 
     private void trophyRoom() {
-        // sala del coleccionista: pedestales y vitrinas de casa (MasterBall Traders), estatuas y alfombra roja
+        // collector's room: home pedestals and showcases (MasterBall Traders), statues and red carpet
         for (int x = 60; x <= 67; x++) for (int z = 42; z <= 43; z++) deco(x, 1, z, block("red_carpet"));
         for (int z : new int[]{36, 39, 46, 49}) {
             deco(62, 1, z, face(TcgBlocks.HOME_PEDESTAL.getDefaultState(), Direction.EAST), true);
@@ -959,16 +959,16 @@ public final class MansionDesign {
         hangGrid(41, 51, 58, 70, 12, 6);
     }
 
-    // ------------------------------------------------------------------ jardín
+    // ------------------------------------------------------------------ garden
 
     private void hedgesAndBeds() {
         BlockState hedge = leaves(Blocks.AZALEA_LEAVES.getDefaultState());
         BlockState hedge2 = leaves(Blocks.FLOWERING_AZALEA_LEAVES.getDefaultState());
         for (int x = 21; x <= 78; x++) {
-            if (x >= 42 && x <= 57) continue; // pórtico
+            if (x >= 42 && x <= 57) continue; // portico
             set(x, 0, 29, (x % 4 == 0) ? hedge2 : hedge);
         }
-        // arriates de flores pegados a la fachada
+        // flower beds along the facade
         String[] fl = {"poppy", "dandelion", "azure_bluet", "oxeye_daisy", "cornflower", "allium", "red_tulip", "white_tulip", "pink_tulip"};
         for (int z = 30; z <= 31; z++)
             for (int x = 21; x <= 78; x++) {
@@ -996,18 +996,18 @@ public final class MansionDesign {
                         if (isAir(cx + dx, y, cz + dz)) set(cx + dx, y, cz + dz, leaf);
                     }
             }
-            // apricorns maduros colgando a los lados (sólo con Cobblemon)
+            // ripe apricorns hanging on the sides (only with Cobblemon)
             BlockState fruit = maxInt(cob(colors[i % colors.length] + "_apricorn", null), "age");
             if (fruit == null) continue;
             for (Direction d : Direction.Type.HORIZONTAL) {
                 int fx = cx + d.getOffsetX() * 3, fz = cz + d.getOffsetZ() * 3;
                 if (isAir(fx, 3, fz) && solidAt(fx - d.getOffsetX(), 3, fz - d.getOffsetZ()))
-                    deco(fx, 3, fz, face(fruit, d.getOpposite())); // mira hacia la hoja que lo sostiene
+                    deco(fx, 3, fz, face(fruit, d.getOpposite())); // faces the leaf that holds it
             }
         }
     }
 
-    /** Farolas en cuadrícula por todo el jardín (para que no aparezcan monstruos de noche). */
+    /** Lamp posts in a grid across the whole garden (so monsters don't spawn at night). */
     private void gardenLamps() {
         for (int z = 5; z <= 95; z += 12)
             for (int x = 7; x <= 92; x += 12) {
@@ -1031,7 +1031,7 @@ public final class MansionDesign {
     }
 
     private void residentsPlan() {
-        // jardín
+        // garden
         residents.add(new ResidentSpec("pikachu", 41.5, 0, 12.5, 25, 8, false));
         residents.add(new ResidentSpec("eevee", 58.5, 0, 12.5, 25, 8, false));
         residents.add(new ResidentSpec("snorlax", 14.5, 0, 42.5, 40, 2, true));
@@ -1041,7 +1041,7 @@ public final class MansionDesign {
         residents.add(new ResidentSpec("jigglypuff", 12.5, 0, 78.5, 20, 8, false));
         residents.add(new ResidentSpec("psyduck", 29.5, 0, 94.5, 20, 5, false));
         residents.add(new ResidentSpec("lapras", 50.5, -3, 86.5, 40, 5, false));
-        // dentro de la casa
+        // inside the house
         residents.add(new ResidentSpec("chansey", 49.5, 1, 67.5, 30, 2, false));
         residents.add(new ResidentSpec("togepi", 55.5, 1, 61.5, 10, 3, false));
         residents.add(new ResidentSpec("meowth", 30.5, 1, 46.5, 20, 4, false));

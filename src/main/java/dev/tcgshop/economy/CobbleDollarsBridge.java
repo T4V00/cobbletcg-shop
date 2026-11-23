@@ -8,9 +8,9 @@ import java.lang.reflect.Method;
 import java.math.BigInteger;
 
 /**
- * Acceso a CobbleDollars sin dependencia de compilación.
- * CobbleDollars añade la interfaz fr.harmex.cobbledollars.common.utils.CobbleDollarsPlayer
- * a PlayerEntity con getters/setters de un BigInteger.
+ * Access to CobbleDollars with no compile-time dependency.
+ * CobbleDollars adds the interface fr.harmex.cobbledollars.common.utils.CobbleDollarsPlayer
+ * to PlayerEntity with getters/setters for a BigInteger.
  */
 public final class CobbleDollarsBridge {
     private static final String IFACE = "fr.harmex.cobbledollars.common.utils.CobbleDollarsPlayer";
@@ -29,7 +29,7 @@ public final class CobbleDollarsBridge {
             setter = c.getMethod("cobbleDollars$setCobbleDollars", BigInteger.class);
             available = true;
         } catch (Throwable t) {
-            TcgShop.LOGGER.warn("CobbleDollars encontrado pero su API cambió; la economía quedará desactivada", t);
+            TcgShop.LOGGER.warn("CobbleDollars found but its API changed; the economy will be disabled", t);
         }
     }
 
@@ -54,12 +54,12 @@ public final class CobbleDollarsBridge {
             setter.invoke(player, cur.add(BigInteger.valueOf(amount)));
             return true;
         } catch (Throwable t) {
-            TcgShop.LOGGER.error("Error modificando CobbleDollars", t);
+            TcgShop.LOGGER.error("Error modifying CobbleDollars", t);
             return false;
         }
     }
 
-    /** Cobra si hay saldo suficiente. */
+    /** Charges if the balance is sufficient. */
     public static boolean tryCharge(PlayerEntity player, long amount) {
         if (getBalance(player) < amount) return false;
         return add(player, -amount);

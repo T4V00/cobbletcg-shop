@@ -1,12 +1,12 @@
-"""Textos de la actualización de comerciantes: motivos de venta, regateo por personalidad, reputación por entorno,
-bloqueo de sets caros, Mayorista vanilla y mala fama por matar NPC. %s en los motivos = el producto."""
+"""Texts for the merchants update: selling reasons, haggling by personality, reputation by surroundings,
+expensive set lock, vanilla Wholesaler and bad reputation for killing NPCs. %s in the reasons = the product."""
 import json
 from pathlib import Path
 
 LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
 
-# ---------------------------------------------------------------- motivos de venta (120)
-# dinero urgente / liquidez (40)
+# ---------------------------------------------------------------- selling reasons (120)
+# urgent money / liquidity (40)
 CASH = [
     ("Tengo que pagar el alquiler este mes y me falta dinero, así que vendo mi %s.", "I have to pay rent this month and I'm short, so I'm selling my %s."),
     ("Se me ha roto el coche y la reparación es carísima. Necesito vender este %s ya.", "My car broke down and the repair is huge. I need to sell this %s now."),
@@ -49,7 +49,7 @@ CASH = [
     ("Esta semana cobro tarde y no llego a fin de mes. Te vendo mi %s.", "I get paid late this week and won't make it to month's end. I'll sell you my %s."),
     ("Necesito efectivo hoy, no mañana. Este %s es tuyo si llegamos a un trato.", "I need cash today, not tomorrow. This %s is yours if we make a deal."),
 ]
-# buscar beneficio (35)
+# seeking profit (35)
 PROFIT = [
     ("Lo compré barato hace tiempo y ahora vale más. Es momento de sacar beneficio con este %s.", "I bought it cheap a while ago and now it's worth more. Time to cash in on this %s."),
     ("El mercado está alto ahora mismo. Vendo mi %s antes de que baje.", "The market is high right now. Selling my %s before it drops."),
@@ -87,7 +87,7 @@ PROFIT = [
     ("Quiero cerrar el año con beneficios. Este %s me ayuda a cuadrar.", "I want to close the year in profit. This %s helps me balance."),
     ("Si lo guardo, quizás baje. Si lo vendo ahora, gano. Este %s se va hoy.", "If I keep it, it might drop. If I sell now, I win. This %s goes today."),
 ]
-# otros motivos (45): repetidas, abandono, cambio de colección, herencia, liquidación, espacio, capital, no lo valoran...
+# other reasons (45): duplicates, quitting, collection change, inheritance, clearance, space, capital, don't value it...
 OTHER = [
     ("Lo tengo repetido. No necesito dos de este %s.", "I have a duplicate. I don't need two of this %s."),
     ("Ya no juego al TCG desde hace años. Este %s acumula polvo.", "I haven't played the TCG in years. This %s is gathering dust."),
@@ -137,7 +137,7 @@ OTHER = [
 ]
 assert len(CASH) == 40 and len(PROFIT) == 35 and len(OTHER) == 45, (len(CASH), len(PROFIT), len(OTHER))
 
-# ---------------------------------------------------------------- regateo
+# ---------------------------------------------------------------- haggling
 N = {}
 def cat(name, pairs):
     N[name] = pairs
@@ -289,7 +289,7 @@ cat("seller_back", [("¡Hola otra vez! Traigo algo nuevo de mi colección.", "Hi
                     ("¿Te acuerdas de mí? Tengo más cosas que vender.", "Remember me? I have more things to sell."),
                     ("Otra vez por aquí, con producto fresco.", "Here again, with fresh stock."),
                     ("He vaciado otro binder. ¿Echamos un vistazo?", "I emptied another binder. Want to take a look?")])
-# comentarios del entorno
+# comments about the surroundings
 cat("comment_no_roof", [("¿No tiene techo esta tienda? ¿Y si llueve?", "This shop has no roof? What if it rains?"),
                         ("Las cartas al aire libre... qué miedo.", "Cards out in the open... scary."),
                         ("Una tienda sin techo, eso es nuevo.", "A shop without a roof, that's new."),
@@ -362,7 +362,7 @@ for name, pairs in N.items():
 for k, v in PERSONA_NAMES.items(): T[f"tcgshop.persona.{k}"] = v
 
 T.update({
-    # ventana del trato
+    # deal window
     "tcgshop.deal.asks": ("Pide: %s", "Asks: %s"),
     "tcgshop.deal.your_offer": ("Tu oferta:", "Your offer:"),
     "tcgshop.deal.set_market": ("90% mercado", "90% market"),
@@ -377,7 +377,7 @@ T.update({
     "tcgshop.deal.r_rude": ("¡Vaya timo!", "What a rip-off!"),
     "tcgshop.deal.thinking": ("Pensando", "Thinking"),
     "tcgshop.deal.closed": ("Clic para cerrar", "Click to close"),
-    # reseñas nuevas
+    # new reviews
     "tcgshop.review.deal_no_neutral": ("No llegamos a un trato, sin problema", "We didn't make a deal, no problem"),
     "tcgshop.review.deal_no_bad": ("Rechazaron mi oferta sin pensarlo", "They turned down my offer without a thought"),
     "tcgshop.review.deal_rude": ("Me trataron fatal", "They treated me terribly"),
@@ -394,7 +394,7 @@ T.update({
     "tcgshop.review.env_pokemon": ("Me encantaron los Pokémon de la tienda", "I loved the shop's Pokémon"),
     "tcgshop.review.env_pets": ("Tenía una mascota adorable", "It had an adorable pet"),
     "tcgshop.review.env_cheap": ("Precios estupendos", "Great prices"),
-    # reputación: notas y factores nuevos
+    # reputation: new notes and factors
     "tcgshop.rep.m_aesthetics": ("Estética", "Aesthetics"),
     "tcgshop.rep.m_value": ("Calidad/precio", "Value"),
     "tcgshop.rep.m_safety": ("Seguridad", "Safety"),
@@ -414,7 +414,7 @@ T.update({
     "tcgshop.rep.tip.animals": ("Consejo: saca los animales de granja de la tienda; las mascotas y algunos Pokémon sí gustan.", "Tip: move farm animals out of the shop; pets and a few Pokémon are welcome."),
     "tcgshop.rep.tip.infamy": ("Consejo: matar a los NPC de la tienda arruina tu fama. Se recupera poco a poco cada día.", "Tip: killing shop NPCs ruins your reputation. It recovers a little each day."),
     "tcgshop.rep.tip.unattended": ("Consejo: atiende a los clientes con \"!\" antes de que se acabe su barra (60 s).", "Tip: serve customers with a \"!\" before their bar runs out (60 s)."),
-    # bloqueo de sets, mala fama, Mayorista
+    # set lock, bad reputation, Wholesaler
     "tcgshop.lock.need_tier": ("Los sobres y cajas más valiosos (Base Set, Team Rocket...) sólo se venden a dueños de una tienda de %s o superior.",
                                "The most valuable packs and boxes (Base Set, Team Rocket...) are only sold to owners of a %s shop or better."),
     "tcgshop.infamy.kill": ("Has matado a %s. Tus tiendas pierden %s de reputación y los clientes huyen.", "You killed %s. Your shops lose %s reputation and customers flee."),
@@ -431,7 +431,7 @@ def main():
         for k, v in T.items():
             d[k] = v[i]
         p.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(len(T), "textos;", "categorías NPC:", {k: len(v) for k, v in N.items() if False} or len(N))
+    print(len(T), "texts;", "NPC categories:", {k: len(v) for k, v in N.items() if False} or len(N))
 
 
 if __name__ == "__main__":

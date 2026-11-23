@@ -3,9 +3,9 @@ package dev.tcgshop.events;
 import net.minecraft.nbt.NbtCompound;
 
 /**
- * Lo que la tienda "recuerda" de un evento para las reseñas (ext.events.log, se guarda 2 días):
- * cuándo empezó, cuándo se arregló (-1 = no se arregló), cuándo acabó, el tag de reseña, si es positivo,
- * el ánimo que suma/resta, la probabilidad de comentarlo y cuántos clientes llegaron mientras seguía sin arreglar.
+ * What the shop "remembers" about an event for reviews (ext.events.log, kept for 2 days):
+ * when it started, when it was fixed (-1 = not fixed), when it ended, the review tag, whether it is positive,
+ * the mood it adds/subtracts, the chance of mentioning it and how many customers arrived while it was still unfixed.
  */
 public final class IncidentRecord {
     public final long uid;
@@ -29,7 +29,7 @@ public final class IncidentRecord {
         this.fixedChance = fixedChance;
     }
 
-    /** Fin del tramo "sin arreglar" (o el fin del evento, o "todavía" = Long.MAX_VALUE). */
+    /** End of the "unfixed" stretch (or the end of the event, or "still ongoing" = Long.MAX_VALUE). */
     public long activeUntil() {
         if (resolvedAt >= 0) return resolvedAt;
         return end >= 0 ? end : Long.MAX_VALUE;

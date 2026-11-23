@@ -37,9 +37,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Coleccionista ambulante: NPC pacífico que llega de vez en cuando con unas cuantas cartas. Te las cambia por cartas
- * tuyas de valor parecido (al menos el 85% de la suya) y siempre se encapricha de una de las tuyas: te la compra
- * por encima de mercado (115%). Pensado para ganar algo de dinero antes de tener tienda. Se marcha pasado día y medio.
+ * Wandering collector: peaceful NPC that shows up now and then with a few cards. It trades them for cards
+ * of yours of similar value (at least 85% of its own) and always takes a fancy to one of yours: it buys it
+ * above market price (115%). Meant for earning some money before owning a shop. Leaves after a day and a half.
  */
 public class TraderEntity extends PathAwareEntity implements TcgNpc {
     public static final double MIN_RATIO = 0.85, WISH_BONUS = 1.15;
@@ -48,7 +48,7 @@ public class TraderEntity extends PathAwareEntity implements TcgNpc {
     private static List<Identifier> cardPool;
 
     private final List<ItemStack> stock = new ArrayList<>();
-    /** Carta que le interesa de cada jugador ("" = ya se la vendió). */
+    /** Card it wants from each player ("" = already sold to it). */
     private final Map<UUID, String> wishes = new HashMap<>();
     private int tradesLeft = TRADES;
     private int lifeTicks = 36_000;
@@ -95,7 +95,7 @@ public class TraderEntity extends PathAwareEntity implements TcgNpc {
         return cardPool;
     }
 
-    /** 6 cartas: 3 cualquiera, 2 raras y 1 muy rara (con un tope de valor). */
+    /** 6 cards: 3 of any kind, 2 rare and 1 very rare (with a value cap). */
     private void rollStock() {
         if (!stock.isEmpty() || pool().isEmpty()) return;
         var r = net.minecraft.util.math.random.Random.create(getUuid().getLeastSignificantBits());
@@ -113,13 +113,13 @@ public class TraderEntity extends PathAwareEntity implements TcgNpc {
         }
     }
 
-    /** La carta del inventario del jugador que le interesa (hueco), o -1. */
+    /** The card in the player's inventory that it wants (slot), or -1. */
     private int wishSlot(ServerPlayerEntity player) {
         String want = wishes.get(player.getUuid());
         if (want != null && want.isEmpty()) return -1;
         var inv = player.getInventory();
         if (want != null) {
-            // "id" o "id#variante" (reverse, 1ª edición...): la variante sólo puede estar en el inventario
+            // "id" or "id#variant" (reverse, 1st edition...): the variant can only be in the inventory
             int hash = want.indexOf('#');
             String wid = hash < 0 ? want : want.substring(0, hash), wvar = hash < 0 ? "standard" : want.substring(hash + 1);
             for (int i = 0; i < 36; i++) {
@@ -131,7 +131,7 @@ public class TraderEntity extends PathAwareEntity implements TcgNpc {
                 if (b >= 0) return b;
             }
         }
-        // elige una nueva entre inventario y Binder: prefiere las de más valor, con algo de azar
+        // picks a new one from inventory and Binder: prefers the most valuable ones, with some randomness
         List<Integer> cards = new ArrayList<>();
         for (int i = 0; i < 36; i++) if (CardInfo.isCard(inv.getStack(i))) cards.add(i);
         var bd = dev.tcgshop.collection.CollectionService.ownedBinder(player);
@@ -260,7 +260,7 @@ public class TraderEntity extends PathAwareEntity implements TcgNpc {
         NbtCompound w = nbt.getCompound("Wishes");
         for (String k : w.getKeys()) {
             String wid = dev.masterball.api.card.CardInfo.migrate(w.getString(k));
-            if (dev.masterball.api.card.CardCatalog.isRemovedId(wid)) continue; // TCG Pocket: quitado en la 0.9
+            if (dev.masterball.api.card.CardCatalog.isRemovedId(wid)) continue; // TCG Pocket: removed in 0.9
             try { wishes.put(UUID.fromString(k), wid); } catch (IllegalArgumentException ignored) {}
         }
         if (nbt.contains("Trades")) tradesLeft = nbt.getInt("Trades");

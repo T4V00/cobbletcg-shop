@@ -1,4 +1,4 @@
-"""Textos de la fase B: editar cartas de los expositores, dos cajeros con turno de día, mendigo y mercader negro."""
+"""Phase B texts: editing display case cards, two day-shift cashiers, beggar and black marketeer."""
 import json
 from pathlib import Path
 
@@ -90,7 +90,7 @@ for cat, pairs in N.items():
         T[f"tcgshop.npc.{cat}.{i}"] = (es, en)
 
 T.update({
-    # expositores
+    # display cases
     "tcgshop.slot.title": ("Carta del expositor", "Display card"),
     "tcgshop.slot.edit_title": ("Editar carta", "Edit card"),
     "tcgshop.slot.price_now": ("Precio: %s", "Price: %s"),
@@ -103,7 +103,7 @@ T.update({
     "tcgshop.slot.reset": ("Restaurar", "Reset"),
     "tcgshop.slot.save": ("Guardar", "Save"),
     "tcgshop.slot.saved": ("Cambios guardados.", "Changes saved."),
-    # empleados
+    # staff
     "tcgshop.role.cashier2": ("Cajero 2", "Cashier 2"),
     "tcgshop.role.beggar": ("Mendigo de cartas", "Card beggar"),
     "tcgshop.role.black_market": ("Mercader negro", "Black marketeer"),
@@ -114,10 +114,10 @@ T.update({
     "tcgshop.phone.shift_day": ("☀ Turno de día: los cajeros están en sus cajas (6:00-18:30).", "☀ Day shift: cashiers are at their tills (6:00-18:30)."),
     "tcgshop.phone.shift_night": ("☾ De noche: los cajeros están en casa. Para vender sobres y cajas, quédate junto a una caja registradora.", "☾ Night: cashiers are home. To sell packs and boxes, stay next to a cash register."),
     "tcgshop.phone.staff_tip2": ("Puedes tener dos cajeros (uno por caja registradora; pon dos cajas) y un guardia, que trabaja día y noche. Los sueldos salen de la caja cada día.", "You can have two cashiers (one per cash register; place two) and a guard, who works day and night. Wages come out of the till every day."),
-    # reputación
+    # reputation
     "tcgshop.rep.charity": ("Trato al mendigo", "Treatment of the beggar"),
     "tcgshop.rep.tip.charity": ("Consejo: el mendigo cuenta por el barrio cómo le tratas. Ayudarle mejora la fama de tus tiendas.", "Tip: the beggar tells the neighbourhood how you treat him. Helping improves your shops' reputation."),
-    # mendigo
+    # beggar
     "tcgshop.beggar.title": ("Mendigo de cartas", "Card beggar"),
     "tcgshop.beggar.ask": ("«Perdí toda mi colección... ¿me ayudas con unas monedas o una carta?»", "\"I lost my whole collection... could you help with some coins or a card?\""),
     "tcgshop.beggar.give_card": ("Darle la carta que llevo en la mano", "Give him the card in my hand"),
@@ -129,7 +129,7 @@ T.update({
     "tcgshop.beggar.karma_up": ("La gente del barrio habla bien de ti.", "The neighbourhood speaks well of you."),
     "tcgshop.beggar.karma_down": ("La gente del barrio ha visto cómo le tratas...", "The neighbourhood saw how you treated him..."),
     "tcgshop.beggar.gift": ("El mendigo te devuelve el favor: %s", "The beggar returns the favour: %s"),
-    # mercader negro
+    # black marketeer
     "tcgshop.bm.name": ("Mercader encapuchado", "Hooded merchant"),
     "tcgshop.bm.title": ("Mercado negro", "Black market"),
     "tcgshop.bm.rare": ("¡SET LEGENDARIO!", "LEGENDARY SET!"),
@@ -156,7 +156,7 @@ def main():
         for k, v in T.items():
             d[k] = v[i]
         p.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(len(T), "textos")
+    print(len(T), "texts")
 
 
 if __name__ == "__main__":

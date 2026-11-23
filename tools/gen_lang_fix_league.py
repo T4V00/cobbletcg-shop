@@ -1,6 +1,6 @@
-"""Textos nuevos del editor de mazos de la Liga TCG (arreglos de la revisión: guardado rechazado / pendiente).
+"""New texts for the TCG League deck editor (review fixes: save rejected / pending).
 
-Uso: python tools/gen_lang_fix_league.py  (actualiza/inserta las claves en es_es.json y en_us.json)
+Usage: python tools/gen_lang_fix_league.py  (updates/inserts the keys in es_es.json and en_us.json)
 """
 import json
 from pathlib import Path
@@ -20,7 +20,7 @@ def main():
         for k, v in T.items():
             d[k] = v[i]
         p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(len(T), "textos")
+    print(len(T), "texts")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genera las texturas 16x16 de los ítems (pixel art) sin dependencias: PNG escrito a mano con zlib."""
+"""Generates the 16x16 item textures (pixel art) with no dependencies: PNG written by hand with zlib."""
 import struct
 import zlib
 from pathlib import Path
@@ -28,20 +28,20 @@ T = (0, 0, 0, 0)
 
 
 def book(cover, cover_dark, edge, emblem):
-    """Libro/binder visto de frente: tapa con borde, páginas a la derecha y emblema en el centro."""
+    """Book/binder seen from the front: cover with border, pages on the right and emblem in the center."""
     px = [[T] * 16 for _ in range(16)]
     for y in range(1, 15):
         for x in range(2, 14):
             px[y][x] = cover if (x + y) % 5 else cover_dark
-        px[y][1] = edge                       # lomo
-        px[y][14] = hexc("EDE6D2")             # páginas
+        px[y][1] = edge                       # spine
+        px[y][14] = hexc("EDE6D2")             # pages
         px[y][15] = hexc("C9C0A8") if y % 2 else hexc("DCD4BE")
     for x in range(1, 15):
         px[0][x] = hexc("1A1A1A")
         px[15][x] = hexc("1A1A1A")
     for y in range(16):
         px[y][0] = hexc("1A1A1A") if 0 < y < 15 else T
-    # esquinas metálicas
+    # metal corners
     for (x, y) in [(2, 1), (3, 1), (2, 2), (13, 1), (12, 1), (13, 2), (2, 14), (3, 14), (2, 13), (13, 14), (12, 14), (13, 13)]:
         px[y][x] = hexc("E0B33C")
     emblem(px)
@@ -78,7 +78,7 @@ def rings(px):
 
 
 def bubble(inner):
-    """Bocadillo de pensamiento blanco (con burbujitas abajo a la izquierda) y un icono dentro."""
+    """White thought bubble (with little bubbles at the bottom left) and an icon inside."""
     W = hexc("FFFFFF"); B = hexc("2A2A2A")
     px = [[T] * 16 for _ in range(16)]
     for y in range(1, 11):
@@ -167,7 +167,7 @@ def main():
     png(ent / "npc_think_deal.png", bubble(glyph(EXCLAIM, "F2A20C")))
     png(ent / "npc_think_angry.png", bubble(glyph(ANGRY, "E53935")))
     png(ent / "npc_think_question.png", bubble(glyph(QUESTION, "3A7BD5")))
-    print("texturas generadas en", OUT)
+    print("textures generated in", OUT)
 
 
 if __name__ == "__main__":

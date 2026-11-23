@@ -33,20 +33,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** Lógica de la tienda: productos y precios, compra directa, empleados, caja, catálogo y sincronización. */
+/** Shop logic: products and prices, direct purchase, employees, register, catalog and sync. */
 public final class ShopServer {
     private static final Map<Item, Long> FIXED = new java.util.LinkedHashMap<>();
-    // Economía (v3): muebles, empleados y teléfono se amortizan en pocos días de ventas; el stock al por mayor deja margen.
-    // Valores por defecto; los reales vienen de config/tcgshop-economy.json (EconomyConfig.apply)
+    // Economy (v3): furniture, employees and phone pay for themselves in a few days of sales; wholesale stock leaves a margin.
+    // Default values; the real ones come from config/tcgshop-economy.json (EconomyConfig.apply)
     public static long CASHIER_HIRE = 30_000, CASHIER_WAGE = 4_000, GUARD_HIRE = 45_000, GUARD_WAGE = 6_000;
     public static final long MYSTERY_PRICE = 25_000;
     private static final Map<String, Long> DEFAULT_FIXED = new java.util.LinkedHashMap<>();
     private static long defaultItemPrice = 5_000, pokedollPrice = 40_000, giantPokedollPrice = 150_000;
     private static long minPack = 100, minBox = 1_000, minCard = 10;
-    /** Factor sobre el precio de mercado: Mayorista (cajas mucho más baratas) y Mercado del teléfono (cómodo, algo más caro). */
+    /** Factor over the market price: Wholesaler (boxes much cheaper) and phone Market (convenient, somewhat pricier). */
     public static double WHOLESALE_FACTOR = 0.6, PHONE_FACTOR = 0.8;
 
-    /** Precios fijos por defecto (id de objeto -> precio), para rellenar el archivo de economía. */
+    /** Default fixed prices (item id -> price), to fill in the economy file. */
     public static Map<String, Long> defaultFixedPrices() {
         if (DEFAULT_FIXED.isEmpty())
             for (Map.Entry<Item, Long> e : FIXED.entrySet()) DEFAULT_FIXED.put(Registries.ITEM.getId(e.getKey()).toString(), e.getValue());
@@ -54,7 +54,7 @@ public final class ShopServer {
     }
 
     public static void applyEconomy(dev.tcgshop.EconomyConfig c) {
-        defaultFixedPrices(); // fija los valores por defecto antes de sobrescribir
+        defaultFixedPrices(); // captures the default values before overwriting
         CASHIER_HIRE = c.cashierHire;
         CASHIER_WAGE = c.cashierWage;
         GUARD_HIRE = c.guardHire;
@@ -70,7 +70,7 @@ public final class ShopServer {
         for (Map.Entry<String, Long> e : c.itemPrices.entrySet()) {
             Identifier id = Identifier.tryParse(e.getKey());
             if (id == null || !Registries.ITEM.containsId(id)) {
-                dev.tcgshop.TcgShop.LOGGER.warn("tcgshop-economy.json: objeto desconocido {}", e.getKey());
+                dev.tcgshop.TcgShop.LOGGER.warn("tcgshop-economy.json: unknown item {}", e.getKey());
                 continue;
             }
             FIXED.put(Registries.ITEM.get(id), e.getValue());
@@ -114,25 +114,25 @@ public final class ShopServer {
         for (ShopTier t : ShopTier.values()) FIXED.put(TcgBlocks.CORE_ITEMS.get(t), t.price);
     }
 
-    // ------------------------------------------------------------------ productos y precios
+    // ------------------------------------------------------------------ products and prices
 
     public static boolean isPokedoll(ItemStack st) {
         Identifier id = Registries.ITEM.getId(st.getItem());
         return id.getNamespace().equals("pokeblocks") && id.getPath().contains("pokedoll");
     }
 
-    /** ¿Se puede poner a la venta en un expositor? */
+    /** Can it be put up for sale on a display? */
     public static boolean isProduct(ItemStack st) {
-        if (BoosterBox.isRemovedBox(st)) return false; // 0.9: cajas de sets de TCG Pocket
+        if (BoosterBox.isRemovedBox(st)) return false; // 0.9: TCG Pocket set boxes
         return CardInfo.isCard(st) || CardInfo.isPack(st) || st.isOf(TcgBlocks.BOOSTER_BOX_ITEM) || st.isOf(TcgBlocks.MYSTERY_BOX) || isPokedoll(st);
     }
 
-    /** Sobres, cajas y mystery boxes sólo se venden con un cajero contratado. */
+    /** Packs, boxes and mystery boxes are only sold with a hired cashier. */
     public static boolean needsCashier(ItemStack st) {
         return CardInfo.isPack(st) || st.isOf(TcgBlocks.BOOSTER_BOX_ITEM) || st.isOf(TcgBlocks.MYSTERY_BOX);
     }
 
-    /** Precio. factor: WHOLESALE_FACTOR, PHONE_FACTOR o 1.0 (mercado). Muebles y herramientas: precio fijo. */
+    /** Price. factor: WHOLESALE_FACTOR, PHONE_FACTOR or 1.0 (market). Furniture and tools: fixed price. */
     public static long priceOf(ItemStack st, double factor) {
         if (st.isOf(TcgBlocks.BOOSTER_BOX_ITEM)) {
             String set = st.getOrDefault(TcgBlocks.BOX_SET, "mew151");
@@ -148,7 +148,7 @@ public final class ShopServer {
         return fixed == null ? defaultItemPrice : fixed;
     }
 
-    /** Lo que vende el Mayorista (y también el teléfono, que además tiene sobres sueltos y la ruleta). */
+    /** What the Wholesaler sells (and also the phone, which additionally has single packs and the roulette). */
     public static List<ItemStack> wholesaleGoods(List<String> boxSets, @Nullable net.minecraft.util.math.random.Random r) {
         List<ItemStack> g = new ArrayList<>();
         for (String s : boxSets) g.add(BoosterBox.of(s));
@@ -172,7 +172,7 @@ public final class ShopServer {
 
     private static List<ItemStack> phoneCache;
 
-    /** Catálogo del teléfono: TODO lo del Mayorista (todas las cajas), sobres sueltos, peluches y la Ruleta Poké. */
+    /** Phone catalog: EVERYTHING from the Wholesaler (all boxes), single packs, plushies and the Poké Roulette. */
     public static List<ItemStack> phoneCatalog() {
         if (phoneCache != null) return phoneCache;
         List<String> sets = new ArrayList<>();
@@ -184,15 +184,15 @@ public final class ShopServer {
             }
         List<ItemStack> out = wholesaleGoods(sets, null);
         out.addAll(packs);
-        out.add(new ItemStack(TcgBlocks.ROULETTE_ITEM)); // sólo se vende por el teléfono
+        out.add(new ItemStack(TcgBlocks.ROULETTE_ITEM)); // only sold through the phone
         phoneCache = out;
         return out;
     }
 
-    // ------------------------------------------------------------------ expositores
+    // ------------------------------------------------------------------ displays
 
-    /** El dueño pone a la venta lo que tiene en la mano en la casilla `slot` (o en la primera libre). */
-    /** ¿Se puede reponer esa casilla con lo que llevas? (mismo producto y aún cabe más). */
+    /** The owner puts what they're holding up for sale in slot `slot` (or in the first free one). */
+    /** Can that slot be restocked with what you're carrying? (same product and there's still room). */
     public static boolean canMerge(ItemStack inSlot, ItemStack held) {
         return !inSlot.isEmpty() && !held.isEmpty() && inSlot.getMaxCount() > 1 && inSlot.getCount() < inSlot.getMaxCount()
                 && ItemStack.areItemsAndComponentsEqual(inSlot, held);
@@ -227,7 +227,7 @@ public final class ShopServer {
         }
     }
 
-    /** Compra directa con clic derecho (también el dueño, para probar): el dinero va a la caja de la tienda. */
+    /** Direct purchase with right click (the owner too, for testing): the money goes to the shop's register. */
     public static void buyDirect(ServerPlayerEntity player, ShopDisplayBlockEntity be, int slot) {
         ServerWorld world = player.getServerWorld();
         ShopZones zones = ShopZones.get(world);
@@ -268,21 +268,21 @@ public final class ShopServer {
         syncZones(world.getServer());
     }
 
-    /** Venta a un NPC: quita 1 unidad del expositor y cobra (con la suerte de la mystery box si aplica). */
+    /** Sale to an NPC: removes 1 unit from the display and charges (with the mystery box luck if applicable). */
     public static long sellToNpc(ServerWorld world, ShopZones.Zone z, ShopDisplayBlockEntity be, int slot, long price) {
         ItemStack bought = be.removeStack(slot, 1);
         if (bought.isEmpty()) return 0;
         return payFromNpc(world, z, bought, price, be.getPos());
     }
 
-    /** Un NPC paga un producto que ya ha cogido (en la caja registradora más cercana a `at`). */
+    /** An NPC pays for a product it has already picked up (at the cash register closest to `at`). */
     public static long payFromNpc(ServerWorld world, ShopZones.Zone z, ItemStack bought, long price, BlockPos at) {
         long earned = bought.isOf(TcgBlocks.MYSTERY_BOX) ? MysteryBoxItem.ownerEarning(price, world.random) : price;
         z.balance += earned;
         z.revenue += earned;
         z.sales++;
         z.customers++;
-        // 0.9 eventos: ingresos del día (topes de premios), objetivos de los eventos, propina y revenueMult (con tope por dueño)
+        // 0.9 events: day's revenue (reward caps), event goals, tip and revenueMult (capped per owner)
         long bonus = dev.tcgshop.events.EventManager.onNpcSale(world, z, bought, price, earned);
         ShopZones.get(world).markDirty();
         ringRegister(world, at);
@@ -298,7 +298,7 @@ public final class ShopServer {
         if (z.revenue >= 1_000_000) CardAdvancements.grant(owner, "revenue_1m");
     }
 
-    /** Abre el cajón de la caja registradora más cercana (animación). */
+    /** Opens the drawer of the nearest cash register (animation). */
     public static void ringRegister(ServerWorld world, BlockPos near) {
         for (BlockPos p : BlockPos.iterateOutwards(near, 8, 3, 8)) {
             if (world.getBlockEntity(p) instanceof DecorBlocks.DecorEntity be && world.getBlockState(p).isOf(TcgBlocks.CASH_REGISTER)) {
@@ -337,9 +337,9 @@ public final class ShopServer {
         openDisplay(player, be);
     }
 
-    // ------------------------------------------------------------------ editar una casilla concreta
+    // ------------------------------------------------------------------ editing a specific slot
 
-    /** Abre el menú de una carta/producto colocado: tomarlo o editar precio, tamaño y giro. */
+    /** Opens the menu for a placed card/product: take it or edit price, size and rotation. */
     public static void openSlot(ServerPlayerEntity player, ShopDisplayBlockEntity be, int slot) {
         ItemStack st = be.getStack(slot);
         if (st.isEmpty()) return;
@@ -358,7 +358,7 @@ public final class ShopServer {
             net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, new dev.tcgshop.network.UiPayloads.Open("slot", d));
     }
 
-    /** Respuesta del menú: take (a tu inventario), save (precio + aspecto) o reset (aspecto por defecto y precio de mercado). */
+    /** Menu response: take (to your inventory), save (price + look) or reset (default look and market price). */
     public static void slotAction(ServerPlayerEntity player, net.minecraft.nbt.NbtCompound d) {
         ServerWorld world = player.getServerWorld();
         BlockPos pos = BlockPos.fromLong(d.getLong("pos"));
@@ -392,9 +392,9 @@ public final class ShopServer {
         }
     }
 
-    // ------------------------------------------------------------------ empleados
+    // ------------------------------------------------------------------ employees
 
-    /** Contratar / despedir desde el teléfono. role: "cashier" o "guard". */
+    /** Hire / fire from the phone. role: "cashier" or "guard". */
     public static void manageStaff(ServerPlayerEntity player, UUID zoneId, String role, boolean hire) {
         ServerWorld world = player.getServerWorld();
         ShopZones zones = ShopZones.get(world);
@@ -404,7 +404,7 @@ public final class ShopServer {
         boolean second = role.equals("cashier2");
         if (hire) {
             if (second ? z.cashier2 : cashier ? z.cashier : z.guard) return;
-            double hf = dev.tcgshop.events.EventManager.hireFactor(player, false); // 0.9 eventos: "alguien busca trabajo"
+            double hf = dev.tcgshop.events.EventManager.hireFactor(player, false); // 0.9 events: "someone is looking for work"
             long cost = Math.round((cashier ? CASHIER_HIRE : GUARD_HIRE) * hf);
             if (!CobbleDollarsBridge.tryCharge(player, cost)) {
                 player.sendMessage(Text.translatable("tcgshop.shop.no_money", PriceService.format(cost)).formatted(Formatting.RED), false);
@@ -430,14 +430,14 @@ public final class ShopServer {
         syncZones(world.getServer());
     }
 
-    /** Turno de los cajeros: de 6:00 a 18:30 (de noche se van a casa). */
+    /** Cashiers' shift: from 6:00 to 18:30 (at night they go home). */
     public static boolean isDayShift(ServerWorld world) {
         return Math.floorMod(world.getTimeOfDay(), 24000L) < 12500;
     }
 
-    /** ¿Hay alguien cobrando? Un cajero en su turno, o el dueño junto a una caja registradora de la tienda. */
+    /** Is anyone taking payments? A cashier on shift, or the owner next to one of the shop's cash registers. */
     public static boolean cashierOnDuty(ServerWorld world, ShopZones.Zone z) {
-        // 0.9 eventos: con la caja averiada (registerDown) el CAJERO no puede cobrar; el dueño junto a una caja sí
+        // 0.9 events: with the register broken (registerDown) the CASHIER can't take payments; the owner next to a register can
         if ((z.cashier || z.cashier2) && isDayShift(world) && !dev.tcgshop.events.EventManager.mods(z).registerDown) return true;
         ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
         if (owner == null || owner.getServerWorld() != world || !z.contains(owner.getBlockPos())) return false;
@@ -446,7 +446,7 @@ public final class ShopServer {
         return false;
     }
 
-    /** Cada pocos segundos: los cajeros entran al amanecer y se van al anochecer; se avisa al dueño. */
+    /** Every few seconds: cashiers come in at dawn and leave at dusk; the owner is notified. */
     public static void shiftTick(ServerWorld world) {
         boolean day = isDayShift(world);
         ShopZones zones = ShopZones.get(world);
@@ -470,7 +470,7 @@ public final class ShopServer {
         }
     }
 
-    /** Sueldos: una vez por día de Minecraft se pagan de la caja de la tienda (si no hay dinero, el empleado se va). */
+    /** Wages: once per Minecraft day they're paid from the shop's register (if there's no money, the employee leaves). */
     public static void payWages(ServerWorld world) {
         ShopZones zones = ShopZones.get(world);
         long day = world.getTimeOfDay() / 24000;
@@ -498,7 +498,7 @@ public final class ShopServer {
         }
     }
 
-    // ------------------------------------------------------------------ zona / caja registradora
+    // ------------------------------------------------------------------ zone / cash register
 
     public static void describe(ServerPlayerEntity player, ShopZones.Zone z) {
         ShopZones zones = ShopZones.get(player.getServerWorld());
@@ -524,12 +524,12 @@ public final class ShopServer {
         collect(player, z, 0);
     }
 
-    /** Sueldos de un día de toda la plantilla (para "retirar dejando sueldos"). */
+    /** One day's wages for the whole staff (for "withdraw leaving wages"). */
     public static long dailyWages(ShopZones.Zone z) {
         return (z.cashier ? CASHIER_WAGE : 0) + (z.cashier2 ? CASHIER_WAGE : 0) + (z.guard ? GUARD_WAGE : 0);
     }
 
-    /** Retira el dinero de la caja a tu cuenta de CobbleDollars; keep = lo que se deja dentro (p. ej. para sueldos). */
+    /** Withdraws the register's money to your CobbleDollars account; keep = what is left inside (e.g. for wages). */
     public static void collect(ServerPlayerEntity player, ShopZones.Zone z, long keep) {
         if (!z.owner.equals(player.getUuid())) return;
         long amount = z.balance - Math.max(0, keep);
@@ -548,27 +548,27 @@ public final class ShopServer {
         syncZones(player.getServer());
     }
 
-    // ------------------------------------------------------------------ catálogo (Mayorista / teléfono)
+    // ------------------------------------------------------------------ catalog (Wholesaler / phone)
 
     /**
-     * Abre el catálogo (source = -1 teléfono, o id del Mayorista). Lo que ve el jugador y sus precios dependen del nivel
-     * de su teléfono (dev.tcgshop.phone): antes del catálogo se manda el nivel necesario de cada producto (candados).
-     * Abrir el teléfono es silencioso (0.9: ya no se avisa en el chat de los sets bloqueados cada vez).
+     * Opens the catalog (source = -1 phone, or the Wholesaler's id). What the player sees and its prices depend on the tier
+     * of their phone (dev.tcgshop.phone): before the catalog, the required tier of each product is sent (locks).
+     * Opening the phone is silent (0.9: locked sets are no longer announced in chat every time).
      */
     public static void openStore(ServerPlayerEntity player, int source, List<ItemStack> goods, double factor) {
         openStore(player, source, goods, factor, false);
     }
 
-    /** refreshOnly: sólo refresca un teléfono que ya esté abierto (tras comprar una mejora); no lo vuelve a abrir. */
+    /** refreshOnly: only refreshes a phone that is already open (after buying an upgrade); doesn't reopen it. */
     public static void openStore(ServerPlayerEntity player, int source, List<ItemStack> goods, double factor, boolean refreshOnly) {
-        // el aviso de PackLock compara con la lista YA ampliada con los sets extra del Mayorista (si no, en los niveles
-        // altos los sets añadidos tapaban los quitados y el aviso no salía nunca)
+        // the PackLock notice compares against the list ALREADY extended with the Wholesaler's extra sets (otherwise, at high
+        // tiers the added sets masked the removed ones and the notice never showed)
         List<ItemStack> extended = dev.tcgshop.phone.PhoneUpgrades.withExtraSets(player, source, goods);
         goods = dev.tcgshop.phone.PhoneUpgrades.applyPackLock(player, extended);
         if (source != -1 && goods.size() < extended.size() && !PackLock.lockedSets().isEmpty() && !PackLock.canBuyLocked(player))
             player.sendMessage(Text.translatable("tcgshop.lock.need_tier", Text.translatable("tcgshop.shop.tier." + PackLock.minTier().key)).formatted(Formatting.GOLD), true);
         double f = dev.tcgshop.phone.PhoneUpgrades.priceFactor(player, source, factor)
-                * dev.tcgshop.events.EventManager.purchaseFactor(player, source, false); // 0.9 eventos: descuento / retraso del proveedor
+                * dev.tcgshop.events.EventManager.purchaseFactor(player, source, false); // 0.9 events: supplier discount / delay
         List<Long> prices = new ArrayList<>();
         for (ItemStack st : goods) prices.add(priceOf(st, f));
         dev.tcgshop.phone.PhoneUpgrades.sync(player, source, dev.tcgshop.phone.PhoneUpgrades.locks(goods, source), refreshOnly);
@@ -594,7 +594,7 @@ public final class ShopServer {
             player.sendMessage(Text.translatable("tcgshop.shop.no_money", PriceService.format(total)).formatted(Formatting.RED), true);
             return;
         }
-        if (evf < 1) dev.tcgshop.events.EventManager.purchaseFactor(player, p.source(), true); // gasta el descuento del evento
+        if (evf < 1) dev.tcgshop.events.EventManager.purchaseFactor(player, p.source(), true); // uses up the event discount
         for (int i = 0; i < qty; i++) player.getInventory().offerOrDrop(item.copyWithCount(1));
         ShopZones.get(player.getServerWorld()).addCost(player.getUuid(), total);
         player.sendMessage(Text.translatable("tcgshop.store.bought", qty, item.getName(),
@@ -604,7 +604,7 @@ public final class ShopServer {
         syncZones(player.getServer());
     }
 
-    // ------------------------------------------------------------------ sincronización de zonas
+    // ------------------------------------------------------------------ zone sync
 
     public static void syncZones(MinecraftServer server) {
         for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) syncZones(p);
@@ -624,7 +624,7 @@ public final class ShopServer {
             c.putLong("revenue", z.revenue);
             c.putLong("balance", z.balance);
             c.putInt("sales", z.sales);
-            if (z.owner.equals(player.getUuid())) { // detalles sólo para el dueño
+            if (z.owner.equals(player.getUuid())) { // details only for the owner
                 c.putBoolean("cashier", z.cashier);
                 c.putBoolean("guard", z.guard);
                 c.putString("cashier_name", z.cashierName);
@@ -634,7 +634,7 @@ public final class ShopServer {
                 ex.putString("cashier2_name", z.cashier2Name);
                 ex.putBoolean("day", isDayShift(player.getServerWorld()));
                 dev.tcgshop.shop.ShopMissions.writeSync(z, ex);
-                ex.put("ev", dev.tcgshop.events.EventManager.writeSync(player.getServerWorld(), z)); // 0.9: pestaña Eventos
+                ex.put("ev", dev.tcgshop.events.EventManager.writeSync(player.getServerWorld(), z)); // 0.9: Events tab
                 c.put("ext", ex);
                 c.putLong("wages", z.wagesPaid);
                 c.putIntArray("metrics", new int[]{z.stolen, z.detained, z.recovered, z.customers, z.complaints, z.dealsAccepted, z.whales,

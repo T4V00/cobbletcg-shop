@@ -17,8 +17,8 @@ import net.minecraft.text.Text;
 import java.util.List;
 
 /**
- * Aviso de logro que, además del título, muestra la DESCRIPCIÓN (el aviso de Minecraft sólo enseña el título).
- * Sustituye a AdvancementToast para todos los logros (vanilla, cobbletcg y del add-on).
+ * Advancement toast that shows the DESCRIPTION besides the title (Minecraft's toast only shows the title).
+ * Replaces AdvancementToast for all advancements (vanilla, cobbletcg and the add-on's).
  */
 public class RichAdvancementToast implements Toast {
     private static final int WIDTH = 200;
@@ -55,7 +55,7 @@ public class RichAdvancementToast implements Toast {
         Ui.roundGradient(ctx, 0, 0, WIDTH, h, 0xF0262A3C, 0xF0161925);
         Ui.outline(ctx, 0, 0, WIDTH, h, accent);
         ctx.fill(1, 1, 4, h - 1, accent);
-        // icono
+        // icon
         Ui.round(ctx, 8, 6, 22, 22, 0xFF0E1019);
         Ui.outline(ctx, 8, 6, 22, 22, accent);
         ctx.drawItemWithoutEntity(d.getIcon(), 11, 9);

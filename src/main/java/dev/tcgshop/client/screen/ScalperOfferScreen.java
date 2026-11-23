@@ -11,7 +11,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
-/** Oferta de un Scalper: comprar el sobre a precio inflado o rechazarlo (y que se vuelva hostil). */
+/** A Scalper's offer: buy the pack at an inflated price or refuse it (and it turns hostile). */
 public class ScalperOfferScreen extends Screen {
     private final int entityId;
     private final ItemStack pack;
@@ -40,7 +40,7 @@ public class ScalperOfferScreen extends Screen {
 
     @Override
     public void close() {
-        answer(false); // cerrar = rechazar
+        answer(false); // close = refuse
     }
 
     @Override

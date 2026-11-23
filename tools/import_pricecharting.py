@@ -1,33 +1,33 @@
 #!/usr/bin/env python3
 """
-Importa precios de PriceCharting (sin calificar + gradeadas) para MasterBall Traders Co..
+Imports PriceCharting prices (ungraded + graded) for MasterBall Traders Co..
 
-PriceCharting no permite descargas automáticas sin cuenta: hace falta tu propia exportación.
-  * Opción A (recomendada): en pricecharting.com con suscripción, "Price Guide Download" de la categoría
-    Pokémon Cards -> guarda el CSV y pásalo con --csv.
-  * Opción B: tu token de la API (Legendary/Retailer) con --token; el script descarga el mismo CSV oficial
+PriceCharting does not allow automatic downloads without an account: you need your own export.
+  * Option A (recommended): on pricecharting.com with a subscription, "Price Guide Download" for the
+    Pokémon Cards category -> save the CSV and pass it with --csv.
+  * Option B: your API token (Legendary/Retailer) with --token; the script downloads the same official CSV
     (https://www.pricecharting.com/price-guide/download-custom?t=TOKEN&category=pokemon-cards).
 
-Columnas que usa (así las define PriceCharting para cartas):
-  loose-price        -> sin calificar (raw)
+Columns it uses (this is how PriceCharting defines them for cards):
+  loose-price        -> ungraded (raw)
   cib-price          -> Grade 7
   new-price          -> Grade 8
   graded-price       -> Grade 9
   box-only-price     -> Grade 9.5
   manual-only-price  -> PSA 10
-Los precios del CSV vienen como "$12.34"; los de la API en centavos (se detecta solo).
+CSV prices come as "$12.34"; API prices in cents (detected automatically).
 
-Salida: src/main/resources/data/tcgshop/tcgshop_prices/pricecharting.json con
+Output: src/main/resources/data/tcgshop/tcgshop_prices/pricecharting.json with
   { "cards_usd":  { id: raw },
     "graded_usd": { id: {"7": x, "8": y, "9": z, "9.5": w, "10": v} } }
-Se carga DESPUÉS de cards.json (orden alfabético: "p" > "c"), así que sus precios ganan donde existan;
-las cartas que PriceCharting no tenga siguen con el precio de TCGplayer.
-También puedes ponerlo en un datapack del mundo (data/<ns>/tcgshop_prices/) y hacer /reload.
+It is loaded AFTER cards.json (alphabetical order: "p" > "c"), so its prices win where they exist;
+cards PriceCharting does not have keep the TCGplayer price.
+You can also put it in a world datapack (data/<ns>/tcgshop_prices/) and run /reload.
 
-Uso:
+Usage:
   python tools/import_pricecharting.py <cobbletcg-1.6.0.jar> --csv pokemon-cards.csv
-  python tools/import_pricecharting.py <cobbletcg-1.6.0.jar> --token TU_TOKEN
-Sólo librería estándar.
+  python tools/import_pricecharting.py <cobbletcg-1.6.0.jar> --token YOUR_TOKEN
+Standard library only.
 """
 import argparse
 import csv
@@ -46,7 +46,7 @@ from fetch_prices import load_cards, norm, clean_name  # noqa: E402
 OUT = Path(__file__).resolve().parent.parent / "src/main/resources/data/tcgshop/tcgshop_prices/pricecharting.json"
 DOWNLOAD = "https://www.pricecharting.com/price-guide/download-custom?t={token}&category=pokemon-cards"
 
-# Código de set de cobbletcg -> nombre(s) de "console-name" en PriceCharting.
+# cobbletcg set code -> "console-name" name(s) in PriceCharting.
 SET_CONSOLES = {
     "BS": ["Pokemon Base Set"], "TR": ["Pokemon Team Rocket"], "GYM": ["Pokemon Gym Heroes", "Pokemon Gym Challenge"],
     "ROS": ["Pokemon Roaring Skies"], "HIF": ["Pokemon Hidden Fates"], "TEU": ["Pokemon Team Up"],
@@ -89,7 +89,7 @@ def read_rows(args):
             text = r.read().decode("utf-8-sig")
     rows = list(csv.DictReader(io.StringIO(text)))
     if not rows or "product-name" not in rows[0]:
-        sys.exit("El CSV no tiene la columna 'product-name': ¿es la exportación de PriceCharting?")
+        sys.exit("The CSV has no 'product-name' column: is it the PriceCharting export?")
     sample = [r.get("loose-price", "") for r in rows[:200]]
     cents = not any("$" in s or "." in s for s in sample if s)
     return rows, cents
@@ -97,7 +97,7 @@ def read_rows(args):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("jar", nargs="?", help="(ya no se usa: catálogo de MasterBall Traders API)")
+    ap.add_argument("jar", nargs="?", help="(no longer used: MasterBall Traders API catalog)")
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--csv")
     g.add_argument("--token")
@@ -135,13 +135,13 @@ def main():
             graded_out[c["id"]] = grades
 
     OUT.write_text(json.dumps({
-        "source": "PriceCharting (exportación del usuario)",
+        "source": "PriceCharting (user's export)",
         "generated": datetime.date.today().isoformat(),
         "cards_usd": dict(sorted(raw_out.items())),
         "graded_usd": dict(sorted(graded_out.items())),
     }, indent=1, ensure_ascii=False), encoding="utf-8")
-    print(f"{len(raw_out)} cartas con precio sin calificar, {len(graded_out)} con precios gradeados, {misses} sin emparejar")
-    print(f"Escrito {OUT}")
+    print(f"{len(raw_out)} cards with ungraded price, {len(graded_out)} with graded prices, {misses} unmatched")
+    print(f"Wrote {OUT}")
 
 
 if __name__ == "__main__":

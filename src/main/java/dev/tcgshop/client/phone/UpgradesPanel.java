@@ -17,11 +17,11 @@ import java.util.List;
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
 /**
- * App «Mejoras» del teléfono: a la izquierda tu teléfono (nivel, ventajas, llamada diaria) y a la derecha la escalera
- * de los 7 niveles con lo que desbloquea cada uno. Mejorar pide confirmación (segundo clic en 3 s).
+ * Phone «Upgrades» app: on the left your phone (level, perks, daily call) and on the right the ladder
+ * of the 7 levels with what each one unlocks. Upgrading asks for confirmation (second click within 3 s).
  */
 public final class UpgradesPanel {
-    /** Dónde se registran las zonas clicables (las del teléfono). */
+    /** Where the clickable zones are registered (the phone's). */
     public interface Sink {
         void add(int x, int y, int w, int h, Runnable action);
     }
@@ -33,7 +33,7 @@ public final class UpgradesPanel {
 
     private static double now() { return System.nanoTime() / 1e9; }
 
-    /** Dibuja la app. Devuelve el scroll (corregido) de la lista de niveles. */
+    /** Draws the app. Returns the (corrected) scroll of the level list. */
     public double render(DrawContext ctx, int x, int y, int w, int h, int mouseX, int mouseY, double t, double scroll, Sink sink) {
         TextRenderer tr = MinecraftClient.getInstance().textRenderer;
         int tier = PhoneClient.tier;
@@ -43,12 +43,12 @@ public final class UpgradesPanel {
             Ui.text(ctx, Text.translatable("tcgshop.phoneup.disabled"), x, y, w, 40, 0xFFDDE3F0, false);
             return 0;
         }
-        // ---------------------------------------------------------------- izquierda: tu teléfono
+        // ---------------------------------------------------------------- left: your phone
         int lw = Math.min(170, Math.max(130, w / 3));
         Ui.roundedGradient(ctx, x, y, lw, h, 8, SURF2, SURF);
         Ui.roundedOutline(ctx, x, y, lw, h, 8, LINE);
         ctx.drawText(tr, Text.translatable("tcgshop.phoneup.your_phone").formatted(Formatting.BOLD), x + 8, y + 7, 0xFF9A9FB8, false);
-        // dibujo del teléfono con el color del nivel
+        // phone drawing in the level's color
         int pw = 30, ph = 52, px = x + 10, py = y + 22;
         Ui.rounded(ctx, px + 2, py + 3, pw, ph, 6, 0x60000000);
         Ui.roundedGradient(ctx, px, py, pw, ph, 6, Ui.brighten(cur.color, 40), Ui.darken(cur.color, 40));
@@ -66,7 +66,7 @@ public final class UpgradesPanel {
         m.scale(s, s, 1);
         ctx.drawText(tr, name, 0, 0, Ui.brighten(cur.color, 50), true);
         m.pop();
-        // puntos de progreso
+        // progress points
         for (int i = 1; i <= PhoneTier.MAX_LEVEL; i++) {
             int dx = tx + (i - 1) * 9;
             if (dx + 6 > x + lw - 4) break;
@@ -74,7 +74,7 @@ public final class UpgradesPanel {
         }
         if (PhoneClient.legacy) ctx.drawText(tr, Text.translatable("tcgshop.phoneup.legacy"), tx, py + 42, 0xFF6BE07B, false);
         int iy = py + ph + 10;
-        // ventajas del nivel actual
+        // current level perks
         ctx.drawText(tr, Text.translatable("tcgshop.phoneup.now_have").formatted(Formatting.BOLD), x + 8, iy, 0xFFDDE3F0, false);
         iy += 12;
         int maxPerkY = y + h - (tier >= PhoneTier.CALL_TIER ? 70 : 44);
@@ -83,7 +83,7 @@ public final class UpgradesPanel {
             ctx.drawText(tr, line, x + 8, iy, 0xFFB8BCCB, false);
             iy += 10;
         }
-        // llamada diaria o próximo nivel
+        // daily call or next level
         int by = y + h - (tier >= PhoneTier.CALL_TIER ? 64 : 38);
         ctx.fill(x + 8, by - 4, x + lw - 8, by - 3, 0x22FFFFFF);
         if (tier >= PhoneTier.CALL_TIER) {
@@ -109,7 +109,7 @@ public final class UpgradesPanel {
             Ui.progress(ctx, x + 8, by + 23, lw - 16, 5, cost <= 0 ? 1f : (float) Math.min(1.0, bal / (double) cost), PhoneTier.of(next).color);
         }
 
-        // ---------------------------------------------------------------- derecha: los niveles
+        // ---------------------------------------------------------------- right: the levels
         int rx = x + lw + 8, rw = w - lw - 8, rowH = 50, gap = 4;
         int contentH = PhoneTier.values().length * (rowH + gap) - gap;
         scroll = MathHelper.clamp(scroll, 0, Math.max(0, contentH - h));
@@ -124,18 +124,18 @@ public final class UpgradesPanel {
             Ui.roundedGradient(ctx, rx, ry, rw, rowH, 7, current ? withAlpha(Ui.darken(accent, 30), 0.95f) : SURF2, SURF);
             Ui.roundedOutline(ctx, rx, ry, rw, rowH, 7, current ? withAlpha(accent, 0.95f) : next ? withAlpha(accent, 0.6f) : LINE);
             Ui.rounded(ctx, rx + 3, ry + 5, 3, rowH - 10, 1, owned || next ? accent : 0xFF3A3F55);
-            // nombre y nivel
+            // name and level
             ctx.drawText(tr, PhoneClient.tierName(i).copy().formatted(Formatting.BOLD), rx + 12, ry + 6, owned ? 0xFFFFFFFF : next ? Ui.brighten(accent, 50) : 0xFF8A8FA8, true);
             int nameW = tr.getWidth(PhoneClient.tierName(i).copy().formatted(Formatting.BOLD));
             ctx.drawText(tr, Text.translatable("tcgshop.phoneup.lv", i), rx + 16 + nameW, ry + 6, 0xFF6A6F88, false);
-            // ventajas (2 líneas)
+            // perks (2 lines)
             int bwBtn = 92, textW = rw - bwBtn - 26;
             List<OrderedText> lines = tr.wrapLines(Text.translatable("tcgshop.phoneup.perks." + pt.key), textW);
             for (int k = 0; k < Math.min(3, lines.size()); k++)
                 ctx.drawText(tr, lines.get(k), rx + 12, ry + 18 + k * 10, owned ? 0xFFC8CCDA : 0xFF8A8FA8, false);
             boolean rowHover = Ui.in(mouseX, mouseY, rx, ry, rw, rowH) && Ui.in(mouseX, mouseY, rx, y, rw, h);
             if (rowHover && lines.size() > 3) tooltip(tr.wrapLines(Text.translatable("tcgshop.phoneup.perks." + pt.key), 220));
-            // estado / botón
+            // state / button
             int bx = rx + rw - bwBtn - 8, bby = ry + (rowH - 20) / 2;
             if (current) Ui.chip(ctx, bx, bby + 2, bwBtn, 16, Text.translatable("tcgshop.phoneup.current"), true, false, accent, 0);
             else if (owned) Ui.text(ctx, Text.translatable("tcgshop.phoneup.owned"), bx, bby, bwBtn, 20, 0xFF6BE07B, true);
@@ -165,7 +165,7 @@ public final class UpgradesPanel {
             }
         }
         ctx.disableScissor();
-        // barra de scroll
+        // scroll bar
         if (contentH > h) {
             int bh = Math.max(16, h * h / contentH), byy = y + (int) ((h - bh) * (scroll / Math.max(1, contentH - h)));
             Ui.rounded(ctx, rx + rw - 3, byy, 2, bh, 1, 0x66FFFFFF);
@@ -190,16 +190,16 @@ public final class UpgradesPanel {
         if (screen != null) screen.setTooltip(lines, net.minecraft.client.gui.tooltip.HoveredTooltipPositioner.INSTANCE, true);
     }
 
-    // ------------------------------------------------------------------ aviso de app bloqueada
+    // ------------------------------------------------------------------ locked app notice
 
-    /** Tarjeta «app bloqueada» sobre la pantalla de inicio (vertical). onUpgrades abre la app Mejoras; onClose la cierra. */
+    /** «Locked app» card over the home screen (portrait). onUpgrades opens the Upgrades app; onClose closes it. */
     public static void lockPrompt(DrawContext ctx, int sx, int sy, int sw, int sh, String appKey, int mouseX, int mouseY,
                                   Sink sink, Runnable onUpgrades, Runnable onClose) {
         TextRenderer tr = MinecraftClient.getInstance().textRenderer;
         int need = PhoneTier.appTier(appKey);
         PhoneTier nt = PhoneTier.of(need);
         ctx.fill(sx, sy, sx + sw, sy + sh, 0xB0060710);
-        sink.add(sx, sy, sw, sh, onClose); // clic fuera = cerrar
+        sink.add(sx, sy, sw, sh, onClose); // click outside = close
         int cw = sw - 24, cx = sx + 12;
         Text body = Text.translatable("tcgshop.phoneup.app_locked_body", Text.translatable("tcgshop.phone." + appKey), PhoneClient.tierName(need));
         List<OrderedText> lines = tr.wrapLines(body, cw - 16);
@@ -208,7 +208,7 @@ public final class UpgradesPanel {
         Ui.rounded(ctx, cx + 2, cy + 3, cw, chh, 10, 0x80000000);
         Ui.roundedGradient(ctx, cx, cy, cw, chh, 10, SURF2, SURF);
         Ui.roundedOutline(ctx, cx, cy, cw, chh, 10, withAlpha(nt.color, 0.9f));
-        sink.add(cx, cy, cw, chh, () -> {}); // la tarjeta no cierra
+        sink.add(cx, cy, cw, chh, () -> {}); // the card does not close
         LockIcon.badge(ctx, cx + cw / 2, cy + 18, 14, nt.color);
         Ui.text(ctx, Text.translatable("tcgshop.phoneup.requires", PhoneClient.tierName(need)).formatted(Formatting.BOLD), cx, cy + 34, cw, 12, Ui.brighten(nt.color, 50), true);
         int ly = cy + 50;

@@ -17,9 +17,9 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * Herramientas para arreglar incidentes: tcgshop:mop (fregona: charcos, excrementos, desorden) y tcgshop:repair_kit
- * (kit de reparación: chispas, quemaduras, vitrinas rotas). Por sí solas no hacen nada: el bloque de incidente
- * comprueba el tag #tcgshop:fix/&lt;kind&gt; y les quita durabilidad.
+ * Tools for fixing incidents: tcgshop:mop (mop: puddles, droppings, mess) and tcgshop:repair_kit
+ * (repair kit: sparks, scorch marks, broken showcases). On their own they do nothing: the incident block
+ * checks the tag #tcgshop:fix/&lt;kind&gt; and takes durability from them.
  */
 public class IncidentToolItem extends Item {
     private final String key;
@@ -29,7 +29,7 @@ public class IncidentToolItem extends Item {
         this.key = key;
     }
 
-    /** Agachado, el juego no llama al bloque: la herramienta lo arregla igual (mismo camino que el clic normal). */
+    /** While sneaking, the game does not call the block: the tool fixes it anyway (same path as a normal click). */
     @Override
     public ActionResult useOnBlock(ItemUsageContext context) {
         World w = context.getWorld();

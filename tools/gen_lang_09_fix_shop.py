@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""0.9 fix - area "shop": textos nuevos de la revisión (aforo con eventos, puerta bloqueada).
+"""0.9 fix - area "shop": new texts from the review (capacity with events, blocked door).
 
-Sólo añade / actualiza sus propias claves en es_es.json y en_us.json (idempotente, conserva el orden del resto).
+Only adds / updates its own keys in es_es.json and en_us.json (idempotent, keeps the order of the rest).
 """
 import json
 import os
@@ -18,9 +18,9 @@ def k(key, es, en):
     EN[key] = en
 
 
-# ShopStatusScreen: línea del tooltip de aforo cuando un evento lo cambia (Mods.maxCustAdd)
+# ShopStatusScreen: capacity tooltip line when an event changes it (Mods.maxCustAdd)
 k("tcgshop.status.capacity_event", "Eventos: %s ahora mismo", "Events: %s right now")
-# ShopLife.queueGate: un cliente se cansa de esperar porque un evento bloquea la puerta (no por aforo)
+# ShopLife.queueGate: a customer gets tired of waiting because an event blocks the door (not due to capacity)
 k("tcgshop.event.door_blocked_left", "%s se cansó de esperar ante la puerta bloqueada y se fue.",
   "%s got tired of waiting at the blocked door and left.")
 
@@ -38,4 +38,4 @@ def apply(name, data):
 if __name__ == "__main__":
     apply("es_es.json", ES)
     apply("en_us.json", EN)
-    print("ok: %d claves" % len(ES))
+    print("ok: %d keys" % len(ES))

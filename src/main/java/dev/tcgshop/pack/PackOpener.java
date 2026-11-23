@@ -31,15 +31,15 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Apertura de sobres en grupo (1-100 por rasgada), controlada por el servidor con el contenido de sobres de
+ * Group pack opening (1-100 per rip), server-controlled using the pack contents from
  * MasterBall Traders API (PackContents):
  *
- *  1. OpenGroup(ids): por cada sobre, si está sellado se sortea normal/semi-dios/dios y se sacan sus 5 cartas (con su
- *     variante de impresión). Todo queda pendiente.
- *     Responde GroupReady con el tipo de cada sobre y la rareza máxima de su contenido (para el brillo).
- *  2. GroupCut(dañados): entrega las cartas de los sobres bien cortados (al Binder General si lo tienes, o
- *     al inventario) y destruye las de los mal cortados. Responde GroupReveal.
- *  Si el jugador cierra la pantalla o se desconecta con un grupo pendiente, se entrega todo como limpio.
+ *  1. OpenGroup(ids): for each pack, if sealed, roll normal/semi-god/god and draw its 5 cards (with their
+ *     print variant). Everything stays pending.
+ *     Replies GroupReady with each pack's type and the highest rarity of its contents (for the glow).
+ *  2. GroupCut(damaged): delivers the cards of cleanly cut packs (to the General Binder if you have it, or
+ *     to the inventory) and destroys those of badly cut ones. Replies GroupReveal.
+ *  If the player closes the screen or disconnects with a pending group, everything is delivered as clean.
  */
 public final class PackOpener {
     private record Pending(Identifier ripped, int tier, List<ItemStack> cards, List<Long> prices) {}
@@ -50,7 +50,7 @@ public final class PackOpener {
 
     private PackOpener() {}
 
-    /** ¿Está el jugador abriendo sobres ahora mismo? (lo usa el Scalper) */
+    /** Is the player opening packs right now? (used by the Scalper) */
     public static boolean isOpening(ServerPlayerEntity player) {
         if (PENDING.containsKey(player.getUuid())) return true;
         Long last = LAST_ACTIVITY.get(player.getUuid());
@@ -62,7 +62,7 @@ public final class PackOpener {
     }
 
     public static void onOpenGroup(OpenGroupPayload p, ServerPlayerEntity player) {
-        if (PENDING.containsKey(player.getUuid())) finish(player, List.of()); // grupo anterior sin terminar
+        if (PENDING.containsKey(player.getUuid())) finish(player, List.of()); // previous group not finished
         touch(player);
         List<Pending> group = new ArrayList<>();
         List<Identifier> rippedIds = new ArrayList<>();
@@ -88,7 +88,7 @@ public final class PackOpener {
         reply(player, new GroupReadyPayload(rippedIds, tiers, best));
     }
 
-    /** Abre un sobre (sellado o ya abierto) y deja sus cartas pendientes. null si falla. */
+    /** Opens a pack (sealed or already ripped) and leaves its cards pending. null on failure. */
     private static Pending prepare(ServerPlayerEntity player, Identifier id) {
         Item item = CardInfo.item(id);
         if (item == null) return null;
@@ -97,10 +97,10 @@ public final class PackOpener {
         ItemStack one = takeOne(player, item);
         if (one.isEmpty()) return null;
         String set = CardInfo.setId(CardInfo.id(one));
-        int rippedTier = tier == 0 ? PackContents.rollTier(player.getRandom()) : tier;  // sellado: normal / semi-dios / dios
+        int rippedTier = tier == 0 ? PackContents.rollTier(player.getRandom()) : tier;  // sealed: normal / semi-god / god
         Identifier rippedId = CardInfo.rippedOf(set, rippedTier);
         List<ItemStack> cards = new ArrayList<>(PackContents.open(set, rippedTier, player.getRandom()));
-        if (rippedId == null || cards.isEmpty()) { // set desconocido: devolver el sobre
+        if (rippedId == null || cards.isEmpty()) { // unknown set: give the pack back
             player.getInventory().offerOrDrop(one);
             return null;
         }
@@ -114,7 +114,7 @@ public final class PackOpener {
         finish(player, p.damaged());
     }
 
-    /** Entrega o destruye las cartas del grupo pendiente. damaged vacío = todo limpio (cancelado). */
+    /** Delivers or destroys the cards of the pending group. Empty damaged = all clean (cancelled). */
     public static void finish(ServerPlayerEntity player, List<Boolean> damaged) {
         List<Pending> group = PENDING.remove(player.getUuid());
         if (group == null) return;
@@ -141,7 +141,7 @@ public final class PackOpener {
                 col.packsRuined++;
                 CardAdvancements.grant(player, "ruined_pack");
                 if (col.packsRuined >= 10) CardAdvancements.grant(player, "ruined_10");
-                TcgShop.LOGGER.info("{} abrió mal un sobre: {} cartas destruidas", player.getName().getString(), pk.cards.size());
+                TcgShop.LOGGER.info("{} botched opening a pack: {} cards destroyed", player.getName().getString(), pk.cards.size());
                 continue;
             }
             for (ItemStack st : pk.cards) {
@@ -171,7 +171,7 @@ public final class PackOpener {
         LAST_ACTIVITY.remove(player.getUuid());
     }
 
-    // ------------------------------------------------------------------ uso controlado
+    // ------------------------------------------------------------------ controlled use
 
     private static ItemStack takeOne(ServerPlayerEntity player, Item item) {
         PlayerInventory inv = player.getInventory();
@@ -186,7 +186,7 @@ public final class PackOpener {
         if (ServerPlayNetworking.canSend(player, payload.getId())) ServerPlayNetworking.send(player, payload);
     }
 
-    /** Orden de revelado estilo TCG Pocket: la más rara al final. */
+    /** TCG Pocket-style reveal order: the rarest last. */
     public static int revealRank(Rarity r) {
         return r.rank;
     }

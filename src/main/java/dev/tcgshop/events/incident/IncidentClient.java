@@ -4,12 +4,12 @@ import dev.tcgshop.shop.TcgBlocks;
 import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
 import net.minecraft.client.render.RenderLayer;
 
-/** Parte de cliente del módulo de incidentes (clase aparte para no tocar clases de cliente en el servidor). */
+/** Client part of the incident module (separate class so client classes are not touched on the server). */
 final class IncidentClient {
     private IncidentClient() {}
 
     static void init() {
-        // translúcida: los charcos y las quemaduras usan transparencia parcial
+        // translucent: puddles and scorch marks use partial transparency
         BlockRenderLayerMap.INSTANCE.putBlock(TcgBlocks.INCIDENT, RenderLayer.getTranslucent());
     }
 }

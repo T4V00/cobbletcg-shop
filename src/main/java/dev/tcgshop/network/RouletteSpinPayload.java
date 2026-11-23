@@ -8,7 +8,7 @@ import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
-/** Cliente -> servidor: girar la ruleta apostando `amount` a rojo (red=true) o negro. */
+/** Client -> server: spin the roulette betting `amount` on red (red=true) or black. */
 public record RouletteSpinPayload(BlockPos pos, boolean red, long amount) implements CustomPayload {
     public static final Id<RouletteSpinPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "roulette_spin"));
     public static final PacketCodec<RegistryByteBuf, RouletteSpinPayload> CODEC = PacketCodec.tuple(

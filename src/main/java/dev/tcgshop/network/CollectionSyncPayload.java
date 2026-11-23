@@ -12,9 +12,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Servidor -> cliente: contenido del Binder General abierto + datos del jugador.
- * stats = [cartas obtenidas, sobres abiertos, sobres arruinados, god packs, cartas contadas para logros]
- * titles = títulos disponibles ("especie|tier"); title = el elegido.
+ * Server -> client: contents of the opened General Binder + player data.
+ * stats = [cards obtained, packs opened, packs ruined, god packs, cards counted for advancements]
+ * titles = available titles ("species|tier"); title = the chosen one.
  */
 public record CollectionSyncPayload(Map<String, Integer> counts, List<String> fresh, List<Long> stats, List<String> wishlist,
                                     List<String> titles, String title) implements CustomPayload {

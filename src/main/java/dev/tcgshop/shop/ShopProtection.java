@@ -16,9 +16,9 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * Protección de las zonas de tienda (en X, Y y Z):
- *  · Sólo el dueño puede romper o colocar bloques dentro de su zona (y abrir cofres ajenos no está permitido).
- *  · Los muebles de tienda sólo se pueden colocar dentro de una zona de tienda TUYA.
+ * Shop zone protection (in X, Y and Z):
+ *  · Only the owner can break or place blocks inside their zone (and opening other people's chests is not allowed).
+ *  · Shop furniture can only be placed inside a shop zone of YOURS.
  */
 public final class ShopProtection {
     private ShopProtection() {}
@@ -44,7 +44,7 @@ public final class ShopProtection {
             ShopZones zones = ShopZones.get(sw);
             ItemStack held = player.getStackInHand(hand);
 
-            // abrir cofres/contenedores en una tienda ajena: no
+            // opening chests/containers in someone else's shop: not allowed
             ShopZones.Zone targetZone = zones.at(target);
             BlockEntity be = world.getBlockEntity(target);
             if (targetZone != null && !targetZone.owner.equals(player.getUuid()) && be instanceof Inventory && !(be instanceof ShopDisplayBlockEntity)

@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-/** Paquetes del TCG real (motor de twinleaf.gg): el estado y las acciones viajan como JSON comprimido. */
+/** Real TCG packets (twinleaf.gg engine): state and actions travel as compressed JSON. */
 public final class PtcgPayloads {
     private PtcgPayloads() {}
 
@@ -38,7 +38,7 @@ public final class PtcgPayloads {
         }
     }
 
-    /** Servidor -> cliente: estado de la partida para ese jugador. open = abrir la pantalla si está cerrada. */
+    /** Server -> client: match state for that player. open = open the screen if it is closed. */
     public record View(String json, boolean open) implements CustomPayload {
         public static final Id<View> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "ptcg_view"));
         public static final PacketCodec<RegistryByteBuf, View> CODEC = new PacketCodec<>() {
@@ -56,7 +56,7 @@ public final class PtcgPayloads {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** Cliente -> servidor: {"k":"act", "a":{...}} | {"k":"resolve","id":n,"r":...} | {"k":"auto"}. */
+    /** Client -> server: {"k":"act", "a":{...}} | {"k":"resolve","id":n,"r":...} | {"k":"auto"}. */
     public record Action(String json) implements CustomPayload {
         public static final Id<Action> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "ptcg_action"));
         public static final PacketCodec<RegistryByteBuf, Action> CODEC = new PacketCodec<>() {
@@ -71,7 +71,7 @@ public final class PtcgPayloads {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** Servidor -> cliente: Liga TCG (ficha, clasificación, mazo de 60, cartas disponibles, energías). */
+    /** Server -> client: TCG League (profile, standings, 60-card deck, available cards, energies). */
     public record League(String json) implements CustomPayload {
         public static final Id<League> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "ptcg_league"));
         public static final PacketCodec<RegistryByteBuf, League> CODEC = new PacketCodec<>() {
@@ -86,7 +86,7 @@ public final class PtcgPayloads {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** Cliente -> servidor: {"a":"sync"|"save"|"auto", "deck":[...]} */
+    /** Client -> server: {"a":"sync"|"save"|"auto", "deck":[...]} */
     public record LeagueAction(String json) implements CustomPayload {
         public static final Id<LeagueAction> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "ptcg_league_action"));
         public static final PacketCodec<RegistryByteBuf, LeagueAction> CODEC = new PacketCodec<>() {

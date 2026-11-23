@@ -20,23 +20,23 @@ import java.util.function.ToLongFunction;
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
 /**
- * Rejilla con las cartas de tu inventario para elegir una o varias (venta rápida, Mayorista, Coleccionista).
- * Debajo de cada carta: lo que te dan por ella. Se desplaza con la rueda; las elegidas brillan en dorado.
+ * Grid with the cards in your inventory to pick one or several (quick sell, Wholesaler, Collector).
+ * Under each card: what you get for it. Scrolls with the wheel; selected ones glow gold.
  */
 public final class CardPickGrid {
     public final Set<Integer> sel = new LinkedHashSet<>();
     public boolean multi = true;
-    /** Hueco destacado (♥, la carta que le interesa al Coleccionista). */
+    /** Highlighted slot (♥, the card the Collector is interested in). */
     public int highlight = -1;
     public ToLongFunction<ItemStack> price = st -> 0;
-    /** Qué objetos del inventario se muestran (por defecto sólo cartas). */
+    /** Which inventory items are shown (cards only by default). */
     public java.util.function.Predicate<ItemStack> accept = CardInfo::isCard;
-    /** Precio por unidad con decimales para lo que no es carta (objetos vanilla del Mayorista). */
+    /** Unit price with decimals for non-card items (the Wholesaler's vanilla items). */
     public java.util.function.ToDoubleFunction<ItemStack> extra = null;
-    /** Mostrar también las cartas del Binder General (casillas 1000+), con una marca "B". */
+    /** Also show the cards in the General Binder (slots 1000+), with a "B" mark. */
     public boolean includeBinder = false;
 
-    /** Lo que hay en una casilla (inventario o Binder). */
+    /** What is in a slot (inventory or Binder). */
     public static ItemStack stackAt(PlayerEntity p, int slot) {
         return dev.tcgshop.client.binder.ClientBinderSlots.stack(p, slot);
     }
@@ -76,7 +76,7 @@ public final class CardPickGrid {
 
     public void restartAppear() { appearAt = System.nanoTime() / 1e9; }
 
-    /** Total de lo elegido (precio por unidad × cantidad). */
+    /** Total of the selection (unit price × quantity). */
     public long total(PlayerEntity p) {
         double t = 0;
         for (int s : sel) {
@@ -86,7 +86,7 @@ public final class CardPickGrid {
         return (long) Math.floor(t);
     }
 
-    /** Dibuja la rejilla; devuelve la carta bajo el ratón (o vacía). */
+    /** Draws the grid; returns the card under the mouse (or empty). */
     public ItemStack render(DrawContext ctx, int x, int y, int w, int h, int mx, int my, int cw) {
         MinecraftClient mc = MinecraftClient.getInstance();
         TextRenderer tr = mc.textRenderer;
@@ -118,7 +118,7 @@ public final class CardPickGrid {
                 Draw.cardFace(ctx, CardInfo.texture(CardInfo.id(st)), st, cx, cy + lift - (hover ? 2 : 0), cw, ch, on || hover ? 1f : 0.88f * ap);
                 if (r.tier > 0 && hover) Draw.holo(ctx, cx, cy - 2, cw, ch, r.tier, r.color, t, mx);
             } else {
-                // objeto vanilla: baldosa con el icono grande
+                // vanilla item: tile with the large icon
                 int ty = cy + lift - (hover ? 2 : 0);
                 Ui.roundGradient(ctx, cx, ty, cw, ch, hover ? 0xFF3A4260 : 0xFF2A3047, 0xFF1A1E2E);
                 Ui.outline(ctx, cx, ty, cw, ch, 0x44FFFFFF);
@@ -167,10 +167,10 @@ public final class CardPickGrid {
         return hovered;
     }
 
-    /** Al arrastrar tras un clic: true = va marcando, false = va desmarcando, null = no se está arrastrando. */
+    /** When dragging after a click: true = selecting, false = deselecting, null = not dragging. */
     private Boolean dragAdd;
 
-    /** Clic: elige / quita una carta. Devuelve true si tocó una. Si luego arrastras, se aplica lo mismo a las demás. */
+    /** Click: selects / deselects a card. Returns true if it hit one. If you then drag, the same applies to the others. */
     public boolean click(double mx, double my) {
         for (int[] r : rects) {
             if (!Ui.in(mx, my, r[0], r[1], r[2], r[3])) continue;
@@ -186,7 +186,7 @@ public final class CardPickGrid {
         return false;
     }
 
-    /** Selección rápida: mantener pulsado y pasar el ratón por encima de varias cartas. */
+    /** Quick selection: hold the button and move the mouse over several cards. */
     public boolean drag(double mx, double my) {
         if (dragAdd == null) return false;
         for (int[] r : rects) {

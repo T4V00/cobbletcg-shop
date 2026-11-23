@@ -1,5 +1,5 @@
 {
-  "_comment": "#12 fuga de agua (+#1 Squirtle como variante): charcos (bloque de incidente, nunca agua real). Arreglo: fregona.",
+  "_comment": "#12 water leak (+#1 Squirtle as a variant): puddles (incident block, never real water). Fix: mop.",
   "category": "negative",
   "tier": "common",
   "template": "water",

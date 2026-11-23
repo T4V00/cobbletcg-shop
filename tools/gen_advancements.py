@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genera data/tcgshop/advancement/*.json y sus textos (es/en). Ejecutar tras editar ADVS."""
+"""Generates data/tcgshop/advancement/*.json and their texts (es/en). Run after editing ADVS."""
 import json
 from pathlib import Path
 
@@ -7,8 +7,8 @@ ROOT = Path(__file__).resolve().parent.parent / "src/main/resources"
 ADV = ROOT / "data/tcgshop/advancement"
 LANG = ROOT / "assets/tcgshop/lang"
 
-# id, padre, icono, marco, trigger ("impossible" = lo otorga el código; "tick" = raíz; o un ítem para inventory_changed),
-# (título, descripción) en español, (título, descripción) en inglés
+# id, parent, icon, frame, trigger ("impossible" = granted by code; "tick" = root; or an item for inventory_changed),
+# (title, description) in Spanish, (title, description) in English
 ADVS = [
     ("root", None, "tcgshop:general_binder", "task", "tick",
      ("MasterBall Traders Co.", "Colecciona, abre sobres y monta tu propia tienda de cartas"),
@@ -86,7 +86,7 @@ ADVS = [
 ]
 
 
-# ---- títulos por Pokémon -----------------------------------------------------
+# ---- per-Pokémon titles ------------------------------------------------------
 TIERS = [("fan", 5, "Fan", "Fan", "task"), ("enthusiast", 15, "Entusiasta", "Enthusiast", "task"),
          ("obsessed", 40, "Obsesionado", "Obsessed", "goal"), ("demented", 100, "Totalmente demente", "Totally demented", "challenge")]
 FEATURED = ["pikachu", "charizard", "eevee", "mewtwo", "mew", "gengar", "umbreon", "rayquaza", "lucario", "greninja", "snorlax", "gardevoir"]
@@ -237,7 +237,7 @@ def main():
         d = json.loads(p.read_text(encoding="utf-8"))
         d.update(add)
         p.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"{len(ADVS)} logros generados")
+    print(f"{len(ADVS)} advancements generated")
 
 
 if __name__ == "__main__":

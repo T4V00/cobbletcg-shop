@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Equipo Pokémon del jugador por reflexión (sin depender de Cobblemon al compilar): listar y quitar uno.
- * Si Cobblemon no está o algo cambia en su API, todo devuelve vacío / false y no se toca nada.
+ * The player's Pokémon party via reflection (no compile-time dependency on Cobblemon): list and remove one.
+ * If Cobblemon is missing or something changes in its API, everything returns empty / false and nothing is touched.
  */
 public final class CobblemonParty {
     private CobblemonParty() {}
@@ -43,7 +43,7 @@ public final class CobblemonParty {
                 out.add(new Mon(id, displayName(pk, species), lvl, shiny, sp));
             }
         } catch (Throwable e) {
-            dev.tcgshop.TcgShop.LOGGER.warn("No se pudo leer el equipo Pokémon", e);
+            dev.tcgshop.TcgShop.LOGGER.warn("Could not read the Pokémon party", e);
             return new ArrayList<>();
         }
         return out;
@@ -63,8 +63,8 @@ public final class CobblemonParty {
     }
 
     /**
-     * Quita del equipo el Pokémon con ese UUID. Devuelve true sólo si Cobblemon confirma que lo quitó.
-     * Nunca deja al jugador sin Pokémon (si es el último, no lo quita).
+     * Removes the Pokémon with that UUID from the party. Returns true only if Cobblemon confirms it was removed.
+     * Never leaves the player without Pokémon (if it is the last one, it is not removed).
      */
     public static boolean remove(ServerPlayerEntity player, UUID uuid) {
         Object party = party(player);
@@ -85,7 +85,7 @@ public final class CobblemonParty {
                 return Boolean.TRUE.equals(r);
             }
         } catch (Throwable e) {
-            dev.tcgshop.TcgShop.LOGGER.warn("No se pudo quitar el Pokémon del equipo", e);
+            dev.tcgshop.TcgShop.LOGGER.warn("Could not remove the Pokémon from the party", e);
         }
         return false;
     }

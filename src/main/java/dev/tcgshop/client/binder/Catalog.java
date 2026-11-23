@@ -15,9 +15,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Catálogo de todas las cartas de cobbletcg agrupadas por set, en orden de número (cliente). */
+/** Catalog of all cobbletcg cards grouped by set, in number order (client). */
 public final class Catalog {
-    /** Orden cronológico de los sets (de 1999 a 2026). */
+    /** Chronological order of the sets (from 1999 to 2026). */
     private static final String[] SET_ORDER = {
             "baseset", "trocket", "gchallange", "rskies", "hfates", "teamup", "ubounds", "uminds", "vvoltage", "bstyles",
             "creign", "eskies", "celebr25", "fstrike", "bstars", "aradiance", "lorigin", "silvertempest", "czenith",
@@ -37,7 +37,7 @@ public final class Catalog {
 
     private Catalog() {}
 
-    /** Se reconstruye cada vez que se abre un binder (las rarezas dependen de los tags del servidor). */
+    /** Rebuilt every time a binder is opened (rarities depend on the server's tags). */
     public static void rebuild() {
         Map<String, List<Card>> grouped = new HashMap<>();
         Map<String, Card> keys = new HashMap<>();

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Textos de interfaz (binders, apertura en grupo, Scalper, estilos, teclas...). Español e inglés."""
+"""UI texts (binders, group opening, Scalper, styles, keys...). Spanish and English."""
 import json
 from pathlib import Path
 
 LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
 
 T = {
-    # ítems / entidad / grupo / teclas
+    # items / entity / group / keys
     "item.tcgshop.general_binder": ("Binder General", "General Binder"),
     "item.tcgshop.general_binder.tip1": ("Guarda todas tus cartas en un solo inventario", "Stores all your cards in a single inventory"),
     "item.tcgshop.general_binder.tip2": ("Clic derecho, o tecla G si lo equipas en Accessories", "Right-click, or press G when equipped in Accessories"),
@@ -18,7 +18,7 @@ T = {
     "key.tcgshop.open_binder": ("Abrir Binder General", "Open General Binder"),
     "key.categories.tcgshop": ("MasterBall Traders Co.", "MasterBall Traders Co."),
 
-    # Binder General
+    # General Binder
     "tcgshop.binder.general": ("Binder General", "General Binder"),
     "tcgshop.binder.need": ("Necesitas un Binder General en el inventario o equipado.", "You need a General Binder in your inventory or equipped."),
     "tcgshop.binder.search": ("Buscar carta...", "Search card..."),
@@ -57,7 +57,7 @@ T = {
     "tcgshop.panini.visible": ("Cromos en esta doble página: %s / %s", "Stickers on this spread: %s / %s"),
     "tcgshop.panini.missing": ("Te falta este cromo", "You're missing this card"),
 
-    # apertura
+    # opening
     "tcgshop.open.next_group": ("Siguiente rasgada (quedan %s)", "Next rip (%s left)"),
     "tcgshop.open.reveal_pack": ("Sobre %s/%s", "Pack %s/%s"),
     "tcgshop.open.to_binder": ("Guardadas en tu Binder General", "Stored in your General Binder"),
@@ -66,7 +66,7 @@ T = {
     "tcgshop.open.summary_group": ("¡%s sobres abiertos!", "%s packs opened!"),
     "tcgshop.open.tear_many": ("Corta los sobres por la línea punteada: un trazo puede cortar varios", "Cut the packs along the dotted line: one stroke can cut several"),
 
-    # selección
+    # selection
     "tcgshop.select.title": ("Abrir sobres", "Open packs"),
     "tcgshop.select.controls": ("Clic +1 · Clic derecho -1 · Rueda ±1 · Mayús ±10", "Click +1 · Right-click -1 · Wheel ±1 · Shift ±10"),
     "tcgshop.select.market": ("Mercado: %s por sobre", "Market: %s per pack"),
@@ -132,7 +132,7 @@ def main():
         for k, v in STYLES.items():
             d["tcgshop.style." + k] = v[i]
         p.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(len(T) + len(STYLES), "textos")
+    print(len(T) + len(STYLES), "texts")
 
 
 if __name__ == "__main__":

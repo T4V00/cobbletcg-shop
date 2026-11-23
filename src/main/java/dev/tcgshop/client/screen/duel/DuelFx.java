@@ -6,18 +6,18 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.math.MatrixStack;
 
 /**
- * Ayudas de animación y dibujo del duelo: curvas de suavizado, aproximación exponencial independiente de los FPS,
- * barras de PS con "fantasma", texto con contorno y paneles con degradado. Todo basado en tiempo (segundos), nunca en
- * fotogramas.
+ * Duel animation and drawing helpers: easing curves, FPS-independent exponential approach,
+ * HP bars with a "ghost", outlined text and gradient panels. Everything is time-based (seconds), never
+ * frame-based.
  */
 public final class DuelFx {
     private DuelFx() {}
 
-    // ------------------------------------------------------------------ curvas
+    // ------------------------------------------------------------------ curves
 
     public static float clamp01(double x) { return (float) Math.max(0, Math.min(1, x)); }
 
-    /** Progreso 0..1 de una animación que empezó en {@code start} y dura {@code dur} segundos. */
+    /** 0..1 progress of an animation that started at {@code start} and lasts {@code dur} seconds. */
     public static float prog(double now, double start, double dur) { return clamp01((now - start) / dur); }
 
     public static float outCubic(double x) { x = clamp01(x); return (float) (1 - Math.pow(1 - x, 3)); }
@@ -31,21 +31,21 @@ public final class DuelFx {
 
     public static float outQuint(double x) { x = clamp01(x); return (float) (1 - Math.pow(1 - x, 5)); }
 
-    /** Se pasa un poco y vuelve (entrada con rebote). */
+    /** Overshoots slightly and comes back (bouncy entrance). */
     public static float outBack(double x) {
         x = clamp01(x);
         double c1 = 1.70158, c3 = c1 + 1;
         return (float) (1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2));
     }
 
-    /** Muelle elástico: para "pops" muy vivos (números de daño). */
+    /** Elastic spring: for very lively "pops" (damage numbers). */
     public static float outElastic(double x) {
         x = clamp01(x);
         if (x == 0 || x == 1) return (float) x;
         return (float) (Math.pow(2, -10 * x) * Math.sin((x * 10 - 0.75) * (2 * Math.PI / 3)) + 1);
     }
 
-    /** Aparece en {@code fadeIn} s, se mantiene y desaparece en los últimos {@code fadeOut} s de {@code life}. */
+    /** Fades in over {@code fadeIn} s, holds, and fades out over the last {@code fadeOut} s of {@code life}. */
     public static float envelope(double age, double life, double fadeIn, double fadeOut) {
         if (age < 0 || age > life) return 0;
         float a = fadeIn <= 0 ? 1 : clamp01(age / fadeIn);
@@ -53,16 +53,16 @@ public final class DuelFx {
         return Math.min(a, b);
     }
 
-    /** Aproximación exponencial independiente de los FPS: {@code rate} = "velocidad" (1/s). */
+    /** FPS-independent exponential approach: {@code rate} = "speed" (1/s). */
     public static float approach(float cur, float target, float rate, float dt) {
         return target + (cur - target) * (float) Math.exp(-rate * dt);
     }
 
-    // ------------------------------------------------------------------ barra de PS animada
+    // ------------------------------------------------------------------ animated HP bar
 
     /**
-     * PS mostrados de un Pokémon: la barra baja con suavidad y deja detrás un "fantasma" claro que se queda un instante
-     * y luego la alcanza; al curarse, una franja verde se adelanta y la barra sube tras ella.
+     * Displayed HP of a Pokémon: the bar drops smoothly and leaves behind a light "ghost" that lingers for a moment
+     * and then catches up; when healing, a green strip moves ahead and the bar rises behind it.
      */
     public static final class HpBar {
         public float shown = -1, ghost = -1;
@@ -79,10 +79,10 @@ public final class DuelFx {
                 else { ghost = target; holdUntil = now + 0.25; }
                 lastTarget = target;
             }
-            if (target < shown) { // daño: la barra cae rápido y el fantasma espera
+            if (target < shown) { // damage: the bar drops fast and the ghost waits
                 shown = approach(shown, target, 11f, dt);
                 if (now > holdUntil) ghost = approach(ghost, shown, 5f, dt);
-            } else { // curación: el verde va delante y la barra sube detrás
+            } else { // healing: the green goes ahead and the bar rises behind
                 if (now > holdUntil) shown = approach(shown, target, 6f, dt);
                 ghost = Math.max(target, shown);
             }
@@ -93,9 +93,9 @@ public final class DuelFx {
         public boolean healing() { return ghost > shown + 0.002f && lastTarget > shown; }
     }
 
-    // ------------------------------------------------------------------ dibujo
+    // ------------------------------------------------------------------ drawing
 
-    /** Texto centrado con contorno oscuro de 1 px (legible sobre cualquier fondo) y escala. */
+    /** Centered, scaled text with a 1 px dark outline (readable on any background). */
     public static void outlinedC(DrawContext ctx, TextRenderer tr, String s, float x, float y, int color, int outline, float scale) {
         MatrixStack m = ctx.getMatrices();
         m.push();
@@ -112,14 +112,14 @@ public final class DuelFx {
         m.pop();
     }
 
-    /** Panel con degradado vertical, brillo arriba y borde (en vez del gris plano). */
+    /** Panel with a vertical gradient, top shine and border (instead of flat gray). */
     public static void gradientPanel(DrawContext ctx, int x, int y, int w, int h, int top, int bottom, int line) {
         Ui.roundedGradient(ctx, x, y, w, h, 4, top, bottom);
         if (h > 10) Ui.roundedGradient(ctx, x + 1, y + 1, w - 2, Math.min(10, h / 3), 3, DuelPalette.alpha(DuelPalette.PANEL_SHINE, (top >>> 24) / 255f), 0x00FFFFFF);
         Ui.roundedOutline(ctx, x, y, w, h, 4, line);
     }
 
-    /** Franja horizontal con degradado de izquierda a derecha (en bandas; barato). */
+    /** Horizontal strip with a left-to-right gradient (in bands; cheap). */
     public static void hGradient(DrawContext ctx, int x0, int y0, int x1, int y1, int left, int right) {
         int w = x1 - x0;
         if (w <= 0 || y1 <= y0) return;

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Textos de los comandos /tcgshop card (give, givepack, random, info). Uso: python tools/gen_lang_card_cmd.py"""
+"""Texts for the /tcgshop card commands (give, givepack, random, info). Usage: python tools/gen_lang_card_cmd.py"""
 import json
 from pathlib import Path
 
 R = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
 
 KEYS = {
-    # errores
+    # errors
     "tcgshop.cmd.card.unknown": ("No existe ninguna carta «%s». Usa masterball:<set>/cards/<carta> o <set>/<carta>.",
                                  "There is no card \"%s\". Use masterball:<set>/cards/<card> or <set>/<card>."),
     "tcgshop.cmd.card.bad_variant": ("Variante desconocida: «%s».", "Unknown print variant: \"%s\"."),
@@ -16,13 +16,13 @@ KEYS = {
     "tcgshop.cmd.card.bad_family": ("Familia de rareza desconocida: «%s».", "Unknown rarity family: \"%s\"."),
     "tcgshop.cmd.card.bad_grade": ("El Grado va de 1.0 a 10.0 (0 = sin gradear).", "Grade goes from 1.0 to 10.0 (0 = ungraded)."),
     "tcgshop.cmd.card.no_cards": ("No hay cartas de esa familia.", "There are no cards of that family."),
-    # tipos de sobre y familias
+    # pack types and families
     "tcgshop.cmd.card.tier.sealed": ("Sellado", "Sealed"),
     "tcgshop.cmd.card.tier.normal": ("Abierto normal", "Opened (normal)"),
     "tcgshop.cmd.card.tier.semigod": ("Abierto semi-dios", "Opened (semi-god)"),
     "tcgshop.cmd.card.tier.god": ("Abierto dios", "Opened (god)"),
     "tcgshop.cmd.card.any_family": ("cualquier rareza", "any rarity"),
-    # resultados
+    # results
     "tcgshop.cmd.card.give.one": ("Has dado %s × %s a %s.", "Gave %s × %s to %s."),
     "tcgshop.cmd.card.give.many": ("Has dado %s × %s a %s jugadores.", "Gave %s × %s to %s players."),
     "tcgshop.cmd.card.givepack.one": ("Has dado %s × %s a %s.", "Gave %s × %s to %s."),
@@ -50,7 +50,7 @@ def update(name, idx):
     for k, v in KEYS.items():
         data[k] = v[idx]
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"{name}: {len(KEYS)} claves")
+    print(f"{name}: {len(KEYS)} keys")
 
 
 if __name__ == "__main__":

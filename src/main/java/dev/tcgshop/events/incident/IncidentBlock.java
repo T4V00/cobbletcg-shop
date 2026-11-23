@@ -36,13 +36,13 @@ import java.util.EnumMap;
 import java.util.Map;
 
 /**
- * tcgshop:incident — charco, escombros, tierra, excrementos, quemadura, chispas, desorden o paquete. Lo coloca SÓLO el
- * efecto "incident" (nunca hay objeto ni pestaña creativa) en AIRE dentro de la tienda, y se quita solo cuando su
- * evento ya no está activo o sin arreglar.
+ * tcgshop:incident — puddle, debris, dirt, droppings, scorch mark, sparks, mess or package. Placed ONLY by the
+ * "incident" effect (there is never an item or creative tab) in AIR inside the shop, and removes itself once its
+ * event is no longer active or unfixed.
  *
- * Seguridad (crítica E): sin colisión, sin drops (dropsNothing), irrompible a mano y resistente a explosiones,
- * PistonBehavior.BLOCK, "sólido" para que el agua no lo arrastre, no inflamable, sin pick-block. Sólo el dueño de la
- * tienda (u op en creativo) lo arregla, con la herramienta que pide (nunca cubos ni fuego).
+ * Safety (critique E): no collision, no drops (dropsNothing), unbreakable by hand and explosion-resistant,
+ * PistonBehavior.BLOCK, "solid" so water does not wash it away, non-flammable, no pick-block. Only the shop owner
+ * (or an op in creative) fixes it, with the tool it asks for (never buckets or fire).
  */
 public class IncidentBlock extends BlockWithEntity {
     public static final MapCodec<IncidentBlock> CODEC = createCodec(IncidentBlock::new);
@@ -96,13 +96,13 @@ public class IncidentBlock extends BlockWithEntity {
         return world.isClient ? null : validateTicker(type, TcgBlocks.INCIDENT_BE, (w, p, s, be) -> be.serverTick((ServerWorld) w, s));
     }
 
-    // ------------------------------------------------------------------ uso (sólo el dueño)
+    // ------------------------------------------------------------------ use (owner only)
 
     @Override
     protected ItemActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-        // mano vacía: lo trata onUse (que prueba también la herramienta de la otra mano)
+        // empty hand: handled by onUse (which also tries the tool in the other hand)
         if (stack.isEmpty()) return ItemActionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        // siempre consumimos el clic: así ningún cubo, mechero ni bloque se usa "a través" del incidente
+        // always consume the click: that way no bucket, lighter or block gets used "through" the incident
         if (world.isClient) return ItemActionResult.SUCCESS;
         if (player instanceof ServerPlayerEntity sp) IncidentModule.onPlayerUse((ServerWorld) world, pos, state, sp, stack, hand);
         return ItemActionResult.SUCCESS;
@@ -115,7 +115,7 @@ public class IncidentBlock extends BlockWithEntity {
         return ActionResult.SUCCESS;
     }
 
-    // ------------------------------------------------------------------ limpieza
+    // ------------------------------------------------------------------ cleanup
 
     @Override
     protected void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean moved) {
@@ -124,7 +124,7 @@ public class IncidentBlock extends BlockWithEntity {
         super.onStateReplaced(state, world, pos, newState, moved);
     }
 
-    /** Sin suelo debajo (el dueño quita el bloque de abajo): desaparece (onStateReplaced lo cuenta como quitado). */
+    /** No floor below (the owner removes the block underneath): it disappears (onStateReplaced counts it as removed). */
     @Override
     protected BlockState getStateForNeighborUpdate(BlockState state, Direction direction, BlockState neighborState, WorldAccess world,
                                                    BlockPos pos, BlockPos neighborPos) {
@@ -133,7 +133,7 @@ public class IncidentBlock extends BlockWithEntity {
         return super.getStateForNeighborUpdate(state, direction, neighborState, world, pos, neighborPos);
     }
 
-    /** Red de seguridad: un bloque sin bloque-entidad o de un evento que ya no sigue se quita solo. */
+    /** Safety net: a block without a block entity, or from an event that is no longer running, removes itself. */
     @Override
     protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
         if (!(world.getBlockEntity(pos) instanceof IncidentBlockEntity be) || !be.stillWanted(world)) IncidentModule.removeSilently(world, pos);

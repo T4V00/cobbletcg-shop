@@ -8,13 +8,13 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Pokémon TEMPORALES que saca el mod fuera de los eventos (el Pokémon de un Scalper/ladrón en CobblemonBattles y los
- * de los duelos entre NPC de NpcPokemonDuel). Antes, si el servidor se cerraba a mitad de combate, quedaban en el mundo
- * como salvajes no capturables para siempre. Ahora:
- *  · llevan la etiqueta {@link #TAG} (puesta ANTES de spawnEntity) y su uuid va a {@link #LIVE};
- *  · el módulo de actores cancela su guardado en el mundo (POKEMON_ENTITY_SAVE_TO_WORLD) y no sueltan botín;
- *  · si aun así aparece uno cargado que no está en LIVE (versión antigua, otro mod...), se borra al cargar.
- * No afecta al Meowth del tutorial (otra etiqueta) ni a los Pokémon normales.
+ * TEMPORARY Pokémon the mod spawns outside of events (a Scalper/thief's Pokémon in CobblemonBattles and those
+ * from NPC duels in NpcPokemonDuel). Previously, if the server shut down mid-battle, they stayed in the world
+ * as uncatchable wild Pokémon forever. Now:
+ *  · they carry the tag {@link #TAG} (set BEFORE spawnEntity) and their uuid goes into {@link #LIVE};
+ *  · the actors module cancels their saving to the world (POKEMON_ENTITY_SAVE_TO_WORLD) and they drop no loot;
+ *  · if one still shows up loaded that is not in LIVE (old version, another mod...), it is deleted on load.
+ * Does not affect the tutorial Meowth (different tag) or normal Pokémon.
  */
 public final class TempPokemon {
     public static final String TAG = "tcgshop_tmp_pokemon";
@@ -22,7 +22,7 @@ public final class TempPokemon {
 
     private TempPokemon() {}
 
-    /** Llamar ANTES de world.spawnEntity. */
+    /** Call BEFORE world.spawnEntity. */
     public static void mark(Entity e) {
         if (e == null) return;
         e.addCommandTag(TAG);
@@ -37,6 +37,6 @@ public final class TempPokemon {
 
     public static boolean isTemp(Entity e) { return e.getCommandTags().contains(TAG); }
 
-    /** Al parar el servidor (los combates y duelos en memoria se pierden). */
+    /** On server stop (in-memory battles and duels are lost). */
     public static void clear() { LIVE.clear(); }
 }

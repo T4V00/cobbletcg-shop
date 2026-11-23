@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Copia en el cliente del Binder General (la envía el servidor). */
+/** Client-side copy of the General Binder (sent by the server). */
 public final class ClientCollection {
     public static Map<String, Integer> counts = new HashMap<>();
     public static Set<String> fresh = new HashSet<>();
@@ -20,7 +20,7 @@ public final class ClientCollection {
     public static Set<String> wishlist = new HashSet<>();
     public static List<String> titles = new ArrayList<>();
     public static String title = "";
-    /** uuid de jugador -> título elegido ("especie|tier"), para mostrarlo sobre su nombre. */
+    /** player uuid -> chosen title ("species|tier"), to show it above their name. */
     public static Map<String, String> playerTitles = new HashMap<>();
 
     private static final Set<String> pendingSeen = new HashSet<>();
@@ -47,7 +47,7 @@ public final class ClientCollection {
         return counts.getOrDefault(id, 0);
     }
 
-    /** Marca una carta nueva como vista: quita la notificación (se envía al servidor en lotes). El binder decide cuándo. */
+    /** Marks a new card as seen: removes the notification (sent to the server in batches). The binder decides when. */
     public static void markSeen(String id) {
         if (fresh.remove(id)) pendingSeen.add(id);
     }
@@ -61,16 +61,16 @@ public final class ClientCollection {
         }
     }
 
-    /** Envía ya las cartas vistas pendientes (al cerrar el binder o salir de «Nuevas»), sin esperar al lote. */
+    /** Sends the pending seen cards right away (when closing the binder or leaving «New»), without waiting for the batch. */
     public static void flushSeen() {
         if (pendingSeen.isEmpty()) return;
-        if (net.minecraft.client.MinecraftClient.getInstance().getNetworkHandler() == null) return; // desconectando
+        if (net.minecraft.client.MinecraftClient.getInstance().getNetworkHandler() == null) return; // disconnecting
         try {
             ClientPlayNetworking.send(new BinderActionPayload(BinderActionPayload.MARK_SEEN, String.join(",", pendingSeen), 0));
             pendingSeen.clear();
             lastSeenFlush = System.currentTimeMillis();
         } catch (IllegalStateException ignored) {
-            // sin conexión: el servidor seguirá teniéndolas como nuevas
+            // no connection: the server will keep them marked as new
         }
     }
 

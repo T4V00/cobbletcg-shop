@@ -9,15 +9,15 @@ import net.minecraft.util.shape.VoxelShapes;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Los 7 niveles de estatua de lujo (v0.9): cada uno 10 veces más caro que el anterior, más grande y de mejor material.
- * Los precios por defecto se pueden cambiar en config/tcgshop-luxury.json (ver {@link LuxuryConfig}).
+ * The 7 luxury statue tiers (v0.9): each one 10 times more expensive than the previous, bigger and of better material.
+ * Default prices can be changed in config/tcgshop-luxury.json (see {@link LuxuryConfig}).
  * <p>
- * Tamaños: los modelos pueden salirse del bloque (de -16 a 32 píxeles), pero la colisión se queda dentro de cada bloque.
- * Las estatuas de más de un bloque de alto colocan encima bloques invisibles {@link StatuePartBlock} ("statue_part")
- * que ocupan ese hueco (no se puede meter nada dentro de la estatua) y se rompen junto con la base.
+ * Sizes: models may extend outside the block (from -16 to 32 pixels), but collision stays within each block.
+ * Statues taller than one block place invisible {@link StatuePartBlock} blocks ("statue_part") above
+ * that fill that space (nothing can be put inside the statue) and break together with the base.
  */
 public enum StatueTier {
-    // key, precio por defecto, color del nombre, piezas encima, luz, rareza
+    // key, default price, name color, parts above, light, rarity
     BRONZE("bronze", 1_000L, 0xCD7F32, 0, 0, Rarity.UNCOMMON,
             Block.createCuboidShape(4.5, 0, 4.5, 11.5, 9, 11.5), null, null),
     SILVER("silver", 10_000L, 0xD4D9E0, 0, 0, Rarity.UNCOMMON,
@@ -43,14 +43,14 @@ public enum StatueTier {
     public final String key;
     public final long defaultPrice;
     public final int color;
-    /** Bloques invisibles que ocupa por encima de la base (0, 1 o 2). */
+    /** Invisible blocks it occupies above the base (0, 1 or 2). */
     public final int parts;
-    /** Nivel de luz que emite (los niveles altos brillan). */
+    /** Light level it emits (high tiers glow). */
     public final int light;
     public final Rarity rarity;
-    /** Formas por orientación: índice = cuartos de vuelta en sentido horario desde el norte (N, E, S, O). */
+    /** Shapes per orientation: index = clockwise quarter turns from north (N, E, S, W). */
     private final VoxelShape[] baseShapes, part1Shapes, part2Shapes;
-    /** Precio que ha mandado el servidor (para el tooltip en el cliente); -1 = usar la configuración local. */
+    /** Price sent by the server (for the client tooltip); -1 = use the local config. */
     public long clientPrice = -1;
 
     StatueTier(String key, long defaultPrice, int color, int parts, int light, Rarity rarity, VoxelShape baseShape,
@@ -66,13 +66,13 @@ public enum StatueTier {
         this.part2Shapes = rotations(part2 == null ? VoxelShapes.empty() : part2);
     }
 
-    /** Las 4 orientaciones de una forma definida mirando al norte (como el modelo, que el blockstate gira con y). */
+    /** The 4 orientations of a shape defined facing north (like the model, which the blockstate rotates with y). */
     private static VoxelShape[] rotations(VoxelShape north) {
         VoxelShape[] out = new VoxelShape[4];
         out[0] = north;
         for (int q = 1; q < 4; q++) {
             VoxelShape r = VoxelShapes.empty();
-            for (Box b : out[q - 1].getBoundingBoxes()) // 90° horario alrededor del centro: (x, z) -> (1 - z, x)
+            for (Box b : out[q - 1].getBoundingBoxes()) // 90° clockwise around the center: (x, z) -> (1 - z, x)
                 r = VoxelShapes.union(r, VoxelShapes.cuboid(1 - b.maxZ, b.minY, b.minX, 1 - b.minZ, b.maxY, b.maxX));
             out[q] = r;
         }
@@ -93,25 +93,25 @@ public enum StatueTier {
 
     public String blockName() { return "statue_" + key; }
 
-    /** Alto total en bloques (para el tooltip). */
+    /** Total height in blocks (for the tooltip). */
     public int heightBlocks() { return 1 + parts; }
 
-    /** Forma de la base mirando hacia facing. */
+    /** Shape of the base facing facing. */
     public VoxelShape baseShape(Direction facing) {
         return baseShapes[quarter(facing)];
     }
 
-    /** Forma de la pieza de ese nivel (1 o 2) mirando hacia facing. */
+    /** Shape of the part at that level (1 or 2) facing facing. */
     public VoxelShape partShape(int level, Direction facing) {
         return (level >= 2 ? part2Shapes : part1Shapes)[quarter(facing)];
     }
 
-    /** Precio real (servidor): el de la configuración. Es lo que se cobra. */
+    /** Real price (server): the configured one. This is what gets charged. */
     public long price() {
         return LuxuryConfig.INSTANCE.price(this);
     }
 
-    /** Precio para enseñar en el cliente: lo último que mandó el servidor (catálogo) o, si no, la configuración local. */
+    /** Price to show on the client: the last one the server sent (catalog) or, failing that, the local config. */
     public long displayPrice() {
         return clientPrice > 0 ? clientPrice : price();
     }

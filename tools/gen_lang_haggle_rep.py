@@ -1,12 +1,12 @@
-"""Textos del nuevo menú de regateo (DealScreen) y frases del cliente regateador cuando TÚ le vendes
-(tcgshop.haggle.buy.<cat>.<n>; los números deben coincidir con CustomerEntity.BUY_LINES)."""
+"""Texts for the new haggling menu (DealScreen) and lines of the haggling customer when YOU sell to them
+(tcgshop.haggle.buy.<cat>.<n>; the numbers must match CustomerEntity.BUY_LINES)."""
 import json
 from pathlib import Path
 
 LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
 
 T = {
-    # ---- panel del NPC
+    # ---- NPC panel
     "tcgshop.haggle.patience": ("Paciencia", "Patience"),
     "tcgshop.haggle.mood.0": ("Furioso", "Furious"),
     "tcgshop.haggle.mood.1": ("Molesto", "Annoyed"),
@@ -19,7 +19,7 @@ T = {
     "tcgshop.haggle.buyer.negotiator": ("Negociador", "Negotiator"),
     "tcgshop.haggle.buyer.desperate": ("Con prisa", "In a hurry"),
     "tcgshop.haggle.buyer.casual": ("Cliente casual", "Casual buyer"),
-    # ---- precios y margen
+    # ---- prices and margin
     "tcgshop.haggle.market_diff": ("Mercado: %s (%s)", "Market: %s (%s)"),
     "tcgshop.haggle.margin_buy": ("Margen al revender: %s", "Resale margin: %s"),
     "tcgshop.haggle.margin_sell": ("Frente al mercado: %s", "Versus market: %s"),
@@ -49,7 +49,7 @@ T = {
     "tcgshop.haggle.h.walk": ("se marcha", "walks away"),
     "tcgshop.haggle.h.reject": ("rechazado", "rejected"),
     "tcgshop.haggle.h.timeout": ("se cansó de esperar", "got tired of waiting"),
-    # ---- tu oferta
+    # ---- your offer
     "tcgshop.haggle.your_offer": ("Tu oferta:", "Your offer:"),
     "tcgshop.haggle.your_ask": ("Tu precio:", "Your price:"),
     "tcgshop.haggle.of_market": ("= %s del mercado", "= %s of market"),
@@ -70,7 +70,7 @@ T = {
     "tcgshop.haggle.tip.think": ("Pides tiempo. A veces mejoran la oferta; si insistes, se cansan.", "Ask for time. Sometimes they improve the offer; push it and they tire."),
     "tcgshop.haggle.tip.no": ("Rechazas con educación. Casi siempre deja una reseña neutral.", "Decline politely. Usually leaves a neutral review."),
     "tcgshop.haggle.tip.rude": ("Rechazas de malas maneras. Lo más probable es una mala reseña.", "Decline rudely. Most likely a bad review."),
-    # ---- respuestas
+    # ---- responses
     "tcgshop.haggle.a.accept": ("✔ Aceptar · %s", "✔ Accept · %s"),
     "tcgshop.haggle.a.counter_buy": ("⇄ Ofrecer %s", "⇄ Offer %s"),
     "tcgshop.haggle.a.counter_sell": ("⇄ Pedir %s", "⇄ Ask %s"),
@@ -84,7 +84,7 @@ T = {
     "tcgshop.haggle.a.think": ("… Déjame pensarlo", "… Let me think"),
     "tcgshop.haggle.a.no": ("✖ No, gracias", "✖ No, thanks"),
     "tcgshop.haggle.a.rude": ("☠ ¡Vaya timo!", "☠ What a rip-off!"),
-    # ---- resultado
+    # ---- outcome
     "tcgshop.haggle.out.deal_buy": ("¡Trato hecho! Lo compras por %s", "Deal! You buy it for %s"),
     "tcgshop.haggle.out.deal_sell": ("¡Trato hecho! Lo vendes por %s", "Deal! You sell it for %s"),
     "tcgshop.haggle.out.walk": ("Se ha ido sin trato", "They left without a deal"),
@@ -100,7 +100,7 @@ T = {
     "tcgshop.haggle.click_close": ("Clic para cerrar", "Click to close"),
 }
 
-# frases del cliente regateador que quiere comprarte algo (tú pides más)
+# lines of the haggling customer who wants to buy something from you (you ask for more)
 BUY = {
     "counter": [
         ("Vale, subo a %s. Ni un céntimo más... de momento.", "Fine, I'll go up to %s. Not a penny more... for now."),
@@ -210,7 +210,7 @@ def main():
         for k, v in entries.items():
             data[k] = v[idx]
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"{len(entries)} claves escritas")
+    print(f"{len(entries)} keys written")
 
 
 if __name__ == "__main__":

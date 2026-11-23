@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Modelos de bloque detallados de los muebles de la tienda (frente = norte, -Z), sus texturas propias,
-blockstates, modelos de objeto y loot tables. Las coordenadas encajan con DisplayKind / ShopRenderers:
-el renderizador dibuja los productos encima; aquí sólo va el mueble."""
+"""Detailed block models for the shop furniture (front = north, -Z), their own textures,
+blockstates, item models and loot tables. Coordinates match DisplayKind / ShopRenderers:
+the renderer draws the products on top; only the furniture goes here."""
 import json
 import random
 import importlib.util
@@ -29,7 +29,7 @@ def grid(fill):
     return [[fill(x, y) for x in range(16)] for y in range(16)]
 
 
-# ---------------------------------------------------------------- texturas propias
+# ---------------------------------------------------------------- own textures
 
 def tex_pegboard():
     base = hexc("C9CDD3")
@@ -209,10 +209,10 @@ TEX = {
 }
 
 
-# ---------------------------------------------------------------- utilidades de modelo
+# ---------------------------------------------------------------- model utilities
 
 def box(frm, to, tex, faces=None, rot=None, skip=()):
-    """tex: '#x' para todas las caras o dict cara->'#x'."""
+    """tex: '#x' for all faces or dict face->'#x'."""
     names = ["north", "south", "east", "west", "up", "down"]
     if isinstance(tex, str):
         tex = {n: tex for n in names}
@@ -238,9 +238,9 @@ def model(textures, elements, parent="minecraft:block/block", **extra):
     return d
 
 
-# ---------------------------------------------------------------- muebles de varios bloques
-# Coordenadas de "estructura" en píxeles: x en [0, 16W], y en [0, 16H], z en [0, 16D]; z = 0 es el frente (norte).
-# slice_model() corta cada elemento por celdas de 16 y genera un modelo por parte (parte = i + W*(j + H*k)).
+# ---------------------------------------------------------------- multi-block furniture
+# "Structure" coordinates in pixels: x in [0, 16W], y in [0, 16H], z in [0, 16D]; z = 0 is the front (north).
+# slice_model() cuts each element into 16-pixel cells and generates one model per part (part = i + W*(j + H*k)).
 
 DEFAULT_UV = {
     "down": lambda f, t: [f[0], 16 - t[2], t[0], 16 - f[2]],
@@ -253,7 +253,7 @@ DEFAULT_UV = {
 
 
 def fit_uv(uv):
-    """Lleva las UV al rango [0,16] (desplazando por múltiplos de 16 y recortando) para no sangrar en el atlas."""
+    """Brings UVs into the [0,16] range (shifting by multiples of 16 and clamping) so they don't bleed into the atlas."""
     uv = list(uv)
     for i0, i1 in ((0, 2), (1, 3)):
         lo = min(uv[i0], uv[i1])
@@ -289,7 +289,7 @@ def slice_model(textures, elements, W, H, D, **extra):
                     ok = True
                     nf, nt = [0, 0, 0], [0, 0, 0]
                     for a in range(3):
-                        if f[a] == t[a]:  # plano: sólo en la celda que lo contiene
+                        if f[a] == t[a]:  # flat plane: only in the cell that contains it
                             if not (lo[a] <= f[a] < hi[a]):
                                 ok = False
                             nf[a] = nt[a] = f[a]
@@ -319,7 +319,7 @@ def slice_model(textures, elements, W, H, D, **extra):
 
 
 def item_of(textures, elements, W, H, D):
-    """Modelo de objeto: la estructura entera escalada para caber en un bloque."""
+    """Item model: the whole structure scaled to fit in one block."""
     sc = 16.0 / (16 * max(W, H, D))
     ox, oz = (16 - 16 * W * sc) / 2, (16 - 16 * D * sc) / 2
     els = []
@@ -337,13 +337,13 @@ def card_stand():
     e = [box([0, 0, 2], [32, 3, 14], "#base"),
          box([0.5, 3, 2.5], [31.5, 3.5, 13.5], "#gold"),
          box([1, 3.5, 3], [31, 8, 13], "#wood"),
-         box([1, 8, 5], [31, 9.6, 7.5], "#wood"),                    # repisa donde apoyan las cartas
-         box([1, 9.6, 5], [31, 10.2, 5.6], "#gold"),                 # labio dorado
-         box([1.5, 9.6, 10.6], [30.5, 29, 11.6], "#velvet"),         # respaldo de terciopelo
+         box([1, 8, 5], [31, 9.6, 7.5], "#wood"),                    # ledge the cards rest on
+         box([1, 9.6, 5], [31, 10.2, 5.6], "#gold"),                 # gold lip
+         box([1.5, 9.6, 10.6], [30.5, 29, 11.6], "#velvet"),         # velvet backing
          box([0.5, 8, 10], [1.5, 31, 12.2], "#base"), box([30.5, 8, 10], [31.5, 31, 12.2], "#base"),
-         box([15.5, 9.6, 10.2], [16.5, 29, 11.2], "#gold"),          # separador central
+         box([15.5, 9.6, 10.2], [16.5, 29, 11.2], "#gold"),          # center divider
          box([0.5, 29, 10], [31.5, 31.5, 12.2], {"*": "#base", "north": "#head"}),
-         box([10, 0.6, 1.6], [22, 2.4, 2], "#gold")]                 # placa
+         box([10, 0.6, 1.6], [22, 2.4, 2], "#gold")]                 # plaque
     return 2, 2, 1, t, e
 
 
@@ -447,10 +447,10 @@ def counter():
          box([0.5, 1, 1.5], [31.5, 9, 15.5], {"*": "#wood", "north": "#panel"}),
          box([0, 9, 1], [32, 9.6, 16], "#gold"),
          box([0.5, 9.6, 2], [31.5, 10, 15], "#velvet"),
-         box([1, 10, 3.2], [31, 11, 4.8], "#wood"),                 # tope donde apoyan las cartas
+         box([1, 10, 3.2], [31, 11, 4.8], "#wood"),                 # stop the cards rest against
          box([0.5, 9.6, 13], [31.5, 15, 15.5], {"*": "#panel", "north": "#head"})]
     for x in (5.6, 15.5, 25.4):
-        e.append(box([x, 10, 9], [x + 1, 14, 13], "#wood"))          # atriles traseros
+        e.append(box([x, 10, 9], [x + 1, 14, 13], "#wood"))          # rear stands
     return 2, 1, 1, t, e
 
 
@@ -478,7 +478,7 @@ def ledge():
          box([0, 1, 5], [32, 2.4, 16], "#log"),
          box([0, 2.4, 5], [32, 3.6, 5.8], "#gold")]
     for x in (2, 15, 28):
-        e.append(box([x, 0, 8], [x + 2, 1, 15], "#log"))             # escuadras
+        e.append(box([x, 0, 8], [x + 2, 1, 15], "#log"))             # brackets
     return 2, 1, 1, t, e
 
 
@@ -518,9 +518,9 @@ def cash_register():
          box([3, 3, 3.6], [13, 4.6, 7.5], {"*": "#body", "up": "#keys"}),
          box([7, 7, 10.8], [9, 8.6, 11.8], "#metal"),
          box([4, 7.6, 9.6], [12, 11, 10.8], {"*": "#body", "north": "#screen"}),
-         box([10.5, 7, 7.6], [13, 8.2, 10], "#metal"),           # impresora de tickets
-         box([11, 8.2, 8.2], [12.5, 9.6, 8.4], "#paper"),        # ticket
-         box([2.2, 1.2, 3.3], [13.8, 1.5, 3.5], "#gold")]        # moldura del cajón
+         box([10.5, 7, 7.6], [13, 8.2, 10], "#metal"),           # receipt printer
+         box([11, 8.2, 8.2], [12.5, 9.6, 8.4], "#paper"),        # receipt
+         box([2.2, 1.2, 3.3], [13.8, 1.5, 3.5], "#gold")]        # drawer trim
     return model(t, e)
 
 
@@ -626,7 +626,7 @@ def main():
     for name in list(MODELS) + ["theft_detector"]:
         write(lt / f"{name}.json", {"type": "minecraft:block", "pools": [{"rolls": 1, "entries": [
             {"type": "minecraft:item", "name": f"tcgshop:{name}"}], "conditions": [{"condition": "minecraft:survives_explosion"}]}]})
-    print("muebles generados:", len(MODELS) + len(MULTI) + 1)
+    print("furniture generated:",len(MODELS) + len(MULTI) + 1)
 
 
 if __name__ == "__main__":

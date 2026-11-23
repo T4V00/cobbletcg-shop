@@ -1,4 +1,4 @@
-"""Textos de la fase B (parte 2): Mercado del Binder, amigos en el teléfono y gestor de expositores."""
+"""Phase B texts (part 2): Binder Market, friends on the phone and display manager."""
 import json
 from pathlib import Path
 
@@ -8,7 +8,7 @@ T = {
     "tcgshop.phone.binder_market": ("Vender", "Sell cards"),
     "tcgshop.phone.displays": ("Expositores", "Displays"),
     "tcgshop.phone.friends": ("Amigos", "Friends"),
-    # mercado del binder
+    # binder market
     "tcgshop.bm2.title": ("Mercado del Binder", "Binder Market"),
     "tcgshop.bm2.value": ("Valor de tu colección: %s (%s cartas)", "Collection value: %s (%s cards)"),
     "tcgshop.bm2.tab_cards": ("Cartas", "Cards"),
@@ -72,7 +72,7 @@ T = {
     "tcgshop.bm2.gone": ("El vendedor ya no tiene esa carta. No se ha cobrado nada.", "The seller no longer has that card. Nothing was charged."),
     "tcgshop.bm2.bought": ("Compras %s × %s por %s. Está en tu Binder.", "You buy %s × %s for %s. It's in your Binder."),
     "tcgshop.bm2.sold_to": ("%s te ha comprado %s × %s por %s.", "%s bought %s × %s from you for %s."),
-    # amigos
+    # friends
     "tcgshop.friends.list": ("Amigos (%s)", "Friends (%s)"),
     "tcgshop.friends.none": ("Aún no tienes amigos.", "No friends yet."),
     "tcgshop.friends.requests": ("Solicitudes", "Requests"),
@@ -92,7 +92,7 @@ T = {
     "tcgshop.friends.request_got": ("%s quiere ser tu amigo. Acéptalo en el teléfono → Amigos.", "%s wants to be your friend. Accept in Phone → Friends."),
     "tcgshop.friends.request_sent": ("Solicitud de amistad enviada.", "Friend request sent."),
     "tcgshop.friends.accepted_you": ("%s y tú ya sois amigos.", "You and %s are now friends."),
-    # expositores
+    # displays
     "tcgshop.displays.all_market": ("Todo a mercado", "All at market"),
     "tcgshop.displays.all_90": ("Todo 90%", "All 90%"),
     "tcgshop.displays.all_110": ("Todo 110%", "All 110%"),
@@ -111,7 +111,7 @@ def main():
         for k, v in T.items():
             d[k] = v[i]
         p.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(len(T), "textos")
+    print(len(T), "texts")
 
 
 if __name__ == "__main__":

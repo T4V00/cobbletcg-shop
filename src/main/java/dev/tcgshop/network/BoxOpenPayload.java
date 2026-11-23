@@ -7,7 +7,7 @@ import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
-/** Servidor -> cliente: has abierto una caja de sobres desde la mano (los sobres ya están en tu inventario): animación. */
+/** Server -> client: you opened a booster box from your hand (the packs are already in your inventory): animation. */
 public record BoxOpenPayload(String set, int packs) implements CustomPayload {
     public static final Id<BoxOpenPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "box_open"));
     public static final PacketCodec<RegistryByteBuf, BoxOpenPayload> CODEC = PacketCodec.tuple(

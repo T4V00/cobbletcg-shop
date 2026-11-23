@@ -20,15 +20,15 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Combates Pokémon contra los NPC del mod (Scalpers y ladrones) si Cobblemon está instalado. Todo por reflexión
- * (sin dependencia de compilación): el NPC "saca" un Pokémon salvaje no capturable de un nivel parecido al de tu
- * equipo y empieza un combate normal de Cobblemon contra él. Si lo debilitas, ganas el combate y el NPC cae;
- * si huyes o pierdes, el NPC se sale con la suya. Mientras dura el combate el NPC se queda quieto.
+ * Pokémon battles against the mod's NPCs (Scalpers and thieves) if Cobblemon is installed. All via reflection
+ * (no compile-time dependency): the NPC "sends out" an uncatchable wild Pokémon of a level similar to your
+ * party and starts a normal Cobblemon battle against it. If you knock it out, you win the battle and the NPC falls;
+ * if you flee or lose, the NPC gets away with it. While the battle lasts the NPC stands still.
  */
 public final class CobblemonBattles {
-    /** NPC que puede combatir. */
+    /** NPC that can battle. */
     public interface Fighter {
-        /** Especies que puede sacar. */
+        /** Species it can send out. */
         String[] battlePool();
 
         void onBattleEnd(ServerPlayerEntity player, boolean playerWon);
@@ -53,7 +53,7 @@ public final class CobblemonBattles {
         ServerTickEvents.END_SERVER_TICK.register(CobblemonBattles::tick);
     }
 
-    /** El jugador reta al NPC. Devuelve true si el combate ha empezado. */
+    /** The player challenges the NPC. Returns true if the battle has started. */
     public static boolean challenge(ServerPlayerEntity player, MobEntity npc) {
         if (!available() || !(npc instanceof Fighter f) || !npc.isAlive()) return false;
         if (isFighting(npc) || NpcPokemonDuel.busy(npc)) {
@@ -78,7 +78,7 @@ public final class CobblemonBattles {
             Vec3d dir = player.getPos().subtract(npc.getPos());
             Vec3d spot = dir.lengthSquared() < 1e-4 ? npc.getPos().add(1.5, 0, 0) : npc.getPos().add(dir.normalize().multiply(1.8));
             pokemon.refreshPositionAndAngles(spot.x, npc.getY(), spot.z, npc.getYaw(), 0);
-            TempPokemon.mark(pokemon); // 0.9: nunca se guarda en el mundo (sin huérfanos si se cierra a mitad)
+            TempPokemon.mark(pokemon); // 0.9: never saved to the world (no orphans if closed midway)
             world.spawnEntity(pokemon);
 
             Class<?> builder = Class.forName("com.cobblemon.mod.common.battles.BattleBuilder");
@@ -100,14 +100,14 @@ public final class CobblemonBattles {
         } catch (Throwable e) {
             if (!warned) {
                 warned = true;
-                TcgShop.LOGGER.warn("No se pudo empezar un combate de Cobblemon contra un NPC: {}", e.toString());
+                TcgShop.LOGGER.warn("Could not start a Cobblemon battle against an NPC: {}", e.toString());
             }
             player.sendMessage(Text.translatable("tcgshop.battle.cant").formatted(Formatting.RED), true);
             return false;
         }
     }
 
-    /** Nivel del Pokémon más fuerte del equipo (20 si no se puede leer). */
+    /** Level of the strongest Pokémon in the party (20 if it cannot be read). */
     private static int partyLevel(ServerPlayerEntity player) {
         try {
             Class<?> ext = Class.forName("com.cobblemon.mod.common.util.PlayerExtensionsKt");
@@ -149,7 +149,7 @@ public final class CobblemonBattles {
             boolean gone = f.pokemon.isRemoved() || !f.pokemon.isAlive();
             boolean battling = !gone && call(f.pokemon, "isBattling");
             if (battling && age < 20 * 60 * 15) continue;
-            if (!gone && !battling && age < 40) continue; // el combate aún se está montando
+            if (!gone && !battling && age < 40) continue; // the battle is still being set up
             boolean won = fainted(f.pokemon);
             if (!gone) f.pokemon.discard();
             TempPokemon.release(f.pokemon);

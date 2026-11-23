@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-0.9.5 - Llave de la Mansión MasterBall: textura 16x16 del objeto y su modelo.
-Diseño original: llave dorada con el ojo en forma de bola roja y blanca (franja negra y botón). Nada de arte Pokémon.
-Sólo biblioteca estándar (PNG con zlib + struct).
+0.9.5 - MasterBall Mansion Key: the item's 16x16 texture and its model.
+Original design: gold key whose bow is a red-and-white ball (black band and button). No Pokémon art.
+Standard library only (PNG with zlib + struct).
 
-Uso:  python -I -X utf8 tools/gen_mansion_assets.py
-Escribe únicamente dentro de src/main/resources. Idempotente.
+Usage:  python -I -X utf8 tools/gen_mansion_assets.py
+Writes only inside src/main/resources. Idempotent.
 """
 import json
 import math
@@ -20,7 +20,7 @@ T = (0, 0, 0, 0)
 
 
 def write_png(path, px):
-    """px: lista de filas de (r, g, b, a)."""
+    """px: list of rows of (r, g, b, a)."""
     h = len(px)
     w = len(px[0])
     raw = bytearray()
@@ -66,22 +66,22 @@ def seg_dist(px, py, ax, ay, bx, by):
 
 def key_texture():
     px = [[T for _ in range(16)] for _ in range(16)]
-    # caña en diagonal (abajo-izquierda -> arriba-derecha) con brillo en el lado de arriba
+    # diagonal shank (bottom-left -> top-right) with a highlight on the upper side
     ax, ay, bx, by = 2.6, 13.4, 8.6, 7.4
     for y in range(16):
         for x in range(16):
             d, t = seg_dist(x + 0.5, y + 0.5, ax, ay, bx, by)
             if d <= 0.95:
-                # lado de arriba-izquierda (x - y menor) más claro
+                # upper-left side (smaller x - y) lighter
                 side = (x + 0.5 - ax) - (y + 0.5 - ay)
                 px[y][x] = GOLD_L if side < -0.3 else GOLD if side < 0.6 else GOLD_D
-    # dientes perpendiculares cerca de la punta
+    # perpendicular teeth near the tip
     for (tx, ty) in ((3, 13), (5, 11)):
         for k in (1, 2):
             x, y = tx + k, ty + k
             if 0 <= x < 16 and 0 <= y < 16:
                 px[y][x] = GOLD if k == 1 else GOLD_D
-    # ojo de la llave: aro dorado con una bola roja y blanca dentro
+    # key bow: gold ring with a red-and-white ball inside
     cx, cy, r = 10.5, 5.0, 4.6
     for y in range(16):
         for x in range(16):
@@ -102,9 +102,9 @@ def key_texture():
                 px[y][x] = RED if dx < 1.2 else RED_D
             else:
                 px[y][x] = WHITE if dx < 1.2 else WHITE_D
-    # brillo en la bola
+    # highlight on the ball
     px[2][9] = WHITE
-    # contorno oscuro
+    # dark outline
     out = [row[:] for row in px]
     for y in range(16):
         for x in range(16):
@@ -115,7 +115,7 @@ def key_texture():
                 if 0 <= nx < 16 and 0 <= ny < 16 and px[ny][nx][3] and px[ny][nx] not in (OUTLINE,):
                     out[y][x] = OUTLINE
                     break
-    # destello
+    # sparkle
     for (x, y) in ((15, 0), (14, 1), (15, 2)):
         if not out[y][x][3]:
             out[y][x] = (255, 255, 230, 200)
@@ -128,7 +128,7 @@ def main():
     p = A / "models" / "item" / "mansion_key.json"
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(model, indent=2) + "\n", encoding="utf-8")
-    print("gen_mansion_assets: textura y modelo de mansion_key")
+    print("gen_mansion_assets: mansion_key texture and model")
 
 
 if __name__ == "__main__":

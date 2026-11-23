@@ -16,14 +16,14 @@ import net.minecraft.world.World;
 import java.util.List;
 
 /**
- * Llave de la Mansión MasterBall (0.9.5): clic derecho = vista previa de la finca de 100x100 delante del jugador;
- * agachado + clic derecho en los 10 s siguientes = se construye (ver {@link MansionService}). La llave sólo se gasta
- * cuando la obra empieza de verdad.
+ * MasterBall Mansion key (0.9.5): right click = preview of the 100x100 estate in front of the player;
+ * sneak + right click within the next 10 s = it gets built (see {@link MansionService}). The key is only consumed
+ * when the build actually starts.
  */
 public class MansionKeyItem extends Item {
-    /** Color del nombre (dorado). */
+    /** Name color (gold). */
     public static final int COLOR = 0xFFC640;
-    /** Precio que ha mandado el servidor (tooltip en el cliente); -1 = usar la configuración local. */
+    /** Price sent by the server (client tooltip); -1 = use the local config. */
     public static long clientPrice = -1;
 
     public MansionKeyItem(Settings settings) {

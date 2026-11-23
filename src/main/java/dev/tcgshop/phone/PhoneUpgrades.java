@@ -40,19 +40,19 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Mejoras del teléfono (0.9), lado servidor: nivel por jugador, compra de mejoras, candados del Mercado y del
- * Mayorista, descuentos, bonus de venta y la llamada diaria del último nivel. Ver la tabla en {@link PhoneTier}.
+ * Phone upgrades (0.9), server side: per-player tier, buying upgrades, Market and
+ * Wholesaler locks, discounts, sell bonus and the top tier's daily call. See the table in {@link PhoneTier}.
  */
 public final class PhoneUpgrades {
     private PhoneUpgrades() {}
 
-    /** Llamar UNA vez desde TcgShop.onInitialize (registra la red, la migración al entrar y lee la config). */
+    /** Call ONCE from TcgShop.onInitialize (registers networking, the on-join migration and reads the config). */
     public static void register() {
         PhoneConfig.load();
         PayloadTypeRegistry.playS2C().register(PhonePayloads.Sync.ID, PhonePayloads.Sync.CODEC);
         PayloadTypeRegistry.playC2S().register(PhonePayloads.Act.ID, PhonePayloads.Act.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(PhonePayloads.Act.ID, (p, ctx) -> ctx.server().execute(() -> handle(ctx.player(), p.data())));
-        // se ejecuta antes que el kit de inicio de Onboarding (que va diferido con server.execute): un jugador nuevo aún no tiene la etiqueta
+        // runs before the Onboarding starter kit (deferred with server.execute): a new player doesn't have the tag yet
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayerEntity sp = handler.getPlayer();
             migrate(sp);
@@ -60,21 +60,21 @@ public final class PhoneUpgrades {
         });
     }
 
-    // ------------------------------------------------------------------ nivel
+    // ------------------------------------------------------------------ tier
 
     private static PhoneState.Entry entry(ServerPlayerEntity p) {
         return PhoneState.get(p.getServer()).getOrCreate(p.getUuid());
     }
 
-    /** Nivel efectivo (con el sistema desactivado, todos tienen el último: apps, catálogo y llamada diaria). */
+    /** Effective tier (with the system disabled, everyone has the top one: apps, catalog and daily call). */
     public static int level(ServerPlayerEntity p) {
         if (!PhoneConfig.INSTANCE.enabled) return PhoneTier.MAX_LEVEL;
         return entry(p).tier;
     }
 
     /**
-     * Nivel para las ventajas económicas (descuentos, bonus de venta, sets extra del Mayorista, saltarse PackLock).
-     * Con el sistema desactivado es 0: se vuelve a la economía de antes de la 0.9 en vez de regalar las del último nivel.
+     * Tier for economic perks (discounts, sell bonus, extra Wholesaler sets, bypassing PackLock).
+     * With the system disabled it is 0: falls back to the pre-0.9 economy instead of handing out the top tier's perks.
      */
     public static int perkLevel(ServerPlayerEntity p) {
         if (!PhoneConfig.INSTANCE.enabled) return 0;
@@ -88,8 +88,8 @@ public final class PhoneUpgrades {
     }
 
     /**
-     * Comprobación en el servidor de una app del teléfono (los candados de la interfaz sólo frenan a los clientes
-     * honrados): si está bloqueada avisa al jugador y devuelve false.
+     * Server-side check of a phone app (the UI locks only stop honest
+     * clients): if it is locked, notifies the player and returns false.
      */
     public static boolean requireApp(ServerPlayerEntity p, String app) {
         if (appUnlocked(p, app)) return true;
@@ -98,8 +98,8 @@ public final class PhoneUpgrades {
     }
 
     /**
-     * Acciones de la Liga que sólo da la app Liga: partidas clasificatorias contra la IA, la cola online y la IA de
-     * nivel alto. La revancha de una partida de mesa (casual, nivel 1), los desafíos y los cosméticos no se bloquean.
+     * League actions only the League app grants: ranked matches against the AI, the online queue and the
+     * high-level AI. A table match rematch (casual, level 1), challenges and cosmetics are not locked.
      */
     public static boolean leagueActionAllowed(ServerPlayerEntity p, String json) {
         try {
@@ -109,19 +109,19 @@ public final class PhoneUpgrades {
             int lvl = o.has("level") ? o.get("level").getAsInt() : 1;
             if (mode.equals("cancel_queue") || (!mode.equals("ranked_ai") && !mode.equals("queue") && lvl <= 1)) return true;
         } catch (Exception ex) {
-            return true; // PtcgDuels.league descarta el paquete malformado
+            return true; // PtcgDuels.league discards the malformed packet
         }
         return requireApp(p, "league");
     }
 
-    /** Bonus sobre la tasa de venta rápida del teléfono (CardSales: rate = PHONE_RATE + sellBonus). */
+    /** Bonus on top of the phone's quick-sell rate (CardSales: rate = PHONE_RATE + sellBonus). */
     public static double sellBonus(ServerPlayerEntity p) {
         return PhoneTier.SELL_BONUS[perkLevel(p)];
     }
 
     /**
-     * Migración a la 0.9: quien ya tenía tienda empieza en Pro y quien ya había jugado (kit de inicio o compras) en Plus;
-     * ambos conservan todas las apps que ya usaban. Un jugador nuevo empieza en Básico.
+     * 0.9 migration: players who already had a shop start at Pro, and those who had already played (starter kit or purchases) at Plus;
+     * both keep all the apps they already used. A new player starts at Basic.
      */
     static void migrate(ServerPlayerEntity sp) {
         PhoneState st = PhoneState.get(sp.getServer());
@@ -139,19 +139,19 @@ public final class PhoneUpgrades {
         if (owner) { e.tier = c.legacyShopOwnerTier; e.legacy = true; }
         else if (played) { e.tier = c.legacyPlayerTier; e.legacy = true; }
         st.markDirty();
-        if (e.legacy) TcgShop.LOGGER.info("Teléfono 0.9: {} migrado al nivel {} (conserva sus apps)", sp.getName().getString(), e.tier);
+        if (e.legacy) TcgShop.LOGGER.info("Phone 0.9: {} migrated to tier {} (keeps their apps)", sp.getName().getString(), e.tier);
     }
 
-    // ------------------------------------------------------------------ sincronización
+    // ------------------------------------------------------------------ synchronization
 
-    /** Manda el estado al cliente. source/locks: candados del catálogo que se va a abrir a continuación (o null). */
+    /** Sends the state to the client. source/locks: locks of the catalog about to be opened next (or null). */
     public static void sync(ServerPlayerEntity p, @Nullable Integer source, int[] locks) {
         sync(p, source, locks, false);
     }
 
     /**
-     * Igual, y refresh = el catálogo que sigue sólo debe refrescar un teléfono que ya esté abierto (tras comprar una
-     * mejora): si el jugador lo cerró mientras tanto, no se le vuelve a abrir encima de otra pantalla.
+     * Same, and refresh = the following catalog should only refresh a phone that is already open (after buying an
+     * upgrade): if the player closed it in the meantime, it is not reopened on top of another screen.
      */
     public static void sync(ServerPlayerEntity p, @Nullable Integer source, int[] locks, boolean refresh) {
         if (!ServerPlayNetworking.canSend(p, PhonePayloads.Sync.ID)) return;
@@ -172,12 +172,12 @@ public final class PhoneUpgrades {
         ServerPlayNetworking.send(p, new PhonePayloads.Sync(d));
     }
 
-    /** Ticks entre dos llamadas (un día de Minecraft). */
+    /** Ticks between two calls (one Minecraft day). */
     private static final long CALL_COOLDOWN = 24000L;
 
     /**
-     * Llamada usada en los últimos 24000 ticks del mundo. Se mide con getTime(), que sólo avanza: /time set y
-     * doDaylightCycle = false no la dejan bloqueada (con el número de día podía quedarse así cientos de días o siempre).
+     * Call used in the last 24000 world ticks. Measured with getTime(), which only moves forward: /time set and
+     * doDaylightCycle = false don't leave it locked (with the day number it could stay that way for hundreds of days or forever).
      */
     static boolean callUsed(MinecraftServer server, PhoneState.Entry e) {
         if (e.lastCallTick < 0) return false;
@@ -185,7 +185,7 @@ public final class PhoneUpgrades {
         return now >= e.lastCallTick && now - e.lastCallTick < CALL_COOLDOWN;
     }
 
-    // ------------------------------------------------------------------ catálogos (Mercado del teléfono y Mayorista)
+    // ------------------------------------------------------------------ catalogs (phone Market and Wholesaler)
 
     private static int tierForPackUsd(double usd) {
         double[] lim = PhoneConfig.INSTANCE.packUsdLimits;
@@ -193,7 +193,7 @@ public final class PhoneUpgrades {
         return PhoneTier.MAX_LEVEL;
     }
 
-    /** Nivel de teléfono necesario para comprar este producto (phone = Mercado del teléfono; si no, Mayorista). */
+    /** Phone tier required to buy this product (phone = phone Market; otherwise, Wholesaler). */
     public static int requiredTier(ItemStack st, boolean phone) {
         if (!PhoneConfig.INSTANCE.enabled) return 0;
         if (st.isOf(TcgBlocks.BOOSTER_BOX_ITEM)) {
@@ -209,14 +209,14 @@ public final class PhoneUpgrades {
     }
 
     /**
-     * Lo que ve este jugador en ese catálogo: el Mayorista trae cajas de sets extra en los niveles altos y en el último
-     * nivel se salta el bloqueo de sets por nivel de tienda. Es determinista: abrir y comprar dan la misma lista.
+     * What this player sees in that catalog: the Wholesaler brings boxes of extra sets at high tiers, and at the top
+     * tier the shop-level set lock is bypassed. It is deterministic: opening and buying produce the same list.
      */
     public static List<ItemStack> storeView(ServerPlayerEntity p, int source, List<ItemStack> goods) {
         return applyPackLock(p, withExtraSets(p, source, goods));
     }
 
-    /** Primer paso de storeView: el catálogo con las cajas de sets extra del Mayorista (sin aplicar PackLock). */
+    /** First step of storeView: the catalog with the Wholesaler's extra set boxes (without applying PackLock). */
     public static List<ItemStack> withExtraSets(ServerPlayerEntity p, int source, List<ItemStack> goods) {
         int lv = perkLevel(p);
         List<ItemStack> g = goods;
@@ -238,20 +238,20 @@ public final class PhoneUpgrades {
         return g;
     }
 
-    /** Segundo paso de storeView: quita los sets bloqueados por nivel de tienda (salvo con el último nivel). */
+    /** Second step of storeView: removes sets locked by shop level (except at the top tier). */
     public static List<ItemStack> applyPackLock(ServerPlayerEntity p, List<ItemStack> goods) {
         if (perkLevel(p) >= PhoneTier.PACKLOCK_BYPASS_TIER) return goods;
         return PackLock.visibleTo(p, goods);
     }
 
-    /** Nivel necesario de cada producto de la lista (para los candados de la interfaz). */
+    /** Required tier of each product in the list (for the UI locks). */
     public static int[] locks(List<ItemStack> goods, int source) {
         int[] out = new int[goods.size()];
         for (int i = 0; i < out.length; i++) out[i] = requiredTier(goods.get(i), source == -1);
         return out;
     }
 
-    /** Factor de precio con el descuento del nivel. */
+    /** Price factor with the tier discount. */
     public static double priceFactor(ServerPlayerEntity p, int source, double base) {
         int lv = perkLevel(p);
         return base * (source == -1 ? PhoneTier.PHONE_DISCOUNT[lv] : PhoneTier.WHOLESALE_DISCOUNT[lv]);
@@ -261,7 +261,7 @@ public final class PhoneUpgrades {
         return Text.translatable("tcgshop.phoneup.tier." + PhoneTier.of(level).key);
     }
 
-    // ------------------------------------------------------------------ acciones
+    // ------------------------------------------------------------------ actions
 
     private static void handle(ServerPlayerEntity p, NbtCompound d) {
         switch (d.getString("a")) {
@@ -296,8 +296,8 @@ public final class PhoneUpgrades {
         p.sendMessage(Text.translatable("tcgshop.phoneup.bought", tierName(target).copy().formatted(Formatting.BOLD),
                 Text.literal(PriceService.format(cost)).formatted(Formatting.GOLD)).formatted(Formatting.GREEN), false);
         p.getWorld().playSound(null, p.getBlockPos(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.PLAYERS, 0.7f, 1.2f);
-        // vuelve a mandar el Mercado (nuevos productos y precios); el teléfono abierto se actualiza sin cerrarse y,
-        // si el jugador ya lo cerró, no se vuelve a abrir
+        // resend the Market (new products and prices); the open phone updates without closing and,
+        // if the player already closed it, it is not reopened
         ShopServer.openStore(p, -1, ShopServer.phoneCatalog(), ShopServer.PHONE_FACTOR, true);
     }
 
@@ -323,7 +323,7 @@ public final class PhoneUpgrades {
         sync(p, null, null);
     }
 
-    /** Si estás en tu tienda (o cerca) viene un cliente coleccionista de los que gastan mucho; si no, un Coleccionista ambulante. */
+    /** If you're in (or near) your shop, a big-spending collector customer comes; otherwise, a wandering Collector. */
     private static boolean callCollector(ServerPlayerEntity p) {
         ServerWorld w = p.getServerWorld();
         ShopZones.Zone best = null;
@@ -333,8 +333,8 @@ public final class PhoneUpgrades {
             double dd = p.squaredDistanceTo(z.core.toCenterPos());
             if (dd < bestD) { bestD = dd; best = z; }
         }
-        // por el camino normal de los clientes: llega andando hasta una puerta abierta y respeta aforo y cola; si la
-        // tienda no está cargada, está llena con la cola llena o todas sus puertas están cerradas, viene el ambulante
+        // via the normal customer path: walks up to an open door and respects capacity and queue; if the
+        // shop isn't loaded, is full with a full queue, or all its doors are closed, the wanderer comes instead
         if (best != null && dev.tcgshop.shop.ShopLife.forceSpawnCustomer(w, best, "WHALE")) {
             p.sendMessage(Text.translatable("tcgshop.phoneup.call.collector_shop").formatted(Formatting.GOLD), false);
             return true;
@@ -365,16 +365,16 @@ public final class PhoneUpgrades {
         return false;
     }
 
-    // ---- 0.9 eventos aleatorios: las mismas apariciones que las llamadas del teléfono, sin gastar la llamada del día
+    // ---- 0.9 random events: the same spawns as the phone calls, without using up the daily call
 
-    /** Hace aparecer al Mayorista junto al jugador (si no hay ya uno cerca). */
+    /** Spawns the Wholesaler next to the player (if there isn't one nearby already). */
     public static boolean spawnWholesalerNear(ServerPlayerEntity p) {
         ServerWorld w = p.getServerWorld();
         if (!w.getEntitiesByClass(WholesalerEntity.class, p.getBoundingBox().expand(48), t -> true).isEmpty()) return true;
         return spawnNear(w, p, TcgEntities.WHOLESALER.create(w));
     }
 
-    /** Hace aparecer al mercader negro junto al jugador, con su oferta, sólo para él (si no hay ya uno cerca). */
+    /** Spawns the black market dealer next to the player, with their offer, for that player only (if there isn't one nearby already). */
     public static boolean spawnBlackMarketNear(ServerPlayerEntity p) {
         ServerWorld w = p.getServerWorld();
         if (!w.getEntitiesByClass(dev.tcgshop.entity.BlackMarketEntity.class, p.getBoundingBox().expand(128), t -> true).isEmpty()) return true;
@@ -385,7 +385,7 @@ public final class PhoneUpgrades {
         return spawnNear(w, p, m);
     }
 
-    /** Coloca una entidad en suelo libre a 4-9 bloques del jugador. */
+    /** Places an entity on free ground 4-9 blocks from the player. */
     public static boolean spawnNearPlayer(ServerWorld w, ServerPlayerEntity p, @Nullable PathAwareEntity ent) {
         return spawnNear(w, p, ent);
     }
@@ -397,7 +397,7 @@ public final class PhoneUpgrades {
             int dist = 4 + w.random.nextInt(6);
             int x = (int) Math.floor(p.getX() + Math.cos(ang) * dist), z = (int) Math.floor(p.getZ() + Math.sin(ang) * dist);
             BlockPos found = null;
-            for (int dy = 3; dy >= -3 && found == null; dy--) { // primero cerca de la altura del jugador (sirve bajo techo)
+            for (int dy = 3; dy >= -3 && found == null; dy--) { // first near the player's height (works indoors)
                 BlockPos c = new BlockPos(x, p.getBlockY() + dy, z);
                 if (w.getBlockState(c.down()).isSolidBlock(w, c.down()) && w.isAir(c) && w.isAir(c.up())) found = c;
             }

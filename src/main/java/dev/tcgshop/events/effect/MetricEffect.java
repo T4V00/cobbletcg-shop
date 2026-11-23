@@ -11,17 +11,17 @@ import net.minecraft.util.Formatting;
 import java.util.List;
 
 /**
- * "metric": el evento se arregla cuando la tienda cumple un objetivo medible.
- * Comprobados en cada recálculo (cada minuto) y que deben mantenerse count recálculos SEGUIDOS (si falla uno, se
- * vuelve a 0, así no vale bajar precios un momento y subirlos después):
- *  · price_ok      factor de precio de la reputación &gt;= 0 (precios razonables)
- *  · smell_clean   olor de la tienda &lt;= 5
- *  · lit           la tienda no está oscura (sin flag "dark")
- *  · no_hostiles   sin monstruos cerca
- *  · stocked       sin flag "empty"
- *  · guarded       guardia contratado o al menos 2 detectores de robo
- * Por ventas (se suman):
- *  · fair_sales    ventas a NPC a precio de mercado o menos
+ * "metric": the event is fixed when the shop meets a measurable goal.
+ * Checked on every recompute (every minute) and must hold for count CONSECUTIVE recomputes (if one fails, it
+ * resets to 0, so lowering prices for a moment and raising them afterwards does not work):
+ *  · price_ok      reputation price factor &gt;= 0 (reasonable prices)
+ *  · smell_clean   shop smell &lt;= 5
+ *  · lit           the shop is not dark (no "dark" flag)
+ *  · no_hostiles   no monsters nearby
+ *  · stocked       no "empty" flag
+ *  · guarded       guard hired or at least 2 theft detectors
+ * By sales (they add up):
+ *  · fair_sales    sales to NPCs at market price or less
  */
 public final class MetricEffect implements EventEffect {
     static final List<String> METRICS = List.of("price_ok", "smell_clean", "lit", "no_hostiles", "stocked", "guarded", "fair_sales");
@@ -31,7 +31,7 @@ public final class MetricEffect implements EventEffect {
     public MetricEffect(JsonObject o, String defId) {
         metric = EventDef.str(o, "metric", "");
         count = Math.max(1, EventDef.integer(o, "count", metric.equals("fair_sales") ? 5 : 2));
-        if (!METRICS.contains(metric)) throw new IllegalArgumentException("metric desconocida: " + metric);
+        if (!METRICS.contains(metric)) throw new IllegalArgumentException("unknown metric: " + metric);
     }
 
     @Override
@@ -67,8 +67,8 @@ public final class MetricEffect implements EventEffect {
     public boolean providesFix() { return true; }
 
     /**
-     * No sale ya "arreglado": los objetivos que el propio evento no estropea exigen que hoy NO se cumplan
-     * (si no, se resolvería solo en el siguiente recálculo gastando el evento del día).
+     * Does not start already "fixed": goals that the event itself does not break require that they are NOT met today
+     * (otherwise it would resolve itself on the next recompute, wasting the day's event).
      */
     @Override
     public java.util.Set<String> implicitRequires() {

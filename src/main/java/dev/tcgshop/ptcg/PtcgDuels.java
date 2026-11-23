@@ -39,19 +39,19 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Partidas del Pokémon TCG REAL (motor de twinleaf.gg).
- *  · Mesa de juego: clic = esperar rival (liga entre jugadores) · Mayús + clic = amistosa contra la IA.
- *  · Teléfono (Liga TCG → Jugar): amistosa contra la IA (4 niveles), LIGA contra la IA (ELO contra su puntuación) y
- *    cola de liga contra otros jugadores. Las partidas del teléfono no necesitan mesa.
- *  · Antes de empezar se comprueba el mazo (60 cartas legales y que tengas las copias) y se dice qué falla.
- *  · Sugerencias: la IA del motor propone tu siguiente jugada. Animaciones de ataque/habilidad desde el motor.
+ * REAL Pokémon TCG matches (twinleaf.gg engine).
+ *  · Play table: click = wait for an opponent (player-vs-player league) · Shift + click = friendly match against the AI.
+ *  · Phone (TCG League → Play): friendly vs the AI (4 levels), LEAGUE vs the AI (ELO against its rating) and
+ *    league queue against other players. Phone matches don't need a table.
+ *  · Before starting, the deck is checked (60 legal cards and that you own the copies) and what's wrong is reported.
+ *  · Suggestions: the engine's AI proposes your next move. Attack/ability animations come from the engine.
  */
 public final class PtcgDuels {
     public static final String[] LEVELS = {"easy", "normal", "hard", "champion"};
     private static final double[] LEVEL_CHAOS = {1.0, 0.6, 0.25, 0.0};
     public static final int[] LEVEL_RATING = {900, 1100, 1300, 1550};
     public static long[] LEVEL_REWARD = {800, 1_500, 3_000, 6_000};
-    /** Lo que cuesta perder una partida competitiva (Liga contra la IA por nivel; entre jugadores, fijo). */
+    /** The cost of losing a competitive match (League vs the AI per level; between players, fixed). */
     public static long[] LEVEL_PENALTY = {200, 400, 800, 1_500};
     public static long PVP_PENALTY = 600; // EconomyConfig
 
@@ -59,7 +59,7 @@ public final class PtcgDuels {
 
     private static List<MetaDeck> metaDecks;
 
-    /** Mazos del metajuego competitivo (data/tcgshop/ptcg_meta_decks.json, generados con engine/meta_decks.js). */
+    /** Competitive metagame decks (data/tcgshop/ptcg_meta_decks.json, generated with engine/meta_decks.js). */
     private static List<MetaDeck> metaDecks() {
         if (metaDecks == null) {
             metaDecks = new ArrayList<>();
@@ -71,7 +71,7 @@ public final class PtcgDuels {
                     metaDecks.add(new MetaDeck(o.get("id").getAsString(), o.get("name").getAsString(), cards));
                 }
             } catch (Exception ex) {
-                dev.tcgshop.TcgShop.LOGGER.warn("No se pudieron leer los mazos meta: {}", ex.toString());
+                dev.tcgshop.TcgShop.LOGGER.warn("Could not read the meta decks: {}", ex.toString());
             }
         }
         return metaDecks;
@@ -81,7 +81,7 @@ public final class PtcgDuels {
 
     private enum Mode { TABLE_PVP, CASUAL_AI, RANKED_AI, QUEUE_PVP, CHALLENGE }
 
-    /** Ritmo del bot (ticks): pausa entre jugadas y antes de la primera. */
+    /** Bot pacing (ticks): pause between moves and before the first one. */
     private static final int BOT_STEP_DELAY = 38, BOT_FIRST_DELAY = 90;
 
     private static final class Match {
@@ -90,7 +90,7 @@ public final class PtcgDuels {
         @Nullable final BlockPos table;
         final Mode mode;
         final int level;
-        final UUID[] players = new UUID[2]; // null = IA
+        final UUID[] players = new UUID[2]; // null = AI
         final String[] names = new String[2];
         final JsonObject[] views = new JsonObject[2];
         final JsonObject[] gradedCards = {new JsonObject(), new JsonObject()};
@@ -98,7 +98,7 @@ public final class PtcgDuels {
         final String[] suggestion = {"", ""};
         final int[] timeouts = new int[2];
         long lastChange, endedAt = -1;
-        /** Próximo instante (tiempo del mundo) en que el bot puede actuar: deja leer y ver cada jugada. */
+        /** Next moment (world time) when the bot may act: gives time to read and see each move. */
         long botNext;
         int pending, ratingDelta;
         boolean over, started;
@@ -115,14 +115,14 @@ public final class PtcgDuels {
 
         boolean ai() { return players[1] == null; }
 
-        boolean ranked() { return mode == Mode.TABLE_PVP || mode == Mode.QUEUE_PVP || mode == Mode.RANKED_AI; } // CHALLENGE = amistosa
+        boolean ranked() { return mode == Mode.TABLE_PVP || mode == Mode.QUEUE_PVP || mode == Mode.RANKED_AI; } // CHALLENGE = friendly
     }
 
     private static final Map<UUID, Match> BY_PLAYER = new HashMap<>();
     private static final Map<String, Match> MATCHES = new LinkedHashMap<>();
     private static final Map<BlockPos, UUID> WAITING = new HashMap<>();
     private static final List<UUID> QUEUE = new ArrayList<>();
-    /** Desafíos pendientes: retado -> (retador, caduca en tick del servidor). */
+    /** Pending challenges: challenged -> (challenger, expires at server tick). */
     private static final Map<UUID, Object[]> CHALLENGES = new HashMap<>();
     private static int counter;
 
@@ -159,7 +159,7 @@ public final class PtcgDuels {
         return false;
     }
 
-    // ------------------------------------------------------------------ mesas
+    // ------------------------------------------------------------------ tables
 
     public static void useTable(ServerPlayerEntity p, BlockPos tablePos, boolean vsAi) {
         final BlockPos table = tablePos.toImmutable();
@@ -202,7 +202,7 @@ public final class PtcgDuels {
             m.players[0] = p.getUuid();
             m.names[0] = p.getName().getString();
             m.names[1] = Text.translatable("tcgshop.ptcg.ai_name." + LEVELS[m.level]).getString();
-            // IA Campeona siempre y Veterana la mitad de las veces: un mazo top del metajuego
+            // Champion AI always and Veteran AI half the time: a top metagame deck
             List<MetaDeck> metas = metaDecks();
             java.util.Random r = new java.util.Random();
             if (!metas.isEmpty() && (m.level >= 3 || (m.level == 2 && r.nextBoolean()))) {
@@ -273,11 +273,11 @@ public final class PtcgDuels {
         }));
     }
 
-    // ------------------------------------------------------------------ mazos
+    // ------------------------------------------------------------------ decks
 
     private static String poolCache;
 
-    /** Pool de la IA: todas las cartas de cobbletcg que el motor tiene programadas (para que siempre tengan imagen). */
+    /** AI pool: every cobbletcg card the engine has implemented (so they always have an image). */
     private static String housePool() {
         if (poolCache == null) {
             JsonObject o = new JsonObject();
@@ -291,7 +291,7 @@ public final class PtcgDuels {
         return poolCache;
     }
 
-    /** Tus cartas jugables en el TCG real: nombre del motor -> copias (Binder General que llevas + inventario). */
+    /** Your cards playable in the real TCG: engine name -> copies (General Binder you carry + inventory). */
     public static Map<String, Integer> pool(ServerPlayerEntity p) {
         Map<String, Integer> out = new LinkedHashMap<>();
         BinderData d = CollectionService.ownedBinder(p);
@@ -308,7 +308,7 @@ public final class PtcgDuels {
         return out;
     }
 
-    /** Cartas gradeadas que llevas en el inventario: nombre del motor -> {copias, mejor nota}. */
+    /** Graded cards in your inventory: engine name -> {copies, best grade}. */
     public static Map<String, int[]> graded(ServerPlayerEntity p) {
         Map<String, int[]> out = new HashMap<>();
         for (int i = 0; i < p.getInventory().size(); i++) {
@@ -323,7 +323,7 @@ public final class PtcgDuels {
         return out;
     }
 
-    /** Nota de las cartas del mazo de las que tienes una copia gradeada (la mesa las enseña con su funda). */
+    /** Grade of the deck cards you have a graded copy of (the table shows them in their slab). */
     private static JsonObject gradedInDeck(@Nullable ServerPlayerEntity p, List<String> deck) {
         JsonObject o = new JsonObject();
         if (p == null) return o;
@@ -332,7 +332,7 @@ public final class PtcgDuels {
         return o;
     }
 
-    /** Valida propiedad (las Energías básicas son gratis). Devuelve null si vale o la carta que falta. */
+    /** Validates ownership (basic Energies are free). Returns null if valid, or the missing card. */
     @Nullable
     public static String ownership(List<String> deck, Map<String, Integer> pool) {
         Map<String, Integer> used = new HashMap<>();
@@ -346,8 +346,8 @@ public final class PtcgDuels {
     private interface DeckCallback { void accept(@Nullable List<String> deck); }
 
     /**
-     * Comprueba el mazo antes de jugar. Si tienes uno guardado y no vale, te dice exactamente por qué (y no juega);
-     * si no tienes ninguno guardado, usa uno automático con tus cartas.
+     * Checks the deck before playing. If you have a saved one and it's invalid, tells you exactly why (and doesn't play);
+     * if you have none saved, uses an automatic one built from your cards.
      */
     private static void deckFor(ServerPlayerEntity p, DeckCallback cb) {
         Map<String, Integer> pool = pool(p);
@@ -384,14 +384,14 @@ public final class PtcgDuels {
         }));
     }
 
-    /** Texto legible del motivo de un mazo inválido. */
+    /** Readable text of the reason a deck is invalid. */
     public static Text reason(String why) {
         if (why == null || why.isEmpty()) return Text.empty();
         String[] parts = why.split(":", 2);
         return Text.translatable("tcgshop.ptcg.deck_err." + parts[0], parts.length > 1 ? parts[1] : "");
     }
 
-    // ------------------------------------------------------------------ acciones
+    // ------------------------------------------------------------------ actions
 
     public static void action(ServerPlayerEntity p, String json) {
         Match m = BY_PLAYER.get(p.getUuid());
@@ -451,7 +451,7 @@ public final class PtcgDuels {
         run(m, seat, o, null);
     }
 
-    // ------------------------------------------------------------------ vistas
+    // ------------------------------------------------------------------ views
 
     private static void refresh(Match m, boolean open) {
         m.pending++;
@@ -469,7 +469,7 @@ public final class PtcgDuels {
                 }));
     }
 
-    /** Moneda de la casa según su nivel. */
+    /** The house's coin according to its level. */
     private static final String[] BOT_COINS = {"copper", "silver", "ultra", "master", "obsidian"};
 
     private static void sendViews(Match m, boolean open) {
@@ -565,7 +565,7 @@ public final class PtcgDuels {
         }
     }
 
-    /** Derrota competitiva: pierdes un poco de dinero (nunca más de lo que tienes). */
+    /** Competitive loss: you lose a bit of money (never more than you have). */
     private static void penalize(@Nullable ServerPlayerEntity pl, long amount, Match m, int seat) {
         if (pl == null || !CobbleDollarsBridge.isAvailable()) return;
         long take = Math.min(amount, Math.max(0, CobbleDollarsBridge.getBalance(pl)));
@@ -575,7 +575,7 @@ public final class PtcgDuels {
         pl.sendMessage(Text.translatable("tcgshop.ptcg.penalty", PriceService.format(take)).formatted(Formatting.RED), false);
     }
 
-    /** Las cartas en juego (Activo + 3 de Banca de cada lado) se ven sobre la mesa. */
+    /** Cards in play (Active + 3 Bench on each side) are shown on the table. */
     private static void updateTable(Match m) {
         if (m.table == null || !(m.world.getBlockEntity(m.table) instanceof DecorBlocks.DecorEntity be) || m.views[0] == null) return;
         be.board.clear();
@@ -606,10 +606,10 @@ public final class PtcgDuels {
         PtcgEngine.call(api -> { api.run("dispose", m.id); return true; });
     }
 
-    // ------------------------------------------------------------------ ciclo
+    // ------------------------------------------------------------------ loop
 
     private static void tick(MinecraftServer server) {
-        // cola de liga del teléfono
+        // phone league queue
         if (QUEUE.size() >= 2 && server.getTicks() % 20 == 0) {
             ServerPlayerEntity a = server.getPlayerManager().getPlayer(QUEUE.get(0)), b = server.getPlayerManager().getPlayer(QUEUE.get(1));
             QUEUE.remove(0);
@@ -644,7 +644,7 @@ public final class PtcgDuels {
                 }
             }
             if (m.pending > 0) continue;
-            if (m.ai() && m.botNext == 0) m.botNext = now + BOT_FIRST_DELAY; // deja ver la presentación y la moneda
+            if (m.ai() && m.botNext == 0) m.botNext = now + BOT_FIRST_DELAY; // lets the intro and the coin flip be seen
             if (m.ai() && now >= m.botNext) {
                 m.pending++;
                 m.botNext = now + 10;
@@ -679,13 +679,13 @@ public final class PtcgDuels {
                     break;
                 }
                 m.lastChange = now;
-            } else if (now % 100 == 0) sendViews(m, false); // refresca el reloj de inactividad
+            } else if (now % 100 == 0) sendViews(m, false); // refreshes the idle timer
         }
     }
 
-    // ------------------------------------------------------------------ desafíos (rueda de Cobblemon / /tcgduel)
+    // ------------------------------------------------------------------ challenges (Cobblemon wheel / /tcgduel)
 
-    /** Reta a otro jugador a una partida amistosa del TCG real (sin puntos de liga). */
+    /** Challenges another player to a friendly real-TCG match (no league points). */
     public static void challenge(ServerPlayerEntity from, @Nullable ServerPlayerEntity to) {
         if (to == null || to == from) return;
         if (BY_PLAYER.containsKey(from.getUuid())) { from.sendMessage(Text.translatable("tcgshop.ptcg.challenge.busy_self").formatted(Formatting.RED), true); return; }
@@ -723,17 +723,17 @@ public final class PtcgDuels {
         startPvp(from, to, null, Mode.CHALLENGE);
     }
 
-    // ------------------------------------------------------------------ liga (teléfono)
+    // ------------------------------------------------------------------ league (phone)
 
     public static void league(ServerPlayerEntity p, String json) {
         JsonObject o;
         try { o = JsonParser.parseString(json).getAsJsonObject(); } catch (Exception ex) { return; }
         String a = o.has("a") ? o.get("a").getAsString() : "sync";
-        PtcgCards.loadBrief(); // el motor se carga la primera vez que alguien abre la Liga o una mesa
+        PtcgCards.loadBrief(); // the engine loads the first time someone opens the League or a table
         switch (a) {
             case "play" -> {
                 Match mine = BY_PLAYER.get(p.getUuid());
-                if (mine != null && mine.over && mine.pending == 0) { remove(mine); mine = null; } // revancha
+                if (mine != null && mine.over && mine.pending == 0) { remove(mine); mine = null; } // rematch
                 if (mine != null) { sendViews(mine, true); return; }
                 if (!engineReady(p)) return;
                 String mode = o.has("mode") ? o.get("mode").getAsString() : "casual";
@@ -796,7 +796,7 @@ public final class PtcgDuels {
                 if (!v.isEmpty()) msg = v;
                 else { deck = wanted; msg = "SAVED"; }
             } else if (a.equals("auto") && !pool.isEmpty()) {
-                // con cartas ya puestas en el mazo, el automático arma el resto a su alrededor (líneas evolutivas, tipo, Entrenadores)
+                // with cards already placed in the deck, auto-build fills the rest around them (evolution lines, type, Trainers)
                 List<String> seeds = new ArrayList<>();
                 Map<String, Integer> left = new HashMap<>(pool);
                 for (String f : wanted) {

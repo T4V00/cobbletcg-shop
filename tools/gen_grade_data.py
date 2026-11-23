@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Datos por carta para el sistema de Grado (GradeModel). Sin cantidades inventadas: todo sale de
-  * el ranking de popularidad del usuario (Popularity.txt, 1.025 Pokémon, #1 = Charizard),
-  * el tipo de carta del motor TCG real (engine/twinleaf_cards.json: st 1 Pokémon / 2 Entrenador / 3 Energía;
-    tt 0 Objeto, 1 Partidario, 2 Estadio, 3 Herramienta) vía data/tcgshop/tcgshop_ptcg/cards.json,
-  * el uso competitivo real (engine/meta_decks.json: copias en los mazos meta),
-  * las reimpresiones del mismo Entrenador/Energía en el motor (versatilidad).
-Salida: src/main/resources/data/tcgshop/tcgshop_grade/cards.json
-  { id: {"c": categoría, "r": rank (sólo Pokémon), "k": uso 0-1, "v": versatilidad 0-1} }
-y tools/grade_unmatched.txt con los casos dudosos.
-Uso: python tools/gen_grade_data.py <Popularity.txt>   (cartas: catálogo de ../masterball-api)
+Per-card data for the Grade system (GradeModel). No invented quantities: everything comes from
+  * the user's popularity ranking (Popularity.txt, 1,025 Pokémon, #1 = Charizard),
+  * the card type from the real TCG engine (engine/twinleaf_cards.json: st 1 Pokémon / 2 Trainer / 3 Energy;
+    tt 0 Item, 1 Supporter, 2 Stadium, 3 Tool) via data/tcgshop/tcgshop_ptcg/cards.json,
+  * real competitive usage (engine/meta_decks.json: copies in meta decks),
+  * reprints of the same Trainer/Energy in the engine (versatility).
+Output: src/main/resources/data/tcgshop/tcgshop_grade/cards.json
+  { id: {"c": category, "r": rank (Pokémon only), "k": usage 0-1, "v": versatility 0-1} }
+and tools/grade_unmatched.txt with the doubtful cases.
+Usage: python tools/gen_grade_data.py <Popularity.txt>   (cards: catalog from ../masterball-api)
 """
 import json
 import re
@@ -44,7 +44,7 @@ def load_popularity(path):
 
 
 def find_pokemon(name, ranks, maxlen):
-    """Pokémon presentes en el nombre como palabras completas (prefijos/sufijos como Alolan, ex, VMAX quedan fuera solos)."""
+    """Pokémon present in the name as whole words (prefixes/suffixes like Alolan, ex, VMAX are left out on their own)."""
     w = words(name)
     found = []
     for i in range(len(w)):
@@ -59,12 +59,12 @@ def find_pokemon(name, ranks, maxlen):
 
 
 def main():
-    pop = sys.argv[-1]  # antes: <jar> <Popularity.txt>; ahora basta <Popularity.txt>
+    pop = sys.argv[-1]  # before: <jar> <Popularity.txt>; now <Popularity.txt> is enough
     jar = None
     ranks = load_popularity(pop)
-    assert len(ranks) >= 1000, f"ranking incompleto: {len(ranks)}"
+    assert len(ranks) >= 1000, f"incomplete ranking: {len(ranks)}"
     maxlen = max(len(k) for k in ranks)
-    # palabras sueltas que son Pokémon pero también palabras corrientes en nombres de cartas
+    # single words that are Pokémon but also common words in card names
     risky = {("mew",): False}
     tl = {c["f"]: c for c in json.loads((ROOT / "engine/twinleaf_cards.json").read_text(encoding="utf-8"))}
     eng_map = json.loads((ROOT / "src/main/resources/data/tcgshop/tcgshop_ptcg/cards.json").read_text(encoding="utf-8"))
@@ -97,12 +97,12 @@ def main():
                 rec["r"] = min(hits)[0]
                 cat = "pokemon"
                 if len({h[1] for h in hits}) > 1:
-                    log.append(f"varios Pokémon (uso el más popular): {cid} '{name}' -> {sorted(set(hits))}")
+                    log.append(f"several Pokémon (using the most popular): {cid} '{name}' -> {sorted(set(hits))}")
             elif cat == "pokemon":
-                log.append(f"Pokémon sin identificar (popularidad neutra): {cid} '{name}'")
+                log.append(f"unidentified Pokémon (neutral popularity): {cid} '{name}'")
             else:
                 cat = "unknown"
-                log.append(f"categoría desconocida (sin datos del motor): {cid} '{c['name']}'")
+                log.append(f"unknown category (no engine data): {cid} '{c['name']}'")
         rec["c"] = cat
         rec["k"] = round(use.get(name, 0) / max_use, 4)
         if cat != "pokemon":
@@ -113,7 +113,7 @@ def main():
     OUT.write_text(json.dumps(dict(sorted(out.items())), separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
     LOG.write_text("\n".join(log) + "\n", encoding="utf-8")
     cnt = Counter(r["c"] for r in out.values())
-    print(f"{len(out)} cartas · {dict(cnt)} · {sum('r' in r for r in out.values())} Pokémon con rank · {len(log)} avisos -> {LOG.name}")
+    print(f"{len(out)} cards · {dict(cnt)} · {sum('r' in r for r in out.values())} Pokémon with rank · {len(log)} warnings -> {LOG.name}")
 
 
 if __name__ == "__main__":

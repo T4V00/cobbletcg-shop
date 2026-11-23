@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Textos de la mesa moderna del TCG real, la pestaña Jugar del teléfono y los motivos de mazo inválido (es / en)."""
+"""Texts for the real TCG modern table, the phone's Play tab and the invalid deck reasons (es / en)."""
 import json
 from pathlib import Path
 
@@ -7,7 +7,7 @@ LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgsh
 
 U = "tcgshop.ptcg.ui."
 PAIRS = {
-    # --- mesa
+    # --- table
     U + "actions": ("Acciones", "Actions"),
     U + "attacks": ("Ataques", "Attacks"),
     U + "your_turn": ("Tu turno", "Your turn"),
@@ -80,7 +80,7 @@ PAIRS = {
     U + "reward": ("Premio: $%s CobbleDollars", "Prize: $%s CobbleDollars"),
     U + "rematch": ("Revancha", "Rematch"),
     U + "close": ("Cerrar", "Close"),
-    # --- paneles de decisión
+    # --- decision panels
     U + "confirm": ("Confirmar", "Confirm"),
     U + "reset": ("Deshacer", "Undo"),
     U + "auto": ("Automático", "Auto"),
@@ -127,7 +127,7 @@ PAIRS = {
     U + "prompt.order": ("Ordena las cartas", "Order the cards"),
     U + "prompt.chooseAttack": ("Elige un ataque", "Choose an attack"),
     U + "prompt.other": ("Decisión", "Choice"),
-    # --- modos y niveles
+    # --- modes and levels
     U + "mode.table_pvp": ("Liga · mesa", "League · table"),
     U + "mode.queue_pvp": ("Liga · online", "League · online"),
     U + "mode.casual_ai": ("Amistosa vs IA", "Casual vs AI"),
@@ -140,7 +140,7 @@ PAIRS = {
     "tcgshop.ptcg.ai_name.normal": ("IA Entrenadora", "Trainer AI"),
     "tcgshop.ptcg.ai_name.hard": ("IA Veterana", "Veteran AI"),
     "tcgshop.ptcg.ai_name.champion": ("IA Campeona", "Champion AI"),
-    # --- servidor
+    # --- server
     "tcgshop.ptcg.deck_invalid": ("Tu mazo guardado no es legal: %s.", "Your saved deck isn't legal: %s."),
     "tcgshop.ptcg.deck_fix_hint": ("Arréglalo en el teléfono → Liga TCG → Mazo (o pulsa «Automático»).",
                                    "Fix it on the phone → TCG League → Deck (or press “Auto”)."),
@@ -148,7 +148,7 @@ PAIRS = {
     "tcgshop.ptcg.opp_no_deck": ("%s no tiene un mazo válido.", "%s doesn't have a valid deck."),
     "tcgshop.ptcg.match_found": ("¡Rival encontrado: %s!", "Opponent found: %s!"),
     "tcgshop.ptcg.queue_joined": ("Buscando rival… (%s en cola)", "Looking for an opponent… (%s queued)"),
-    # --- motivos de mazo inválido
+    # --- invalid deck reasons
     "tcgshop.ptcg.deck_err.DECK_SIZE": ("debe tener exactamente 60 cartas (tiene %s)", "it must have exactly 60 cards (it has %s)"),
     "tcgshop.ptcg.deck_err.MAX_COPIES": ("más de 4 copias de %s", "more than 4 copies of %s"),
     "tcgshop.ptcg.deck_err.NO_BASIC": ("necesita al menos un Pokémon Básico", "it needs at least one Basic Pokémon"),
@@ -164,7 +164,7 @@ PAIRS = {
                                               "Professor Sycamore, Professor Juniper and Professor's Research can't be mixed"),
     "tcgshop.ptcg.deck_err.BOSS_COMBO": ("no se pueden llevar a la vez Lysson y Órdenes de Jefe", "Lysandre and Boss's Orders can't be used together"),
     "tcgshop.ptcg.deck_err.ENGINE_RULES": ("no cumple las reglas del formato (revisa cartas especiales)", "it breaks the format rules (check special cards)"),
-    # --- teléfono: pestaña Jugar
+    # --- phone: Play tab
     "tcgshop.league.tab.play": ("Jugar", "Play"),
     "tcgshop.league.check": ("Comprobar", "Check"),
     "tcgshop.league.play.deck_ok": ("Mazo legal", "Deck is legal"),
@@ -192,7 +192,7 @@ PAIRS = {
     "tcgshop.league.play.searching": ("Buscando rival…", "Searching…"),
     "tcgshop.league.play.queue_size": ("%s jugador(es) en cola", "%s player(s) queued"),
     "tcgshop.league.play.cancel": ("Cancelar", "Cancel"),
-    # --- reglas actualizadas
+    # --- updated rules
     "tcgshop.ptcg.rules": (
         "POKÉMON TCG REAL\n\n"
         "Las partidas usan el motor de twinleaf.gg (código abierto, licencia MIT) con las reglas oficiales y los efectos reales de cada carta: "
@@ -215,7 +215,7 @@ PAIRS = {
 }
 
 EXTRA = {
-    # --- mesa clara: ampliación, registro detallado, desafíos
+    # --- clear table: zoom, detailed log, challenges
     U + "tool": ("Herramienta", "Tool"),
     U + "attached": ("Energía unida:", "Attached Energy:"),
     U + "use": ("Usar", "Use"),
@@ -323,7 +323,7 @@ def main():
         d = json.loads(p.read_text(encoding="utf-8"))
         d.update(add)
         p.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
-    print("textos mesa / jugar / mazo:", len(es))
+    print("table / play / deck texts:", len(es))
 
 
 if __name__ == "__main__":

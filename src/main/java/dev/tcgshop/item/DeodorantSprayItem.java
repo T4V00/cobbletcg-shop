@@ -22,8 +22,8 @@ import org.joml.Vector3f;
 import java.util.List;
 
 /**
- * Spray desodorante: una nube de ambientador delante de ti. Dentro de tu tienda baja el mal olor y, si rocías a un
- * cliente que huele mal, deja de oler (y se lo agradece... más o menos). Trae 72 usos.
+ * Deodorant spray: a cloud of air freshener in front of you. Inside your shop it lowers the bad smell and, if you spray a
+ * customer who smells bad, they stop smelling (and thank you for it... more or less). Comes with 72 uses.
  */
 public class DeodorantSprayItem extends Item {
     public static final int SMELL_REMOVED = 20;
@@ -49,7 +49,7 @@ public class DeodorantSprayItem extends Item {
                 ShopZones.get(sw).markDirty();
                 user.sendMessage(Text.translatable("tcgshop.smell.sprayed", z.smell).formatted(Formatting.AQUA), true);
             }
-            // clientes apestosos en el cono del spray
+            // smelly customers in the spray cone
             List<CustomerEntity> near = sw.getEntitiesByClass(CustomerEntity.class, user.getBoundingBox().expand(4.5), c -> c.isSmelly());
             for (CustomerEntity c : near) {
                 Vec3d to = c.getPos().add(0, 1, 0).subtract(eye);
@@ -63,7 +63,7 @@ public class DeodorantSprayItem extends Item {
     @Override
     public void appendTooltip(ItemStack stack, TooltipContext context, List<Text> tooltip, TooltipType type) {
         tooltip.add(Text.translatable("item.tcgshop.deodorant_spray.tip").formatted(Formatting.GRAY));
-        // usos restantes (72 de serie: el triple que antes)
+        // remaining uses (72 by default: triple the previous amount)
         int max = stack.getMaxDamage();
         if (max > 0) tooltip.add(Text.translatable("item.tcgshop.deodorant_spray.uses", max - stack.getDamage(), max).formatted(Formatting.DARK_AQUA));
     }

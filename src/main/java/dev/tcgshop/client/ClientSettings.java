@@ -10,8 +10,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Ajustes del jugador (sólo en su cliente): cómo se ven los bocadillos de los NPC y sus barras de paciencia.
- * Se cambian en el teléfono → Ajustes y se guardan en config/tcgshop-client.json.
+ * Player settings (only on their client): how NPC speech bubbles and their patience bars look.
+ * Changed in the phone → Settings and saved in config/tcgshop-client.json.
  */
 public final class ClientSettings {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -19,11 +19,11 @@ public final class ClientSettings {
 
     public static ClientSettings INSTANCE = new ClientSettings();
 
-    /** Color del texto: 0 automático (contraste con el fondo), 1 negro, 2 blanco, 3 amarillo, 4 azul oscuro. */
+    /** Text color: 0 automatic (contrast with the background), 1 black, 2 white, 3 yellow, 4 dark blue. */
     public int bubbleTextColor = 0;
-    /** Fondo: 0 blanco, 1 oscuro translúcido, 2 crema, 3 sin fondo (texto con sombra). */
+    /** Background: 0 white, 1 translucent dark, 2 cream, 3 no background (text with shadow). */
     public int bubbleBackground = 0;
-    /** Tamaño: 0 pequeño, 1 normal, 2 grande, 3 enorme. */
+    /** Size: 0 small, 1 normal, 2 large, 3 huge. */
     public int bubbleSize = 1;
     public boolean bubbles = true;
     public boolean patienceBars = true;
@@ -36,7 +36,7 @@ public final class ClientSettings {
         return BG_COLORS[Math.floorMod(bubbleBackground, BG_COLORS.length)];
     }
 
-    /** Color de texto efectivo: el elegido o, en automático, negro sobre fondo claro y blanco sobre oscuro/sin fondo. */
+    /** Effective text color: the chosen one or, in automatic, black on a light background and white on dark/no background. */
     public int textColor() {
         int c = TEXT_COLORS[Math.floorMod(bubbleTextColor, TEXT_COLORS.length)];
         if (c != 0) return c;
@@ -57,7 +57,7 @@ public final class ClientSettings {
                 if (s != null) INSTANCE = s;
             }
         } catch (Exception e) {
-            dev.tcgshop.TcgShop.LOGGER.warn("No se pudo leer {}", FILE, e);
+            dev.tcgshop.TcgShop.LOGGER.warn("Could not read {}", FILE, e);
         }
     }
 
@@ -65,7 +65,7 @@ public final class ClientSettings {
         try (Writer w = Files.newBufferedWriter(FILE)) {
             GSON.toJson(INSTANCE, w);
         } catch (Exception e) {
-            dev.tcgshop.TcgShop.LOGGER.warn("No se pudo guardar {}", FILE, e);
+            dev.tcgshop.TcgShop.LOGGER.warn("Could not save {}", FILE, e);
         }
     }
 }

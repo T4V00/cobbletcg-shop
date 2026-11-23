@@ -30,9 +30,9 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Mercado del Binder: vende varias cartas a la vez directamente desde tu Binder General (venta rápida), ofrece una
- * carta a otro jugador con tu precio, marca favoritas (protegidas: nunca se venden por error), filtra por expansión,
- * rareza, valor y cantidad, ordena, y mira el historial de operaciones y el valor total de tu colección.
+ * Binder Market: sell several cards at once straight from your General Binder (quick sell), offer a
+ * card to another player at your price, mark favorites (protected: never sold by mistake), filter by expansion,
+ * rarity, value and quantity, sort, and view the transaction history and the total value of your collection.
  */
 public class BinderMarketScreen extends Screen {
     private NbtCompound data;
@@ -40,14 +40,14 @@ public class BinderMarketScreen extends Screen {
     private final Set<String> sel = new HashSet<>();
     private final List<int[]> rects = new ArrayList<>();
     private final List<Runnable> acts = new ArrayList<>();
-    /** Filas visibles (para la selección arrastrando) y si el arrastre marca o desmarca. */
+    /** Visible rows (for drag selection) and whether the drag checks or unchecks. */
     private final List<Object[]> rowHits = new ArrayList<>();
     private Boolean dragAdd;
     private TextFieldWidget search;
     private boolean history, keepOne = true, confirm, offering, onlyFav;
     private int setIdx = -1, rarityIdx = -1, valueBand, qtyBand, sort;
     private double scroll;
-    // oferta
+    // offer
     private int offerTo, offerQty = 1;
     private long offerPrice;
 
@@ -127,7 +127,7 @@ public class BinderMarketScreen extends Screen {
         ctx.fillGradient(0, 0, width, height, 0xE0101420, 0xF0080A10);
         int x = 14, w = width - 28;
         Draw.scaledCentered(ctx, Text.translatable("tcgshop.bm2.title").formatted(Formatting.BOLD), width / 2f, 8, 1.3f, 0xFFFFFFFF);
-        // valor total de la colección
+        // total collection value
         long total = 0;
         int owned = 0;
         for (Map.Entry<String, Integer> e : ClientCollection.counts.entrySet()) {
@@ -145,7 +145,7 @@ public class BinderMarketScreen extends Screen {
         }
         if (history) { renderHistory(ctx, x, 50, w, height - 64); return; }
         search.render(ctx, mx, my, delta);
-        // filtros
+        // filters
         int fy = 48, fx = x;
         List<Catalog.CardSet> sets = Catalog.sets();
         Text setLabel = setIdx < 0 ? Text.translatable("tcgshop.bm2.f_all_sets") : sets.get(setIdx).name();
@@ -156,7 +156,7 @@ public class BinderMarketScreen extends Screen {
         fx = chip(ctx, fx, fy, Text.translatable("tcgshop.bm2.f_qty", Text.translatable("tcgshop.bm2.qty." + qtyBand)), mx, my, () -> qtyBand = (qtyBand + 1) % 3, () -> qtyBand = (qtyBand + 2) % 3);
         fx = chip(ctx, fx, fy, Text.translatable("tcgshop.bm2.sort." + sort), mx, my, () -> sort = (sort + 1) % 4, () -> sort = (sort + 3) % 4);
         chip(ctx, fx, fy, Text.translatable(onlyFav ? "tcgshop.bm2.f_fav_on" : "tcgshop.bm2.f_fav_off"), mx, my, () -> onlyFav = !onlyFav, () -> onlyFav = !onlyFav);
-        // lista
+        // list
         List<Row> rows = rows();
         int ly = 66, lh = height - ly - 52, rowH = 16;
         scroll = MathHelper.clamp(scroll, 0, Math.max(0, rows.size() * rowH - lh));
@@ -171,17 +171,17 @@ public class BinderMarketScreen extends Screen {
             boolean on = sel.contains(key), isFav = fav.contains(key), hover = Ui.in(mx, my, x, y, w, rowH) && Ui.in(mx, my, x, ly, w, lh);
             if (on) ctx.fill(x, y, x + w, y + rowH, 0x553A6FD8);
             else if (hover) ctx.fill(x, y, x + w, y + rowH, 0x22FFFFFF);
-            // casilla
+            // checkbox
             Ui.round(ctx, x + 4, y + 3, 10, 10, on ? 0xFF3A6FD8 : 0xFF2A2F44);
             if (on) ctx.drawText(textRenderer, "✔", x + 5, y + 4, 0xFFFFFFFF, false);
-            // favorita
+            // favorite
             ctx.drawText(textRenderer, isFav ? "★" : "☆", x + 18, y + 4, isFav ? 0xFFFFD34D : 0xFF6A7090, false);
             if (Ui.in(mx, my, x, ly, w, lh)) {
                 rects.add(new int[]{x, Math.max(y, ly), w, rowH});
                 acts.add(() -> { if (!sel.remove(key)) sel.add(key); confirm = false; dragAdd = sel.contains(key); });
                 int hy = Math.max(y, ly);
                 rowHits.add(new Object[]{x, hy, w, Math.min(y + rowH, ly + lh) - hy, key});
-                rects.add(new int[]{x + 16, Math.max(y, ly), 12, rowH}); // la estrella va encima de la fila
+                rects.add(new int[]{x + 16, Math.max(y, ly), 12, rowH}); // the star goes on top of the row
                 acts.add(() -> { NbtCompound d = new NbtCompound(); d.putString("a", "fav"); d.putString("id", key); act(d); if (!fav.remove(key)) fav.add(key); });
             }
             String name = Ui.ellipsis(r.card.stack().getName().getString(), colQty - x - 150);
@@ -194,7 +194,7 @@ public class BinderMarketScreen extends Screen {
             ctx.drawText(textRenderer, PriceService.format(r.unit * r.count), colTot, y + 4, 0xFFDDE3F0, false);
         }
         ctx.disableScissor();
-        // cabecera de columnas
+        // column header
         ctx.drawText(textRenderer, Text.translatable("tcgshop.bm2.col_qty"), colQty, ly - 11, 0xFF8A90A8, false);
         ctx.drawText(textRenderer, Text.translatable("tcgshop.bm2.col_market"), colUnit, ly - 11, 0xFF8A90A8, false);
         ctx.drawText(textRenderer, Text.translatable("tcgshop.bm2.col_quick", Math.round(rate() * 100)), colSell, ly - 11, 0xFF8A90A8, false);
@@ -205,7 +205,7 @@ public class BinderMarketScreen extends Screen {
 
     private void bottomBar(DrawContext ctx, int x, int y, int w, List<Row> rows, int mx, int my) {
         Ui.roundGradient(ctx, x, y, w, 40, 0xF01F2333, 0xF0171A26);
-        // lo seleccionado (que siga en la lista filtrada o no)
+        // the selection (whether or not it is still in the filtered list)
         int n = 0;
         long pay = 0;
         Row single = null;
@@ -235,7 +235,7 @@ public class BinderMarketScreen extends Screen {
         Ui.button(ctx, x + 124, y + 22, 90, 14, Text.translatable("tcgshop.bm2.select_all"), mx, my, true, 0xFF39415E);
         rects.add(new int[]{x + 124, y + 22, 90, 14});
         acts.add(() -> { if (sel.isEmpty()) for (Row r : rows) sel.add(r.card.key()); else sel.clear(); confirm = false; });
-        // vender
+        // sell
         final int fn = n;
         Text sellLabel = confirm ? Text.translatable("tcgshop.bm2.confirm_sell", PriceService.format(pay)) : Text.translatable("tcgshop.bm2.sell");
         int bw = 150;
@@ -263,7 +263,7 @@ public class BinderMarketScreen extends Screen {
                 confirm = false;
             });
         }
-        // ofertar a un jugador (una carta)
+        // offer to a player (one card)
         NbtList online = data.getList("online", NbtElement.COMPOUND_TYPE);
         int ox = x + w - bw - 8 - 168;
         if (single != null && !online.isEmpty()) {
@@ -350,7 +350,7 @@ public class BinderMarketScreen extends Screen {
         acts.add(r);
     }
 
-    /** Filtro: clic izquierdo avanza, clic derecho retrocede (aquí: clic = avanzar; el segundo runnable para la rueda). */
+    /** Filter: left click advances, right click goes back (here: click = advance; the second runnable is for the wheel). */
     private int chip(DrawContext ctx, int x, int y, Text label, int mx, int my, Runnable next, Runnable prev) {
         int w = textRenderer.getWidth(label) + 12;
         boolean hover = Ui.in(mx, my, x, y, w, 13);
@@ -374,7 +374,7 @@ public class BinderMarketScreen extends Screen {
         if (search != null && search.mouseClicked(mouseX, mouseY, button)) { setFocused(search); return true; }
         if (search != null) search.setFocused(false);
         dragAdd = null;
-        // de arriba abajo: los últimos añadidos (botones de la barra/oferta) tienen prioridad
+        // top to bottom: the last ones added (bar/offer buttons) take priority
         for (int i = rects.size() - 1; i >= 0; i--) {
             int[] r = rects.get(i);
             if (Ui.in(mouseX, mouseY, r[0], r[1], r[2], r[3])) {
@@ -386,7 +386,7 @@ public class BinderMarketScreen extends Screen {
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    /** Selección rápida: mantener pulsado sobre una carta y arrastrar por encima de otras las marca (o desmarca) todas. */
+    /** Quick selection: holding the button on a card and dragging over others checks (or unchecks) them all. */
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
         if (button == 0 && dragAdd != null && !history) {

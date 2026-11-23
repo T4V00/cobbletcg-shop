@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Textos nuevos de la revisión de la tienda de muebles: motivos de rechazo del catálogo y regla de recompra
-(sólo muebles comprados en la tienda y sin colocar).
+"""New texts from the furniture shop revision: catalog rejection reasons and the buyback rule
+(only furniture bought in the shop and not yet placed).
 
-Actualiza/inserta las claves en es_es.json y en_us.json (no borra nada).
+Updates/inserts the keys in es_es.json and en_us.json (deletes nothing).
 """
 import json
 import os
@@ -33,4 +33,4 @@ def update(fname, idx):
 if __name__ == "__main__":
     update("es_es.json", 0)
     update("en_us.json", 1)
-    print(f"{len(KEYS)} claves actualizadas")
+    print(f"{len(KEYS)} keys updated")

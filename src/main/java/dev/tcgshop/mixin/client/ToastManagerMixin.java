@@ -9,12 +9,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Cambia el aviso de logro de Minecraft (sólo título) por uno que también muestra la descripción. */
+/** Replaces Minecraft's advancement toast (title only) with one that also shows the description. */
 @Mixin(ToastManager.class)
 public abstract class ToastManagerMixin {
     @Inject(method = "add", at = @At("HEAD"), cancellable = true)
     private void tcgshop$richAdvancement(Toast toast, CallbackInfo ci) {
-        // con Advancement Plaques instalado le dejamos el aviso a él (si no, sus placas no salían)
+        // with Advancement Plaques installed we leave the toast to it (otherwise its plaques did not show)
         if (toast instanceof AdvancementToast adv && !net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("advancementplaques")) {
             ((ToastManager) (Object) this).add(new RichAdvancementToast(((AdvancementToastAccessor) adv).tcgshop$advancement()));
             ci.cancel();

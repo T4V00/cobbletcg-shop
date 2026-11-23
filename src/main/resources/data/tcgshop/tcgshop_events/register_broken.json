@@ -1,5 +1,5 @@
 {
-  "_comment": "#15 caja registradora averiada: chispas junto a la caja; el cajero no puede cobrar (el dueño en la caja sí). Arreglo: kit de reparación.",
+  "_comment": "#15 broken cash register: sparks next to the register; the cashier cannot take payments (the owner at the register can). Fix: repair kit.",
   "category": "negative",
   "tier": "common",
   "template": "register",

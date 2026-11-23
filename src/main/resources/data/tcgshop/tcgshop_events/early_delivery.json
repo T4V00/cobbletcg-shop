@@ -1,5 +1,5 @@
 {
-  "_comment": "#52-alt entrega anticipada: un pedido de CobbleGrade llega antes",
+  "_comment": "#52-alt early delivery: a CobbleGrade order arrives early",
   "category": "positive",
   "tier": "uncommon",
   "template": "supplier",

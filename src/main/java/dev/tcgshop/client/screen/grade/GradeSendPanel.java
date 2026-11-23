@@ -47,17 +47,17 @@ import java.util.function.IntConsumer;
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
 /**
- * CobbleGrade · «Enviar cartas» (app del teléfono).
+ * CobbleGrade · "Send cards" (phone app).
  * <ul>
- *   <li>Rejilla con las cartas gradeables del inventario y del Binder General (marca "B").</li>
- *   <li>Filtros: buscador (nombre, set o número), set (desplegable), familia de rareza, franja de valor, orden
- *       (valor / nombre / set / número, ascendente o descendente) y ocultar las cartas que ya tienes gradeadas.</li>
- *   <li>Selección múltiple "pintando": pulsa sobre una carta y arrastra; todas las que toques pasan al estado de la
- *       primera (elegida o no). Mayús+clic elige un rango. Ctrl+A / «Elegir visibles» y «Limpiar».</li>
- *   <li>Tira de cartas elegidas (clic para quitar), selector de servicio con la tarifa total en vivo de cada uno y
- *       valor esperado tras el gradeo (media de tiradas simuladas con las mismas probabilidades del servidor).</li>
+ *   <li>Grid with the gradeable cards from the inventory and the General Binder (marked "B").</li>
+ *   <li>Filters: search box (name, set or number), set (dropdown), rarity family, value band, sort order
+ *       (value / name / set / number, ascending or descending) and hide cards you already own graded.</li>
+ *   <li>Multi-select by "painting": press on a card and drag; every card you touch takes the state of the
+ *       first one (selected or not). Shift+click selects a range. Ctrl+A / "Select visible" and "Clear".</li>
+ *   <li>Strip of selected cards (click to remove), service picker with each one's live total fee and
+ *       expected value after grading (average of simulated rolls with the same odds as the server).</li>
  * </ul>
- * Se envía GradePayloads.SUBMIT con las casillas elegidas (inventario 0-35 o Binder 1000+) y el id de carta esperado en cada una.
+ * Sends GradePayloads.SUBMIT with the selected slots (inventory 0-35 or Binder 1000+) and the expected card id in each one.
  */
 public final class GradeSendPanel {
     private static final int SURF = 0xF0171A26, SURF2 = 0xF01F2333, LINE = 0xFF2C3149, ACCENT = 0xFF1E8FA8;
@@ -66,7 +66,7 @@ public final class GradeSendPanel {
     private static final String[] SORTS = {"value", "name", "set", "number"};
     private static final int ROW = 13, GAP = 3, EV_ROLLS = 400;
 
-    /** Una carta gradeable (copia de vista: no modificar). */
+    /** A gradeable card (view copy: do not modify). */
     private record Entry(int slot, ItemStack stack, Identifier id, String key, String lname, String set, String lset, int number,
                          Rarity rarity, long value) {}
 
@@ -74,14 +74,14 @@ public final class GradeSendPanel {
 
     private record CardRect(int x, int y, int w, int h, int slot, int idx) {}
 
-    /** Casillas elegidas (en orden de selección) y la carta que había en cada una al elegirla. */
+    /** Selected slots (in selection order) and the card that was in each one when it was selected. */
     public final Set<Integer> sel = new LinkedHashSet<>();
     private final Map<Integer, String> selKey = new HashMap<>();
-    /** Servicio elegido (índice de Grading.Service). */
+    /** Selected service (index into Grading.Service). */
     public int service = 1;
     private final Runnable onSubmitted;
 
-    // filtros
+    // filters
     private TextFieldWidget search;
     private String setFilter = "";
     private Rarity.Family family;
@@ -90,7 +90,7 @@ public final class GradeSendPanel {
     private boolean setOpen;
     private double dropScroll;
 
-    // datos (se reconstruyen sólo cuando cambia el inventario, el Binder o el día de mercado)
+    // data (rebuilt only when the inventory, the Binder or the market day changes)
     private final List<Entry> all = new ArrayList<>();
     private final Map<Integer, Entry> bySlot = new HashMap<>();
     private final Set<String> ownedGraded = new HashSet<>();
@@ -100,18 +100,18 @@ public final class GradeSendPanel {
     private int version;
     private List<Entry> view = new ArrayList<>();
     private String viewKey = "";
-    /** clave de carta -> {valor esperado, P(10), P(9+)}. */
+    /** card key -> {expected value, P(10), P(9+)}. */
     private final Map<String, double[]> evCache = new HashMap<>();
     private long evDay = Long.MIN_VALUE;
     private int evBudget;
 
-    // entrada y geometría del último fotograma
+    // input and geometry of the last frame
     private final List<Hit> hits = new ArrayList<>(), dropHits = new ArrayList<>();
     private final List<CardRect> cards = new ArrayList<>();
     private int px, py, pw, ph, gx, gy, gw, gh, sbX, sbY, sbW, sbH, ddX, ddY, ddW, ddH, setBx, setBy, setBw;
     private double scroll;
     private Boolean paint;
-    /** Casilla de la última carta pulsada (ancla de Mayús+clic); se busca en la vista actual al usarla. */
+    /** Slot of the last clicked card (Shift+click anchor); looked up in the current view when used. */
     private int anchorSlot = -1;
     private double lastMx, lastMy, limitFlash = -10, armedAt = -10;
     private List<Text> tip;
@@ -133,7 +133,7 @@ public final class GradeSendPanel {
         mc.getSoundManager().play(PositionedSoundInstance.master(TcgSounds.CARD_SLIDE, pitch, 0.45f));
     }
 
-    // ------------------------------------------------------------------ datos
+    // ------------------------------------------------------------------ data
 
     private void ensureSearch(TextRenderer tr) {
         if (search != null) return;
@@ -193,7 +193,7 @@ public final class GradeSendPanel {
             if (CardInfo.isCard(st) && !Grading.isGraded(st)) all.add(entry(BinderSlots.BASE + k, st));
         }
         for (Entry e : all) bySlot.put(e.slot, e);
-        // si una casilla elegida ya no tiene la misma carta (se movió o se vendió), se quita de la selección
+        // if a selected slot no longer holds the same card (it was moved or sold), drop it from the selection
         sel.removeIf(slot -> { Entry e = bySlot.get(slot); return e == null || !Objects.equals(selKey.get(slot), e.key); });
         selKey.keySet().retainAll(sel);
         version++;
@@ -241,9 +241,9 @@ public final class GradeSendPanel {
     }
 
     /**
-     * Valor esperado de la carta tras gradearla: se simulan EV_ROLLS tiradas con Grading.roll (las mismas reglas que
-     * el servidor, incluida la antigüedad) y se promedia el precio de mercado de cada nota. Se calcula poco a poco
-     * (unas pocas cartas por fotograma) y se guarda hasta que cambia el día de mercado.
+     * Expected value of the card after grading: EV_ROLLS rolls are simulated with Grading.roll (the same rules as
+     * the server, including age) and the market price of each grade is averaged. Computed a little at a time
+     * (a few cards per frame) and cached until the market day changes.
      */
     private double[] ev(Entry e) {
         long day = PriceService.marketDay();
@@ -270,7 +270,7 @@ public final class GradeSendPanel {
         return r;
     }
 
-    // ------------------------------------------------------------------ selección
+    // ------------------------------------------------------------------ selection
 
     private void apply(int slot, boolean add) {
         if (add) {
@@ -284,7 +284,7 @@ public final class GradeSendPanel {
             sel.remove(slot);
             selKey.remove(slot);
         }
-        armedAt = -10; // cambiar la selección desarma la confirmación
+        armedAt = -10; // changing the selection disarms the confirmation
     }
 
     private void selectShown() {
@@ -305,7 +305,7 @@ public final class GradeSendPanel {
         for (CardRect r : cards) if (Ui.in(mx, my, r.x, r.y, r.w, r.h)) { apply(r.slot, paint); return; }
     }
 
-    // ------------------------------------------------------------------ dibujo
+    // ------------------------------------------------------------------ drawing
 
     public void render(DrawContext ctx, int px, int py, int pw, int ph, int mx, int my, float delta) {
         MinecraftClient mc = MinecraftClient.getInstance();
@@ -336,8 +336,8 @@ public final class GradeSendPanel {
         strip(ctx, tr, px, gy + gh + 3, lw, stripH, mx, my, shown);
         side(ctx, tr, px + lw + 6, py, sideW, ph, mx, my);
         if (setOpen) dropdown(ctx, tr, mx, my);
-        // el panel se dibuja dentro del recorte (scissor) del teléfono: el tooltip se le pasa a la pantalla para que
-        // lo pinte después (renderWithTooltip), fuera del recorte, y no salga cortado por el borde del móvil
+        // the panel is drawn inside the phone's scissor: the tooltip is handed to the screen so it paints it
+        // afterwards (renderWithTooltip), outside the scissor, and it is not cut off by the phone's edge
         if (tip != null && mc.currentScreen != null) {
             List<OrderedText> lines = new ArrayList<>(tip.size());
             for (Text t : tip) lines.add(t.asOrderedText());
@@ -345,7 +345,7 @@ public final class GradeSendPanel {
         }
     }
 
-    /** Coloca un control en la barra de filtros (fluye a la línea siguiente si no cabe). */
+    /** Places a control in the filter bar (wraps to the next line if it does not fit). */
     private int fx, fyy, fx0, fw0;
 
     private int[] place(int w) {
@@ -365,14 +365,14 @@ public final class GradeSendPanel {
         fx0 = fx = x;
         fyy = y;
         fw0 = w;
-        // conjuntos presentes (para el desplegable y las fichas de rareza)
+        // sets present (for the dropdown and the rarity chips)
         Text setLabel = setFilter.isEmpty() ? Text.translatable("tcgshop.grade.f.set_all") : Text.literal(setName(setFilter));
         int setW = Math.min(110, Math.max(54, Ui.chipWidth(setLabel) + 8));
         Text sortLabel = Text.translatable("tcgshop.grade.f.sort." + SORTS[sort]);
         int sortW = Math.max(52, Ui.chipWidth(sortLabel)), dirW = 13;
         int rest = setW + sortW + dirW + GAP * 3;
         int searchW = w - rest >= 90 ? w - rest : w;
-        // buscador
+        // search box
         int[] p = place(searchW);
         sbX = p[0];
         sbY = p[1];
@@ -386,7 +386,7 @@ public final class GradeSendPanel {
         search.setY(sbY + 3);
         search.setWidth(sbW - 16);
         search.render(ctx, mx, my, 0f);
-        // set (desplegable)
+        // set (dropdown)
         p = place(setW);
         setBx = ddX = p[0];
         setBy = p[1];
@@ -395,19 +395,19 @@ public final class GradeSendPanel {
         if (chip(ctx, p[0], p[1], setW, Text.empty().append(setLabel).append(" ▾"), !setFilter.isEmpty(), 0xFF5C6BC0, mx, my))
             tip = List.of(Text.translatable("tcgshop.grade.f.set_tip"));
         hits.add(new Hit(p[0], p[1], setW, ROW, b -> { setOpen = !setOpen; dropScroll = 0; }));
-        // orden + sentido
+        // sort order + direction
         p = place(sortW);
         chip(ctx, p[0], p[1], sortW, sortLabel, false, 0xFF8E44AD, mx, my);
         hits.add(new Hit(p[0], p[1], sortW, ROW, b -> {
             sort = Math.floorMod(sort + (b == 1 ? -1 : 1), SORTS.length);
-            desc = sort == 0; // valor: de más caro a más barato; el resto, A→Z / 1→N
+            desc = sort == 0; // value: most to least expensive; the rest, A→Z / 1→N
             scroll = 0;
         }));
         p = place(dirW);
         if (chip(ctx, p[0], p[1], dirW, Text.literal(desc ? "▼" : "▲"), false, 0xFF8E44AD, mx, my))
             tip = List.of(Text.translatable(desc ? "tcgshop.grade.f.desc" : "tcgshop.grade.f.asc"));
         hits.add(new Hit(p[0], p[1], dirW, ROW, b -> { desc = !desc; scroll = 0; }));
-        // familias de rareza presentes
+        // rarity families present
         List<Rarity.Family> fams = new ArrayList<>();
         Set<Rarity.Family> present = new HashSet<>();
         for (Entry e : all) present.add(e.rarity.family);
@@ -430,7 +430,7 @@ public final class GradeSendPanel {
                 hits.add(new Hit(p[0], p[1], cw, ROW, b -> { family = family == f ? null : f; scroll = 0; }));
             }
         } else {
-            // estrecho: una sola ficha que va rotando (clic derecho: hacia atrás)
+            // narrow: a single chip that cycles (right click: backwards)
             Text lbl = family == null ? allLbl : family.shortName();
             int cw = Math.max(56, Ui.chipWidth(lbl) + 8);
             p = place(cw);
@@ -443,13 +443,13 @@ public final class GradeSendPanel {
                 scroll = 0;
             }));
         }
-        // franja de valor
+        // value band
         Text bandLbl = Text.translatable("tcgshop.grade.f.band." + band);
         int bw = Math.max(50, Ui.chipWidth(bandLbl));
         p = place(bw);
         if (chip(ctx, p[0], p[1], bw, bandLbl, band != 0, 0xFFD39B1A, mx, my)) tip = List.of(Text.translatable("tcgshop.grade.f.band_tip"));
         hits.add(new Hit(p[0], p[1], bw, ROW, b -> { band = Math.floorMod(band + (b == 1 ? -1 : 1), BAND_MIN.length); scroll = 0; }));
-        // ocultar las que ya tienes gradeadas
+        // hide the ones you already own graded
         Text hideLbl = Text.translatable("tcgshop.grade.f.hide_graded");
         int hw = Ui.chipWidth(hideLbl) + 10;
         p = place(hw);
@@ -481,7 +481,7 @@ public final class GradeSendPanel {
         int cw = gw >= 260 ? 36 : 30, ch = Math.round(cw / Draw.CARD_RATIO), gap = 5, rowH = ch + 12;
         int cols = Math.max(1, (gw - 10 + gap) / (cw + gap)), rows = (shown.size() + cols - 1) / cols;
         int content = rows * rowH + 6;
-        // auto-desplazamiento mientras pintas la selección por el borde
+        // auto-scroll while painting the selection along the edge
         if (paint != null && mx >= gx && mx < gx + gw) {
             if (my < gy + 6) scroll -= 4;
             else if (my > gy + gh - 6) scroll += 4;
@@ -503,7 +503,7 @@ public final class GradeSendPanel {
             ctx.fill(x + 2, y + 3, x + cw + 2, y + ch + 3, 0x55000000);
             Draw.cardFace(ctx, CardInfo.texture(e.id), e.stack, x, y, cw, ch, alpha);
             if (hover && e.rarity.tier > 0) Draw.holo(ctx, x, y, cw, ch, e.rarity.tier, e.rarity.color, t, mx);
-            ctx.fill(x, y + ch, x + cw, y + ch + 1, e.rarity.family.color); // franja con el color de la familia de rareza
+            ctx.fill(x, y + ch, x + cw, y + ch + 1, e.rarity.family.color); // stripe in the rarity family's color
             if (e.stack.getCount() > 1) {
                 String c = "x" + e.stack.getCount();
                 Ui.round(ctx, x + 1, y + ch - 10, tr.getWidth(c) + 4, 9, 0xCC000000);
@@ -513,7 +513,7 @@ public final class GradeSendPanel {
                 Ui.round(ctx, x + 1, y + 1, 9, 9, 0xEE3A6FD8);
                 ctx.drawText(tr, "B", x + 3, y + 2, 0xFFFFFFFF, false);
             }
-            // pista de valor esperado: punto verde si gradearla sale a cuenta con este servicio, rojo si no
+            // expected-value hint: green dot if grading it pays off with this service, red if not
             double[] ev = ev(e);
             if (ev != null) {
                 long gain = Math.round(ev[0]) - e.value - cur.fee(e.value);
@@ -543,7 +543,7 @@ public final class GradeSendPanel {
             int by = gy + Math.round((float) (scroll / Math.max(1, content - gh)) * (gh - bh));
             Ui.round(ctx, gx + gw - 4, by, 3, bh, 0x88FFFFFF);
         }
-        if (paint != null) applyAt(mx, my); // también si la rejilla se desplaza bajo el ratón quieto
+        if (paint != null) applyAt(mx, my); // also when the grid scrolls under a still mouse
         if (hovered != null && paint == null) tip = cardTip(hovered, cur);
     }
 
@@ -570,7 +570,7 @@ public final class GradeSendPanel {
         return l;
     }
 
-    /** Tira inferior: contador, miniaturas de lo elegido (clic = quitar), «Elegir visibles» y «Limpiar». */
+    /** Bottom strip: counter, thumbnails of the selection (click = remove), "Select visible" and "Clear". */
     private void strip(DrawContext ctx, TextRenderer tr, int x, int y, int w, int h, int mx, int my, List<Entry> shown) {
         Ui.roundGradient(ctx, x, y, w, h, SURF2, SURF);
         Ui.outline(ctx, x, y, w, h, LINE);
@@ -589,7 +589,7 @@ public final class GradeSendPanel {
         if (canAll) hits.add(new Hit(bx1, by, allW, bh, b -> selectShown()));
         Ui.button(ctx, bx2, by, clrW, bh, clrT, mx, my, !sel.isEmpty(), 0xFF8A3A3A);
         if (!sel.isEmpty()) hits.add(new Hit(bx2, by, clrW, bh, b -> clear()));
-        // miniaturas
+        // thumbnails
         int tw = 13, th = Math.round(tw / Draw.CARD_RATIO), step = tw + 2;
         int tx = x + labelW, avail = bx1 - 6 - tx, fit = Math.max(0, avail / step);
         if (sel.isEmpty()) {
@@ -618,12 +618,12 @@ public final class GradeSendPanel {
         }
     }
 
-    /** Panel lateral: servicios con la tarifa total en vivo, resumen de valor y botón de enviar (con confirmación). */
+    /** Side panel: services with the live total fee, value summary and send button (with confirmation). */
     private void side(DrawContext ctx, TextRenderer tr, int x, int y, int w, int h, int mx, int my) {
         Ui.roundGradient(ctx, x, y, w, h, SURF2, SURF);
         Ui.outline(ctx, x, y, w, h, LINE);
         ctx.drawText(tr, Text.translatable("tcgshop.grade.service").formatted(Formatting.BOLD), x + 6, y + 5, 0xFFFFFFFF, false);
-        // totales de la selección
+        // selection totals
         long raw = 0, evSum = 0;
         boolean evDone = true;
         Grading.Service[] svc = Grading.Service.values();
@@ -648,7 +648,7 @@ public final class GradeSendPanel {
             if (on) Ui.roundedOutline(ctx, x + 4, by, w - 8, rowH, 5, Ui.brighten(col, 70));
             String name = Ui.ellipsis(Text.translatable("tcgshop.grade.service." + sv.key).getString(), w - 34);
             ctx.drawText(tr, Text.literal(name).formatted(Formatting.BOLD), x + 11, by + 3, 0xFFFFFFFF, false);
-            // radio
+            // radio button
             Ui.rounded(ctx, x + w - 15, by + 3, 8, 8, 4, 0xFF0E1018);
             if (on) Ui.rounded(ctx, x + w - 13, by + 5, 4, 4, 2, Ui.brighten(col, 60));
             ctx.drawText(tr, dev.tcgshop.client.ClientGrading.duration(sv.ticks), x + 11, by + rowH - 10, 0xFFB8D8E8, false);
@@ -666,7 +666,7 @@ public final class GradeSendPanel {
         ly += 4;
         int bh = 18, bY = y + h - bh - 6;
         long fee = fees[Math.floorMod(service, svc.length)];
-        // cartas n/20 con barra
+        // cards n/20 with bar
         if (ly + 14 <= bY - 2) {
             statLine(ctx, tr, x, ly, w, Text.translatable("tcgshop.grade.f.stat_cards"), sel.size() + " / " + Grading.MAX_PER_ORDER,
                     sel.size() >= Grading.MAX_PER_ORDER ? 0xFFFF9F43 : 0xFFFFFFFF);
@@ -692,15 +692,15 @@ public final class GradeSendPanel {
                 ly += 9;
             }
         }
-        // enviar: primer clic arma, segundo confirma (4 s)
+        // send: first click arms, second confirms (4 s)
         boolean can = !sel.isEmpty();
         boolean armed = can && now() - armedAt < 4;
         Text label = armed ? Text.translatable("tcgshop.grade.f.confirm", compact(fee)) : Text.translatable("tcgshop.grade.send");
         Ui.button(ctx, x + 6, bY, w - 12, bh, label, mx, my, can, armed ? 0xFF3C8A4A : ACCENT);
         if (can) hits.add(new Hit(x + 6, bY, w - 12, bh, b -> {
             if (now() - armedAt >= 4) { armedAt = now(); return; }
-            // con cada casilla va la carta que el jugador ha confirmado: si al llegar al servidor hay otra (el Binder
-            // se ha reordenado o el hueco ha cambiado), el servidor se la salta en vez de gradear otra carta
+            // each slot carries the card the player confirmed: if a different one is there when it reaches the server
+            // (the Binder was reordered or the slot changed), the server skips it instead of grading another card
             List<Integer> slots = new ArrayList<>(sel);
             List<String> expected = new ArrayList<>(slots.size());
             for (int sl : slots) expected.add(selKey.getOrDefault(sl, ""));
@@ -716,7 +716,7 @@ public final class GradeSendPanel {
         ctx.drawText(tr, value, x + w - 6 - vw, y, color, false);
     }
 
-    /** Desplegable de sets (sólo los que tienes), encima de todo. */
+    /** Set dropdown (only the ones you have), on top of everything. */
     private void dropdown(DrawContext ctx, TextRenderer tr, int mx, int my) {
         Map<String, Integer> counts = new LinkedHashMap<>();
         List<String> sets = new ArrayList<>();
@@ -750,7 +750,7 @@ public final class GradeSendPanel {
         }
         ctx.disableScissor();
         m.pop();
-        tip = null; // el desplegable tapa lo de debajo
+        tip = null; // the dropdown covers what is underneath
     }
 
     private static int paragraph(DrawContext ctx, TextRenderer tr, Text text, int x, int y, int w, int color) {
@@ -761,9 +761,9 @@ public final class GradeSendPanel {
         return y;
     }
 
-    // ------------------------------------------------------------------ entrada
+    // ------------------------------------------------------------------ input
 
-    /** Clic. Devuelve true si el panel lo ha usado (cualquier clic dentro del panel cuenta como usado). */
+    /** Click. Returns true if the panel consumed it (any click inside the panel counts as consumed). */
     public boolean mouseClicked(double mx, double my, int button) {
         if (search == null) return false;
         if (setOpen) {
@@ -776,7 +776,7 @@ public final class GradeSendPanel {
             }
             setOpen = false;
             if (!Ui.in(mx, my, px, py, pw, ph)) return false;
-            // clic sobre el propio botón del set: sólo cerrar
+            // click on the set button itself: just close
             if (Ui.in(mx, my, setBx, setBy, setBw, ROW)) return true;
         }
         if (Ui.in(mx, my, sbX, sbY, sbW, sbH)) {
@@ -799,8 +799,8 @@ public final class GradeSendPanel {
             if (!Ui.in(mx, my, r.x, r.y, r.w, r.h)) continue;
             int anchorIdx = anchorIndex();
             if (button == 0 && Screen.hasShiftDown() && anchorIdx >= 0) {
-                // Mayús+clic: elige todo el rango desde la última carta pulsada (su posición en la vista actual,
-                // que puede haber cambiado con los filtros o el orden)
+                // Shift+click: selects the whole range from the last clicked card (its position in the current view,
+                // which may have changed with the filters or the sort order)
                 int a = Math.min(anchorIdx, r.idx), b = Math.max(anchorIdx, r.idx);
                 for (int k = a; k <= b && k < view.size(); k++) apply(view.get(k).slot, true);
             } else if (button == 0) {
@@ -818,7 +818,7 @@ public final class GradeSendPanel {
         return true;
     }
 
-    /** Posición del ancla en la vista actual, o -1 si ya no está (filtrada, vendida o movida). */
+    /** Position of the anchor in the current view, or -1 if it is gone (filtered, sold or moved). */
     private int anchorIndex() {
         if (anchorSlot < 0) return -1;
         Entry e = bySlot.get(anchorSlot);
@@ -827,7 +827,7 @@ public final class GradeSendPanel {
         return -1;
     }
 
-    /** Arrastrar con el botón pulsado: va "pintando" la selección por todas las cartas que toca el ratón. */
+    /** Dragging with the button held: "paints" the selection over every card the mouse touches. */
     public boolean mouseDragged(double mx, double my) {
         if (paint == null) return false;
         double dx = mx - lastMx, dy = my - lastMy;
@@ -861,7 +861,7 @@ public final class GradeSendPanel {
         return false;
     }
 
-    /** Se llama al salir de la pestaña / app: quita el foco del buscador y cierra el desplegable. */
+    /** Called when leaving the tab / app: unfocuses the search box and closes the dropdown. */
     public void blur() {
         if (search != null) search.setFocused(false);
         setOpen = false;

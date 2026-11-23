@@ -1,5 +1,5 @@
 {
-  "_comment": "#22 rumor de sobrevaloración: se arregla con precios razonables mantenidos 3 minutos",
+  "_comment": "#22 overpricing rumor: fixed by keeping reasonable prices for 3 minutes",
   "category": "negative",
   "tier": "common",
   "template": "rumor",

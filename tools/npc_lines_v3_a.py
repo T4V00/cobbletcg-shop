@@ -1,5 +1,5 @@
-"""Frases extra de clientes (v3, lote A): saludos, compras, quejas, ballenas, caja y despedidas.
-Formato: EXTRA = {"categoria": [("es", "en"), ...]}. Ninguna categoría de este lote usa argumentos (%s)."""
+"""Extra customer lines (v3, batch A): greetings, purchases, complaints, whales, register and goodbyes.
+Format: EXTRA = {"category": [("es", "en"), ...]}. No category in this batch uses arguments (%s)."""
 
 EXTRA = {
     "greet": [

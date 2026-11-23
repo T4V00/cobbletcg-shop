@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/** Contenido de UN Binder General concreto (cada binder tiene el suyo y queda vinculado a su dueño). */
+/** Contents of ONE specific General Binder (each binder has its own and is bound to its owner). */
 public final class BinderData {
     public UUID owner;
     public String ownerName;
@@ -32,7 +32,7 @@ public final class BinderData {
             Codec.STRING.listOf().optionalFieldOf("fresh", List.of()).forGetter(b -> List.copyOf(b.fresh))
     ).apply(i, (o, n, c, f) -> new BinderData(o, n, migrateCounts(c), migrateIds(f))));
 
-    /** Ids guardados con el namespace de ScalperTCG ("cobbletcg:") pasan a los de MasterBall Traders API. */
+    /** Ids saved with the ScalperTCG namespace ("cobbletcg:") are migrated to the MasterBall Traders API ones. */
     static Map<String, Integer> migrateCounts(Map<String, Integer> in) {
         Map<String, Integer> out = new HashMap<>();
         in.forEach((k, v) -> { String id = dev.masterball.api.card.CardInfo.migrate(k); if (!dev.masterball.api.card.CardCatalog.isRemovedId(id)) out.merge(id, v, Integer::sum); });

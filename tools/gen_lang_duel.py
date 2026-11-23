@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Textos del modo competitivo TCG, la Liga, duelos Pokémon entre NPC, mal olor / spray y expositores nuevos y de casa."""
+"""Texts for the TCG competitive mode, the League, Pokémon duels between NPCs, bad smell / spray and new and home displays."""
 import json
 from pathlib import Path
 
@@ -21,7 +21,7 @@ MOVES = {"normal": (("Placaje", "Tackle"), ("Hiperrayo", "Hyper Beam")), "fire":
          "steel": (("Garra Metal", "Metal Claw"), ("Foco Resplandor", "Flash Cannon")), "fairy": (("Viento Feérico", "Fairy Wind"), ("Fuerza Lunar", "Moonblast"))}
 
 PAIRS = {
-    # bloques nuevos
+    # new blocks
     "block.tcgshop.counter_display": ("Mostrador de caja con atriles", "Counter Display"),
     "block.tcgshop.showcase": ("Vitrina torre", "Showcase Tower"),
     "block.tcgshop.card_ledge": ("Repisa de cartas", "Card Ledge"),
@@ -36,7 +36,7 @@ PAIRS = {
     "tcgshop.home.hint": ("Expositor de casa: clic con una carta, sobre, caja o peluche para exponerlo (no se vende).",
                           "Home display: click with a card, pack, box or plush to show it off (nothing is sold)."),
     "tcgshop.home.hover": ("Clic derecho para retirar", "Right-click to take back"),
-    # olor y spray
+    # smell and spray
     "item.tcgshop.deodorant_spray": ("Spray desodorante", "Deodorant Spray"),
     "item.tcgshop.deodorant_spray.tip": ("Clic derecho: rocía. Quita el mal olor de tu tienda y de los clientes apestosos.",
                                          "Right-click to spray. Removes bad smell from your shop and from smelly customers."),
@@ -45,7 +45,7 @@ PAIRS = {
     "tcgshop.rep.tip.smell": ("Huele mal: usa el spray desodorante (Mercado del teléfono) por la tienda y sobre los clientes con nubecillas verdes.",
                               "It stinks: use the deodorant spray (phone Market) around the shop and on customers with green clouds."),
     "tcgshop.review.smell": ("Olía fatal", "It smelled awful"),
-    # duelos Pokémon entre NPC
+    # Pokémon duels between NPCs
     "tcgshop.duel_npc.start": ("¡%s y %s se retan a un duelo Pokémon!", "%s and %s start a Pokémon duel!"),
     "tcgshop.duel_npc.send_out": ("¡Adelante, %s!", "Go, %s!"),
     "tcgshop.duel_npc.use": ("¡%s, usa %s!", "%s, use %s!"),
@@ -58,7 +58,7 @@ PAIRS = {
     "tcgshop.duel_npc.move.2": ("Mordisco", "Bite"), "tcgshop.duel_npc.move.3": ("Golpe Cabeza", "Headbutt"),
     "tcgshop.duel_npc.move.4": ("Ataque Rápido", "Quick Attack"), "tcgshop.duel_npc.move.5": ("Finta", "Feint Attack"),
     "tcgshop.scalper.duel_lost": ("Vale, vale... el barrio es tuyo. Por ahora.", "Fine, fine... the turf is yours. For now."),
-    # duelo TCG
+    # TCG duel
     "tcgshop.phone.league": ("Liga TCG", "TCG League"),
     "tcgshop.duel.title": ("Duelo TCG", "TCG Duel"),
     "tcgshop.duel.table_busy": ("Ya hay una partida en esta mesa.", "There's already a match at this table."),
@@ -128,7 +128,7 @@ PAIRS = {
     "tcgshop.duel.rating_change": ("Liga: %s pts", "League: %s pts"),
     "tcgshop.duel.close": ("Cerrar", "Close"),
     "tcgshop.duel.deck_hand": ("Mazo %s · Mano %s", "Deck %s · Hand %s"),
-    # TCG real (motor twinleaf.gg)
+    # real TCG (twinleaf.gg engine)
     "tcgshop.ptcg.engine_failed": ("El motor del TCG no se ha podido cargar (mira el registro del servidor).", "The TCG engine failed to load (check the server log)."),
     "tcgshop.ptcg.loading": ("Cargando el motor del TCG... vuelve a hacer clic en unos segundos.", "Loading the TCG engine... click again in a few seconds."),
     "tcgshop.ptcg.start_failed": ("No se pudo empezar la partida: %s", "Could not start the match: %s"),
@@ -179,7 +179,7 @@ PAIRS = {
         "Click your Pokémon to see their abilities. Attacks are on the right.\n"
         "• Decisions show up in a panel; \"Automatic\" lets the engine choose for you.\n"
         "• League against players (ELO) or against the house (CobbleDollars prize)."),
-    # liga
+    # league
     "tcgshop.league.tab.rank": ("Clasificación", "Ranking"),
     "tcgshop.league.tab.deck": ("Mi mazo", "My deck"),
     "tcgshop.league.tab.rules": ("Reglas", "Rules"),
@@ -238,8 +238,8 @@ def main():
         d = json.loads(p.read_text(encoding="utf-8"))
         d.update(add)
         p.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
-    print("textos duelo / liga / extras:", len(es))
-    import gen_lang_ptcg_ui  # sus textos (reglas, motivos de mazo) tienen prioridad
+    print("duel / league / extras texts:", len(es))
+    import gen_lang_ptcg_ui  # its texts (rules, deck reasons) take priority
     gen_lang_ptcg_ui.main()
 
 

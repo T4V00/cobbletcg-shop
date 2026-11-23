@@ -10,8 +10,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Random;
 
 /**
- * Lo que recibe cada efecto en sus llamadas: mundo, zona, instancia, definición, índice del efecto y un Random
- * sembrado por (uid del evento, índice, llamada), así repetir no cambia lo que sale.
+ * What each effect receives in its calls: world, zone, instance, definition, effect index and a Random
+ * seeded by (event uid, index, call), so repeating does not change the outcome.
  */
 public final class EventContext {
     public final ServerWorld world;
@@ -30,7 +30,7 @@ public final class EventContext {
         this.rng = new Random(instance.uid * 0x9E3779B97F4A7C15L ^ index * 31L ^ salt);
     }
 
-    /** Datos persistentes de ESTE efecto en ESTA instancia (se guardan con la zona). */
+    /** Persistent data of THIS effect in THIS instance (saved with the zone). */
     public NbtCompound data() {
         String k = "e" + index;
         if (!instance.data.contains(k)) instance.data.put(k, new NbtCompound());
@@ -44,15 +44,15 @@ public final class EventContext {
     @Nullable
     public ServerPlayerEntity owner() { return world.getServer().getPlayerManager().getPlayer(zone.owner); }
 
-    /** Marca el evento como arreglado (llama a resolve de todos sus efectos, avisa al dueño y lo apunta en el log). */
+    /** Marks the event as fixed (calls resolve on all its effects, notifies the owner and records it in the log). */
     public boolean resolve(String how) { return EventManager.resolve(instance.uid, how); }
 
-    /** Tras cambiar bloqueos o datos que afectan a los modificadores. */
+    /** After changing locks or data that affect the modifiers. */
     public void invalidate() { EventManager.invalidate(zone); }
 
     public void markDirty() { ShopZones.get(world).markDirty(); }
 
-    /** Mensaje sólo para el dueño (barra de acción si actionBar). */
+    /** Message for the owner only (action bar if actionBar). */
     public void tellOwner(Text msg, boolean actionBar) {
         ServerPlayerEntity p = owner();
         if (p != null) p.sendMessage(msg, actionBar);

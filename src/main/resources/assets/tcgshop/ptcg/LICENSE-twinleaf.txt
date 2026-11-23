@@ -1,5 +1,5 @@
-MasterBall Traders Co. incluye el motor de juego de Pokémon TCG de twinleaf.gg (https://github.com/twinleafgg/twinleafgg),
-basado en ryuu-play (https://github.com/keeshii/ryuu-play), ambos publicados bajo licencia MIT, y textos de su cliente.
+MasterBall Traders Co. includes the Pokémon TCG game engine from twinleaf.gg (https://github.com/twinleafgg/twinleafgg),
+based on ryuu-play (https://github.com/keeshii/ryuu-play), both released under the MIT license, and texts from its client.
 
 The MIT License (MIT)
 
@@ -18,4 +18,4 @@ OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO 
 LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-Pokémon y los nombres/textos de las cartas son propiedad de Nintendo, Creatures Inc., GAME FREAK inc. y The Pokémon Company.
+Pokémon and the card names/texts are the property of Nintendo, Creatures Inc., GAME FREAK inc. and The Pokémon Company.

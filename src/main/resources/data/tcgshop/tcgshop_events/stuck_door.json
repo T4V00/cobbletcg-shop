@@ -1,5 +1,5 @@
 {
-  "_comment": "#17 puerta atascada: escombros delante; nadie entra por esa puerta (la puerta real no se toca). Arreglo: retirarlos a mano (3 golpes).",
+  "_comment": "#17 stuck door: rubble in front; nobody enters through that door (the real door is not touched). Fix: clear it by hand (3 hits).",
   "category": "negative",
   "tier": "common",
   "template": "door",

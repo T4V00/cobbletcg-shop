@@ -7,7 +7,7 @@ import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
-/** Servidor -> cliente: abre la pantalla de un binder. kind 0 = general, 1 = personal (hand = mano que lo sostiene). */
+/** Server -> client: opens a binder screen. kind 0 = general, 1 = personal (hand = the hand holding it). */
 public record OpenBinderPayload(int kind, int hand, java.util.List<String> unlocked) implements CustomPayload {
     public static final Id<OpenBinderPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "open_binder"));
     public static final PacketCodec<RegistryByteBuf, OpenBinderPayload> CODEC = PacketCodec.tuple(

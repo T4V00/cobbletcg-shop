@@ -16,9 +16,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Las cartas gradeadas se ven SIEMPRE dentro de su funda rígida de CobbleGrade (mano, inventario, marcos, suelo):
- * plástico, cantos y etiqueta con la marca y la nota. En el inventario la carta se encoge un poco para que quepa la etiqueta.
- * La carta de cobbletcg (modelo builtin/entity) ocupa en el espacio del modelo 0,85 de alto, centrada en (0,5; 0,625; 0) y mira a +Z.
+ * Graded cards are ALWAYS shown inside their rigid CobbleGrade slab (hand, inventory, frames, ground):
+ * plastic, edges and a label with the brand and the grade. In the inventory the card shrinks a little so the label fits.
+ * The cobbletcg card (builtin/entity model) is 0.85 tall in model space, centered at (0.5, 0.625, 0) and faces +Z.
  */
 @Mixin(ItemRenderer.class)
 public abstract class ItemRendererMixin {
@@ -47,7 +47,7 @@ public abstract class ItemRendererMixin {
         if (!slabbed(stack)) return;
         matrices.push();
         matrices.translate(0.5f, 0.5f + 0.125f, 0f);
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180)); // la funda se dibuja vista desde -Z
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180)); // the slab is drawn as seen from -Z
         ShopRenderers.DisplayRenderer.slab(matrices, vcp, stack, CARD_H, light, overlay, Grading.grade(stack));
         matrices.pop();
     }

@@ -25,9 +25,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * P6 "reward": premios PEQUEÑOS, siempre con el tope de dinero por dueño (EventManager.grantMoney). Nunca sobres,
- * cajas ni cartas gradeadas: los objetos sólo salen de tablas de botín tcgshop:events/* (comida, bayas, decoración).
- * when: start | resolve | end. Ver EFFECTS.md para todos los campos.
+ * P6 "reward": SMALL rewards, always with the per-owner money cap (EventManager.grantMoney). Never packs,
+ * boxes or graded cards: items only come from tcgshop:events/* loot tables (food, berries, decoration).
+ * when: start | resolve | end. See EFFECTS.md for all fields.
  */
 public final class RewardEffect implements EventEffect {
     final String when, scale, loot, rank;
@@ -39,7 +39,7 @@ public final class RewardEffect implements EventEffect {
 
     public RewardEffect(JsonObject o, String defId) {
         when = EventDef.str(o, "when", "start");
-        if (!List.of("start", "resolve", "end").contains(when)) throw new IllegalArgumentException("reward.when inválido: " + when);
+        if (!List.of("start", "resolve", "end").contains(when)) throw new IllegalArgumentException("invalid reward.when: " + when);
         long[] m = EventDef.range(o.get("money"), 0);
         moneyMin = Math.max(0, m[0]);
         moneyMax = Math.max(moneyMin, m[1]);
@@ -59,11 +59,11 @@ public final class RewardEffect implements EventEffect {
         if (!loot.isEmpty()) {
             Identifier id = Identifier.tryParse(loot);
             if (id == null || !id.getNamespace().equals("tcgshop") || !id.getPath().startsWith("events/"))
-                throw new IllegalArgumentException("reward.loot sólo puede usar tablas tcgshop:events/*");
+                throw new IllegalArgumentException("reward.loot can only use tcgshop:events/* tables");
         }
-        if (!List.of("", "regulars", "decor", "displays").contains(scale)) throw new IllegalArgumentException("reward.scale inválido");
-        if (!List.of("", "regulars", "decor", "displays").contains(tempRepScale)) throw new IllegalArgumentException("reward.tempRepScale inválido");
-        if (!List.of("", "rep").contains(rank)) throw new IllegalArgumentException("reward.rank inválido");
+        if (!List.of("", "regulars", "decor", "displays").contains(scale)) throw new IllegalArgumentException("invalid reward.scale");
+        if (!List.of("", "regulars", "decor", "displays").contains(tempRepScale)) throw new IllegalArgumentException("invalid reward.tempRepScale");
+        if (!List.of("", "rep").contains(rank)) throw new IllegalArgumentException("invalid reward.rank");
     }
 
     @Override
@@ -121,7 +121,7 @@ public final class RewardEffect implements EventEffect {
         if (!loot.isEmpty()) giveLoot(ctx);
     }
 
-    /** ¿Es la tienda con mejor reputación entre las de otros dueños con experiencia (una por dueño)? Solo en el mundo: reputación &gt;= rankMinRep. */
+    /** Is it the shop with the best reputation among those of other experienced owners (one per owner)? Alone in the world: reputation &gt;= rankMinRep. */
     private boolean isTop(EventContext ctx) {
         Map<UUID, Integer> best = new HashMap<>();
         for (ServerWorld w : ctx.world.getServer().getWorlds())
@@ -156,25 +156,25 @@ public final class RewardEffect implements EventEffect {
     }
 
     /**
-     * Tabla tcgshop:events/* por id; si no se cargó (p. ej. events/berries lleva una condición de Fabric y sólo existe
-     * con Cobblemon) usa su sustituta con objetos vanilla (berries -&gt; fruit). LootTable.EMPTY si tampoco hay.
-     * Pública para que otros módulos (actores, incidentes) den el mismo botín.
+     * tcgshop:events/* table by id; if it was not loaded (e.g. events/berries has a Fabric condition and only exists
+     * with Cobblemon) uses its substitute with vanilla items (berries -&gt; fruit). LootTable.EMPTY if there is none either.
+     * Public so other modules (actors, incidents) give the same loot.
      */
     public static LootTable lootTable(net.minecraft.server.MinecraftServer server, Identifier id) {
         LootTable t = server.getReloadableRegistries().getLootTable(RegistryKey.of(RegistryKeys.LOOT_TABLE, id));
         if (t != LootTable.EMPTY) return t;
         String fb = FALLBACK.get(id.getPath());
         if (fb == null) {
-            dev.tcgshop.TcgShop.LOGGER.debug("[eventos] tabla de botín {} no cargada: sin premio en objetos", id);
+            dev.tcgshop.TcgShop.LOGGER.debug("[events] loot table {} not loaded: no item reward", id);
             return LootTable.EMPTY;
         }
         return server.getReloadableRegistries().getLootTable(RegistryKey.of(RegistryKeys.LOOT_TABLE, Identifier.of(id.getNamespace(), fb)));
     }
 
-    /** Tablas con objetos de otros mods -&gt; sustituta vanilla del mismo tipo. */
+    /** Tables with items from other mods -&gt; vanilla substitute of the same kind. */
     private static final Map<String, String> FALLBACK = Map.of("events/berries", "events/fruit");
 
-    /** Nada de cartas, sobres, cajas ni objetos de la tienda: sólo cosas pequeñas aunque alguien edite la tabla. */
+    /** No cards, packs, boxes or shop items: only small things even if someone edits the table. */
     private static boolean safe(ItemStack st) {
         if (dev.masterball.api.card.CardInfo.isCard(st) || dev.masterball.api.card.CardInfo.isPack(st)) return false;
         String ns = net.minecraft.registry.Registries.ITEM.getId(st.getItem()).getNamespace();

@@ -14,8 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Clic derecho del dueño en el bloque de tienda (0.9): estadísticas, aforo y cola, flujo de clientes y las misiones
- * para atraer más gente, con el "Siguiente paso" destacado. Datos de ShopMissions.statusNbt (sólo lectura).
+ * Owner's right-click on the shop block (0.9): stats, capacity and queue, customer flow and the missions
+ * to attract more people, with the "Next step" highlighted. Data from ShopMissions.statusNbt (read-only).
  */
 public class ShopStatusScreen extends Screen {
     private static final int GREEN = 0xFF6BE07A, RED = 0xFFFF6B6B, ACCENT = 0xFF3A8FD8;
@@ -40,7 +40,7 @@ public class ShopStatusScreen extends Screen {
     @Override
     public boolean shouldPause() { return false; }
 
-    /** Misiones en las que tiene sentido enseñar "x/y". */
+    /** Missions for which showing "x/y" makes sense. */
     private static boolean countable(ShopMissions.Mission m) {
         return switch (m) {
             case STOCK, LIGHT, DECOR, VARIETY, REVIEWS -> true;
@@ -66,7 +66,7 @@ public class ShopStatusScreen extends Screen {
         int lw = (int) ((w - 24) * 0.42), lx = x + 8, rx = lx + lw + 8, rw = x + w - 8 - rx;
         int bottom = y + h - 24;
 
-        // ---------------------------------------------------------------- estadísticas
+        // ---------------------------------------------------------------- stats
         int ly = y + 28;
         Ui.glass(ctx, lx, ly - 3, lw, bottom - ly + 3, 5);
         ctx.drawTextWithShadow(textRenderer, Text.translatable("tcgshop.status.stats").formatted(Formatting.BOLD), lx + 6, ly + 1, Ui.GOLD);
@@ -83,7 +83,7 @@ public class ShopStatusScreen extends Screen {
                 nrev == 0 ? Text.literal("-") : Text.translatable("tcgshop.status.reviews_val", String.format("%.1f", d.getDouble("stars")), nrev), 0xFFFFD34D);
         ctx.fill(lx + 6, ly + 1, lx + lw - 6, ly + 2, 0x30FFFFFF);
         ly += 5;
-        // aforo
+        // capacity
         int inside = d.getInt("inside"), cap = Math.max(1, d.getInt("cap")), queued = d.getInt("queued");
         int capRowY = ly;
         ly = row(ctx, lx, ly, lw, Text.translatable("tcgshop.status.capacity"), Text.literal(inside + "/" + cap), inside >= cap ? RED : GREEN);
@@ -92,7 +92,7 @@ public class ShopStatusScreen extends Screen {
             tooltip.add(Text.translatable("tcgshop.status.capacity").formatted(Formatting.GOLD));
             tooltip.add(Text.translatable("tcgshop.status.capacity_base", d.getInt("cap_base"), Text.translatable("tcgshop.shop.tier." + tier.key)).formatted(Formatting.GRAY));
             tooltip.add(Text.translatable("tcgshop.status.capacity_bonus", d.getInt("cap_bonus"), ShopMissions.MAX_BONUS).formatted(Formatting.GRAY));
-            int capEv = d.getInt("cap_event"); // 0.9: modificador de aforo de los eventos activos
+            int capEv = d.getInt("cap_event"); // 0.9: capacity modifier from active events
             if (capEv != 0)
                 tooltip.add(Text.translatable("tcgshop.status.capacity_event", (capEv > 0 ? "+" : "") + capEv).formatted(capEv > 0 ? Formatting.GREEN : Formatting.RED));
             tooltip.add(Text.translatable("tcgshop.status.capacity_how", ShopMissions.MILESTONE_A, ShopMissions.MILESTONE_B).formatted(Formatting.DARK_GRAY));
@@ -101,7 +101,7 @@ public class ShopStatusScreen extends Screen {
         ly = row(ctx, lx, ly, lw, Text.translatable("tcgshop.status.queue"), Text.literal(queued + "/" + d.getInt("queue_max")), queued > 0 ? 0xFFFFB347 : Ui.MUTED);
         int ovf = d.getInt("ovf_today");
         ly = row(ctx, lx, ly, lw, Text.translatable("tcgshop.status.overflow"), Text.literal(String.valueOf(ovf)), ovf > 0 ? 0xFFFFB347 : Ui.MUTED);
-        // flujo
+        // flow
         int flow = d.getInt("flow"), flowMax = Math.max(1, d.getInt("flow_max"));
         int flowRowY = ly;
         ly = row(ctx, lx, ly, lw, Text.translatable("tcgshop.status.flow"), Text.literal(flow + "%"), flow >= 100 ? GREEN : flow >= 70 ? 0xFFFFD34D : 0xFFFFB347);
@@ -117,7 +117,7 @@ public class ShopStatusScreen extends Screen {
             small(ctx, l, lx + 6, ly, Ui.MUTED, 0.75f);
             ly += 7;
         }
-        // sugerencia de mejorar la tienda cuando se llena a menudo
+        // suggestion to upgrade the shop when it fills up often
         if (d.getBoolean("upgrade") && !d.getString("next_tier").isEmpty()) {
             Text up = Text.translatable("tcgshop.status.upgrade", Text.translatable("tcgshop.shop.tier." + d.getString("next_tier")), d.getInt("next_cap"));
             List<OrderedText> lines = textRenderer.wrapLines(up, lw - 16);
@@ -131,7 +131,7 @@ public class ShopStatusScreen extends Screen {
             }
         }
 
-        // ---------------------------------------------------------------- misiones
+        // ---------------------------------------------------------------- missions
         int ry = y + 28;
         Ui.glass(ctx, rx, ry - 3, rw, bottom - ry + 3, 5);
         int done = ShopMissions.count(missions);
@@ -167,7 +167,7 @@ public class ShopStatusScreen extends Screen {
             for (OrderedText l : hint) { ctx.drawTextWithShadow(textRenderer, l, rx + 8, ty, 0xFFFFE9A8); ty += 10; }
             ry += bh + 4;
         }
-        // lista (con rueda del ratón si no cabe)
+        // list (scrolls with the mouse wheel if it doesn't fit)
         listY = ry;
         listH = Math.max(10, bottom - 3 - ry);
         contentH = 0;
@@ -211,13 +211,13 @@ public class ShopStatusScreen extends Screen {
             ctx.fill(rx + rw - 3, barY, rx + rw - 2, barY + barH, 0x88FFFFFF);
         }
 
-        // ---------------------------------------------------------------- cerrar
+        // ---------------------------------------------------------------- close
         closeW = 80; closeH = 14; closeX = x + (w - closeW) / 2; closeY = y + h - 19;
         Ui.button(ctx, closeX, closeY, closeW, closeH, Text.translatable("tcgshop.status.close"), mx, my, true, ACCENT);
         if (tooltip != null) ctx.drawTooltip(textRenderer, tooltip, mx, my);
     }
 
-    /** Fila "etiqueta ........ valor". Devuelve la y de la siguiente fila. */
+    /** Row "label ........ value". Returns the y of the next row. */
     private int row(DrawContext ctx, int x, int y, int w, Text label, Text value, int color) {
         int vw = textRenderer.getWidth(value);
         String l = Ui.ellipsis(label.getString(), w - 16 - vw);

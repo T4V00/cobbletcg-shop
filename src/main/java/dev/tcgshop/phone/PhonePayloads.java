@@ -9,8 +9,8 @@ import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
 /**
- * Mejoras del teléfono. Sync (servidor -> cliente): nivel, costes, llamada y candados del catálogo que se va a abrir.
- * Act (cliente -> servidor): "buy" (subir de nivel) o "call" (llamada diaria). El servidor valida todo.
+ * Phone upgrades. Sync (server -> client): tier, costs, call and locks of the catalog about to be opened.
+ * Act (client -> server): "buy" (tier up) or "call" (daily call). The server validates everything.
  */
 public final class PhonePayloads {
     private PhonePayloads() {}

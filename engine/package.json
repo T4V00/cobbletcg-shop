@@ -1,7 +1,7 @@
 {
   "name": "tcgshop-engine",
   "private": true,
-  "description": "Empaqueta el motor de twinleaf.gg (MIT) para ejecutarlo dentro del mod con GraalJS",
+  "description": "Bundles the twinleaf.gg engine (MIT) to run it inside the mod with GraalJS",
   "devDependencies": {
     "esbuild": "^0.24.2"
   }

@@ -46,17 +46,17 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Comandos de administración para dar cartas concretas (con el Grado y la variante que quieras), sobres y cartas al
- * azar, y para ver los datos de la carta de la mano. Todo cuelga de "/tcgshop card" y pide nivel de permisos 2.
+ * Admin commands to give specific cards (with whatever Grade and variant you want), packs and random
+ * cards, and to view the data of the card in hand. Everything hangs off "/tcgshop card" and requires permission level 2.
  *
  * <pre>
- *  /tcgshop card give &lt;jugadores&gt; &lt;carta&gt; [grado] [variante] [cantidad]
- *  /tcgshop card givepack &lt;jugadores&gt; &lt;set&gt; [sealed|normal|semigod|god] [cantidad]
- *  /tcgshop card random &lt;jugadores&gt; [familia|any] [cantidad]
+ *  /tcgshop card give &lt;players&gt; &lt;card&gt; [grade] [variant] [count]
+ *  /tcgshop card givepack &lt;players&gt; &lt;set&gt; [sealed|normal|semigod|god] [count]
+ *  /tcgshop card random &lt;players&gt; [family|any] [count]
  *  /tcgshop card info
  * </pre>
- * &lt;carta&gt; acepta el id completo (masterball:&lt;set&gt;/cards/&lt;hoja&gt;), el corto (&lt;set&gt;/&lt;hoja&gt;), el antiguo
- * (cobbletcg:...) o sólo la hoja si es única. [grado] 1.0-10.0 con un decimal; 0 = sin gradear.
+ * &lt;card&gt; accepts the full id (masterball:&lt;set&gt;/cards/&lt;leaf&gt;), the short one (&lt;set&gt;/&lt;leaf&gt;), the legacy one
+ * (cobbletcg:...) or just the leaf if it is unique. [grade] 1.0-10.0 with one decimal; 0 = ungraded.
  */
 public final class CardCommands {
     private static final int MAX_SUGGESTIONS = 200;
@@ -77,7 +77,7 @@ public final class CardCommands {
     private static final SimpleCommandExceptionType NO_CARDS = new SimpleCommandExceptionType(
             Text.translatable("tcgshop.cmd.card.no_cards"));
 
-    /** Una carta del catálogo para las sugerencias (todo en minúsculas para comparar). */
+    /** A catalog card for suggestions (all lowercase for comparison). */
     private record Entry(String full, String shortId, String leaf, String nameLower, String display) {}
 
     private static List<Entry> entries;
@@ -86,9 +86,9 @@ public final class CardCommands {
 
     private CardCommands() {}
 
-    // ------------------------------------------------------------------ árbol
+    // ------------------------------------------------------------------ tree
 
-    /** Nodo "card" para colgar de "/tcgshop" (ver el hook en TcgShop.registerCommands). */
+    /** "card" node to attach under "/tcgshop" (see the hook in TcgShop.registerCommands). */
     public static LiteralArgumentBuilder<ServerCommandSource> node() {
         return CommandManager.literal("card").requires(src -> src.hasPermissionLevel(2))
                 .then(CommandManager.literal("give")
@@ -149,7 +149,7 @@ public final class CardCommands {
         ItemStack base = PrintVariant.apply(new ItemStack(item), variant);
         for (ServerPlayerEntity p : targets) {
             if (tenths > 0) {
-                // cada carta gradeada es única: su propio número de certificado
+                // each graded card is unique: its own certificate number
                 for (int i = 0; i < count; i++)
                     p.getInventory().offerOrDrop(Grading.apply(base, tenths, CertNumbers.next(src.getServer())));
             } else {
@@ -263,9 +263,9 @@ public final class CardCommands {
         src.sendFeedback(() -> Text.translatable("tcgshop.cmd.card.info." + key, value).formatted(Formatting.GRAY), false);
     }
 
-    // ------------------------------------------------------------------ utilidades
+    // ------------------------------------------------------------------ utilities
 
-    /** Da count copias respetando el tamaño máximo de pila (sobrante al suelo con offerOrDrop). */
+    /** Gives count copies respecting the max stack size (overflow dropped on the ground via offerOrDrop). */
     private static void giveSplit(ServerPlayerEntity p, ItemStack base, int count) {
         int max = Math.max(1, base.getMaxCount());
         int left = count;
@@ -276,7 +276,7 @@ public final class CardCommands {
         }
     }
 
-    /** "Has dado 3 × X a Steve" / "... a 4 jugadores". */
+    /** "Gave 3 × X to Steve" / "... to 4 players". */
     private static void feedback(ServerCommandSource src, Collection<ServerPlayerEntity> targets, String kind, int count, Text what) {
         if (targets.size() == 1) {
             Text who = targets.iterator().next().getDisplayName();
@@ -288,8 +288,8 @@ public final class CardCommands {
     }
 
     /**
-     * Convierte lo escrito en el id de una carta registrada, o null:
-     * masterball:set/cards/hoja · cobbletcg:set/cards/hoja · set/cards/hoja · set/hoja · masterball:set/hoja · hoja (si es única).
+     * Converts the typed input into the id of a registered card, or null:
+     * masterball:set/cards/leaf · cobbletcg:set/cards/leaf · set/cards/leaf · set/leaf · masterball:set/leaf · leaf (if unique).
      */
     @Nullable
     static Identifier resolveCard(Identifier raw) {
@@ -304,7 +304,7 @@ public final class CardCommands {
             if (slash > 0 && slash == path.lastIndexOf('/')) {
                 id = Identifier.of(CardInfo.NS, path.substring(0, slash) + "/cards/" + path.substring(slash + 1));
             } else if (slash < 0) {
-                // sólo la hoja: vale si no se repite en otro set
+                // leaf only: valid if it is not repeated in another set
                 Entry found = null;
                 for (Entry e : entries()) {
                     if (!e.leaf.equals(path)) continue;
@@ -346,9 +346,9 @@ public final class CardCommands {
         byFamily = map;
     }
 
-    // ------------------------------------------------------------------ sugerencias
+    // ------------------------------------------------------------------ suggestions
 
-    /** Filtra las ~12.500 cartas por id o por nombre; primero las que empiezan por lo escrito. Máx. 200. */
+    /** Filters the ~12,500 cards by id or name; those starting with the typed text first. Max 200. */
     private static final SuggestionProvider<ServerCommandSource> CARD_SUGGESTIONS = (ctx, builder) -> suggestCards(builder);
 
     private static CompletableFuture<Suggestions> suggestCards(SuggestionsBuilder builder) {
@@ -357,7 +357,7 @@ public final class CardCommands {
         String bare = q.startsWith(CardInfo.NS + ":") ? q.substring(CardInfo.NS.length() + 1) : q;
         Set<String> added = new HashSet<>();
         int n = 0;
-        // 1ª pasada: el id, el corto o el nombre empiezan por lo escrito
+        // 1st pass: the id, short id or name starts with the typed text
         for (Entry e : entries()) {
             if (n >= MAX_SUGGESTIONS) break;
             if (e.full.startsWith(q) || e.shortId.startsWith(bare) || e.leaf.startsWith(bare) || e.nameLower.startsWith(bare)) {
@@ -366,7 +366,7 @@ public final class CardCommands {
                 n++;
             }
         }
-        // 2ª pasada: lo contienen en cualquier parte
+        // 2nd pass: contains it anywhere
         if (!bare.isEmpty()) {
             for (Entry e : entries()) {
                 if (n >= MAX_SUGGESTIONS) break;

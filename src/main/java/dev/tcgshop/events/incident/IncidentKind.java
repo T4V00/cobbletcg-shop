@@ -5,8 +5,8 @@ import net.minecraft.util.StringIdentifiable;
 import java.util.Locale;
 
 /**
- * Tipos de incidente (propiedad KIND del bloque tcgshop:incident). Cada uno tiene su arreglo por defecto
- * (tag #tcgshop:fix/&lt;kind&gt; y/o mano vacía), su altura de contorno y cuántos golpes pide de serie.
+ * Incident kinds (KIND property of the tcgshop:incident block). Each has its default fix
+ * (tag #tcgshop:fix/&lt;kind&gt; and/or empty hand), its outline height and how many hits it takes by default.
  */
 public enum IncidentKind implements StringIdentifiable {
     PUDDLE(false, 2, 1),
@@ -18,11 +18,11 @@ public enum IncidentKind implements StringIdentifiable {
     MESS(false, 3, 2),
     PACKAGE(true, 9, 1);
 
-    /** ¿Se arregla con la mano vacía si la definición no dice otra cosa? */
+    /** Is it fixed with an empty hand if the definition says nothing else? */
     public final boolean handByDefault;
-    /** Altura del contorno (en 1/16 de bloque) para poder apuntarlo. */
+    /** Outline height (in 1/16 of a block) so it can be targeted. */
     public final int height;
-    /** Golpes de serie para quitarlo. */
+    /** Default hits to remove it. */
     public final int defaultHits;
 
     IncidentKind(boolean hand, int height, int hits) {
@@ -40,7 +40,7 @@ public enum IncidentKind implements StringIdentifiable {
         try {
             return valueOf(s.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("incident.kind desconocido '" + s + "' (puddle|debris|dirt|droppings|scorch|sparks|mess|package)");
+            throw new IllegalArgumentException("unknown incident.kind '" + s + "' (puddle|debris|dirt|droppings|scorch|sparks|mess|package)");
         }
     }
 }

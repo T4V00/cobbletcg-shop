@@ -1,4 +1,4 @@
-"""Textos de la venta rápida (teléfono / Mayorista), esmeraldas, kit de inicio y el Coleccionista ambulante."""
+"""Texts for quick-sell (phone / Wholesaler), emeralds, starter kit and the wandering Collector."""
 import json
 from pathlib import Path
 
@@ -62,7 +62,7 @@ def main():
         for k, v in T.items():
             d[k] = v[i]
         p.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(len(T), "textos")
+    print(len(T), "texts")
 
 
 if __name__ == "__main__":

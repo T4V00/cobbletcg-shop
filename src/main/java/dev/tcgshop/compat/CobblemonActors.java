@@ -17,15 +17,15 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * Pokémon de los EVENTOS (actores) por reflexión, sin dependencia de compilación con Cobblemon (probado contra la 1.8.4):
- *  · crear un salvaje "&lt;especie&gt; level=N uncatchable=yes shiny=no" (PokemonProperties.parse + createEntity);
- *  · marcarlo no combatible (tracked data PokemonEntity.UNBATTLEABLE), sin contar para el tope de spawns;
- *  · gritos, ¿está combatiendo?, especie, ¿debilitado?, combate PvE del dueño (BattleBuilder.pve);
- *  · ganchos de CobblemonEvents (Observable.subscribe(Priority, Consumer)):
- *      POKEMON_ENTITY_SAVE_TO_WORLD  cancelar -> nunca se escriben en el mundo (OBLIGATORIO: sin él no hay actores)
- *      THROWN_POKEBALL_HIT           cancelar -> no se pueden capturar (además de uncatchable=yes)
- *      LOOT_DROPPED                  cancelar -> no sueltan objetos al debilitarse
- * Si algo falla se avisa UNA vez en el log y se devuelve null/false (el evento se queda sin actor).
+ * EVENT Pokémon (actors) via reflection, with no compile-time dependency on Cobblemon (tested against 1.8.4):
+ *  · create a wild "&lt;species&gt; level=N uncatchable=yes shiny=no" (PokemonProperties.parse + createEntity);
+ *  · mark it unbattleable (tracked data PokemonEntity.UNBATTLEABLE), not counting toward the spawn cap;
+ *  · cries, is it battling?, species, fainted?, owner's PvE battle (BattleBuilder.pve);
+ *  · CobblemonEvents hooks (Observable.subscribe(Priority, Consumer)):
+ *      POKEMON_ENTITY_SAVE_TO_WORLD  cancel -> never written to the world (REQUIRED: without it there are no actors)
+ *      THROWN_POKEBALL_HIT           cancel -> cannot be caught (in addition to uncatchable=yes)
+ *      LOOT_DROPPED                  cancel -> drop no items when fainting
+ * If something fails, it warns ONCE in the log and returns null/false (the event is left without an actor).
  */
 public final class CobblemonActors {
     private static int hookAttempts;
@@ -39,17 +39,17 @@ public final class CobblemonActors {
 
     public static boolean available() { return CobblemonSpawn.available(); }
 
-    /** ¿Están puestos los ganchos (sobre todo el que impide guardar los actores)? Sin ellos no se saca ningún actor. */
+    /** Are the hooks installed (especially the one preventing actors from being saved)? Without them no actor is spawned. */
     public static boolean hooksOk() { return hooksOk; }
 
-    // ------------------------------------------------------------------ ganchos de eventos de Cobblemon
+    // ------------------------------------------------------------------ Cobblemon event hooks
 
     /**
-     * Se suscribe a los eventos de Cobblemon. noSave: entidades que no deben guardarse; noCatch: no capturables;
-     * noLoot: sin botín. Devuelve true si el gancho de guardado (el imprescindible) quedó puesto.
+     * Subscribes to Cobblemon events. noSave: entities that must not be saved; noCatch: uncatchable;
+     * noLoot: no loot. Returns true if the save hook (the essential one) was installed.
      */
     public static synchronized boolean installHooks(Predicate<Entity> noSave, Predicate<Entity> noCatch, Predicate<Entity> noLoot) {
-        // sólo se reintenta si el gancho imprescindible falló (nunca se suscribe dos veces)
+        // only retried if the essential hook failed (never subscribes twice)
         if (hooksOk || hookAttempts >= 3 || !available()) return hooksOk;
         hookAttempts++;
         try {
@@ -57,7 +57,7 @@ public final class CobblemonActors {
             Class<?> prio = Class.forName("com.cobblemon.mod.common.api.Priority");
             Object highest = prio.getField("HIGHEST").get(null);
             Method cancel = Class.forName("com.cobblemon.mod.common.api.events.Cancelable").getMethod("cancel");
-            // 1) nunca guardar actores ni Pokémon temporales
+            // 1) never save actors or temporary Pokémon
             Method getSaved = Class.forName("com.cobblemon.mod.common.api.events.entity.PokemonEntitySaveToWorldEvent").getMethod("getPokemonEntity");
             subscribe(events, "POKEMON_ENTITY_SAVE_TO_WORLD", prio, highest, ev -> {
                 try {
@@ -66,7 +66,7 @@ public final class CobblemonActors {
                 } catch (Throwable ignored) {}
             });
             hooksOk = true;
-            // 2) no capturables (además de uncatchable=yes)
+            // 2) uncatchable (in addition to uncatchable=yes)
             try {
                 Method getHit = Class.forName("com.cobblemon.mod.common.api.events.pokeball.ThrownPokeballHitEvent").getMethod("getPokemon");
                 subscribe(events, "THROWN_POKEBALL_HIT", prio, highest, ev -> {
@@ -76,9 +76,9 @@ public final class CobblemonActors {
                     } catch (Throwable ignored) {}
                 });
             } catch (Throwable e) {
-                TcgShop.LOGGER.warn("[eventos] no se pudo enganchar THROWN_POKEBALL_HIT ({}); los actores siguen siendo uncatchable=yes", e.toString());
+                TcgShop.LOGGER.warn("[events] could not hook THROWN_POKEBALL_HIT ({}); actors are still uncatchable=yes", e.toString());
             }
-            // 3) sin botín
+            // 3) no loot
             try {
                 Method getEnt = Class.forName("com.cobblemon.mod.common.api.events.drops.LootDroppedEvent").getMethod("getEntity");
                 subscribe(events, "LOOT_DROPPED", prio, highest, ev -> {
@@ -88,10 +88,10 @@ public final class CobblemonActors {
                     } catch (Throwable ignored) {}
                 });
             } catch (Throwable e) {
-                TcgShop.LOGGER.warn("[eventos] no se pudo enganchar LOOT_DROPPED: {}", e.toString());
+                TcgShop.LOGGER.warn("[events] could not hook LOOT_DROPPED: {}", e.toString());
             }
         } catch (Throwable e) {
-            TcgShop.LOGGER.warn("[eventos] no se pudo enganchar POKEMON_ENTITY_SAVE_TO_WORLD ({}): los eventos con Pokémon quedan DESACTIVADOS", e.toString());
+            TcgShop.LOGGER.warn("[events] could not hook POKEMON_ENTITY_SAVE_TO_WORLD ({}): Pokémon events are DISABLED", e.toString());
             hooksOk = false;
         }
         return hooksOk;
@@ -103,9 +103,9 @@ public final class CobblemonActors {
         sub.invoke(obs, priority, handler);
     }
 
-    // ------------------------------------------------------------------ especies
+    // ------------------------------------------------------------------ species
 
-    /** ¿Existe la especie y está implementada en este Cobblemon? (cacheado) */
+    /** Does the species exist and is it implemented in this Cobblemon? (cached) */
     public static boolean speciesOk(String species) {
         if (!available() || species == null || species.isBlank()) return false;
         String key = normalize(species);
@@ -128,9 +128,9 @@ public final class CobblemonActors {
         return c >= 0 ? s.substring(c + 1) : s;
     }
 
-    // ------------------------------------------------------------------ crear y marcar
+    // ------------------------------------------------------------------ create and mark
 
-    /** Crea (SIN añadir al mundo) un Pokémon salvaje no capturable y no shiny. null si no se puede. */
+    /** Creates (WITHOUT adding to the world) an uncatchable, non-shiny wild Pokémon. null if not possible. */
     @Nullable
     public static Entity create(ServerWorld world, String species, int level) {
         if (!available() || !speciesOk(species)) return null;
@@ -143,13 +143,13 @@ public final class CobblemonActors {
         } catch (Throwable e) {
             if (!warnedCreate) {
                 warnedCreate = true;
-                TcgShop.LOGGER.warn("[eventos] no se pudo crear un Pokémon de evento ({}): {}", species, e.toString());
+                TcgShop.LOGGER.warn("[events] could not create an event Pokémon ({}): {}", species, e.toString());
             }
             return null;
         }
     }
 
-    /** Marca el Pokémon como no combatible (o lo permite). */
+    /** Marks the Pokémon as unbattleable (or allows battling). */
     @SuppressWarnings("unchecked")
     public static void setUnbattleable(Entity e, boolean value) {
         try {
@@ -159,7 +159,7 @@ public final class CobblemonActors {
         } catch (Throwable ignored) {}
     }
 
-    /** Que no cuente para el tope de apariciones de Cobblemon (opcional). */
+    /** Makes it not count toward Cobblemon's spawn cap (optional). */
     public static void noSpawnCap(Entity e) {
         call(e, "setCountsTowardsSpawnCap", false);
     }
@@ -173,7 +173,7 @@ public final class CobblemonActors {
         return Boolean.TRUE.equals(r);
     }
 
-    /** Objeto Pokemon (datos) de la entidad, o null. */
+    /** The entity's Pokemon object (data), or null. */
     @Nullable
     public static Object pokemonOf(Entity e) {
         return call(e, "getPokemon");
@@ -183,7 +183,7 @@ public final class CobblemonActors {
         return pokemon != null && Boolean.TRUE.equals(call(pokemon, "isFainted"));
     }
 
-    /** Nombre de la especie en minúsculas ("psyduck"), o "" si no es un Pokémon. */
+    /** Lowercase species name ("psyduck"), or "" if it is not a Pokémon. */
     public static String speciesOf(Entity e) {
         Object pk = pokemonOf(e);
         if (pk == null) return "";
@@ -194,8 +194,8 @@ public final class CobblemonActors {
     }
 
     /**
-     * Combate PvE del jugador contra este Pokémon (BattleBuilder.pve). Quita el "no combatible" sólo durante la llamada.
-     * true si empezó.
+     * PvE battle of the player against this Pokémon (BattleBuilder.pve). Removes "unbattleable" only during the call.
+     * true if it started.
      */
     public static boolean startBattle(ServerPlayerEntity player, Entity pokemon) {
         if (!available()) return false;
@@ -210,7 +210,7 @@ public final class CobblemonActors {
         } catch (Throwable e) {
             if (!warnedBattle) {
                 warnedBattle = true;
-                TcgShop.LOGGER.warn("[eventos] no se pudo empezar el combate contra un Pokémon de evento: {}", e.toString());
+                TcgShop.LOGGER.warn("[events] could not start the battle against an event Pokémon: {}", e.toString());
             }
             return false;
         } finally {
@@ -218,7 +218,7 @@ public final class CobblemonActors {
         }
     }
 
-    // ------------------------------------------------------------------ reflexión con caché
+    // ------------------------------------------------------------------ cached reflection
 
     @Nullable
     private static synchronized Object call(Object target, String name, Object... args) {

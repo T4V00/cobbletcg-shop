@@ -7,7 +7,7 @@ import net.minecraft.text.Text;
 
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
-/** Piezas de interfaz dibujadas a mano (paneles, chips, botones, insignias) para las pantallas del mod. */
+/** Hand-drawn UI pieces (panels, chips, buttons, badges) for the mod's screens. */
 public final class Ui {
     public static final int GOLD = 0xFFFFD34D;
     public static final int TEXT = 0xFFF2EEE6;
@@ -23,7 +23,7 @@ public final class Ui {
         return mx >= x && my >= y && mx < x + w && my < y + h;
     }
 
-    /** Rectángulo con esquinas recortadas (aspecto redondeado pixel-art). */
+    /** Rectangle with clipped corners (rounded pixel-art look). */
     public static void round(DrawContext ctx, int x, int y, int w, int h, int color) {
         ctx.fill(x + 1, y, x + w - 1, y + h, color);
         ctx.fill(x, y + 1, x + 1, y + h - 1, color);
@@ -43,7 +43,7 @@ public final class Ui {
         ctx.fill(x + w - 1, y + 1, x + w, y + h - 1, color);
     }
 
-    /** Tapa de cuero con costuras: el marco de los binders. */
+    /** Stitched leather cover: the frame of the binders. */
     public static void leather(DrawContext ctx, int x, int y, int w, int h, int top, int bottom) {
         ctx.fill(x + 4, y + 6, x + w + 4, y + h + 6, 0x66000000);
         roundGradient(ctx, x, y, w, h, top, bottom);
@@ -58,7 +58,7 @@ public final class Ui {
         }
     }
 
-    // ------------------------------------------------------------------ esquinas redondeadas de verdad
+    // ------------------------------------------------------------------ truly rounded corners
 
     public static int lerpC(int a, int b, float t) {
         t = Math.max(0, Math.min(1, t));
@@ -76,7 +76,7 @@ public final class Ui {
         roundedGradient(ctx, x, y, w, h, r, color, color);
     }
 
-    /** Rectángulo con esquinas de radio r y degradado vertical. */
+    /** Rectangle with corners of radius r and a vertical gradient. */
     public static void roundedGradient(DrawContext ctx, int x, int y, int w, int h, int r, int top, int bottom) {
         if (w <= 0 || h <= 0) return;
         r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
@@ -89,7 +89,7 @@ public final class Ui {
         }
     }
 
-    /** Borde de 1 px con esquinas de radio r. */
+    /** 1 px border with corners of radius r. */
     public static void roundedOutline(DrawContext ctx, int x, int y, int w, int h, int r, int color) {
         if (w <= 1 || h <= 1) return;
         r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
@@ -107,7 +107,7 @@ public final class Ui {
         }
     }
 
-    /** Tapa las esquinas fuera del radio con un color (para recortar contenido ya dibujado en forma redondeada). */
+    /** Covers the corners outside the radius with a color (to clip already-drawn content to a rounded shape). */
     public static void cornerMask(DrawContext ctx, int x, int y, int w, int h, int r, int color) {
         r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
         for (int i = 0; i < r; i++) {
@@ -120,14 +120,14 @@ public final class Ui {
         }
     }
 
-    /** Panel de cristal: degradado blanco translúcido, brillo arriba y borde suave. */
+    /** Glass panel: translucent white gradient, highlight on top and a soft border. */
     public static void glass(DrawContext ctx, int x, int y, int w, int h, int r) {
         roundedGradient(ctx, x, y, w, h, r, 0x3CFFFFFF, 0x14FFFFFF);
         ctx.fill(x + r, y + 1, x + w - r, y + 2, 0x30FFFFFF);
         roundedOutline(ctx, x, y, w, h, r, 0x2EFFFFFF);
     }
 
-    /** Pestaña / chip seleccionable con insignia opcional de notificaciones. */
+    /** Selectable tab / chip with an optional notification badge. */
     public static void chip(DrawContext ctx, int x, int y, int w, int h, Text label, boolean selected, boolean hover, int accent, int badge) {
         int r = Math.min(h / 2, 6);
         if (selected) {
@@ -139,7 +139,7 @@ public final class Ui {
         text(ctx, label, x, y, w, h, selected ? 0xFF15151C : TEXT, !selected);
         if (badge > 0) badge(ctx, x + w - 4, y - 3, badge);
     }
-    /** Texto centrado en una caja; si no cabe, se reduce de tamaño para que nunca se corte. */
+    /** Text centered in a box; if it does not fit, it is scaled down so it is never cut off. */
     public static void text(DrawContext ctx, Text label, int x, int y, int w, int h, int color, boolean shadow) {
         int tw = font().getWidth(label);
         float s = Math.min(1f, (w - 4f) / Math.max(1, tw));
@@ -151,12 +151,12 @@ public final class Ui {
         m.pop();
     }
 
-    /** Ancho natural de un chip para que quepa su texto. */
+    /** Natural width of a chip so its text fits. */
     public static int chipWidth(Text label) {
         return font().getWidth(label) + 10;
     }
 
-    /** Círculo rojo con número (notificaciones). */
+    /** Red circle with a number (notifications). */
     public static void badge(DrawContext ctx, int cx, int cy, int n) {
         String s = n > 99 ? "99+" : String.valueOf(n);
         int w = Math.max(9, font().getWidth(s) + 4);
@@ -166,8 +166,8 @@ public final class Ui {
     }
 
     /**
-     * Botón con volumen: sombra, degradado, brillo de cristal arriba, borde oscuro, halo al pasar el ratón y se hunde
-     * un píxel mientras lo pulsas. Devuelve si el ratón está encima.
+     * Button with depth: shadow, gradient, glassy highlight on top, dark border, a glow on hover, and it sinks
+     * one pixel while pressed. Returns whether the mouse is over it.
      */
     public static boolean button(DrawContext ctx, int x, int y, int w, int h, Text label, int mx, int my, boolean enabled, int accent) {
         boolean hover = enabled && in(mx, my, x, y, w, h);

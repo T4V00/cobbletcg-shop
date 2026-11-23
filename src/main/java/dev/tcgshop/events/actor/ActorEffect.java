@@ -57,42 +57,42 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Efecto "actor": uno o varios Pokémon salvajes REALES de Cobblemon que visitan la tienda durante el evento.
- * Ver EFFECTS.md (sección 8). Campos del JSON (todos opcionales salvo species):
+ * "actor" effect: one or more REAL wild Cobblemon Pokémon that visit the shop during the event.
+ * See EFFECTS.md (section 8). JSON fields (all optional except species):
  * <pre>
- * species         "psyduck" o ["growlithe","vulpix"] (una al azar entre las implementadas en este Cobblemon)
- * speciesByBiome  [{"biomes":["#minecraft:is_taiga"],"species":["lucario"]}, {"species":["growlithe"]}] (la primera que encaje)
- * level [5,15]    nunca por encima de la media del equipo del dueño ni de ActorConfig.maxLevel
- * count 1|[1,3]   topes: ActorConfig.maxPerShop (3) y maxGlobal (12)
- * behaviour       stay | wander | goto_door | goto_display | goto_register | goto_light | outside (fuera de la puerta pero
- *                 DENTRO de la zona) | block_door (junto a la puerta, nunca en el hueco ni delante, y cierra esa puerta)
- * resolve         ["shoo","feed","battle","expire"]: lo que ARREGLA el evento (shoo = mano vacía ×shooHits; feed =
- *                 cualquier cobblemon:*_berry, gasta 1; battle = agachado + clic derecho, sólo el dueño)
- * shooHits 3      feed/pet (bool): dar de comer / acariciar sin arreglar nada (positivos); petLeaves: se teletransporta al acariciarlo
- * closeDoor, registerDown, lighting (0-15), disable ("display"|"slot"|"slots") + disableCount: bloqueos mientras esté
+ * species         "psyduck" or ["growlithe","vulpix"] (a random one among those implemented in this Cobblemon)
+ * speciesByBiome  [{"biomes":["#minecraft:is_taiga"],"species":["lucario"]}, {"species":["growlithe"]}] (the first that matches)
+ * level [5,15]    never above the owner's party average nor ActorConfig.maxLevel
+ * count 1|[1,3]   caps: ActorConfig.maxPerShop (3) and maxGlobal (12)
+ * behaviour       stay | wander | goto_door | goto_display | goto_register | goto_light | outside (outside the door but
+ *                 INSIDE the zone) | block_door (next to the door, never in the doorway or in front, and closes that door)
+ * resolve         ["shoo","feed","battle","expire"]: what FIXES the event (shoo = empty hand ×shooHits; feed =
+ *                 any cobblemon:*_berry, uses 1; battle = sneaking + right click, owner only)
+ * shooHits 3      feed/pet (bool): feed / pet without fixing anything (positive events); petLeaves: teleports away when petted
+ * closeDoor, registerDown, lighting (0-15), disable ("display"|"slot"|"slots") + disableCount: locks while present
  * reward          {"onFeed"|"onPet"|"onShoo"|"onBattle": {"money":[a,b], "charity":n, "loot":"tcgshop:events/x", "rolls":1}}
- *                 una vez por tipo y evento, con el tope de dinero por dueño
- * theft           {"maxValue":600, "guardSeconds":[30,60]} robo VIRTUAL (sólo con goto_display)
- * serviceFlicker  [0.6,1.5] serviceMult cambiante (Rotom); resolveEvents ["#plantilla","ns:id"]: arregla esos eventos activos
- * leaveCustomers  {"chance":0.3, "every":1200, "reviewKey":"ev_noise"} (necesita CustomerEntity.leaveForEvent)
+ *                 once per kind and event, with the per-owner money cap
+ * theft           {"maxValue":600, "guardSeconds":[30,60]} VIRTUAL theft (only with goto_display)
+ * serviceFlicker  [0.6,1.5] fluctuating serviceMult (Rotom); resolveEvents ["#template","ns:id"]: fixes those active events
+ * leaveCustomers  {"chance":0.3, "every":1200, "reviewKey":"ev_noise"} (needs CustomerEntity.leaveForEvent)
  * particles       splash|drip|spark|note|heart|smoke|flame|leaf|cherry|angry|glow|wax|happy|cloud|dust|nectar|spore|portal|bubble
- * cry true, endWhenGone true (si se van todos sin arreglarlo, termina el evento), resolveEvent "auto"|"never",
- * reviewTag       tag de reseña de la instancia (sólo si el Pokémon apareció de verdad)
+ * cry true, endWhenGone true (if they all leave without it being fixed, the event ends), resolveEvent "auto"|"never",
+ * reviewTag       the instance's review tag (only if the Pokémon actually appeared)
  * </pre>
  *
- * Reglas (crítica B/G7): siempre no capturables (uncatchable=yes + cancelar la Poké Ball), invulnerables, no
- * combatibles salvo el combate del dueño (nivel limitado a la media de su equipo), etiquetas EVENT_TAG +
- * "tcgshop_ev_&lt;uid&gt;" + {@link ActorModule#ACTOR_TAG}, registrados en EventState ANTES de spawnEntity, nunca se guardan
- * en el mundo (POKEMON_ENTITY_SAVE_TO_WORLD cancelado), nunca reaparecen (si falta uno, ese paso termina), topes de
- * 3 por tienda y 12 en total (ActorConfig), se buscan por UUID en cada tick (nunca se guarda la entidad).
+ * Rules (critique B/G7): always uncatchable (uncatchable=yes + cancel the Poké Ball), invulnerable, not
+ * battleable except for the owner's battle (level capped at their party average), tags EVENT_TAG +
+ * "tcgshop_ev_&lt;uid&gt;" + {@link ActorModule#ACTOR_TAG}, registered in EventState BEFORE spawnEntity, never saved
+ * to the world (POKEMON_ENTITY_SAVE_TO_WORLD cancelled), never respawn (if one is missing, that step ends), caps of
+ * 3 per shop and 12 in total (ActorConfig), looked up by UUID every tick (the entity is never stored).
  *
- * Estado por instancia en ctx.data():
- *  a      lista de actores {u uuid, g "" | cómo se fue, sh espantadas, lc último clic, ph fase, t/tx/ty/tz destino,
- *         nc próximo grito, ms ticks sin encontrarlo, wt próximo paseo, sp especie}
- *  fl     suelos candidatos (long[]), door/dout puerta y su lado de fuera, disp/dslot expositor objetivo
- *  lk_*   bloqueos que puso ESTE efecto (para quitarlos si los actores se van y el evento sigue)
- *  tv/ts  robo virtual (valor y si ya "robó"), ga momento en que el guardia lo recupera
- *  pend   premios pendientes (feed/pet/shoo/battle) que da el tick; rw_* ya dados
+ * Per-instance state in ctx.data():
+ *  a      list of actors {u uuid, g "" | how it left, sh shoos, lc last click, ph phase, t/tx/ty/tz destination,
+ *         nc next cry, ms ticks not found, wt next stroll, sp species}
+ *  fl     candidate floors (long[]), door/dout door and its outer side, disp/dslot target display
+ *  lk_*   locks placed by THIS effect (to remove them if the actors leave and the event continues)
+ *  tv/ts  virtual theft (value and whether it already "stole"), ga time when the guard recovers it
+ *  pend   pending rewards (feed/pet/shoo/battle) handed out by the tick; rw_* already given
  */
 public final class ActorEffect implements EventEffect {
     enum Behaviour { STAY, WANDER, GOTO_DOOR, GOTO_DISPLAY, GOTO_REGISTER, GOTO_LIGHT, OUTSIDE, BLOCK_DOOR }
@@ -134,7 +134,7 @@ public final class ActorEffect implements EventEffect {
                 if (!sl.isEmpty()) byBiome.add(new SpeciesRule(bl, sl));
             }
         }
-        if (species.isEmpty() && byBiome.isEmpty()) throw new IllegalArgumentException("actor sin species");
+        if (species.isEmpty() && byBiome.isEmpty()) throw new IllegalArgumentException("actor without species");
         long[] lv = EventDef.range(o.get("level"), 10);
         levelMin = (int) Math.max(1, Math.min(100, lv[0]));
         levelMax = (int) Math.max(levelMin, Math.min(100, lv[1]));
@@ -145,12 +145,12 @@ public final class ActorEffect implements EventEffect {
         try {
             behaviour = Behaviour.valueOf(b);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("actor.behaviour inválido: " + b.toLowerCase(Locale.ROOT)
+            throw new IllegalArgumentException("invalid actor.behaviour: " + b.toLowerCase(Locale.ROOT)
                     + " (stay|wander|goto_door|goto_display|goto_register|goto_light|outside|block_door)");
         }
         for (String r : strings(o, "resolve")) {
             String x = r.toLowerCase(Locale.ROOT);
-            if (!List.of("shoo", "feed", "battle", "expire").contains(x)) throw new IllegalArgumentException("actor.resolve inválido: " + r);
+            if (!List.of("shoo", "feed", "battle", "expire").contains(x)) throw new IllegalArgumentException("invalid actor.resolve: " + r);
             resolve.add(x);
         }
         shooHits = Math.max(1, Math.min(20, EventDef.integer(o, "shooHits", 3)));
@@ -161,7 +161,7 @@ public final class ActorEffect implements EventEffect {
         registerDown = EventDef.bool(o, "registerDown", false);
         lighting = Math.max(-1, Math.min(15, EventDef.integer(o, "lighting", -1)));
         disable = EventDef.str(o, "disable", "").toLowerCase(Locale.ROOT);
-        if (!List.of("", "display", "slot", "slots").contains(disable)) throw new IllegalArgumentException("actor.disable inválido: " + disable);
+        if (!List.of("", "display", "slot", "slots").contains(disable)) throw new IllegalArgumentException("invalid actor.disable: " + disable);
         long[] dc = EventDef.range(o.get("disableCount"), 1);
         disableMin = (int) Math.max(1, Math.min(9, dc[0]));
         disableMax = (int) Math.max(disableMin, Math.min(9, dc[1]));
@@ -169,18 +169,18 @@ public final class ActorEffect implements EventEffect {
         cry = EventDef.bool(o, "cry", true);
         endWhenGone = EventDef.bool(o, "endWhenGone", true);
         resolveEvent = EventDef.str(o, "resolveEvent", "auto").toLowerCase(Locale.ROOT);
-        if (!List.of("auto", "never").contains(resolveEvent)) throw new IllegalArgumentException("actor.resolveEvent inválido: " + resolveEvent);
+        if (!List.of("auto", "never").contains(resolveEvent)) throw new IllegalArgumentException("invalid actor.resolveEvent: " + resolveEvent);
         if (o.has("reward")) {
             for (Map.Entry<String, JsonElement> e : o.getAsJsonObject("reward").entrySet()) {
                 String k = e.getKey().toLowerCase(Locale.ROOT).replace("on", "");
-                if (!List.of("feed", "pet", "shoo", "battle").contains(k)) throw new IllegalArgumentException("actor.reward: clave inválida " + e.getKey());
+                if (!List.of("feed", "pet", "shoo", "battle").contains(k)) throw new IllegalArgumentException("actor.reward: invalid key " + e.getKey());
                 JsonObject r = e.getValue().getAsJsonObject();
                 long[] m = EventDef.range(r.get("money"), 0);
                 String loot = EventDef.str(r, "loot", "");
                 if (!loot.isEmpty()) {
                     Identifier id = Identifier.tryParse(loot);
                     if (id == null || !id.getNamespace().equals("tcgshop") || !id.getPath().startsWith("events/"))
-                        throw new IllegalArgumentException("actor.reward.loot sólo puede usar tablas tcgshop:events/*");
+                        throw new IllegalArgumentException("actor.reward.loot can only use tcgshop:events/* tables");
                 }
                 rewards.put(k, new Reward(Math.max(0, m[0]), Math.max(Math.max(0, m[0]), m[1]),
                         Math.max(-3, Math.min(3, EventDef.integer(r, "charity", 0))), loot, Math.max(1, Math.min(3, EventDef.integer(r, "rolls", 1)))));
@@ -203,7 +203,7 @@ public final class ActorEffect implements EventEffect {
         leaveEvery = lc == null ? 0 : Math.max(200, EventDef.integer(lc, "every", 1200));
         leaveKey = lc == null ? "ev_noise" : EventDef.str(lc, "reviewKey", "ev_noise");
         reviewTag = EventDef.str(o, "reviewTag", "");
-        if (theft && behaviour != Behaviour.GOTO_DISPLAY) throw new IllegalArgumentException("actor.theft necesita behaviour goto_display");
+        if (theft && behaviour != Behaviour.GOTO_DISPLAY) throw new IllegalArgumentException("actor.theft requires behaviour goto_display");
     }
 
     private static List<String> strings(JsonObject o, String k) {
@@ -215,9 +215,9 @@ public final class ActorEffect implements EventEffect {
         return out;
     }
 
-    // ------------------------------------------------------------------ contrato
+    // ------------------------------------------------------------------ contract
 
-    /** Formas de arreglarlo que dependen del jugador (expire no cuenta). */
+    /** Ways to fix it that depend on the player (expire does not count). */
     boolean fixWays() {
         return resolve.contains("shoo") || resolve.contains("feed") || resolve.contains("battle");
     }
@@ -236,7 +236,7 @@ public final class ActorEffect implements EventEffect {
         b.serviceMult *= d.getDouble("svc");
     }
 
-    /** Datos de ESTE efecto en la instancia (sin contexto: busca su índice en la definición). */
+    /** THIS effect's data in the instance (no context: looks up its index in the definition). */
     @Nullable
     NbtCompound dataOf(EventInstance inst) {
         EventDef def = EventRegistry.get(inst.defId);
@@ -246,7 +246,7 @@ public final class ActorEffect implements EventEffect {
         return idx < 0 || !inst.data.contains(k) ? null : inst.data.getCompound(k);
     }
 
-    // ------------------------------------------------------------------ empezar
+    // ------------------------------------------------------------------ start
 
     @Override
     public void start(EventContext ctx) {
@@ -266,7 +266,7 @@ public final class ActorEffect implements EventEffect {
         int count = Math.min(room, countMin + (countMax > countMin ? ctx.rng.nextInt(countMax - countMin + 1) : 0));
         if (count <= 0) { d.putBoolean("asap", true); return; }
 
-        // anclas (una sola vez: nunca escanear bloques cada 20 ticks)
+        // anchors (only once: never scan blocks every 20 ticks)
         List<BlockPos> floor = sampleFloor(w, z, ctx.rng);
         long[] fl = new long[floor.size()];
         for (int i = 0; i < fl.length; i++) fl[i] = floor.get(i).asLong();
@@ -286,7 +286,7 @@ public final class ActorEffect implements EventEffect {
             }
         }
         if (behaviour == Behaviour.BLOCK_DOOR && door == null) { d.putBoolean("asap", true); return; }
-        // objetivo de los "goto"
+        // target of the "goto" behaviours
         BlockPos target = null;
         if (behaviour == Behaviour.GOTO_DISPLAY || !disable.isEmpty() || theft) {
             Target t = pickDisplay(w, z, ctx.rng, theft);
@@ -332,9 +332,9 @@ public final class ActorEffect implements EventEffect {
         }
         d.put("a", list);
         if (list.isEmpty()) { d.putBoolean("asap", true); return; }
-        // la reseña recuerda al Pokémon concreto (sólo si de verdad apareció)
+        // the review remembers the specific Pokémon (only if it actually appeared)
         if (!reviewTag.isEmpty() && ctx.instance.reviewTag.isEmpty()) ctx.instance.reviewTag = reviewTag;
-        // bloqueos desde el principio (los de "llegar al expositor" se ponen al llegar)
+        // locks from the start (the "reach the display" ones are placed on arrival)
         if (closeDoor && door != null) {
             ctx.instance.closeDoor(door);
             d.putLong("lk_door", door.asLong());
@@ -385,7 +385,7 @@ public final class ActorEffect implements EventEffect {
         return id != null && biome.matchesId(id);
     }
 
-    /** Nivel: al azar en [min,max], nunca por encima de la media del equipo del dueño ni de ActorConfig.maxLevel. */
+    /** Level: random in [min,max], never above the owner's party average nor ActorConfig.maxLevel. */
     private int level(EventContext ctx) {
         int lv = levelMin + (levelMax > levelMin ? ctx.rng.nextInt(levelMax - levelMin + 1) : 0);
         int cap = ActorConfig.INSTANCE.maxLevel;
@@ -437,7 +437,7 @@ public final class ActorEffect implements EventEffect {
             a.putInt("ms", 0);
             any = true;
             if (ActorModule.inBattle(id)) continue;
-            // correa: si se ha ido lejos de la tienda, se da por ido (nunca se trae de vuelta ni se repone)
+            // leash: if it has wandered far from the shop, it counts as gone (never brought back or replaced)
             if (!z.box().expand(ActorConfig.INSTANCE.leashBlocks).contains(e.getPos())) {
                 a.putString("g", "lost");
                 ActorModule.vanish(w, e);
@@ -446,13 +446,13 @@ public final class ActorEffect implements EventEffect {
             behave(ctx, d, a, e, now);
             ambient(ctx, a, e, now);
         }
-        // premios pendientes (dar de comer / acariciar en positivos...)
+        // pending rewards (feeding / petting in positive events...)
         if (d.contains("pend")) {
             NbtList pend = d.getList("pend", NbtElement.STRING_TYPE);
             for (int i = 0; i < pend.size(); i++) giveReward(ctx, pend.getString(i));
             d.remove("pend");
         }
-        // guardia que recupera lo robado
+        // guard who recovers the stolen goods
         if (theft && d.getBoolean("ts") && z.guard && d.getLong("ga") > 0 && now >= d.getLong("ga")) {
             d.putLong("ga", 0);
             for (int i = 0; i < list.size(); i++) {
@@ -476,7 +476,7 @@ public final class ActorEffect implements EventEffect {
             d.putBoolean("rev", true);
             helpOthers(ctx, d);
         }
-        // ¿se han ido todos?
+        // have they all left?
         boolean allGone = true;
         String how = "";
         for (int i = 0; i < list.size(); i++) {
@@ -510,7 +510,7 @@ public final class ActorEffect implements EventEffect {
                 long age = now - a.getLong("pt");
                 if (t == null || e.squaredDistanceTo(t) < 2.6 || age > (ph == 0 ? 600 : 300)) {
                     if (ph == 0) arrive(ctx, d, a, e);
-                    // el ladrón, tras "llevarse" algo, se aparta a un rincón
+                    // the thief, after "taking" something, moves off to a corner
                     if (ph == 0 && theft) {
                         BlockPos far = farFloor(d, e.getBlockPos());
                         if (far != null) {
@@ -535,14 +535,14 @@ public final class ActorEffect implements EventEffect {
         }
     }
 
-    /** Llega a su objetivo: expositor (casillas bloqueadas / robo virtual). */
+    /** Reaches its target: display (locked slots / virtual theft). */
     private void arrive(EventContext ctx, NbtCompound d, NbtCompound a, Entity e) {
         if (behaviour != Behaviour.GOTO_DISPLAY) return;
         if (theft && !d.getBoolean("ts")) steal(ctx, d, e);
         else if (!disable.isEmpty() && !d.contains("lk_disp") && !d.contains("lk_slots")) applyDisable(ctx, d);
     }
 
-    /** Robo VIRTUAL: la casilla queda "vacía" para los clientes (el objeto no se mueve) y se apunta su valor. */
+    /** VIRTUAL theft: the slot becomes "empty" for customers (the item does not move) and its value is recorded. */
     private void steal(EventContext ctx, NbtCompound d, Entity e) {
         d.putBoolean("ts", true);
         if (!d.contains("disp")) return;
@@ -601,7 +601,7 @@ public final class ActorEffect implements EventEffect {
         }
     }
 
-    /** Jigglypuff y compañía: algunos clientes que están dentro se van (por el camino normal, devolviendo lo que llevan). */
+    /** Jigglypuff and co.: some customers inside leave (the normal way, returning what they carry). */
     private void scareCustomers(EventContext ctx) {
         if (leaveChance <= 0) return;
         ShopZones.Zone z = ctx.zone;
@@ -613,7 +613,7 @@ public final class ActorEffect implements EventEffect {
         if (n > 0) ctx.tellOwner(Text.translatable("tcgshop.actor.customers_left", speciesName(ctx.data()), n).formatted(Formatting.GOLD), true);
     }
 
-    /** Flaaffy y compañía: arregla otros eventos activos de la tienda (por id o "#plantilla"). */
+    /** Flaaffy and co.: fixes other active events of the shop (by id or "#template"). */
     private void helpOthers(EventContext ctx, NbtCompound d) {
         for (EventInstance e : new ArrayList<>(EventManager.activeFor(ctx.zone))) {
             if (e.uid == ctx.instance.uid || e.resolved()) continue;
@@ -637,14 +637,14 @@ public final class ActorEffect implements EventEffect {
             return;
         }
         if (other || !endWhenGone || ctx.instance.resolved()) return;
-        // se fue solo (zona descargada, se alejó...): nunca se castiga al dueño por no estar
+        // it left on its own (zone unloaded, wandered off...): the owner is never punished for being away
         if (!byPlayer) d.putBoolean("tpaid", true);
         EventManager.end(ctx.instance.uid, byPlayer ? "done" : "left");
     }
 
     /**
-     * ¿Tiene el evento otra forma de arreglarse que no sea este actor? (incidentes, objetivos... u otro actor que
-     * todavía siga en la tienda: así el último actor en irse es el que arregla el evento)
+     * Does the event have another way to be fixed besides this actor? (incidents, objectives... or another actor that
+     * is still in the shop: this way the last actor to leave is the one that fixes the event)
      */
     private boolean otherFix(EventContext ctx) {
         for (EventEffect e : ctx.def.effectsFor(ctx.instance.variant)) {
@@ -655,7 +655,7 @@ public final class ActorEffect implements EventEffect {
         return false;
     }
 
-    /** ¿Le queda algún actor en la tienda a este efecto en esta instancia? */
+    /** Does this effect still have any actor in the shop in this instance? */
     boolean hasPresent(EventInstance inst) {
         NbtCompound d = dataOf(inst);
         if (d == null || d.getBoolean("done") || !d.getBoolean("sp")) return false;
@@ -665,7 +665,7 @@ public final class ActorEffect implements EventEffect {
     }
 
     private void undoLocks(EventContext ctx, NbtCompound d) {
-        if (ctx.instance.resolved()) return; // el núcleo ya los quitó
+        if (ctx.instance.resolved()) return; // the core already removed them
         boolean ch = false;
         if (d.contains("lk_door")) { ctx.instance.openDoor(BlockPos.fromLong(d.getLong("lk_door"))); d.remove("lk_door"); ch = true; }
         if (d.contains("lk_disp")) { ctx.instance.enableDisplay(BlockPos.fromLong(d.getLong("lk_disp"))); d.remove("lk_disp"); ch = true; }
@@ -685,7 +685,7 @@ public final class ActorEffect implements EventEffect {
         if (ch) ctx.invalidate();
     }
 
-    // ------------------------------------------------------------------ arreglar / terminar
+    // ------------------------------------------------------------------ fix / end
 
     @Override
     public void resolve(EventContext ctx, String how) {
@@ -698,8 +698,8 @@ public final class ActorEffect implements EventEffect {
     @Override
     public void end(EventContext ctx) {
         NbtCompound d = ctx.data();
-        // robo sin recuperar: se pierde su valor (dinero de la caja, nunca un objeto)
-        // (sólo si el dueño sigue conectado y la tienda cargada: nunca se castiga a un dueño ausente)
+        // unrecovered theft: its value is lost (money from the register, never an item)
+        // (only if the owner is still online and the shop loaded: an absent owner is never punished)
         if (theft && !ctx.instance.resolved() && d.getBoolean("ts") && d.getLong("tv") > 0 && !d.getBoolean("tpaid")
                 && ctx.owner() != null && ShopLife.zoneLoaded(ctx.world, ctx.zone)) {
             d.putBoolean("tpaid", true);
@@ -717,7 +717,7 @@ public final class ActorEffect implements EventEffect {
         if (st != null) st.clearActorsOf(ctx.instance.uid);
     }
 
-    /** Todos los que queden se van andando (y desaparecen). Si la zona no está cargada no hay nada que quitar: nunca se guardaron. */
+    /** All remaining ones walk away (and disappear). If the zone is not loaded there is nothing to remove: they were never saved. */
     private void sendAway(EventContext ctx, NbtCompound d, String how) {
         NbtList list = d.getList("a", NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < list.size(); i++) {
@@ -732,19 +732,19 @@ public final class ActorEffect implements EventEffect {
         }
     }
 
-    // ------------------------------------------------------------------ interacción (la llama ActorModule desde UseEntityCallback)
+    // ------------------------------------------------------------------ interaction (called by ActorModule from UseEntityCallback)
 
-    /** El dueño hace clic derecho sobre un actor de este efecto. Devuelve true si hizo algo. */
+    /** The owner right-clicks an actor of this effect. Returns true if it did something. */
     boolean interact(ServerWorld w, ShopZones.Zone z, EventInstance inst, NbtCompound d, NbtCompound a, Entity e, ServerPlayerEntity p) {
         long now = w.getTime();
         if (now - a.getLong("lc") < 8) return false;
-        // en pleno combate no se le puede echar, dar de comer ni acariciar (lo resuelve el combate)
+        // mid-battle it cannot be shooed, fed or petted (the battle settles it)
         if (ActorModule.inBattle(e.getUuid())) return false;
         a.putLong("lc", now);
         ItemStack stack = p.getMainHandStack();
         MutableText name = speciesName(d);
         boolean negativeFix = fixWays();
-        // combate (agachado), sólo si el evento lo permite
+        // battle (sneaking), only if the event allows it
         if (p.isSneaking() && resolve.contains("battle") && ActorConfig.INSTANCE.allowBattles) {
             if (ActorModule.inBattle(e.getUuid())) return false;
             if (ActorModule.startBattle(w, e, p)) {
@@ -806,7 +806,7 @@ public final class ActorEffect implements EventEffect {
             } else p.sendMessage(Text.translatable("tcgshop.actor.pet", name).formatted(Formatting.LIGHT_PURPLE), true);
             return true;
         }
-        // pista de lo que funciona
+        // hint about what works
         MutableText ways = Text.empty();
         int k = 0;
         if (resolve.contains("shoo")) { ways.append(Text.translatable("tcgshop.actor.way.shoo", shooHits)); k++; }
@@ -817,7 +817,7 @@ public final class ActorEffect implements EventEffect {
         return negativeFix || k > 0;
     }
 
-    /** Combate terminado (lo llama ActorModule): won = el Pokémon se debilitó. */
+    /** Battle over (called by ActorModule): won = the Pokémon fainted. */
     void battleOver(ServerWorld w, NbtCompound d, NbtCompound a, @Nullable Entity e, ServerPlayerEntity p, boolean won) {
         MutableText name = speciesName(d);
         if (won) {
@@ -834,7 +834,7 @@ public final class ActorEffect implements EventEffect {
         d.put("pend", l);
     }
 
-    /** Premio pequeño (una vez por tipo y evento), siempre con el tope de dinero por dueño. */
+    /** Small reward (once per kind and event), always with the per-owner money cap. */
     private void giveReward(EventContext ctx, String kind) {
         Reward r = rewards.get(kind);
         NbtCompound d = ctx.data();
@@ -855,9 +855,9 @@ public final class ActorEffect implements EventEffect {
         return Text.translatable("cobblemon.species." + sp + ".name");
     }
 
-    // ------------------------------------------------------------------ sitios (sólo al empezar o con datos ya cacheados)
+    // ------------------------------------------------------------------ spots (only at start or with already cached data)
 
-    /** Suelos candidatos dentro de la zona (muestreo de columnas al azar, no un escaneo completo). */
+    /** Candidate floors inside the zone (random column sampling, not a full scan). */
     private static List<BlockPos> sampleFloor(ServerWorld w, ShopZones.Zone z, Random r) {
         int half = z.tierInfo().size / 2;
         List<BlockPos> roofed = new ArrayList<>(), open = new ArrayList<>();
@@ -919,7 +919,7 @@ public final class ActorEffect implements EventEffect {
         return best;
     }
 
-    /** Lado de fuera de una puerta (mismo criterio que ShopLife: el que da al cielo o el más lejano del núcleo). */
+    /** Outer side of a door (same criterion as ShopLife: the one facing the sky or the farthest from the core). */
     static Direction outward(ServerWorld w, ShopZones.Zone z, BlockPos door) {
         BlockState s = w.getBlockState(door);
         Direction f = s.contains(DoorBlock.FACING) ? s.get(DoorBlock.FACING) : Direction.NORTH;
@@ -929,7 +929,7 @@ public final class ActorEffect implements EventEffect {
         return da >= db ? f : f.getOpposite();
     }
 
-    /** Dónde aparece cada actor según su comportamiento (dentro de la zona, en suelo firme y con hueco para su tamaño). */
+    /** Where each actor spawns based on its behaviour (inside the zone, on solid ground and with room for its size). */
     @Nullable
     private Vec3d spawnSpot(ServerWorld w, ShopZones.Zone z, Entity e, List<BlockPos> floor, @Nullable BlockPos door, @Nullable Direction out,
                             Set<Long> used, Random r) {
@@ -937,7 +937,7 @@ public final class ActorEffect implements EventEffect {
         Box forbid = null;
         if (door != null && out != null) {
             Direction side = out.rotateYClockwise();
-            // nunca en la puerta ni en la casilla de delante/detrás (que nadie se quede encerrado)
+            // never in the doorway nor in the block in front/behind (so nobody gets trapped)
             forbid = new Box(door).union(new Box(door.offset(out))).union(new Box(door.offset(out.getOpposite()))).expand(0.05, 0, 0.05).stretch(0, 1, 0);
             switch (behaviour) {
                 case OUTSIDE, BLOCK_DOOR -> {
@@ -971,7 +971,7 @@ public final class ActorEffect implements EventEffect {
         return null;
     }
 
-    /** Sitio libre pegado a un bloque objetivo (expositor, caja, luz), el más cercano. */
+    /** Free spot next to a target block (display, register, light), the closest one. */
     @Nullable
     private static Vec3d spotNear(ServerWorld w, ShopZones.Zone z, Entity e, BlockPos target, Random r) {
         Vec3d best = null;
@@ -990,7 +990,7 @@ public final class ActorEffect implements EventEffect {
 
     record Target(BlockPos pos, int slot) {}
 
-    /** Un expositor con género (el más barato si es un robo; si no, uno al azar). */
+    /** A stocked display (the cheapest one if it is a theft; otherwise a random one). */
     @Nullable
     private static Target pickDisplay(ServerWorld w, ShopZones.Zone z, Random r, boolean cheapest) {
         List<Target> all = new ArrayList<>();
@@ -1034,7 +1034,7 @@ public final class ActorEffect implements EventEffect {
         return out;
     }
 
-    /** Hacia dónde se va al marcharse: fuera por la puerta si la hay; si no, lejos del dueño. */
+    /** Where it heads when leaving: out through the door if there is one; otherwise away from the owner. */
     static Vec3d awayFrom(ServerWorld w, ShopZones.Zone z, Entity e, NbtCompound d) {
         if (d.contains("door")) {
             BlockPos door = BlockPos.fromLong(d.getLong("door"));

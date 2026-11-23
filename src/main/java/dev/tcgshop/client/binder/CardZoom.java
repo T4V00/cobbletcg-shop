@@ -15,10 +15,10 @@ import org.lwjgl.glfw.GLFW;
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
 /**
- * Vista ampliada de una carta dentro de los binders (superposición en la MISMA pantalla, así el binder conserva su
- * scroll, filtros y página). Fondo oscurecido, la carta centrada a la mayor escala que cabe (proporción 63:88) con
- * una leve inclinación que sigue al ratón y lámina holo según la rareza, y debajo nombre, set, rareza y variante.
- * Se cierra con ESC, clic derecho o clic fuera de la carta.
+ * Zoomed view of a card inside the binders (overlay on the SAME screen, so the binder keeps its
+ * scroll, filters and page). Dimmed background, the card centered at the largest scale that fits (63:88 ratio) with
+ * a slight tilt that follows the mouse and holo foil depending on rarity, and below it name, set, rarity and variant.
+ * Closed with ESC, right-click or a click outside the card.
  */
 public final class CardZoom {
     private static final double OPEN_S = 0.18;
@@ -28,7 +28,7 @@ public final class CardZoom {
     private double openedAt;
     private float rx, ry;
     private double lastT;
-    /** Rectángulo actual de la carta (para saber si el clic cae dentro o fuera). */
+    /** Current card rectangle (to know whether a click lands inside or outside). */
     private int cardX, cardY, cardW, cardH;
 
     public boolean isOpen() {
@@ -70,7 +70,7 @@ public final class CardZoom {
         float ease = (float) Draw.easeOutCubic(open);
         var font = Ui.font();
 
-        // espacio reservado para el texto de debajo
+        // space reserved for the text below
         int textH = 48;
         int maxH = Math.max(60, Math.min(height - 24 - textH, Math.round(height * 0.86f) - textH));
         int maxW = Math.max(40, width - 40);
@@ -91,7 +91,7 @@ public final class CardZoom {
         if (card.rarity().tier > 0 && owned) Draw.glow(ctx, cx, cy, cw * 1.05f, ch * 1.05f, rc, 0.35f * ease);
         ctx.draw();
 
-        // inclinación suave: sigue al ratón si está sobre la carta; si no, vaivén lento
+        // gentle tilt: follows the mouse if it is over the card; otherwise, a slow sway
         boolean over = Ui.in(mouseX, mouseY, cardX, cardY, cardW, cardH);
         float tx, ty;
         if (over) {
@@ -130,7 +130,7 @@ public final class CardZoom {
         }
         m.pop();
 
-        // texto: nombre, set, rareza y variante
+        // text: name, set, rarity and variant
         int a = Math.max(5, Math.round(255 * ease)) << 24;
         int y = top + ch + 8;
         Draw.scaledCentered(ctx, card.name().copy().formatted(Formatting.BOLD), cx, y, 1.25f, (Ui.TEXT & 0xFFFFFF) | a);
@@ -149,16 +149,16 @@ public final class CardZoom {
         m.pop();
     }
 
-    // ------------------------------------------------------------------ entrada
+    // ------------------------------------------------------------------ input
 
-    /** Con la vista abierta consume todos los clics: derecho o fuera de la carta la cierran. */
+    /** While the view is open it consumes all clicks: a right-click or a click outside the card closes it. */
     public boolean mouseClicked(double mx, double my, int button) {
         if (card == null) return false;
         if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT || !Ui.in(mx, my, cardX, cardY, cardW, cardH)) close();
         return true;
     }
 
-    /** ESC (o la tecla del binder) cierra la vista; el resto de teclas se ignoran mientras está abierta. */
+    /** ESC (or the binder key) closes the view; all other keys are ignored while it is open. */
     public boolean keyPressed(int keyCode, int scanCode) {
         if (card == null) return false;
         if (keyCode == GLFW.GLFW_KEY_ESCAPE || keyCode == GLFW.GLFW_KEY_BACKSPACE || dev.tcgshop.client.TcgShopClient.OPEN_BINDER.matchesKey(keyCode, scanCode)) close();

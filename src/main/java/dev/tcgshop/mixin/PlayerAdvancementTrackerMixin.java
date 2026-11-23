@@ -13,8 +13,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Anuncia en el chat los logros de MasterBall Traders Co. aunque su archivo no lo pida (por defecto sólo
- * los desafíos salían en el chat). Respeta la regla announceAdvancements y la opción announceAllAdvancements.
+ * Announces MasterBall Traders Co. advancements in chat even if their file does not ask for it (by default only
+ * challenges showed up in chat). Respects the announceAdvancements rule and the announceAllAdvancements option.
  */
 @Mixin(PlayerAdvancementTracker.class)
 public abstract class PlayerAdvancementTrackerMixin {
@@ -30,7 +30,7 @@ public abstract class PlayerAdvancementTrackerMixin {
         String ns = entry.id().getNamespace();
         if (!ns.equals("tcgshop")) return;
         AdvancementDisplay d = entry.value().display().orElse(null);
-        if (d == null || d.isHidden() || d.shouldAnnounceToChat()) return; // los que ya se anuncian solos, no repetir
+        if (d == null || d.isHidden() || d.shouldAnnounceToChat()) return; // those already announced on their own: don't repeat
         if (!getProgress(entry).isDone()) return;
         if (!owner.getServerWorld().getGameRules().getBoolean(GameRules.ANNOUNCE_ADVANCEMENTS)) return;
         owner.getServer().getPlayerManager().broadcast(d.getFrame().getChatAnnouncementText(entry, owner), false);

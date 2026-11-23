@@ -13,7 +13,7 @@ import net.minecraft.util.Formatting;
 
 import java.util.List;
 
-/** Objeto de una estatua de lujo: nombre con el color de su nivel, nivel, tamaño, precio de catálogo y "no se revende". */
+/** Item for a luxury statue: name in its tier color, tier, size, catalog price and "cannot be resold". */
 public class StatueItem extends BlockItem {
     public final StatueTier tier;
 
@@ -45,7 +45,7 @@ public class StatueItem extends BlockItem {
     public ActionResult place(ItemPlacementContext ctx) {
         ActionResult r = super.place(ctx);
         if (r == ActionResult.FAIL && ctx.getPlayer() != null && !ctx.getWorld().isClient && tier.parts > 0) {
-            // explicar el motivo real: zona ajena o falta de altura (si es una entidad en medio, sin mensaje, como vanilla)
+            // explain the real reason: someone else's zone or not enough height (if an entity is in the way, no message, like vanilla)
             ShopZones.Zone z = StatueProtection.blockingStatue(ctx.getWorld(), ctx.getPlayer(), ctx.getBlockPos(), tier);
             if (z != null) StatueProtection.sendProtected(ctx.getPlayer(), z);
             else if (!StatueBlock.fitsAbove(ctx, tier.parts))

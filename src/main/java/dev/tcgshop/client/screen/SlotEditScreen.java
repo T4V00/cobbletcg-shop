@@ -20,9 +20,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Clic derecho sobre una carta (o sobre/caja) colocada en un expositor: Tomar carta o Editar carta.
- * Editar: precio (en la tienda), tamaño y giro en los tres ejes, con vista previa en vivo sobre el propio mueble
- * (la ventana deja ver el mundo). Restaurar = aspecto por defecto y precio de mercado.
+ * Right-click on a card (or pack/box) placed on a display: Take card or Edit card.
+ * Edit: price (in the shop), size and rotation on all three axes, with a live preview on the furniture itself
+ * (the window lets you see the world). Restore = default look and market price.
  */
 public class SlotEditScreen extends Screen {
     private final BlockPos pos;
@@ -61,7 +61,7 @@ public class SlotEditScreen extends Screen {
 
     @Override
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        // sin fondo oscuro: se ve el mueble con la vista previa
+        // no dark background: the furniture with the preview stays visible
     }
 
     private ShopDisplayBlockEntity be() {
@@ -69,7 +69,7 @@ public class SlotEditScreen extends Screen {
         return mc.world != null && mc.world.getBlockEntity(pos) instanceof ShopDisplayBlockEntity b ? b : null;
     }
 
-    /** Vista previa en el mueble (sólo en tu cliente hasta que guardes). */
+    /** Preview on the furniture (only on your client until you save). */
     private void preview() {
         ShopDisplayBlockEntity b = be();
         if (b != null) b.setLook(slot, scale, rx, ry, rz);
@@ -93,7 +93,7 @@ public class SlotEditScreen extends Screen {
 
     @Override
     public void close() {
-        // cancelar: deja el mueble como estaba
+        // cancel: leave the furniture as it was
         if (!sent) {
             ShopDisplayBlockEntity b = be();
             if (b != null) b.setLook(slot, scale0, rx0, ry0, rz0);
@@ -112,7 +112,7 @@ public class SlotEditScreen extends Screen {
         Ui.roundGradient(ctx, x, y, w, h, 0xF023273A, 0xF012141F);
         Ui.roundGradient(ctx, x, y, w, 22, 0xFF3A6FD8, 0xFF2A4FA0);
         Draw.scaledCentered(ctx, Text.translatable(editing ? "tcgshop.slot.edit_title" : "tcgshop.slot.title").formatted(Formatting.BOLD), x + w / 2f, y + 7, 1f, 0xFFFFFFFF);
-        // miniatura y nombre
+        // thumbnail and name
         int cw = 34, ch = Math.round(cw / Draw.CARD_RATIO);
         if (CardInfo.isCard(item)) {
             Rarity r = Rarity.of(item);
@@ -146,7 +146,7 @@ public class SlotEditScreen extends Screen {
             btn(ctx, x + 62, ry0, 80, 13, Text.translatable("tcgshop.slot.market_price"), 0xFF39415E, mx, my, () -> price = Math.max(1, market));
             ry0 += 18;
         }
-        // tamaño
+        // size
         ctx.drawText(textRenderer, Text.translatable("tcgshop.slot.size"), x + 8, ry0 + 4, 0xFFDDE3F0, false);
         int bx = x + 62;
         bx = step(ctx, bx, ry0, "-", mx, my, () -> { scale = Math.max(ShopDisplayBlockEntity.MIN_SCALE, Math.round((scale - 0.05f) * 100) / 100f); preview(); });
@@ -155,7 +155,7 @@ public class SlotEditScreen extends Screen {
         Ui.text(ctx, Text.literal(ss), bx, ry0 + 4, 44, 10, 0xFFFFFFFF, false);
         step(ctx, bx + 47, ry0, "+", mx, my, () -> { scale = Math.min(ShopDisplayBlockEntity.MAX_SCALE, Math.round((scale + 0.05f) * 100) / 100f); preview(); });
         ry0 += 19;
-        // giros
+        // rotations
         String[] axes = {"X", "Y", "Z"};
         for (int a = 0; a < 3; a++) {
             final int ax = a;

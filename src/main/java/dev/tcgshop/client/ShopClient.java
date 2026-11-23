@@ -37,7 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/** Cliente de la tienda: zonas sincronizadas, Gafas de Gerente (bordes + panel), renderizadores. */
+/** Shop client: synced zones, Manager Goggles (borders + panel), renderers. */
 public final class ShopClient {
     public record ZoneInfo(UUID id, UUID owner, String ownerName, BlockPos core, int tier, long revenue, long balance, int sales,
                            boolean cashier, boolean guard, String cashierName, String guardName, long wages, int[] metrics,
@@ -111,7 +111,7 @@ public final class ShopClient {
         EntityRendererRegistry.register(TcgEntities.BLACK_MARKET, dev.tcgshop.client.render.TcgNpcRenderer::new);
         EntityRendererRegistry.register(TcgEntities.FURNITURE_SELLER, dev.tcgshop.client.render.TcgNpcRenderer::new);
 
-        // bordes de las tiendas con las Gafas de Gerente
+        // shop borders with the Manager Goggles
         WorldRenderEvents.AFTER_TRANSLUCENT.register(ctx -> {
             MinecraftClient mc = MinecraftClient.getInstance();
             if (mc.player == null || ctx.consumers() == null || !ManagerGogglesItem.isWearing(mc.player)) return;
@@ -124,7 +124,7 @@ public final class ShopClient {
                 float r = mine ? 0.3f : 1f, g = mine ? 1f : 0.35f, b = mine ? 0.45f : 0.3f;
                 Box box = z.box().offset(-cam.x, -cam.y, -cam.z);
                 WorldRenderer.drawBox(m, lines, box, r, g, b, 0.9f);
-                // anillo a la altura del jugador para ver bien el borde
+                // ring at the player's height so the border is easy to see
                 double py = mc.player.getY() - cam.y;
                 for (double dy : new double[]{0.05, 1.0, 2.0}) {
                     Box ring = new Box(box.minX, py + dy, box.minZ, box.maxX, py + dy + 0.01, box.maxZ);
@@ -133,7 +133,7 @@ public final class ShopClient {
             }
         });
 
-        // panel de información con las Gafas de Gerente
+        // info panel with the Manager Goggles
         HudRenderCallback.EVENT.register((DrawContext ctx, net.minecraft.client.render.RenderTickCounter tick) -> {
             MinecraftClient mc = MinecraftClient.getInstance();
             if (mc.player == null || mc.options.hudHidden || !ManagerGogglesItem.isWearing(mc.player)) return;

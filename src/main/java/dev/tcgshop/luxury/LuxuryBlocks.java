@@ -20,11 +20,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Registro de las estatuas de lujo (v0.9). Llamar a {@link #register()} desde TcgShop.onInitialize (antes de que se
- * construya la pestaña creativa o justo después de TcgBlocks.init: los registros estáticos se hacen al cargar la clase).
+ * Registration of the luxury statues (v0.9). Call {@link #register()} from TcgShop.onInitialize (before the
+ * creative tab is built or right after TcgBlocks.init: the static registrations happen when the class loads).
  */
 public final class LuxuryBlocks {
-    /** Todas las estatuas (ShopLife puede contarlas como decoración: {@code state.isIn(LuxuryBlocks.STATUES_TAG)}). */
+    /** All statues (ShopLife can count them as decoration: {@code state.isIn(LuxuryBlocks.STATUES_TAG)}). */
     public static final TagKey<Block> STATUES_TAG = TagKey.of(RegistryKeys.BLOCK, Identifier.of(TcgShop.MOD_ID, "luxury_statues"));
     public static final TagKey<Item> STATUE_ITEMS_TAG = TagKey.of(RegistryKeys.ITEM, Identifier.of(TcgShop.MOD_ID, "luxury_statues"));
 
@@ -33,7 +33,7 @@ public final class LuxuryBlocks {
     private static final List<Item> ITEM_LIST = new ArrayList<>();
 
     public static final StatuePartBlock STATUE_PART;
-    /** 0.9.5: Llave de la Mansión MasterBall (Exclusivos, la pieza más cara). */
+    /** 0.9.5: MasterBall Mansion Key (Exclusives, the most expensive piece). */
     public static final dev.tcgshop.luxury.house.MansionKeyItem MANSION_KEY;
 
     static {
@@ -54,7 +54,7 @@ public final class LuxuryBlocks {
                         })));
         MANSION_KEY = Registry.register(Registries.ITEM, Identifier.of(TcgShop.MOD_ID, "mansion_key"),
                 new dev.tcgshop.luxury.house.MansionKeyItem(new Item.Settings().maxCount(1).fireproof().rarity(net.minecraft.util.Rarity.EPIC)));
-        ITEM_LIST.add(MANSION_KEY); // pestaña creativa, detrás de las estatuas
+        ITEM_LIST.add(MANSION_KEY); // creative tab, after the statues
     }
 
     private static AbstractBlock.Settings settings(StatueTier t) {
@@ -67,7 +67,7 @@ public final class LuxuryBlocks {
             case NETHERITE -> MapColor.PURPLE;
             case MASTERBALL -> MapColor.MAGENTA;
         };
-        // resistencia a explosiones altísima y sin pistones: es una inversión carísima
+        // extremely high blast resistance and no pistons: it is a very expensive investment
         return AbstractBlock.Settings.create().mapColor(color).strength(3.0f, 1200f)
                 .sounds(t.ordinal() >= 4 ? BlockSoundGroup.AMETHYST_BLOCK : BlockSoundGroup.METAL)
                 .nonOpaque().pistonBehavior(PistonBehavior.BLOCK).luminance(s -> t.light);
@@ -79,14 +79,14 @@ public final class LuxuryBlocks {
         return ITEMS.get(t);
     }
 
-    /** Objetos en orden de nivel (para la pestaña creativa). */
+    /** Items in tier order (for the creative tab). */
     public static List<Item> items() {
         return Collections.unmodifiableList(ITEM_LIST);
     }
 
     /**
-     * Fuerza la carga de la clase (registros), lee config/tcgshop-luxury.json y engancha la protección de zonas de las
-     * piezas y la sincronización de la info de venta con los clientes.
+     * Forces the class to load (registrations), reads config/tcgshop-luxury.json and hooks up the zone protection for the
+     * pieces and the syncing of sale info with clients.
      */
     public static void register() {
         LuxuryConfig.load();

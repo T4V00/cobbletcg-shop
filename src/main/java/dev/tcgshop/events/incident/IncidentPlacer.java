@@ -38,26 +38,26 @@ import java.util.Random;
 import java.util.Set;
 
 /**
- * Dónde puede ir un incidente. Sólo se llama al COLOCAR (una vez por evento), nunca cada tick (crítica B8/G12).
+ * Where an incident can go. Only called on PLACEMENT (once per event), never every tick (critique B8/G12).
  *
- * Reglas (crítica E1): en AIRE, dentro de z.box(), encima de una cara superior sólida y completa de un bloque que no
- * tenga bloque-entidad ni sea de la tienda; y sin ningún vecino (lados y arriba) que sea redstone, fluido, puerta,
- * trampilla, valla, raíl, placa, botón, fuego, portal, bloque-entidad o bloque de tcgshop (expositores, piezas de
- * estatua, núcleo...). "Cerca de" algo = a 2 bloques o menos pero nunca pegado por una cara.
+ * Rules (critique E1): in AIR, inside z.box(), on top of a full solid top face of a block that has
+ * no block entity and is not a shop block; and with no neighbor (sides and above) that is redstone, fluid, door,
+ * trapdoor, fence gate, rail, pressure plate, button, fire, portal, block entity or tcgshop block (displays, statue
+ * pieces, core...). "Near" something = 2 blocks or less but never touching it on a face.
  */
 final class IncidentPlacer {
     private IncidentPlacer() {}
 
-    // ------------------------------------------------------------------ anclas
+    // ------------------------------------------------------------------ anchors
 
-    /** Puertas de la tienda (las cacheadas en el recálculo; si aún no hay recálculo, se buscan una vez). */
+    /** Shop doors (those cached in the recompute; if there has been no recompute yet, they are searched once). */
     static List<BlockPos> doors(ServerWorld w, ShopZones.Zone z) {
         List<BlockPos> d = z.events.doors;
         if (z.events.lastRecompute < 0 || d == null) d = ShopLife.shopDoors(w, z);
         return d == null ? List.of() : d;
     }
 
-    /** Expositores de venta de la tienda (bloques-entidad de los chunks de la zona, como hace el recálculo). */
+    /** The shop's sales displays (block entities in the zone's chunks, as the recompute does). */
     static List<ShopDisplayBlockEntity> displays(ServerWorld w, ShopZones.Zone z) {
         List<ShopDisplayBlockEntity> out = new ArrayList<>();
         for (BlockEntity be : zoneBlockEntities(w, z)) if (be instanceof ShopDisplayBlockEntity d && !d.isHome()) out.add(d);
@@ -71,7 +71,7 @@ final class IncidentPlacer {
         return out;
     }
 
-    /** Bloques-entidad dentro de la zona, sólo de chunks ya cargados (nunca carga chunks). */
+    /** Block entities inside the zone, only from already-loaded chunks (never loads chunks). */
     static List<BlockEntity> zoneBlockEntities(ServerWorld w, ShopZones.Zone z) {
         List<BlockEntity> out = new ArrayList<>();
         int half = z.tierInfo().size / 2;
@@ -85,7 +85,7 @@ final class IncidentPlacer {
         return out;
     }
 
-    /** Anclas según "near": door | outside_door | display | register | core | floor (lista vacía = suelo al azar). */
+    /** Anchors by "near": door | outside_door | display | register | core | floor (empty list = random floor). */
     static List<BlockPos> anchors(ServerWorld w, ShopZones.Zone z, String near) {
         return switch (near) {
             case "door", "outside_door" -> doors(w, z);
@@ -100,11 +100,11 @@ final class IncidentPlacer {
         };
     }
 
-    // ------------------------------------------------------------------ candidatos
+    // ------------------------------------------------------------------ candidates
 
     /**
-     * Sitios válidos, ya barajados con rng y ordenados por preferencia (dentro del edificio primero; fuera primero si
-     * preferOutside). Con anclas: alrededor de ellas; sin anclas: muestreo al azar del suelo de la tienda.
+     * Valid spots, already shuffled with rng and sorted by preference (inside the building first; outside first if
+     * preferOutside). With anchors: around them; without anchors: random sampling of the shop floor.
      */
     static List<BlockPos> candidates(ServerWorld w, ShopZones.Zone z, List<BlockPos> anchors, boolean preferOutside, Random rng, int want) {
         Set<BlockPos> found = new LinkedHashSet<>();
@@ -115,7 +115,7 @@ final class IncidentPlacer {
                 for (int dy = -1; dy <= 1; dy++)
                     for (int dx = -2; dx <= 2; dx++)
                         for (int dz = -2; dz <= 2; dz++) {
-                            if (Math.abs(dx) + Math.abs(dz) <= 1 && dy == 0) continue; // nunca pegado por una cara al ancla
+                            if (Math.abs(dx) + Math.abs(dz) <= 1 && dy == 0) continue; // never touching the anchor on a face
                             BlockPos p = an.add(dx, dy, dz);
                             if (safe(w, z, p)) found.add(p.toImmutable());
                         }
@@ -140,7 +140,7 @@ final class IncidentPlacer {
         return all;
     }
 
-    /** ¿Se puede poner aquí un incidente sin tocar nada del jugador? */
+    /** Can an incident be placed here without touching anything of the player's? */
     static boolean safe(ServerWorld w, ShopZones.Zone z, BlockPos p) {
         if (!z.contains(p) || !w.isChunkLoaded(p.getX() >> 4, p.getZ() >> 4)) return false;
         if (!w.getBlockState(p).isAir()) return false;
@@ -152,7 +152,7 @@ final class IncidentPlacer {
         for (Direction dir : Direction.values()) {
             if (dir == Direction.DOWN) continue;
             BlockPos n = p.offset(dir);
-            // vecino en otro chunk sin cargar (borde de la zona): no se lee (cargarlo pararía el hilo principal)
+            // neighbor in another unloaded chunk (zone edge): not read (loading it would stall the main thread)
             if (!w.isChunkLoaded(n.getX() >> 4, n.getZ() >> 4)) return false;
             if (bad(w.getBlockState(n))) return false;
         }
@@ -163,7 +163,7 @@ final class IncidentPlacer {
         return Registries.BLOCK.getId(s.getBlock()).getNamespace().equals(TcgShop.MOD_ID);
     }
 
-    /** Vecino prohibido: redstone, fluidos, puertas, bloques-entidad, fuego, piezas de tcgshop (incluido otro incidente). */
+    /** Forbidden neighbor: redstone, fluids, doors, block entities, fire, tcgshop pieces (including another incident). */
     static boolean bad(BlockState n) {
         if (n.isAir()) return false;
         if (!n.getFluidState().isEmpty() || n.hasBlockEntity() || n.emitsRedstonePower()) return true;
@@ -178,9 +178,9 @@ final class IncidentPlacer {
         return isOurs(n);
     }
 
-    // ------------------------------------------------------------------ utilidades
+    // ------------------------------------------------------------------ utilities
 
-    /** Lo más cercano a p dentro de maxDist (o null). */
+    /** The closest to p within maxDist (or null). */
     static BlockPos nearest(BlockPos p, List<BlockPos> list, double maxDist) {
         BlockPos best = null;
         double bd = maxDist * maxDist;

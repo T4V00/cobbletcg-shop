@@ -23,27 +23,27 @@ import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
- * Venta rápida de cartas: desde el teléfono al 50% de su valor (para deshacerte de ellas al momento) o al Mayorista
- * misterioso al 40%. El Mayorista también compra esmeraldas por CobbleDollars. Y el kit de inicio (5 sobres al azar).
+ * Quick card selling: from the phone at 50% of their value (to get rid of them instantly) or to the Mysterious
+ * Wholesaler at 40%. The Wholesaler also buys emeralds for CobbleDollars. Plus the starter kit (5 random packs).
  */
 public final class CardSales {
     public static double PHONE_RATE = 0.5, WHOLESALER_RATE = 0.4; // EconomyConfig
-    /** Etiqueta del kit de inicio (la reutiliza Onboarding: quien ya recibió el kit antiguo no recibe más sobres). */
+    /** Starter kit tag (reused by Onboarding: anyone who already got the old kit receives no more packs). */
     public static final String STARTER_TAG = "tcgshop_starter";
 
     private CardSales() {}
 
-    /** Valor de mercado de una unidad. */
+    /** Market value of one unit. */
     public static long unitValue(ItemStack st) {
         return ShopServer.priceOf(st.copyWithCount(1), 1.0);
     }
 
-    /** Lo que te pagan por una unidad. */
+    /** What you get paid for one unit. */
     public static long offer(ItemStack st, double rate) {
         return Math.max(1, Math.round(unitValue(st) * rate));
     }
 
-    /** Precio de la esmeralda: el de la tabla vanilla (config/tcgshop-vanilla-prices.json). */
+    /** Emerald price: the one from the vanilla table (config/tcgshop-vanilla-prices.json). */
     public static long emeraldPrice() {
         return Math.max(1, Math.round(VanillaPrices.price(new ItemStack(Items.EMERALD))));
     }
@@ -69,11 +69,11 @@ public final class CardSales {
         int cards = 0;
         boolean wholesaler = p.source() != -1;
         boolean fromBinder = false;
-        // de mayor a menor casilla: sacar una carta del Binder no cambia el índice de las que quedan por procesar
+        // from highest to lowest slot: removing a card from the Binder doesn't change the index of the ones still to process
         java.util.List<Integer> order = new java.util.ArrayList<>(new LinkedHashSet<>(p.slots()));
         order.sort((x, y) -> Integer.compare(y, x));
         for (int slot : order) {
-            if (dev.tcgshop.collection.BinderSlots.isBinder(slot)) { // cartas del Binder (no se vacían otras)
+            if (dev.tcgshop.collection.BinderSlots.isBinder(slot)) { // Binder cards (other items are not emptied)
                 ItemStack view = dev.tcgshop.collection.BinderSlots.peek(player, slot);
                 if (!CardInfo.isCard(view)) continue;
                 ItemStack got = dev.tcgshop.collection.BinderSlots.take(player, slot, view.getCount());
@@ -85,7 +85,7 @@ public final class CardSales {
             if (slot < 0 || slot >= 36) continue;
             ItemStack st = player.getInventory().getStack(slot);
             if (CardInfo.isCard(st)) sum += offer(st, rate) * (double) st.getCount();
-            else if (wholesaler && VanillaPrices.sellable(st)) sum += VanillaPrices.price(st) * st.getCount(); // el Mayorista compra casi todo
+            else if (wholesaler && VanillaPrices.sellable(st)) sum += VanillaPrices.price(st) * st.getCount(); // the Wholesaler buys almost everything
             else continue;
             cards += st.getCount();
             player.getInventory().setStack(slot, ItemStack.EMPTY);
@@ -117,9 +117,9 @@ public final class CardSales {
         player.getWorld().playSound(null, player.getBlockPos(), SoundEvents.ENTITY_VILLAGER_YES, SoundCategory.PLAYERS, 0.8f, 1.1f);
     }
 
-    // ------------------------------------------------------------------ kit de inicio
+    // ------------------------------------------------------------------ starter kit
 
-    /** La primera vez que entras: 5 sobres sellados al azar de cualquier colección. */
+    /** The first time you join: 5 random sealed packs from any collection. */
     public static void starterKit(ServerPlayerEntity player) {
         if (!TcgShopConfig.INSTANCE.starterPacks || player.getCommandTags().contains(STARTER_TAG)) return;
         List<Item> sealed = new ArrayList<>();

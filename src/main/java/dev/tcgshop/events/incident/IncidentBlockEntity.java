@@ -17,9 +17,9 @@ import org.joml.Vector3f;
 import java.util.UUID;
 
 /**
- * Datos de un incidente colocado: evento (uid), tienda, índice del efecto en la definición, golpes que faltan y fin
- * absoluto. Cada 40 ticks: partículas/sonido baratos, y si su evento ya no está activo y sin arreglar (o pasó su fin),
- * se quita solo (nada de basura huérfana tras cuelgues, eventos borrados o tiendas rotas).
+ * Data of a placed incident: event (uid), shop, effect index in the definition, hits remaining and absolute
+ * end. Every 40 ticks: cheap particles/sound, and if its event is no longer active and unfixed (or its end has passed),
+ * it removes itself (no orphaned junk after crashes, deleted events or broken shops).
  */
 public class IncidentBlockEntity extends BlockEntity {
     long eventUid = -1;
@@ -49,11 +49,11 @@ public class IncidentBlockEntity extends BlockEntity {
 
     public int hitsLeft() { return hitsLeft; }
 
-    /** ¿Sigue haciendo falta? (evento activo y sin arreglar, y no ha pasado su fin) */
+    /** Is it still needed? (event active and unfixed, and its end has not passed) */
     boolean stillWanted(ServerWorld world) {
-        if (EventManager.server() == null) return true; // arrancando: no decidir todavía
+        if (EventManager.server() == null) return true; // starting up: don't decide yet
         if (eventUid < 0) return false;
-        // el fin vivo de la instancia (un visitante puede alargar el evento); el guardado sólo si ya no existe
+        // the live end of the instance (a visitor can extend the event); the saved one only if it no longer exists
         dev.tcgshop.events.EventInstance inst = EventManager.instance(eventUid);
         if (inst != null && inst.end != expiresAt) {
             expiresAt = inst.end;
@@ -73,7 +73,7 @@ public class IncidentBlockEntity extends BlockEntity {
         effects(world, state.get(IncidentBlock.KIND));
     }
 
-    /** Partículas y algún sonido suelto (cada 40 ticks, sólo si hay jugadores cerca para no gastar). */
+    /** Particles and the occasional sound (every 40 ticks, only if players are nearby to save resources). */
     private void effects(ServerWorld w, IncidentKind kind) {
         if (w.getClosestPlayer(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 32, false) == null) return;
         double x = pos.getX() + 0.5, y = pos.getY() + 0.1, z = pos.getZ() + 0.5;

@@ -8,7 +8,7 @@ import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
-/** Servidor -> cliente: abre la ruleta (con tu saldo actual). */
+/** Server -> client: opens the roulette (with your current balance). */
 public record RouletteOpenPayload(BlockPos pos, long balance) implements CustomPayload {
     public static final Id<RouletteOpenPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "roulette_open"));
     public static final PacketCodec<RegistryByteBuf, RouletteOpenPayload> CODEC = PacketCodec.tuple(

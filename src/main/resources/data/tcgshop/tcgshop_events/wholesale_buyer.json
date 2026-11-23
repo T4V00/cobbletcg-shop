@@ -1,5 +1,5 @@
 {
-  "_comment": "#48 comprador al por mayor: compra hasta 3 cosas (precio máximo ~1.15x mercado)",
+  "_comment": "#48 wholesale buyer: buys up to 3 items (max price ~1.15x market)",
   "category": "positive",
   "tier": "uncommon",
   "template": "wholesale",

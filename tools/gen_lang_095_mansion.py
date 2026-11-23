@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""0.9.5 - Llave de la Mansión MasterBall (Exclusivos): textos es_es / en_us. Idempotente; sólo toca sus claves."""
+"""0.9.5 - MasterBall Mansion Key (Exclusives): es_es / en_us texts. Idempotent; only touches its own keys."""
 import json
 from pathlib import Path
 
@@ -84,7 +84,7 @@ def apply(name, values):
     path = LANG / name
     data = json.loads(path.read_text(encoding="utf-8"))
     for k, v in values.items():
-        data[k] = v  # las claves existentes conservan su posición; las nuevas van al final
+        data[k] = v  # existing keys keep their position; new ones go at the end
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
@@ -92,4 +92,4 @@ if __name__ == "__main__":
     assert set(ES) == set(EN)
     apply("es_es.json", ES)
     apply("en_us.json", EN)
-    print("gen_lang_095_mansion:", len(ES), "claves")
+    print("gen_lang_095_mansion:", len(ES), "keys")

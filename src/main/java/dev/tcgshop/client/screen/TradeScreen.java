@@ -19,7 +19,7 @@ import net.minecraft.util.math.MathHelper;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Mesa de intercambio: tu carta a la izquierda, la suya a la derecha, tus cartas intercambiables abajo. */
+/** Trade table: your card on the left, theirs on the right, your tradeable cards below. */
 public class TradeScreen extends Screen {
     private record Area(int x, int y, int w, int h, Runnable action) {}
 
@@ -94,7 +94,7 @@ public class TradeScreen extends Screen {
         int cy = y + 34;
         int lx = x + w / 4 - cw / 2, rx = x + 3 * w / 4 - cw / 2;
         if (finished && success) {
-            // animación: las cartas cruzan la mesa
+            // animation: the cards cross the table
             double p = Draw.easeOutCubic(MathHelper.clamp((t - doneAt) / 1.1, 0, 1));
             int ax = (int) MathHelper.lerp(p, lx, rx), bx = (int) MathHelper.lerp(p, rx, lx);
             int arc = (int) (Math.sin(p * Math.PI) * 20);
@@ -107,7 +107,7 @@ public class TradeScreen extends Screen {
         ctx.drawCenteredTextWithShadow(textRenderer, Text.literal(partner), rx + cw / 2, cy - 10, 0xFFFFFFFF);
         slot(ctx, mine, lx, cy, cw, ch, t, mouseX, myOk);
         slot(ctx, theirs, rx, cy, cw, ch, t, mouseX, theirOk);
-        // indicador central
+        // center indicator
         boolean both = !mine.isEmpty() && !theirs.isEmpty();
         boolean same = both && Rarity.of(mine).family == Rarity.of(theirs).family;
         int mx = width / 2;
@@ -117,7 +117,7 @@ public class TradeScreen extends Screen {
         if (both) Ui.text(ctx, Text.translatable(same ? "tcgshop.trade.match" : "tcgshop.trade.same_rarity"), mx - 50, cy + ch / 2 + 14, 100, 10,
                 same ? 0xFF6BE07B : 0xFFFF6B6B, false);
 
-        // botones
+        // buttons
         int by = cy + ch + 8;
         boolean canConfirm = same && !myOk && !finished;
         Ui.button(ctx, mx - 104, by, 100, 18, Text.translatable(myOk ? "tcgshop.trade.waiting" : "tcgshop.trade.confirm"), mouseX, mouseY, canConfirm, 0xFF3C8A4A);
@@ -125,7 +125,7 @@ public class TradeScreen extends Screen {
         Ui.button(ctx, mx + 4, by, 100, 18, Text.translatable("tcgshop.trade.cancel"), mouseX, mouseY, !finished, 0xFF7A2020);
         if (!finished) areas.add(new Area(mx + 4, by, 100, 18, this::close));
 
-        // tus cartas intercambiables
+        // your tradeable cards
         int gy = by + 24, gh = y + h - 8 - gy;
         ctx.fill(x + 8, gy, x + w - 8, gy + gh, 0x55000000);
         ctx.drawText(textRenderer, Text.translatable("tcgshop.trade.pick"), x + 12, gy + 3, 0xFFCCCCCC, false);
@@ -133,7 +133,7 @@ public class TradeScreen extends Screen {
         if (client != null && client.player != null)
             for (int i = 0; i < 36; i++) if (TradeManager.tradeable(client.player.getInventory().getStack(i))) slots.add(i);
             for (int bsl : dev.tcgshop.client.binder.ClientBinderSlots.slots())
-                if (TradeManager.tradeable(CardPickGrid.stackAt(client.player, bsl))) slots.add(bsl); // y las del Binder
+                if (TradeManager.tradeable(CardPickGrid.stackAt(client.player, bsl))) slots.add(bsl); // and the Binder ones
         int th = Math.min(52, gh - 16), tw = Math.round(th * Draw.CARD_RATIO), gap = 4;
         int cols = Math.max(1, (w - 24 + gap) / (tw + gap));
         int rows = (slots.size() + cols - 1) / cols;

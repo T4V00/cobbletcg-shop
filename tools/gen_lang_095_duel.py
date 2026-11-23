@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""0.9.5 · Duelo PvP del Pokémon TCG: textos nuevos (K.O., cambio de turno, pantalla final, evolución en el registro)
-y repaso de redacción de algunos existentes. Fusiona las claves en es_es / en_us (idempotente, conserva el orden).
-Uso: python -I -X utf8 tools/gen_lang_095_duel.py"""
+"""0.9.5 · Pokémon TCG PvP duel: new texts (K.O., turn change, end screen, evolution in the log)
+and a wording pass over some existing ones. Merges the keys into es_es / en_us (idempotent, keeps the order).
+Usage: python -I -X utf8 tools/gen_lang_095_duel.py"""
 import json
 from pathlib import Path
 
 LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
 P = "tcgshop.ptcg.ui."
 
-# clave -> (español, inglés)
+# key -> (Spanish, English)
 KEYS = {
-    # nuevas
+    # new
     P + "ko": ("¡K.O.!", "K.O.!"),
     P + "log_evolved": ("%s evoluciona a %s", "%s evolves into %s"),
     P + "type.0": ("Cualquiera", "Any"),
@@ -22,7 +22,7 @@ KEYS = {
     P + "result_turns": ("%s turnos", "%s turns"),
     P + "result_prizes_you": ("Tus Premios: %s/6", "Your Prizes: %s/6"),
     P + "result_prizes_opp": ("Rival: %s/6", "Opponent: %s/6"),
-    # redacción más clara de textos existentes
+    # clearer wording of existing texts
     P + "no_energy": ("Falta Energía", "Not enough Energy"),
     P + "prize_taken": ("+%s Premio(s)", "+%s Prize(s)"),
     P + "reward": ("Recompensa: $%s CobbleDollars", "Reward: $%s CobbleDollars"),
@@ -47,4 +47,4 @@ def merge(file_name: str, idx: int) -> None:
 if __name__ == "__main__":
     merge("es_es.json", 0)
     merge("en_us.json", 1)
-    print(f"{len(KEYS)} claves fusionadas en es_es.json y en_us.json")
+    print(f"{len(KEYS)} keys merged into es_es.json and en_us.json")

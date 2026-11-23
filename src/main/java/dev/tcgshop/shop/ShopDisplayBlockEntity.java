@@ -15,15 +15,15 @@ import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * Mueble de tienda con N casillas a la venta, cada una con su precio en ₽.
- * Se sincroniza al cliente para dibujar las cartas/sobres expuestos.
+ * Shop fixture with N slots for sale, each with its price in ₽.
+ * Synced to the client to draw the displayed cards/packs.
  */
 public class ShopDisplayBlockEntity extends BlockEntity implements Inventory {
     private DefaultedList<ItemStack> items;
     private long[] prices;
-    /** Aspecto de cada casilla: escala x1000 y giro X/Y/Z en grados (4 enteros por casilla). */
+    /** Look of each slot: scale x1000 and X/Y/Z rotation in degrees (4 ints per slot). */
     private int[] look;
-    /** Quién lo colocó (expositores de casa: sólo él pone y quita). */
+    /** Who placed it (home displays: only they add and remove). */
     public java.util.UUID owner;
 
     public ShopDisplayBlockEntity(BlockPos pos, BlockState state) {
@@ -46,7 +46,7 @@ public class ShopDisplayBlockEntity extends BlockEntity implements Inventory {
         return slot >= 0 && slot * 4 < look.length ? look[slot * 4] / 1000f : 1f;
     }
 
-    /** Giro en grados de la casilla: axis 0 = X, 1 = Y, 2 = Z. */
+    /** Slot rotation in degrees: axis 0 = X, 1 = Y, 2 = Z. */
     public int lookRot(int slot, int axis) {
         return slot >= 0 && slot * 4 + 1 + axis < look.length ? look[slot * 4 + 1 + axis] : 0;
     }

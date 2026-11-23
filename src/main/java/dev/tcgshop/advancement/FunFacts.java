@@ -8,14 +8,14 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 /**
- * Datos curiosos al alcanzar ciertos números de cartas distintas, al estilo de los mensajes de TCG Pocket
- * ("el número 25 coincide con Pikachu"), con muchos más datos y algunos hitos especiales.
+ * Fun facts when reaching certain numbers of distinct cards, in the style of the TCG Pocket messages
+ * ("number 25 matches Pikachu"), with many more facts and some special milestones.
  *
- * Para no molestar: sólo números concretos, cada uno una vez, y como máximo UN mensaje por apertura de
- * binder (el hito más alto alcanzado desde la última vez).
+ * To avoid being annoying: only specific numbers, each one once, and at most ONE message per binder
+ * opening (the highest milestone reached since last time).
  */
 public final class FunFacts {
-    /** Cada número tiene sus textos en el lang: tcgshop.fact.<n> */
+    /** Each number has its texts in the lang: tcgshop.fact.<n> */
     public static final int[] MILESTONES = {
             1, 4, 7, 10, 25, 39, 52, 60, 94, 100, 102, 108, 129, 133, 143, 150, 151, 197, 249, 250, 251,
             282, 384, 386, 448, 493, 500, 570, 649, 658, 700, 721, 778, 809, 888, 898, 905, 999, 1000,
@@ -30,7 +30,7 @@ public final class FunFacts {
             if (m > oldUnique && m <= newUnique && !c.facts.contains(m)) best = Math.max(best, m);
         }
         if (best < 0) return;
-        // marcar también los hitos intermedios saltados, para no mostrarlos después
+        // also mark the skipped intermediate milestones, so they are not shown later
         for (int m : MILESTONES) if (m <= best) c.facts.add(m);
 
         Text title = Text.translatable("tcgshop.fact.title", best);

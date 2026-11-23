@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Textos de la "tienda viva v2": muebles grandes, cajas animadas, clientes (reseñas, habituales, trueques),
-ladrones y Scalpers con combate Pokémon, y el teléfono nuevo. Fusiona las claves en es_es / en_us.
-Las frases de NPC están en npc_lines_living.py (las añade gen_npc_lines.py)."""
+"""Texts for the "living shop v2": large furniture, animated boxes, customers (reviews, regulars, trades),
+thieves and Scalpers with Pokémon battles, and the new phone. Merges the keys into es_es / en_us.
+The NPC lines are in npc_lines_living.py (added by gen_npc_lines.py)."""
 import json
 from pathlib import Path
 
@@ -135,7 +135,7 @@ def main():
         d = json.loads(p.read_text(encoding="utf-8"))
         d.update(add)
         p.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
-    print("textos tienda viva v2:", len(ES))
+    print("living shop v2 texts:", len(ES))
 
 
 if __name__ == "__main__":

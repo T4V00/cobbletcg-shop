@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Nota de CobbleGrade legible en las casillas del inventario (insignia del color de la nota, arriba a la izquierda). */
+/** Readable CobbleGrade grade on inventory slots (badge in the grade's color, top left). */
 @Mixin(DrawContext.class)
 public abstract class DrawContextMixin {
     @Inject(method = "drawItemInSlot(Lnet/minecraft/client/font/TextRenderer;Lnet/minecraft/item/ItemStack;IILjava/lang/String;)V", at = @At("TAIL"), require = 0)

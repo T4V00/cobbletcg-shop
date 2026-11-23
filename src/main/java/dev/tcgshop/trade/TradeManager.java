@@ -24,13 +24,13 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Intercambio de cartas entre jugadores al estilo TCG Pocket:
- *  · se pide desde la rueda de interacción de Cobblemon (o /tcgtrade) y el otro acepta;
- *  · cada uno ofrece UNA carta de su inventario; deben ser de la MISMA rareza y como mucho Ilustración Rara;
- *  · los dos confirman; cualquier cambio de oferta quita las confirmaciones;
- *  · el servidor vuelve a comprobar que ambos siguen teniendo la carta y hace el cambio en el mismo tick
- *    (quitar ambas y luego entregar ambas), así no hay duplicados ni pérdidas;
- *  · se cancela si alguien se desconecta, muere, cambia de dimensión o se aleja más de 12 bloques.
+ * TCG Pocket-style card trading between players:
+ *  · requested from the Cobblemon interaction wheel (or /tcgtrade) and the other player accepts;
+ *  · each one offers ONE card from their inventory; they must be the SAME rarity and at most Illustration Rare;
+ *  · both confirm; any change to an offer clears the confirmations;
+ *  · the server re-checks that both still have the card and performs the swap in the same tick
+ *    (remove both, then hand over both), so there are no duplicates or losses;
+ *  · cancelled if someone disconnects, dies, changes dimension or moves more than 12 blocks away.
  */
 public final class TradeManager {
     public static final double MAX_DIST = 12;
@@ -48,7 +48,7 @@ public final class TradeManager {
         UUID other(UUID p) { return isA(p) ? b : a; }
     }
 
-    /** invitado -> (quien invita -> tick de caducidad). */
+    /** invitee -> (inviter -> expiry tick). */
     private static final Map<UUID, Map<UUID, Long>> INVITES = new HashMap<>();
     private static final Map<UUID, Session> SESSIONS = new HashMap<>();
 
@@ -60,7 +60,7 @@ public final class TradeManager {
         return r != Rarity.UNKNOWN && r.tier <= 2;
     }
 
-    // ------------------------------------------------------------------ invitaciones
+    // ------------------------------------------------------------------ invitations
 
     public static void request(ServerPlayerEntity from, UUID targetId) {
         MinecraftServer server = from.getServer();
@@ -71,7 +71,7 @@ public final class TradeManager {
         if (SESSIONS.containsKey(from.getUuid())) { from.sendMessage(Text.translatable("tcgshop.trade.busy_self").formatted(Formatting.RED), true); return; }
         if (SESSIONS.containsKey(to.getUuid())) { from.sendMessage(Text.translatable("tcgshop.trade.busy", to.getDisplayName()).formatted(Formatting.RED), true); return; }
         long now = server.getOverworld().getTime();
-        // si el otro ya me había invitado, aceptar directamente
+        // if the other player had already invited me, accept directly
         Long theirs = INVITES.getOrDefault(from.getUuid(), Map.of()).get(to.getUuid());
         if (theirs != null && theirs > now) {
             INVITES.get(from.getUuid()).remove(to.getUuid());
@@ -122,7 +122,7 @@ public final class TradeManager {
         sync(a.getServer(), s, "");
     }
 
-    // ------------------------------------------------------------------ dentro del intercambio
+    // ------------------------------------------------------------------ inside the trade
 
     public static void select(ServerPlayerEntity p, int slot) {
         Session s = SESSIONS.get(p.getUuid());
@@ -150,7 +150,7 @@ public final class TradeManager {
         var inv = p.getInventory();
         if (hint >= 0 && hint < 36 && ItemStack.areItemsAndComponentsEqual(inv.getStack(hint), want)) return hint;
         for (int i = 0; i < 36; i++) if (ItemStack.areItemsAndComponentsEqual(inv.getStack(i), want)) return i;
-        // también desde el Binder, que sólo guarda copias estándar: una variante (reverse, 1ª edición...) tiene que estar en el inventario
+        // also from the Binder, which only stores standard copies: a variant (reverse, 1st edition...) has to be in the inventory
         if (dev.masterball.api.card.PrintVariant.isSpecial(want)) return -1;
         return dev.tcgshop.collection.BinderSlots.findInBinder(p, want);
     }
@@ -166,7 +166,7 @@ public final class TradeManager {
             sync(server, s, "tcgshop.trade.changed");
             return;
         }
-        // quitar primero las dos cartas y luego entregar: todo en el mismo tick del servidor
+        // remove both cards first, then hand them over: all in the same server tick
         ItemStack fromA = dev.tcgshop.collection.BinderSlots.isBinder(ia) ? dev.tcgshop.collection.BinderSlots.take(a, ia, 1) : a.getInventory().removeStack(ia, 1);
         ItemStack fromB = dev.tcgshop.collection.BinderSlots.isBinder(ib) ? dev.tcgshop.collection.BinderSlots.take(b, ib, 1) : b.getInventory().removeStack(ib, 1);
         if (dev.tcgshop.collection.BinderSlots.isBinder(ia)) dev.tcgshop.collection.BinderSlots.sync(a);
@@ -219,7 +219,7 @@ public final class TradeManager {
         return a.getWorld() == b.getWorld() && a.isAlive() && b.isAlive() && a.squaredDistanceTo(b) <= MAX_DIST * MAX_DIST;
     }
 
-    // ------------------------------------------------------------------ mantenimiento
+    // ------------------------------------------------------------------ maintenance
 
     public static void tick(MinecraftServer server) {
         if (server.getTicks() % 20 != 0) return;
@@ -239,7 +239,7 @@ public final class TradeManager {
         if (s != null) cancel(p.getServer(), s, "tcgshop.trade.left", "");
     }
 
-    // ------------------------------------------------------------------ estadística persistente (para logros)
+    // ------------------------------------------------------------------ persistent stats (for advancements)
 
     public static final class Stats extends PersistentState {
         private static final Type<Stats> TYPE = new Type<>(Stats::new, Stats::fromNbt, null);

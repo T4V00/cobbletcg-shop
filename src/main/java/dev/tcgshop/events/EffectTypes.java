@@ -14,12 +14,12 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Registro de tipos de efecto: "type" del JSON -> fábrica. El núcleo registra modifier, visitor, supplier, reward,
- * staff, notify y metric; los módulos registran los suyos en su init() (IncidentModule: "incident"; ActorModule: "actor").
- * Registrar SIEMPRE en onInitialize (antes de que se carguen los datapacks).
+ * Effect type registry: JSON "type" -> factory. The core registers modifier, visitor, supplier, reward,
+ * staff, notify and metric; modules register their own in their init() (IncidentModule: "incident"; ActorModule: "actor").
+ * ALWAYS register in onInitialize (before datapacks are loaded).
  */
 public final class EffectTypes {
-    /** Crea el efecto a partir de su objeto JSON. defId sirve para los mensajes de error. Lanza IllegalArgumentException si es inválido. */
+    /** Creates the effect from its JSON object. defId is used for error messages. Throws IllegalArgumentException if invalid. */
     @FunctionalInterface
     public interface Factory {
         EventEffect create(JsonObject json, String defId);
@@ -30,14 +30,14 @@ public final class EffectTypes {
     private EffectTypes() {}
 
     public static void register(String type, Factory f) {
-        if (TYPES.put(type, f) != null) dev.tcgshop.TcgShop.LOGGER.warn("[eventos] tipo de efecto '{}' registrado dos veces", type);
+        if (TYPES.put(type, f) != null) dev.tcgshop.TcgShop.LOGGER.warn("[events] effect type '{}' registered twice", type);
     }
 
     public static Factory get(String type) { return TYPES.get(type); }
 
     public static Set<String> types() { return TYPES.keySet(); }
 
-    /** Tipos del núcleo (los llama EventManager.register). */
+    /** Core types (called by EventManager.register). */
     static void registerCore() {
         register("modifier", ModifierEffect::new);
         register("visitor", VisitorEffect::new);

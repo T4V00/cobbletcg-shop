@@ -10,11 +10,11 @@ import net.minecraft.util.Identifier;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Venta rápida de cartas (teléfono / Mayorista), esmeraldas y el Coleccionista ambulante (intercambios). */
+/** Quick-sell of cards (phone / Wholesaler), emeralds and the wandering Collector (trades). */
 public final class MarketPayloads {
     private MarketPayloads() {}
 
-    /** source: -1 = teléfono, si no id de la entidad (Mayorista). */
+    /** source: -1 = phone, otherwise entity id (Wholesaler). */
     public static final int SELL_CARDS = 0, SELL_EMERALDS = 1;
     public static final int TRADE = 0, SELL_WISH = 1;
 
@@ -30,7 +30,7 @@ public final class MarketPayloads {
         for (int v : l) buf.writeVarInt(v);
     }
 
-    /** Cliente -> servidor: vender cartas (huecos del inventario) o todas las esmeraldas. */
+    /** Client -> server: sell cards (inventory slots) or all emeralds. */
     public record Sell(int source, int mode, List<Integer> slots) implements CustomPayload {
         public static final Id<Sell> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "card_sell"));
         public static final PacketCodec<RegistryByteBuf, Sell> CODEC = new PacketCodec<>() {
@@ -51,7 +51,7 @@ public final class MarketPayloads {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** Servidor -> cliente: el puesto del Coleccionista (sus cartas, la carta tuya que le interesa y cuántos tratos le quedan). */
+    /** Server -> client: the Collector's stall (their cards, the card of yours they want and how many deals they have left). */
     public record TraderOpen(int entity, List<ItemStack> stock, List<Long> prices, int wishSlot, long wishPrice, int tradesLeft)
             implements CustomPayload {
         public static final Id<TraderOpen> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "trader_open"));
@@ -86,7 +86,7 @@ public final class MarketPayloads {
         public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** Cliente -> servidor: cambiar una carta suya (index) por una tuya (slot) o venderle la que le interesa. */
+    /** Client -> server: swap one of their cards (index) for one of yours (slot) or sell them the one they want. */
     public record TraderAction(int entity, int action, int index, int slot) implements CustomPayload {
         public static final Id<TraderAction> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "trader_action"));
         public static final PacketCodec<RegistryByteBuf, TraderAction> CODEC = new PacketCodec<>() {

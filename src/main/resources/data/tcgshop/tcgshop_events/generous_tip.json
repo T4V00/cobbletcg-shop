@@ -1,5 +1,5 @@
 {
-  "_comment": "#42 propina generosa en la próxima venta (tope por dueño)",
+  "_comment": "#42 generous tip on the next sale (capped per owner)",
   "category": "positive",
   "tier": "common",
   "template": "tip",

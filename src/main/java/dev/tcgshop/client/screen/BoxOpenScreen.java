@@ -18,8 +18,8 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 
 /**
- * Animación al abrir una caja de sobres desde la mano: la caja en 3D tiembla, se rompe el plástico, se abre la
- * tapa y los 36 sobres salen disparados hasta formar una cuadrícula. Los sobres ya están en tu inventario.
+ * Animation for opening a box of packs from the hand: the 3D box shakes, the plastic tears, the lid opens
+ * and the 36 packs shoot out until they form a grid. The packs are already in your inventory.
  */
 public class BoxOpenScreen extends Screen {
     private final String set;
@@ -42,11 +42,11 @@ public class BoxOpenScreen extends Screen {
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         double t = t();
         ctx.fillGradient(0, 0, width, height, 0xC0050812, 0xE0020306);
-        // rayos de fondo
+        // background rays
         float burst = (float) MathHelper.clamp((t - 1.3) / 0.5, 0, 1);
         if (burst > 0) Draw.rays(ctx, width / 2f, height / 2f - 10, Math.max(width, height), t * 0.4, ShopRenderers.setColor(set), 0.12f * burst, 14);
 
-        // caja en 3D
+        // 3D box
         float lid = (float) MathHelper.clamp((t - 0.7) / 0.6, 0, 1);
         float wrap = 1 - (float) MathHelper.clamp((t - 0.45) / 0.25, 0, 1);
         float shake = t < 0.7 ? (float) (1 - t / 0.7) : 0;
@@ -73,7 +73,7 @@ public class BoxOpenScreen extends Screen {
             m.pop();
         }
 
-        // sobres volando a su sitio en la cuadrícula
+        // packs flying to their spot in the grid
         Identifier tex = ShopRenderers.packTextureForSet(set);
         int cols = 9, rows = (packs + cols - 1) / cols;
         float ph = Math.min(height * 0.14f, 46), pw = ph * Draw.PACK_RATIO, gap = 4;

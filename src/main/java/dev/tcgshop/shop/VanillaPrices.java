@@ -25,12 +25,12 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Lo que paga el Mayorista por objetos de Minecraft vanilla (CobbleDollars por unidad, con decimales:
- * se suma todo lo que vendes y se redondea hacia abajo). Tabla completa y editable en
- * config/tcgshop-vanilla-prices.json; se genera la primera vez con precios de referencia:
- * materiales básicos ≈ 0,5, hierro/cobre ≈ 1, lo más raro como mucho 1.000. Lo fácil de farmear paga muy poco
- * y los bloques compactos valen exactamente lo mismo que sus piezas (no hay beneficio por craftear).
- * 0 = el Mayorista no lo compra.
+ * What the Wholesaler pays for vanilla Minecraft items (CobbleDollars per unit, with decimals:
+ * everything you sell is summed and rounded down). Full, editable table in
+ * config/tcgshop-vanilla-prices.json; generated the first time with reference prices:
+ * basic materials ≈ 0.5, iron/copper ≈ 1, the rarest at most 1,000. Easy-to-farm items pay very little
+ * and compact blocks are worth exactly the same as their pieces (no profit from crafting).
+ * 0 = the Wholesaler does not buy it.
  */
 public final class VanillaPrices {
     private VanillaPrices() {}
@@ -43,7 +43,7 @@ public final class VanillaPrices {
 
     public static Map<String, Double> table() { return table; }
 
-    /** Precio por unidad (0 = no se compra). Tiene en cuenta el desgaste de herramientas y armaduras. */
+    /** Price per unit (0 = not bought). Takes tool and armor wear into account. */
     public static double price(ItemStack st) {
         if (st.isEmpty()) return 0;
         Identifier id = Registries.ITEM.getId(st.getItem());
@@ -53,7 +53,7 @@ public final class VanillaPrices {
         double p = v;
         if (st.isDamageable() && st.getMaxDamage() > 0) p *= Math.max(0.1, 1 - st.getDamage() / (double) st.getMaxDamage());
         if (st.hasEnchantments() && !st.isOf(Items.ENCHANTED_BOOK)) p *= 1.25;
-        if (st.contains(DataComponentTypes.CUSTOM_NAME)) p *= 1; // renombrar no da valor
+        if (st.contains(DataComponentTypes.CUSTOM_NAME)) p *= 1; // renaming adds no value
         return Math.min(MAX, p);
     }
 
@@ -61,7 +61,7 @@ public final class VanillaPrices {
         return price(st) > 0;
     }
 
-    // ------------------------------------------------------------------ archivo
+    // ------------------------------------------------------------------ file
 
     public static void load() {
         Map<String, Double> user = new LinkedHashMap<>();
@@ -71,7 +71,7 @@ public final class VanillaPrices {
                 if (m != null) user.putAll(m);
             }
         } catch (Exception e) {
-            TcgShop.LOGGER.error("No se pudo leer {} (se usan los precios de referencia y NO se sobrescribe)", FILE, e);
+            TcgShop.LOGGER.error("Could not read {} (using the reference prices and NOT overwriting it)", FILE, e);
             table = defaults();
             return;
         }
@@ -84,7 +84,7 @@ public final class VanillaPrices {
         try (Writer w = Files.newBufferedWriter(FILE)) {
             GSON.toJson(table, w);
         } catch (Exception e) {
-            TcgShop.LOGGER.error("No se pudo guardar {}", FILE, e);
+            TcgShop.LOGGER.error("Could not save {}", FILE, e);
         }
     }
 
@@ -94,7 +94,7 @@ public final class VanillaPrices {
         table = t;
     }
 
-    // ------------------------------------------------------------------ precios de referencia
+    // ------------------------------------------------------------------ reference prices
 
     private static final Map<String, Double> FIXED = new LinkedHashMap<>();
 
@@ -103,7 +103,7 @@ public final class VanillaPrices {
     }
 
     static {
-        // minería
+        // mining
         f(0.5, "coal", "charcoal", "flint");
         f(1, "raw_iron", "iron_ingot", "raw_copper", "copper_ingot");
         f(0.11, "iron_nugget");
@@ -117,7 +117,7 @@ public final class VanillaPrices {
         f(120, "netherite_scrap", "ancient_debris");
         f(500, "netherite_ingot");
         f(4, "echo_shard");
-        // bloques compactos = 9 piezas (sin beneficio por craftear)
+        // compact blocks = 9 pieces (no profit from crafting)
         f(4.5, "coal_block");
         f(9, "iron_block", "raw_iron_block", "copper_block", "raw_copper_block");
         f(27, "gold_block", "raw_gold_block");
@@ -127,7 +127,7 @@ public final class VanillaPrices {
         f(72, "emerald_block");
         f(1000, "netherite_block");
         f(1.6, "quartz_block", "glowstone", "amethyst_block");
-        // botín de mobs
+        // mob loot
         f(0.02, "rotten_flesh", "poisonous_potato");
         f(0.1, "bone", "string", "feather", "leather", "ink_sac", "egg", "arrow");
         f(0.03, "bone_meal");
@@ -161,16 +161,16 @@ public final class VanillaPrices {
                 "dried_kelp", "cactus", "bamboo", "cocoa_beans", "nether_wart", "chorus_fruit", "wheat_seeds", "beetroot_seeds", "melon_seeds",
                 "pumpkin_seeds", "torchflower_seeds", "pitcher_pod");
         f(0.4, "pumpkin", "melon", "carved_pumpkin", "hay_block");
-        // madera y plantas
+        // wood and plants
         f(0.06, "stick");
         f(0.5, "bamboo_block", "crimson_stem", "warped_stem");
-        // piedra y tierra (renovables y abundantísimas: casi nada)
+        // stone and dirt (renewable and extremely abundant: almost nothing)
         f(0.01, "dirt", "cobblestone", "netherrack", "cobbled_deepslate", "gravel", "sand", "red_sand", "stone", "deepslate", "andesite", "diorite",
                 "granite", "tuff", "calcite", "end_stone", "blackstone", "basalt", "soul_sand", "soul_soil", "grass_block", "coarse_dirt", "rooted_dirt",
                 "mud", "clay_ball", "snowball", "ice", "snow_block", "cobweb");
         f(0.05, "obsidian", "crying_obsidian", "clay", "terracotta", "glass", "packed_ice", "blue_ice", "moss_block", "mycelium", "podzol");
         f(0.5, "sponge", "wet_sponge");
-        // utilidades varias
+        // miscellaneous utilities
         f(0.2, "paper", "book");
         f(5, "enchanted_book", "name_tag", "saddle");
         f(4, "lead");
@@ -178,13 +178,13 @@ public final class VanillaPrices {
                 "music_disc_stal", "music_disc_strad", "music_disc_ward", "music_disc_11", "music_disc_wait", "music_disc_otherside", "music_disc_5",
                 "music_disc_pigstep", "music_disc_relic", "music_disc_creator", "music_disc_creator_music_box", "music_disc_precipice");
         f(40, "netherite_upgrade_smithing_template");
-        // nunca se compran
+        // never bought
         f(0, "air", "bedrock", "barrier", "command_block", "chain_command_block", "repeating_command_block", "command_block_minecart",
                 "structure_block", "structure_void", "jigsaw", "debug_stick", "knowledge_book", "light", "spawner", "trial_spawner", "vault",
                 "reinforced_deepslate", "end_portal_frame", "petrified_oak_slab", "farmland", "dirt_path", "budding_amethyst", "written_book", "filled_map");
     }
 
-    /** Coste en materiales de herramientas/armaduras por material. */
+    /** Material cost of tools/armor per material. */
     private static double material(String path) {
         if (path.startsWith("netherite_")) return 525;
         if (path.startsWith("diamond_")) return 25;
@@ -213,7 +213,7 @@ public final class VanillaPrices {
         Double fixed = FIXED.get(path);
         if (fixed != null) return fixed;
         if (item instanceof SpawnEggItem || path.contains("spawn_egg")) return 0;
-        // herramientas y armaduras: 80% del valor de sus materiales
+        // tools and armor: 80% of the value of their materials
         double mat = material(path), pcs = pieces(path);
         if (mat >= 0 && pcs > 0) {
             if (path.startsWith("netherite_")) return Math.min(MAX, 525 + 25 * pcs * 0.8);
@@ -233,7 +233,7 @@ public final class VanillaPrices {
         if (path.contains("tulip") || path.endsWith("_orchid") || path.endsWith("dandelion") || path.endsWith("poppy") || path.contains("flower")
                 || path.endsWith("allium") || path.endsWith("bluet") || path.endsWith("daisy") || path.endsWith("cornflower") || path.contains("lily")
                 || path.endsWith("rose_bush") || path.endsWith("peony") || path.endsWith("lilac") || path.endsWith("sunflower")) return 0.1;
-        if (path.contains("copper")) return 0.9; // bloques de cobre cortado, oxidado, etc.
+        if (path.contains("copper")) return 0.9; // cut copper, oxidized copper blocks, etc.
         if (path.contains("deepslate") || path.contains("stone") || path.contains("brick") || path.contains("tuff") || path.contains("blackstone")
                 || path.contains("sandstone") || path.contains("terracotta") || path.contains("concrete") || path.contains("glass")) return 0.03;
         if (path.endsWith("_slab") || path.endsWith("_stairs") || path.endsWith("_wall") || path.endsWith("_fence") || path.endsWith("_fence_gate")

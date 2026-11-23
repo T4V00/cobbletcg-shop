@@ -10,23 +10,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Tienda de muebles (CobbleFurnies) y peluches (Pokéblocks): Vendedor de muebles, Mayorista y teléfono.
- * source: -1 = teléfono; si no, id de la entidad (Vendedor de muebles o Mayorista).
+ * Furniture (CobbleFurnies) and plushie (Pokéblocks) shop: Furniture Seller, Wholesaler and phone.
+ * source: -1 = phone; otherwise, entity id (Furniture Seller or Wholesaler).
  */
 public final class FurniturePayloads {
     private FurniturePayloads() {}
 
-    /** Máximo de entradas que aceptamos al decodificar (por seguridad). */
+    /** Maximum number of entries we accept when decoding (for safety). */
     public static final int MAX_ENTRIES = 4096;
 
     /**
-     * source especial de {@link Open} (servidor -> cliente, al entrar y tras /tcgshop reload): no es un catálogo, sino la
-     * info de las estatuas de lujo según la config del servidor (ids = estatuas a la venta, vacío si están desactivadas;
-     * buy = sus precios). Ver LuxuryShop.syncTo.
+     * Special source of {@link Open} (server -> client, on join and after /tcgshop reload): not a catalog, but the
+     * luxury statue info from the server config (ids = statues for sale, empty if disabled;
+     * buy = their prices). See LuxuryShop.syncTo.
      */
     public static final int SOURCE_LUXURY_SYNC = -2;
 
-    /** Cliente -> servidor: pide el catálogo (al abrir la pestaña / app). */
+    /** Client -> server: requests the catalog (when opening the tab / app). */
     public record Request(int source) implements CustomPayload {
         public static final Id<Request> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "furniture_request"));
         public static final PacketCodec<RegistryByteBuf, Request> CODEC = new PacketCodec<>() {
@@ -46,15 +46,15 @@ public final class FurniturePayloads {
     }
 
     /**
-     * Servidor -> cliente: catálogo completo (full = true) o sólo el saldo actualizado tras una compra/venta (full = false,
-     * listas vacías). open = abrir la pantalla del Vendedor si no está abierta. error = clave de traducción del motivo
-     * si el servidor no puede atenderte (sin teléfono, NPC lejos, mods ausentes...); "" si todo va bien.
+     * Server -> client: full catalog (full = true) or just the updated balance after a purchase/sale (full = false,
+     * empty lists). open = open the Seller screen if it is not open. error = translation key of the reason
+     * if the server cannot serve you (no phone, NPC too far, missing mods...); "" if all is well.
      */
     public record Open(int source, boolean open, boolean full, long balance, List<String> ids, List<Long> buy, List<Long> sell,
                        String error) implements CustomPayload {
         public static final Id<Open> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "furniture_open"));
 
-        /** Respuesta de rechazo: catálogo vacío con el motivo (el cliente deja de esperar y lo muestra). */
+        /** Denial response: empty catalog with the reason (the client stops waiting and shows it). */
         public static Open denied(int source, long balance, String errorKey) {
             return new Open(source, false, true, balance, List.of(), List.of(), List.of(), errorKey == null ? "" : errorKey);
         }
@@ -98,9 +98,9 @@ public final class FurniturePayloads {
     }
 
     /**
-     * Cliente -> servidor: comprar (sell = false) o vender (sell = true) qty unidades de un mueble/peluche/estatua.
-     * price = precio por unidad que el jugador vio y confirmó; si al comprar ya no coincide con el del servidor (p.ej.
-     * tras /tcgshop reload), el servidor rechaza la compra y reenvía el catálogo.
+     * Client -> server: buy (sell = false) or sell (sell = true) qty units of a furniture piece/plushie/statue.
+     * price = unit price the player saw and confirmed; if on purchase it no longer matches the server's (e.g.
+     * after /tcgshop reload), the server rejects the purchase and resends the catalog.
      */
     public record Trade(int source, String item, int qty, boolean sell, long price) implements CustomPayload {
         public static final Id<Trade> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "furniture_trade"));

@@ -47,13 +47,13 @@ import java.util.function.IntPredicate;
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
 /**
- * Mesa del Pokémon TCG real (motor de twinleaf.gg) con un diseño claro y limpio a pantalla completa:
- *  · Clic en cualquier carta (tuya, del rival, de la mano, el Estadio...) = se amplía ahí mismo con sus ataques y
- *    habilidades; desde la ampliación atacas, usas habilidades, te retiras o juegas la carta.
- *  · Arrastra cartas de la mano a su destino (se ilumina) y tu Activo a la Banca para retirarte.
- *  · Registro detallado (botón ☰ o L): lo que dice el motor más daño recibido, PS restantes, condiciones, premios...
- *  · Pista (botón ?, tecla S): la IA del motor te marca la jugada recomendada.
- *  · Animaciones de ataque, daño flotante, K.O., evolución, monedas, turno y premios. Paneles para todas las decisiones.
+ * Real Pokémon TCG table (twinleaf.gg engine) with a clean, light, full-screen design:
+ *  · Click any card (yours, the opponent's, in hand, the Stadium...) = it zooms in place with its attacks and
+ *    abilities; from the zoom you attack, use abilities, retreat or play the card.
+ *  · Drag cards from the hand to their target (it lights up) and your Active onto the Bench to retreat.
+ *  · Detailed log (☰ button or L): what the engine says plus damage taken, remaining HP, conditions, prizes...
+ *  · Hint (? button, S key): the engine's AI marks the recommended play for you.
+ *  · Animations for attacks, floating damage, K.O., evolution, coins, turn and prizes. Panels for every decision.
  */
 public class PtcgDuelScreen extends Screen {
     private record Area(int x, int y, int w, int h, Runnable action) {}
@@ -62,7 +62,7 @@ public class PtcgDuelScreen extends Screen {
 
     private record LogLine(int turn, String text, int color, double at, @Nullable String card, int kind) {}
 
-    /** Muelle amortiguado: lo que hace que todo se mueva "buttery" (con inercia y un pequeño rebote). */
+    /** Damped spring: what makes everything move "buttery" (with inertia and a small bounce). */
     private static final class Spr {
         float x, v;
 
@@ -78,7 +78,7 @@ public class PtcgDuelScreen extends Screen {
         }
     }
 
-    /** Estado animado de una carta (mano, mesa, ampliación o arrastre). */
+    /** Animated state of a card (hand, board, zoom or drag). */
     private static final class Anim {
         final Spr x = new Spr(0), y = new Spr(0), a = new Spr(0), s = new Spr(1), rx = new Spr(0), ry = new Spr(0), lift = new Spr(0);
         String f = "";
@@ -92,12 +92,12 @@ public class PtcgDuelScreen extends Screen {
 
     private static final class Fx {
         String text;
-        int color, kind; // kind: 0 texto, 1 daño, 2 curación, 3 K.O.
+        int color, kind; // kind: 0 text, 1 damage, 2 heal, 3 K.O.
         float x, y, scale, drift;
         double start, life;
     }
 
-    /** Pokémon debilitado: su carta tiembla, se apaga y se hunde en la mesa. */
+    /** Knocked-out Pokémon: its card shakes, fades and sinks into the table. */
     private static final class KoGhost {
         String f;
         float x, y, w, h;
@@ -105,7 +105,7 @@ public class PtcgDuelScreen extends Screen {
         boolean mine;
     }
 
-    /** Carta de Premio que vuela a la mano de quien la coge, dándose la vuelta. */
+    /** Prize card flying to the hand of whoever takes it, flipping over. */
     private static final class PrizeFly {
         float x0, y0, x1, y1, w, h;
         double start;
@@ -124,7 +124,7 @@ public class PtcgDuelScreen extends Screen {
     }
 
     private static final int TOP = 1, BOTTOM = 2, BOARD = 0, ACTIVE = 1, BENCH = 2;
-    // paleta clara
+    // light palette
     private static final int INK = 0xFF22324A, SOFT = 0xFF6B7F99, LINE = 0xFFD3E0EE, PANEL2 = 0xFFF3F7FC,
             BLUE = 0xFF2F8CFF, GREEN = 0xFF22B866, RED = 0xFFFF4D6D, GOLD = 0xFFFFB020, VIOLET = 0xFF9B6BFF;
     private static final int[] COND_COLORS = {0xFFFFC21A, 0xFFFF6FD1, 0xFF7C93FF, 0xFFA45CFF, 0xFFFF7A2E};
@@ -136,17 +136,17 @@ public class PtcgDuelScreen extends Screen {
     private final List<Drop> drops = new ArrayList<>();
     private final List<Fx> fx = new ArrayList<>();
     private final List<Particle> parts = new ArrayList<>();
-    private final List<Particle> confetti = new ArrayList<>(); // por encima de la pantalla final
+    private final List<Particle> confetti = new ArrayList<>(); // above the end screen
     private final List<Fly> flies = new ArrayList<>();
     private final List<LogLine> log = new ArrayList<>();
     private final List<KoGhost> koGhosts = new ArrayList<>();
     private final List<PrizeFly> prizeFlies = new ArrayList<>();
     private final Map<String, DuelFx.HpBar> hpBars = new HashMap<>();
-    // transiciones: registro deslizante, velo de decisiones y confeti del final
+    // transitions: sliding log, decision veil and end confetti
     private float drawerT;
     private boolean confettiDone;
 
-    // ratón / mano
+    // mouse / hand
     private List<Text> tooltip;
     private int hoverHand = -1, selectedHand = -1, pressHand = -1, dragHand = -1;
     private boolean pressActive, dragActive, dragging, retreatMode, concedeArmed, peek, menuOpen;
@@ -155,19 +155,19 @@ public class PtcgDuelScreen extends Screen {
     private int logScroll, lastHoverHand = -1;
     @Nullable private String pressKey;
 
-    // ampliación de carta
+    // card zoom
     @Nullable private String zoomKey, zoomCard;
     private double zoomAt;
     private int[] zoomFrom;
 
-    // decisiones
+    // decisions
     private final Set<Integer> picks = new LinkedHashSet<>();
     private final JsonArray assigns = new JsonArray();
     private int promptId = -1, srcPick = -1;
     @Nullable private JsonObject srcTarget;
     private final Map<String, Integer> dmgMap = new HashMap<>();
 
-    // efectos
+    // effects
     private String banner = "", bannerSub = "";
     private int bannerColor;
     private double promptAt = now(), bannerAt = -10, shakeAt = -10, coinAt = -10, receivedAt = now(), changedAt = now();
@@ -182,7 +182,7 @@ public class PtcgDuelScreen extends Screen {
     private boolean suggestPending;
     private double errorAt = -10;
     private int lastPlayedHand = -1;
-    private final List<double[]> rings = new ArrayList<>(); // x, y, color, start, radio
+    private final List<double[]> rings = new ArrayList<>(); // x, y, color, start, radius
     private double slashAt = -10, vignetteAt = -10, turnFxAt = -10, startedAt = now();
     private int vignetteColor;
     private boolean turnFxMine, musicStarted, endSoundDone;
@@ -192,7 +192,7 @@ public class PtcgDuelScreen extends Screen {
     private float slashX, slashY;
     private int slashColor;
 
-    // animación continua (muelles)
+    // continuous animation (springs)
     private final List<Anim> handAnim = new ArrayList<>();
     private final Map<String, Anim> boardAnim = new HashMap<>();
     private final Anim zoomAnim = new Anim(), dragAnim = new Anim();
@@ -201,16 +201,16 @@ public class PtcgDuelScreen extends Screen {
     private float dt, lastDragX, lastDragY, dragVx, dragVy;
     private boolean handReady, boardReady;
     private int mouseXNow, mouseYNow;
-    // carta jugada por el rival, mostrada en grande un momento
+    // card played by the opponent, shown large for a moment
     private String showF = "";
     private double showAt = -10;
-    // inicio de partida: presentación "VS" y moneda 3D grande
+    // match start: "VS" intro and large 3D coin
     private final double introAt = now();
     private double bigCoinAt = -10;
     private boolean introSkipped, bigCoinLanded;
     private String coinWho = "";
     private float handRaise = 1;
-    // pila de descartes ampliada
+    // zoomed discard pile
     @Nullable private String discardSide;
     private double discardAt = -10, discardScroll;
 
@@ -247,7 +247,7 @@ public class PtcgDuelScreen extends Screen {
     @Override
     public boolean shouldPause() { return false; }
 
-    // ================================================================== datos
+    // ================================================================== data
 
     public void update(String json) {
         JsonObject nv;
@@ -347,13 +347,13 @@ public class PtcgDuelScreen extends Screen {
 
     private static String ui(String key, Object... args) { return Text.translatable("tcgshop.ptcg.ui." + key, args).getString(); }
 
-    /** Nombre de la carta en el idioma del juego (para mostrar). */
+    /** Card name in the game's language (for display). */
     private static String name(String f) {
         JsonObject d = ClientPtcg.def(f);
         return ClientPtcg.cardName(f, d == null ? f : s(d, "n"));
     }
 
-    /** Nombre de la carta en el motor (inglés): para comparar evoluciones y registros. */
+    /** Card name in the engine (English): for comparing evolutions and log entries. */
     private static String ename(String f) {
         JsonObject d = ClientPtcg.def(f);
         return d == null ? f : s(d, "n");
@@ -404,7 +404,7 @@ public class PtcgDuelScreen extends Screen {
         return (i(t, "player", 2) == BOTTOM ? "me" : "opp") + ":" + i(t, "slot", 1) + ":" + (i(t, "slot", 1) == ACTIVE ? 0 : i(t, "index", 0));
     }
 
-    // ================================================================== acciones
+    // ================================================================== actions
 
     private void send(JsonObject o) { ClientPtcg.send(o); }
 
@@ -506,7 +506,7 @@ public class PtcgDuelScreen extends Screen {
         sound(SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, 1.3f, 0.7f);
     }
 
-    /** Aviso de "no se puede": sacudida, icono rojo y sonido; la carta que intentaste jugar tiembla en la mano. */
+    /** "Can't do that" notice: shake, red icon and sound; the card you tried to play shakes in the hand. */
     private void errorToast(String s) {
         toast(s, RED);
         errorAt = now();
@@ -551,7 +551,7 @@ public class PtcgDuelScreen extends Screen {
         sound(TcgSounds.CARD_SLIDE, 1.1f, 0.5f);
     }
 
-    /** Pila de descartes ampliada: todas las cartas, de la más reciente a la más antigua, con pestañas tú / rival. */
+    /** Zoomed discard pile: all cards, newest to oldest, with you / opponent tabs. */
     private void discardView(DrawContext ctx, int mx, int my, double t) {
         JsonArray disc = arr(side(discardSide), "discard");
         float in = (float) Draw.easeOutCubic(MathHelper.clamp((t - discardAt) / 0.25, 0, 1));
@@ -564,7 +564,7 @@ public class PtcgDuelScreen extends Screen {
         ctx.fill(px + 1, py + 1, px + pw - 1, py + 3, mine ? BLUE : RED);
         text(ctx, ui("discard_title"), px + 12, py + 9, INK, 1.15f, false);
         text(ctx, ui("discard_list", disc.size()), px + 12, py + 22, SOFT, 0.7f, false);
-        // pestañas
+        // tabs
         int tx = px + pw - 12;
         for (String k : new String[]{"opp", "me"}) {
             String l = k.equals("me") ? ui("you") : s(side("opp"), "name");
@@ -608,7 +608,7 @@ public class PtcgDuelScreen extends Screen {
             final String ff = f;
             areas.add(new Area(Math.round(ccx - cw / 2f), Math.round(ccy - chh / 2f), cw, chh, () -> openZoom("card", ff)));
         }
-        if (hovK >= 0) { // la carta bajo el ratón se levanta y se inclina hacia él
+        if (hovK >= 0) { // the card under the mouse lifts and tilts toward it
             String f = disc.get(disc.size() - 1 - hovK).getAsString();
             m.push();
             m.translate(hx, hy - 3, 50);
@@ -633,7 +633,7 @@ public class PtcgDuelScreen extends Screen {
         zoomCard = card;
         zoomAt = now();
         zoomFrom = rects.get(key);
-        zoomAnim.ry.x = 75; // entra girando y se asienta con un pequeño rebote
+        zoomAnim.ry.x = 75; // spins in and settles with a small bounce
         zoomAnim.ry.v = 0;
         zoomAnim.rx.x = -10;
         zoomAnim.rx.v = 0;
@@ -642,7 +642,7 @@ public class PtcgDuelScreen extends Screen {
         sound(TcgSounds.CARD_FLIP, 1.2f, 0.5f);
     }
 
-    // ================================================================== registro
+    // ================================================================== log
 
     private void addLog(String text, int color) { addLog(text, color, null, DuelPalette.K_PLAY); }
 
@@ -656,7 +656,7 @@ public class PtcgDuelScreen extends Screen {
         logScroll = 0;
     }
 
-    /** Carta completa (fullName) de un nombre del motor que acaba de jugar ese lado: Partidario, Estadio, descarte, herramientas... */
+    /** Full card (fullName) for an engine name that side just played: Supporter, Stadium, discard, tools... */
     @Nullable
     private String findPlayed(String sideKey, String engineName) {
         if (engineName.isEmpty()) return null;
@@ -677,7 +677,7 @@ public class PtcgDuelScreen extends Screen {
         return null;
     }
 
-    /** Pone en el idioma del juego los nombres de cartas que trae un registro del motor. */
+    /** Translates the card names in an engine log entry into the game's language. */
     private JsonObject localizeParams(@Nullable JsonObject p, String sideKey) {
         if (p == null) return null;
         JsonObject out = p.deepCopy();
@@ -733,7 +733,7 @@ public class PtcgDuelScreen extends Screen {
                     koLine ? DuelPalette.K_KO : who.isEmpty() || flipLine ? DuelPalette.K_SYSTEM : DuelPalette.K_PLAY);
             boolean flip = m.equals("LOG_PLAYER_FLIPS_HEADS") || m.equals("LOG_PLAYER_FLIPS_TAILS");
             if (flip && i(v, "turn", 0) == 0 && bigCoinAt < 0 && !introSkipped && now() - introAt < 30) {
-                // la moneda que decide quién empieza: en grande, en el centro
+                // the coin that decides who goes first: large, in the center
                 bigCoinAt = Math.max(now(), introAt + 1.7);
                 bigCoinLanded = false;
                 coinHeads = m.endsWith("HEADS");
@@ -774,7 +774,7 @@ public class PtcgDuelScreen extends Screen {
                 case "LOG_PLAYER_ATTACHES_CARD" -> sound(SoundEvents.BLOCK_AMETHYST_BLOCK_HIT, 1.3f, 0.8f);
                 case "LOG_PLAYER_DRAWS_CARD" -> sound(TcgSounds.CARD_SLIDE, 1.3f, 0.35f);
                 case "LOG_PLAYER_FLIPS_HEADS", "LOG_PLAYER_FLIPS_TAILS" -> {
-                    coinAt = Math.max(now(), coinAt + 1.2); // varias tiradas seguidas: una detrás de otra
+                    coinAt = Math.max(now(), coinAt + 1.2); // several flips in a row: one after another
                     coinHeads = s(l, "m").endsWith("HEADS");
                     coinMine = mine;
                     sound(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 1.8f, 0.35f);
@@ -789,7 +789,7 @@ public class PtcgDuelScreen extends Screen {
                         burst(c[0], c[1], GOLD, 40, 3.2f);
                         burst(c[0], c[1], RED, 30, 2.4f);
                         ring(c[0], c[1], DuelPalette.LOG_KO, 70);
-                        // fantasma de la carta debilitada (el nuevo estado ya no la trae)
+                        // ghost of the knocked-out card (the new state no longer includes it)
                         JsonObject dead = monByKeyIn(prev, key);
                         int[] r = rects.get(key);
                         if (dead != null && r != null) {
@@ -808,7 +808,7 @@ public class PtcgDuelScreen extends Screen {
                     shakePow = 8;
                     vignetteAt = now();
                     vignetteColor = GOLD;
-                    PtcgAudio.cry(who, 0.75f, 0.9f); // el registro trae el nombre del motor
+                    PtcgAudio.cry(who, 0.75f, 0.9f); // the log carries the engine name
                     PtcgAudio.play("poke_ball.recall", SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST, 1f, 0.8f);
                     sound(SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST, 0.8f, 0.6f);
                 }
@@ -817,7 +817,7 @@ public class PtcgDuelScreen extends Screen {
         }
     }
 
-    // ================================================================== efectos
+    // ================================================================== effects
 
     private Fx floatText(String text, int color, float x, float y, float scale) {
         Fx f = new Fx();
@@ -833,7 +833,7 @@ public class PtcgDuelScreen extends Screen {
         return f;
     }
 
-    /** Número de daño / curación que "explota" y flota: más grande y más rojo cuanto mayor es el golpe. */
+    /** Damage / heal number that "pops" and floats: bigger and redder the bigger the hit. */
     private void damageText(int amount, boolean heal, float x, float y) {
         float sc = heal ? 1.6f : MathHelper.clamp(1.7f + amount / 90f, 1.7f, 3.2f);
         int col = heal ? DuelPalette.HP_HIGH : amount >= 120 ? 0xFFFF2A4A : amount >= 60 ? 0xFFFF5A3C : 0xFFFF8A3C;
@@ -890,7 +890,7 @@ public class PtcgDuelScreen extends Screen {
         burst(x, y, color, 24, 3f);
     }
 
-    /** Daño / curación, evoluciones, energías, condiciones y premios: efectos en pantalla y líneas del registro. */
+    /** Damage / healing, evolutions, energies, conditions and prizes: on-screen effects and log lines. */
     private void diffEffects(JsonObject a, JsonObject b) {
         for (String sideKey : new String[]{"me", "opp"}) {
             JsonObject pa = obj(a.get(sideKey)), pb = obj(b.get(sideKey));
@@ -904,7 +904,7 @@ public class PtcgDuelScreen extends Screen {
                 String key = sideKey + ":" + (idx < 0 ? ACTIVE + ":0" : BENCH + ":" + idx);
                 float[] c = center(key);
                 if (ma == null && mb != null) {
-                    // Pokémon nuevo en juego: Poké Ball y su grito
+                    // new Pokémon in play: Poké Ball and its cry
                     PtcgAudio.play("poke_ball.send_out", SoundEvents.ENTITY_CHICKEN_EGG, 1f, 0.7f);
                     PtcgAudio.cry(ename(s(mb, "f")), 1f, 0.75f);
                     if (c != null) { burst(c[0], c[1], 0xFFFFFFFF, 18, 1.8f); ring(c[0], c[1], sideKey.equals("me") ? BLUE : RED, 50); }
@@ -923,7 +923,7 @@ public class PtcgDuelScreen extends Screen {
                             burst(c[0], c[1], RED, 10 + d / 10, 2.2f);
                             if (d >= 100) burst(c[0], c[1], GOLD, 16, 3f);
                         }
-                        // sacudida proporcional al golpe (si la anterior ya terminó, empieza de cero)
+                        // shake proportional to the hit (if the previous one has ended, start from zero)
                         if (now() - shakeAt > 0.35) shakePow = 0;
                         shakeAt = now();
                         shakePow = Math.max(shakePow, Math.min(8, 2 + d / 25f));
@@ -960,7 +960,7 @@ public class PtcgDuelScreen extends Screen {
                 } else {
                     boolean evo = false;
                     for (JsonElement e : arr(mb, "below")) if (e.getAsString().equals(s(ma, "f"))) evo = true;
-                    // la evolución ya la registra el motor (LOG_PLAYER_EVOLVES_POKEMON, en violeta): aquí solo efectos
+                    // the engine already logs the evolution (LOG_PLAYER_EVOLVES_POKEMON, in violet): effects only here
                     if (evo && c != null) {
                         floatText(ui("evolved"), VIOLET, c[0], c[1] - 10, 1.2f);
                         ring(c[0], c[1], VIOLET, 60);
@@ -983,7 +983,7 @@ public class PtcgDuelScreen extends Screen {
                     burst(pc[0], pc[1], GOLD, 16, 1.8f);
                     ring(pc[0], pc[1], GOLD, 40);
                 }
-                if (pr != null) { // las cartas de Premio vuelan a la mano de quien las coge
+                if (pr != null) { // Prize cards fly to the hand of whoever takes them
                     boolean mineSide = sideKey.equals("me");
                     int pw = Math.round(bw * 0.5f), ph = Math.round(pw / Draw.CARD_RATIO);
                     for (int k = 0; k < Math.min(prizes, 6); k++) {
@@ -1054,7 +1054,7 @@ public class PtcgDuelScreen extends Screen {
         rightX = mx1 - 10;
     }
 
-    // ================================================================== dibujo básico
+    // ================================================================== basic drawing
 
     private void text(DrawContext ctx, String s, float x, float y, int color, float scale, boolean shadow) {
         MatrixStack m = ctx.getMatrices();
@@ -1075,7 +1075,7 @@ public class PtcgDuelScreen extends Screen {
 
     private int tw(String s, float scale) { return Math.round(textRenderer.getWidth(s) * scale); }
 
-    /** Panel redondeado con degradado suave (blanco → azul muy claro), brillo arriba y sombra suave. */
+    /** Rounded panel with a soft gradient (white → very light blue), top highlight and soft shadow. */
     private static void panel(DrawContext ctx, int x, int y, int w, int h, int fill) {
         float al = (fill >>> 24) / 255f;
         ctx.fill(x + 1, y + 3, x + w + 1, y + h + 4, withAlpha(0x1A0A2A50, al));
@@ -1148,7 +1148,7 @@ public class PtcgDuelScreen extends Screen {
     private void energyDot(DrawContext ctx, int cx, int cy, int r, int type) {
         net.minecraft.util.Identifier tex = r >= 3 ? ClientPtcg.energyTexture(type) : null;
         int tc = DuelPalette.energy(type);
-        if (tex != null) { // aro del color del tipo alrededor del símbolo real
+        if (tex != null) { // ring in the type's color around the real symbol
             StylePainter.circle(ctx, cx + 1, cy + 1, r + 1, 0x500A2A50);
             StylePainter.circle(ctx, cx, cy, r + 1, Ui.darken(tc, 20));
             Draw.circleTexture(ctx, tex, cx, cy, r, 0.5f, 0.4928f, 0.226f, 0.1625f);
@@ -1173,7 +1173,7 @@ public class PtcgDuelScreen extends Screen {
 
     private static int energyColor(String f) { return DuelPalette.energy(energyType(f)); }
 
-    /** Píldora de color con el nombre de un tipo de Energía (tipos, debilidad, resistencia). Devuelve su ancho. */
+    /** Colored pill with the name of an Energy type (types, weakness, resistance). Returns its width. */
     private int typeBadge(DrawContext ctx, int x, int y, int type, String extra, float scale) {
         String l = ui("type." + type) + (extra.isEmpty() ? "" : " " + extra);
         int w = tw(l, scale) + 8, h = Math.round(8 * scale) + 3, c = DuelPalette.energy(type);
@@ -1182,7 +1182,7 @@ public class PtcgDuelScreen extends Screen {
         return w;
     }
 
-    /** Imagen de la carta (la real de cobbletcg si existe, también las Energías; si no, una carta limpia con sus datos). */
+    /** Card image (the real cobbletcg one if it exists, Energies too; otherwise a clean card with its data). */
     private void card(DrawContext ctx, String fullName, float x, float y, float w, float h, float alpha) {
         ItemStack st = ClientPtcg.stack(fullName);
         if (!st.isEmpty()) {
@@ -1223,7 +1223,7 @@ public class PtcgDuelScreen extends Screen {
         if (r >= 3) StylePainter.circle(ctx, ccx, ccy, Math.max(1, r / 3), 0xFFFFFFFF);
     }
 
-    /** Carta con marco blanco limpio y sombra (en 3D, plana). */
+    /** Card with a clean white frame and shadow (in 3D, flat). */
     private void framedCard(DrawContext ctx, String f, int x, int y, int w, int h, float alpha) {
         MatrixStack m = ctx.getMatrices();
         m.push();
@@ -1250,15 +1250,15 @@ public class PtcgDuelScreen extends Screen {
 
     private static final java.util.regex.Pattern RARE = java.util.regex.Pattern.compile("(^Radiant |\\b(ex|EX|GX|V|VMAX|VSTAR|BREAK|LV\\.X|Prism Star|ACE SPEC)\\b)");
 
-    /** Lámina holo: 2 si es graduada, 1 si es una carta rara (ex, V, GX, Radiante...), 0 normal. */
+    /** Holo foil: 2 if graded, 1 if it is a rare card (ex, V, GX, Radiant...), 0 normal. */
     private int foilOf(String f, boolean mine) {
         if (gradeOf(mine, f) > 0) return 2;
         return RARE.matcher(ename(f)).find() ? 1 : 0;
     }
 
     /**
-     * Carta 3D centrada en el origen actual: sombra, canto, marco, perspectiva, reflejo y holo. Sin textura (faltan
-     * los resource packs de cobbletcg) cae a la carta plana, achatada según el giro para no perder el movimiento.
+     * 3D card centered on the current origin: shadow, edge, frame, perspective, reflection and holo. Without a texture (the
+     * cobbletcg resource packs are missing) it falls back to the flat card, squashed by the rotation to keep the motion.
      */
     private void card3d(DrawContext ctx, String f, float w, float h, float rx, float ry, float alpha, float lift, int glow, float dim, double t) {
         card3d(ctx, f, w, h, rx, ry, alpha, lift, glow, dim, t, -1);
@@ -1307,7 +1307,7 @@ public class PtcgDuelScreen extends Screen {
         background(ctx, t);
         float sx = 0, sy = 0;
         double sa = t - shakeAt;
-        if (sa < 0.42) { // sacudida que se apaga con suavidad (cuadrática) y mezcla dos frecuencias para no ser mecánica
+        if (sa < 0.42) { // shake that fades out smoothly (quadratic) and mixes two frequencies so it doesn't feel mechanical
             float d = (float) (1 - sa / 0.42), k = d * d * shakePow;
             sx = (float) (Math.sin(t * 87) * 0.7 + Math.sin(t * 53 + 1.3) * 0.3) * k;
             sy = (float) (Math.cos(t * 71) * 0.7 + Math.cos(t * 41 + 0.7) * 0.3) * k * 0.6f;
@@ -1326,7 +1326,7 @@ public class PtcgDuelScreen extends Screen {
         if (intro) { syncHand(handCards()); handReady = true; }
         else hand(ctx, bmx, bmy, t);
         effects(ctx, t);
-        // registro completo: entra y sale deslizándose (se sigue dibujando mientras se cierra)
+        // full log: slides in and out (keeps drawing while it closes)
         drawerT = DuelFx.approach(drawerT, menuOpen ? 1 : 0, 14f, dt);
         if (menuOpen && drawerT > 0.995f) drawerT = 1;
         if (!menuOpen && drawerT < 0.01f) drawerT = 0;
@@ -1361,7 +1361,7 @@ public class PtcgDuelScreen extends Screen {
         ctx.fillGradient(0, 0, W, H, 0xFFE9F2FB, 0xFFD3E4F4);
         String bid = boardId();
         if (DuelBackgrounds.draw(ctx, bid, 0, 0, W, H, Math.max(160, Math.min(W, H) / 2), t, 1f)) {
-            // velo para que el tablero se lea: bordes más oscuros y el tapete un poco aclarado
+            // veil so the board stays readable: darker edges and the playmat slightly lightened
             ctx.fillGradient(0, 0, W, H / 5, 0x55000000, 0x00000000);
             ctx.fillGradient(0, H - H / 5, W, H, 0x00000000, 0x55000000);
             round(ctx, mx0, 2, mx1 - mx0, H - 4, 0x40FFFFFF);
@@ -1378,7 +1378,7 @@ public class PtcgDuelScreen extends Screen {
         ctx.fill(mx0 + 14, midY, mx1 - 14, midY + 1, withAlpha(lc, 0.35f * pulse + 0.15f));
         ctx.fill(mx0 + 14, midY - 1, mx1 - 14, midY + 2, withAlpha(lc, 0.08f));
         roundOutline(ctx, mx0, 2, mx1 - mx0, H - 4, 0x60FFFFFF);
-        // tapete: huecos marcados para el Activo y la Banca de cada lado, con el color de quien juega
+        // playmat: marked slots for each side's Active and Bench, in the color of the player whose turn it is
         int bt = 5 * (bw + 8) - 8, bx = cx - bt / 2;
         for (int side = 0; side < 2; side++) {
             boolean mine = side == 1;
@@ -1395,7 +1395,7 @@ public class PtcgDuelScreen extends Screen {
         }
     }
 
-    // ------------------------------------------------------------------ tablero
+    // ------------------------------------------------------------------ board
 
     private void board(DrawContext ctx, int mx, int my, double t) {
         JsonObject me = side("me"), opp = side("opp");
@@ -1460,7 +1460,7 @@ public class PtcgDuelScreen extends Screen {
         }
     }
 
-    /** Un Pokémon en juego: PS grandes con barra encima, contadores de daño, energías, herramienta, habilidad y condiciones. */
+    /** A Pokémon in play: large HP with a bar above, damage counters, energies, tool, ability and conditions. */
     private void monSlot(DrawContext ctx, @Nullable JsonObject p, String key, int x, int y, int w, int h, int mx, int my, double t, boolean mine) {
         rects.put(key, new int[]{x, y, w, h});
         double la = t - lungeAt.getOrDefault(key, -10.0);
@@ -1476,7 +1476,7 @@ public class PtcgDuelScreen extends Screen {
         }
         String f = s(p, "f");
         if (!an.f.equals(f)) {
-            if (boardReady) { // entra en juego o evoluciona: cae sobre la mesa con rebote
+            if (boardReady) { // enters play or evolves: drops onto the table with a bounce
                 an.s.x = 1.5f;
                 an.s.v = 0;
                 an.rx.x = -38;
@@ -1484,7 +1484,7 @@ public class PtcgDuelScreen extends Screen {
                 an.lift.x = 1.4f;
             }
             an.f = f;
-            hpBars.remove(key); // otro Pokémon (o evolución): la barra empieza en su valor real
+            hpBars.remove(key); // another Pokémon (or evolution): the bar starts at its real value
         }
         if (dragActive && key.equals("me:1:0")) {
             round(ctx, x, y, w, h, 0x30FFFFFF);
@@ -1518,7 +1518,7 @@ public class PtcgDuelScreen extends Screen {
             float p2 = 0.5f + 0.5f * (float) Math.sin(t * 3);
             Draw.glow(ctx, x + w / 2f, y + h / 2f, w, h, 0xFF7FD0FF, 0.3f + 0.25f * p2);
         }
-        // turno del rival: su Activo brilla en rojo suave
+        // opponent's turn: their Active glows soft red
         if (!mine && key.equals("opp:1:0") && !myTurn() && !over()) {
             float p3 = 0.5f + 0.5f * (float) Math.sin(t * 3);
             Draw.glow(ctx, x + w / 2f, y + h / 2f, w, h, 0xFFFF8FA3, 0.15f + 0.15f * p3);
@@ -1540,7 +1540,7 @@ public class PtcgDuelScreen extends Screen {
             m.scale(k, k, 1);
         }
         JsonArray toolsBehind = arr(p, "tools");
-        for (int k = Math.min(2, toolsBehind.size()) - 1; k >= 0; k--) { // la herramienta asoma por detrás, como en la mesa real
+        for (int k = Math.min(2, toolsBehind.size()) - 1; k >= 0; k--) { // the tool peeks out from behind, like on a real table
             String tf = toolsBehind.get(k).getAsString();
             float tw0 = w * 0.62f, th0 = tw0 / Draw.CARD_RATIO;
             m.push();
@@ -1598,10 +1598,10 @@ public class PtcgDuelScreen extends Screen {
         if (hover) hoverOutline(ctx, x, y, w, h);
     }
 
-    /** PS restantes en una píldora grande del color de la salud, sobre el borde inferior de la carta. Devuelve su alto. */
+    /** Remaining HP in a large health-colored pill over the card's bottom edge. Returns its height. */
     private int hpPill(DrawContext ctx, int x, int y, int w, int h, int left, int hp, String key, double t) {
         float frac = hp == 0 ? 0 : left / (float) hp;
-        // barra animada: baja con suavidad y deja un "fantasma" claro detrás (o una franja verde delante al curarse)
+        // animated bar: drops smoothly and leaves a light "ghost" behind (or a green strip ahead when healing)
         DuelFx.HpBar bar = hpBars.computeIfAbsent(key, k -> new DuelFx.HpBar());
         bar.update(frac, t, dt);
         float shown = bar.shown, ghost = bar.ghost;
@@ -1609,7 +1609,7 @@ public class PtcgDuelScreen extends Screen {
         double hit = t - hitAt.getOrDefault(key, -10.0);
         float pop = hit < 0.5 ? 1 + 0.25f * (float) Math.sin(hit / 0.5 * Math.PI) : 1;
         float hs = MathHelper.clamp(w / 32f, 0.8f, 1.45f) * pop;
-        // el número cuenta hacia abajo (o arriba) junto con la barra
+        // the number counts down (or up) along with the bar
         int shownHp = Math.abs(shown - frac) < 0.002f ? left : Math.round(shown * hp);
         String hpS = String.valueOf(shownHp);
         boolean showLabel = w >= 34;
@@ -1627,14 +1627,14 @@ public class PtcgDuelScreen extends Screen {
         ctx.fill(px + 1, py + 2, px + pw + 1, py + ph + 2, 0x400A2A50);
         pill(ctx, px - 1, py - 1, pw + 2, ph + 2, 0xFFFFFFFF);
         pill(ctx, px, py, pw, ph, Ui.darken(col, 80));
-        if (ghost > shown + 0.002f) { // fantasma: amarillo claro tras un golpe, verde claro al curarse
+        if (ghost > shown + 0.002f) { // ghost: light yellow after a hit, light green when healing
             int gw = Math.max(ph, Math.round(pw * ghost));
             pill(ctx, px, py, gw, ph, bar.healing() ? DuelPalette.HP_HEAL : DuelPalette.HP_GHOST);
         }
         int fw = Math.max(ph, Math.round(pw * shown));
         if (left > 0 || shown > 0.003f) {
             pill(ctx, px, py, fw, ph, col);
-            ctx.fill(px + 2, py + ph - 2, px + fw - 2, py + ph - 1, withAlpha(Ui.darken(col, 40), 0.6f)); // sombra inferior
+            ctx.fill(px + 2, py + ph - 2, px + fw - 2, py + ph - 1, withAlpha(Ui.darken(col, 40), 0.6f)); // bottom shadow
         }
         ctx.fill(px + 3, py + 1, px + fw - 3, py + 2, withAlpha(0xFFFFFFFF, 0.5f));
         float tx = x + w / 2f - tW / 2f;
@@ -1643,7 +1643,7 @@ public class PtcgDuelScreen extends Screen {
         return ph;
     }
 
-    /** Funda de CobbleGrade alrededor de una carta: canto de metacrilato y etiqueta con la nota encima. */
+    /** CobbleGrade slab around a card: acrylic edge and a label with the grade on top. */
     private void slabOverlay(DrawContext ctx, int x, int y, int w, int h, int grade) {
         if (grade <= 0) return;
         int col = dev.tcgshop.grading.Grading.color(grade) | 0xFF000000;
@@ -1710,7 +1710,7 @@ public class PtcgDuelScreen extends Screen {
             boolean hov = Ui.in(mx, my, dx, y, bw, bh);
             MatrixStack m = ctx.getMatrices();
             int nShow = Math.min(4, disc.size());
-            for (int k = nShow - 1; k >= 0; k--) { // montón desordenado: las de debajo asoman giradas
+            for (int k = nShow - 1; k >= 0; k--) { // messy pile: the ones underneath peek out rotated
                 int idx = disc.size() - 1 - k;
                 String fk = disc.get(idx).getAsString();
                 float rot = ((idx * 37) % 17 - 8) * 1.1f, ox = ((idx * 53) % 7 - 3) * 0.7f, oy = -k * 1.3f;
@@ -1754,7 +1754,7 @@ public class PtcgDuelScreen extends Screen {
         int ew = Math.max(70, tw(ui("end_turn"), 1f) + 26), eh = 18, ex = rightX - ew, ey = midY - eh / 2;
         rects.put("btn:pass", new int[]{ex, ey, ew, eh});
         boolean eHover = turn && Ui.in(mx, my, ex, ey, ew, eh);
-        if (turn) { // tu turno: botón azul brillante que late suavemente
+        if (turn) { // your turn: bright blue button that pulses gently
             float pz = 0.5f + 0.5f * (float) Math.sin(t * 3);
             Ui.rounded(ctx, ex - 2, ey - 2, ew + 4, eh + 4, 10, withAlpha(BLUE, 0.12f + 0.12f * pz));
             glossy(ctx, ex, ey, ew, eh, BLUE, eHover, true);
@@ -1797,7 +1797,7 @@ public class PtcgDuelScreen extends Screen {
         String n = Ui.ellipsis(name, 90);
         int w = 20 + tw(n, 0.8f) + (extra.isEmpty() ? 6 : tw(extra, 0.6f) + 12);
         pill(ctx, x, y, w, 16, 0xF0FFFFFF);
-        // de quién es el turno: la ficha se tiñe del color del jugador con un degradado
+        // whose turn it is: the badge is tinted with the player's color in a gradient
         if (active) DuelFx.hGradient(ctx, x + 3, y + 1, x + w - 3, y + 15, withAlpha(color, 0.28f), withAlpha(color, 0.04f));
         ctx.fill(x + 4, y + 14, x + w - 4, y + 15, withAlpha(color, active ? 0.9f : 0.35f));
         roundOutline(ctx, x, y, w, 16, active ? color : LINE);
@@ -1826,10 +1826,10 @@ public class PtcgDuelScreen extends Screen {
 
     private record LogRow(OrderedText text, LogLine line, boolean sep, boolean first, int entry) {}
 
-    /** Registro completo: cabecera, turnos como separadores, cada jugada con su color, miniatura y las nuevas resaltadas. */
+    /** Full log: header, turns as separators, each play with its color and thumbnail, new ones highlighted. */
     private void logDrawer(DrawContext ctx, int mx, int my, double t) {
         int w = drawerW(), x = mx0 + 6, y = 24, h = H - 48;
-        boolean live = menuOpen; // cerrándose: solo se dibuja, ya no recibe clics
+        boolean live = menuOpen; // closing: only drawn, no longer receives clicks
         MatrixStack m = ctx.getMatrices();
         m.push();
         m.translate(-(1 - drawerT) * (w + 14), 0, 250);
@@ -1863,14 +1863,14 @@ public class PtcgDuelScreen extends Screen {
         int step = 9, max = lh / step;
         logScroll = MathHelper.clamp(logScroll, 0, Math.max(0, rows.size() - max));
         int start = Math.max(0, rows.size() - max - logScroll);
-        // el scissor no sigue a la matriz: se desplaza a mano junto con el cajón
+        // the scissor doesn't follow the matrix: it is shifted by hand along with the drawer
         int off = Math.round(-(1 - drawerT) * (w + 14));
         ctx.enableScissor(x + 2 + off, ly0, x + w - 2 + off, ly0 + lh);
         int ly = ly0;
         for (int k = start; k < Math.min(rows.size(), start + max); k++) {
             LogRow r = rows.get(k);
             LogLine l = r.line();
-            if (r.sep()) { // separador de turno con el color de quien juega
+            if (r.sep()) { // turn separator in the color of the player whose turn it is
                 int sw = tw(l.text().replace("—", "").trim(), 0.7f) + 14;
                 ctx.fill(x + 10, ly + 4, x + w - 10, ly + 5, withAlpha(l.color(), 0.35f));
                 pill(ctx, x + w / 2 - sw / 2, ly, sw, 9, l.color());
@@ -1893,14 +1893,14 @@ public class PtcgDuelScreen extends Screen {
             ly += step;
         }
         ctx.disableScissor();
-        if (rows.size() > max) { // barra de desplazamiento
+        if (rows.size() > max) { // scrollbar
             int trackH = lh, barH = Math.max(12, trackH * max / rows.size());
             int barY = ly0 + (trackH - barH) * (rows.size() - max - logScroll) / Math.max(1, rows.size() - max);
             ctx.fill(x + w - 5, ly0, x + w - 3, ly0 + trackH, 0x200A2A50);
             ctx.fill(x + w - 5, barY, x + w - 3, barY + barH, withAlpha(BLUE, 0.7f));
         }
         if (live) {
-            areas.add(new Area(x, y, w, h, () -> {})); // los clics dentro del panel no atraviesan al tablero
+            areas.add(new Area(x, y, w, h, () -> {})); // clicks inside the panel don't pass through to the board
             areas.add(new Area(x + w - 18, y + 4, 14, 14, () -> menuOpen = false));
         }
         if (!over()) {
@@ -1920,8 +1920,8 @@ public class PtcgDuelScreen extends Screen {
     }
 
     /**
-     * Registro siempre a la vista junto a la mesa: las últimas jugadas entran deslizándose con su color y la miniatura
-     * de la carta, la más nueva destaca y las viejas se apagan. Clic = registro completo.
+     * Always-visible log beside the table: the latest plays slide in with their color and the card's thumbnail,
+     * the newest stands out and older ones fade. Click = full log.
      */
     private void logFeed(DrawContext ctx, int mx, int my, double t) {
         if (menuOpen || log.isEmpty()) return;
@@ -1949,7 +1949,7 @@ public class PtcgDuelScreen extends Screen {
             wrapped.add(lines);
         }
         int y = bottom - used;
-        // cabecera
+        // header
         boolean hh2 = Ui.in(mx, my, x, y - 13, w, 11);
         String title = ui("feed_title").toUpperCase();
         text(ctx, title, x + 2, y - 11, hh2 ? BLUE : 0xFF5C6F8A, 0.62f, false);
@@ -1986,7 +1986,7 @@ public class PtcgDuelScreen extends Screen {
                 if (l.card() != null) {
                     card(ctx, l.card(), tx, y + (eh - thumbH) / 2f, thumbW, thumbH, al);
                     tx += thumbW + 4;
-                } else if (!DuelPalette.icon(l.kind()).isEmpty()) { // icono de la categoría: daño, curación, K.O., premio...
+                } else if (!DuelPalette.icon(l.kind()).isEmpty()) { // category icon: damage, heal, K.O., prize...
                     String ic = DuelPalette.icon(l.kind());
                     int icx = tx + thumbW / 2, icy = y + eh / 2;
                     StylePainter.circle(ctx, icx, icy, 4, withAlpha(l.color(), 0.18f * al));
@@ -1994,7 +1994,7 @@ public class PtcgDuelScreen extends Screen {
                     tx += thumbW + 4;
                 }
                 float lyy = y + (lines.size() <= 1 ? 5f : 3.5f);
-                // texto del color de su categoría (oscurecido para leerse bien sobre blanco); las jugadas normales en tinta
+                // text in its category's color (darkened to read well on white); normal plays in ink
                 int ink = l.kind() == DuelPalette.K_PLAY ? (rank == 0 ? INK : 0xFF3E506A) : Ui.darken(l.color(), rank == 0 ? 25 : 10);
                 for (OrderedText ot : lines) {
                     drawOrdered(ctx, ot, tx, lyy, withAlpha(ink, al), sc);
@@ -2017,7 +2017,7 @@ public class PtcgDuelScreen extends Screen {
         areas.add(new Area(x, fy, w, used + 13, () -> { menuOpen = true; click(); }));
     }
 
-    /** Carta que juega el rival: entra girando, se queda en grande un momento y se va a su pila. */
+    /** Card the opponent plays: spins in, stays large for a moment and goes to its pile. */
     private void showcaseDraw(DrawContext ctx, double t) {
         double a = t - showAt;
         if (showF.isEmpty() || a > 2.0) return;
@@ -2093,7 +2093,7 @@ public class PtcgDuelScreen extends Screen {
         };
     }
 
-    // ------------------------------------------------------------------ mano y arrastre
+    // ------------------------------------------------------------------ hand and drag
 
     private boolean playable(int k) {
         JsonArray h = handCards();
@@ -2187,7 +2187,7 @@ public class PtcgDuelScreen extends Screen {
         }
     }
 
-    /** Empareja las cartas de la mano con su estado animado (así no saltan cuando juegas o robas una). */
+    /** Matches hand cards with their animated state (so they don't jump when you play or draw one). */
     private void syncHand(JsonArray hand) {
         List<Anim> old = new ArrayList<>(handAnim);
         boolean[] used = new boolean[old.size()];
@@ -2206,7 +2206,7 @@ public class PtcgDuelScreen extends Screen {
         int n = hand.size();
         boolean wantUp = dragging || selectedHand >= 0 || lastHoverHand >= 0 || (my > 0 && my >= H - hh * 0.8f);
         handRaise += ((wantUp ? 1 : 0) - handRaise) * Math.min(1, dt * 11);
-        // sin el ratón cerca, la mano baja y deja ver tu Banca
+        // with the mouse away, the hand lowers and reveals your Bench
         int handBaseY = this.handBaseY + Math.round((1 - handRaise) * hh * 0.32f);
         hoverHand = -1;
         syncHand(hand);
@@ -2253,7 +2253,7 @@ public class PtcgDuelScreen extends Screen {
             }
             if (!an.placed) {
                 an.placed = true;
-                if (handReady && deck != null) { // carta robada: sale volando del mazo y se da la vuelta
+                if (handReady && deck != null) { // drawn card: flies out of the deck and flips over
                     an.x.x = deck[0] + k * 6;
                     an.y.x = deck[1] + hh * 0.3f - k * hh * 0.12f;
                     an.a.x = -25;
@@ -2307,7 +2307,7 @@ public class PtcgDuelScreen extends Screen {
         handCard(ctx, hand.get(k).getAsString(), an.x.x + shakeX, an.y.x, an.a.x, an.s.x, an.rx.x, an.ry.x, pl, k == selectedHand, turn && !pl, k == hoverHand, t);
     }
 
-    /** Por qué no puedes jugar ahora esa carta de la mano (null si sí puedes). */
+    /** Why you can't play that hand card right now (null if you can). */
     @Nullable
     private String unplayableReason(int k) {
         JsonArray h = handCards();
@@ -2323,7 +2323,7 @@ public class PtcgDuelScreen extends Screen {
         return ClientPtcg.tr("msg", "CANNOT_PLAY_THIS_CARD", null);
     }
 
-    /** Al pasar el ratón por una carta de la mano: sus destinos posibles se marcan suavemente. */
+    /** When hovering a hand card: its possible targets are gently highlighted. */
     private void previewTargets(DrawContext ctx, double t) {
         if (hoverHand < 0 || dragging || selectedHand >= 0 || !canAct()) return;
         float p = 0.5f + 0.5f * (float) Math.sin(t * 5);
@@ -2366,7 +2366,7 @@ public class PtcgDuelScreen extends Screen {
             w = hw;
             h = hh;
         }
-        // la carta se inclina con la velocidad del arrastre y se balancea al parar
+        // the card tilts with the drag velocity and sways when it stops
         if (dt > 0) {
             float vx = (dragX - lastDragX) / dt, vy = (dragY - lastDragY) / dt, k = Math.min(1, dt * 14);
             dragVx += (vx - dragVx) * k;
@@ -2437,7 +2437,7 @@ public class PtcgDuelScreen extends Screen {
         }
     }
 
-    // ------------------------------------------------------------------ ampliación de carta (clic)
+    // ------------------------------------------------------------------ card zoom (click)
 
     private void zoom(DrawContext ctx, int mx, int my, double t) {
         String f = zoomCard;
@@ -2459,7 +2459,7 @@ public class PtcgDuelScreen extends Screen {
         float x = fx0 + (x0 - fx0) * in, y = fy0 + (y0 - fy0) * in, w = fw + (cw - fw) * in, h = fh + (ch - fh) * in;
         boolean zOpp = zoomKey != null && zoomKey.startsWith("opp");
         int zg = zOpp ? gradeOf(false, f) : gradeOf(true, f);
-        // la carta ampliada sigue al ratón en 3D, con reflejo y holo (menos giro si va en su funda graduada)
+        // the zoomed card follows the mouse in 3D, with reflection and holo (less rotation if it is in its graded slab)
         float zcx = x + w / 2f, zcy = y + h / 2f, lim = zg > 0 ? 0.3f : 1f;
         zoomAnim.tilt(MathHelper.clamp(-(my - zcy) / (h * 0.7f), -1, 1) * 18 * lim, MathHelper.clamp((mx - zcx) / (w * 0.9f), -1, 1) * 24 * lim, dt);
         MatrixStack zm = ctx.getMatrices();
@@ -2478,7 +2478,7 @@ public class PtcgDuelScreen extends Screen {
         textCS(ctx, ui("zoom_close"), cx, y0 + ch + 6, 0xFFFFFFFF, 0.65f);
     }
 
-    /** Detalles de la carta ampliada con botones de acción (atacar, habilidad, retirarse, jugar, usar estadio). */
+    /** Zoomed card details with action buttons (attack, ability, retreat, play, use stadium). */
     private int detailPanel(DrawContext ctx, String f, @Nullable JsonObject d, @Nullable JsonObject mon, int x, int y, int w, int maxH,
                             int mx, int my, List<Runnable> deferred) {
         boolean mineActive = "me:1:0".equals(zoomKey), mine = zoomKey != null && zoomKey.startsWith("me:");
@@ -2486,7 +2486,7 @@ public class PtcgDuelScreen extends Screen {
         int cy = y + 8;
         List<Runnable> draws = new ArrayList<>();
         int stype = i(d, "st", 0);
-        // cabecera teñida del tipo de la carta (Pokémon: su tipo; Energía: la suya; Entrenador: su clase)
+        // header tinted with the card's type (Pokémon: its type; Energy: its own; Trainer: its class)
         int headCol = stype == 1 && arr(d, "ct").size() > 0 ? DuelPalette.energy(arr(d, "ct").get(0).getAsInt())
                 : stype == 3 ? energyColor(f) : stype == 2 ? (i(d, "tt", 0) == 1 ? 0xFFF08A4B : i(d, "tt", 0) == 2 ? 0xFF3FBF7F : i(d, "tt", 0) == 3 ? 0xFF7A8AE0 : 0xFF4FA3E8)
                 : SOFT;
@@ -2503,7 +2503,7 @@ public class PtcgDuelScreen extends Screen {
         final String hs = stype == 1 ? left + "/" + hp + " " + ui("hp") : "";
         draws.add(() -> {
             text(ctx, sub, x + 8, sy, Ui.darken(SOFT, 15), 0.7f, false);
-            if (stype == 1) { // tipos como píldoras de color, sin pisar los PS alineados a la derecha
+            if (stype == 1) { // types as colored pills, without overlapping the right-aligned HP
                 int bx2 = x + 12 + tw(sub, 0.7f), lim = x + w - 12 - tw(hs, 0.8f);
                 for (JsonElement tE : arr(d, "ct")) {
                     int tt = tE.getAsInt();
@@ -2576,7 +2576,7 @@ public class PtcgDuelScreen extends Screen {
                 int ac = cost.size() > 0 ? DuelPalette.energy(cost.get(0).getAsInt()) : DuelPalette.energy(9);
                 if (usable) Ui.roundedGradient(ctx, x + 6, by, w - 12, bh2, 3, hover ? 0xFFFFE3E9 : 0xFFFFF7F9, hover ? 0xFFFFD3DC : 0xFFFFEBEF);
                 else round(ctx, x + 6, by, w - 12, bh2, PANEL2);
-                ctx.fill(x + 7, by + 2, x + 9, by + bh2 - 2, withAlpha(ac, usable || !mineActive ? 1f : 0.45f)); // franja del tipo del coste
+                ctx.fill(x + 7, by + 2, x + 9, by + bh2 - 2, withAlpha(ac, usable || !mineActive ? 1f : 0.45f)); // cost type strip
                 roundOutline(ctx, x + 6, by, w - 12, bh2, usable ? (hover ? Ui.darken(RED, 30) : RED) : LINE);
                 int ex = x + 13;
                 for (JsonElement c : cost) { energyDot(ctx, ex, by + 7, 4, c.getAsInt()); ex += 10; }
@@ -2598,11 +2598,11 @@ public class PtcgDuelScreen extends Screen {
             cy += lines.size() * 8 + 4;
         }
         if (stype == 1) {
-            // Debilidad / Resistencia como píldoras del color del tipo; Retirada con sus Energías Incoloras
+            // Weakness / Resistance as type-colored pills; Retreat with its Colorless Energies
             JsonArray weak = arr(d, "weak"), res = arr(d, "res");
             final int retreatN = i(d, "retreat", 0);
-            // maquetación previa: cada bloque (etiqueta + píldora) baja a otra línea si no cabe en el panel
-            List<Object[]> wItems = new ArrayList<>(); // {isWeak, tipo, valor}
+            // pre-layout: each block (label + pill) wraps to another line if it doesn't fit in the panel
+            List<Object[]> wItems = new ArrayList<>(); // {isWeak, type, value}
             for (JsonArray list : new JsonArray[]{weak, res}) {
                 boolean isWeak = list == weak;
                 for (JsonElement we : list) {
@@ -2613,7 +2613,7 @@ public class PtcgDuelScreen extends Screen {
                     wItems.add(new Object[]{isWeak, i(wo, "t", 9), val});
                 }
             }
-            int[][] wPos = new int[wItems.size() + 1][2]; // {x, línea}; el último es la Retirada
+            int[][] wPos = new int[wItems.size() + 1][2]; // {x, line}; the last one is Retreat
             int lx = x + 8, line = 0, right = x + w - 6;
             for (int k = 0; k < wItems.size(); k++) {
                 Object[] it = wItems.get(k);
@@ -2647,7 +2647,7 @@ public class PtcgDuelScreen extends Screen {
             cy += 12 + line * 11;
             if (!s(d, "ev").isEmpty()) {
                 final int ey = cy;
-                draws.add(() -> text(ctx, ui("evolves_from", s(d, "ev")), x + 8, ey, SOFT, 0.65f, false)); // las especies se llaman igual en las cartas en español
+                draws.add(() -> text(ctx, ui("evolves_from", s(d, "ev")), x + 8, ey, SOFT, 0.65f, false)); // species have the same names on Spanish cards
                 cy += 9;
             }
         }
@@ -2687,7 +2687,7 @@ public class PtcgDuelScreen extends Screen {
         return ph;
     }
 
-    /** {R}, {W}... de los textos de las cartas -> nombre del tipo de Energía. */
+    /** {R}, {W}... in card texts -> Energy type name. */
     private static String symbols(String t) {
         if (t == null || t.indexOf('{') < 0) return t == null ? "" : t;
         String[][] map = {{"{G}", "type.1"}, {"{R}", "type.2"}, {"{W}", "type.3"}, {"{L}", "type.4"}, {"{P}", "type.5"}, {"{F}", "type.6"},
@@ -2710,9 +2710,9 @@ public class PtcgDuelScreen extends Screen {
         return false;
     }
 
-    // ------------------------------------------------------------------ efectos
+    // ------------------------------------------------------------------ effects
 
-    /** Dibuja (y purga las caducadas) una lista de partículas con gravedad. */
+    /** Draws (and purges expired ones from) a list of particles with gravity. */
     private void particles(DrawContext ctx, List<Particle> list, double t) {
         for (Iterator<Particle> it = list.iterator(); it.hasNext(); ) {
             Particle p = it.next();
@@ -2773,16 +2773,16 @@ public class PtcgDuelScreen extends Screen {
             m.translate(0, 0, 200);
             float al = (float) Math.min(1, (1 - a) * 2.5);
             if (f.kind == 1 || f.kind == 2 || f.kind == 3) {
-                // número de daño: entra enorme, rebota elástico, sube con una curva suave y se desvía un poco a un lado
+                // damage number: enters huge, bounces elastically, rises on a smooth curve and drifts slightly to one side
                 float pop = DuelFx.outElastic(age / 0.55);
                 float sc = f.scale * (f.kind == 2 ? 0.8f + 0.2f * pop : 1.6f - 0.6f * pop);
                 float rise = DuelFx.outCubic(a) * (f.kind == 3 ? 18 : 34);
                 float x = f.x + f.drift * DuelFx.outCubic(a);
                 float y = f.y - rise - 4 * sc;
-                if (f.kind == 1 && age < 0.15) x += (float) Math.sin(age * 120) * 2.5f * (1 - (float) age / 0.15f); // temblor del impacto
+                if (f.kind == 1 && age < 0.15) x += (float) Math.sin(age * 120) * 2.5f * (1 - (float) age / 0.15f); // impact tremor
                 int outline = withAlpha(f.kind == 2 ? 0xFF0B4A26 : 0xFF3A0610, al);
                 DuelFx.outlinedC(ctx, textRenderer, f.text, x, y, withAlpha(f.color, al), outline, Math.max(0.1f, sc));
-                if (f.kind == 3 && age < 0.5) { // K.O.: destello blanco que se expande detrás
+                if (f.kind == 3 && age < 0.5) { // K.O.: white flash expanding behind
                     float g = 1 - (float) age / 0.5f;
                     Draw.glow(ctx, f.x, f.y, 60 * (1 + (1 - g)), 30 * (1 + (1 - g)), DuelPalette.LOG_KO, 0.5f * g);
                 }
@@ -2795,7 +2795,7 @@ public class PtcgDuelScreen extends Screen {
         }
     }
 
-    /** Pokémon debilitado: tiembla en rojo, se apaga, gira un poco y se hunde desvaneciéndose. */
+    /** Knocked-out Pokémon: shakes in red, fades, rotates a little and sinks while vanishing. */
     private void koGhostsDraw(DrawContext ctx, double t) {
         for (Iterator<KoGhost> it = koGhosts.iterator(); it.hasNext(); ) {
             KoGhost g = it.next();
@@ -2817,7 +2817,7 @@ public class PtcgDuelScreen extends Screen {
         }
     }
 
-    /** Cartas de Premio volando a la mano: arco con giro, estela dorada y destello al llegar. */
+    /** Prize cards flying to the hand: spinning arc, golden trail and a flash on arrival. */
     private void prizeFliesDraw(DrawContext ctx, double t) {
         for (Iterator<PrizeFly> it = prizeFlies.iterator(); it.hasNext(); ) {
             PrizeFly p = it.next();
@@ -2831,7 +2831,7 @@ public class PtcgDuelScreen extends Screen {
             float e = DuelFx.inOutCubic(age / 0.75);
             float x = p.x0 + (p.x1 - p.x0) * e, y = p.y0 + (p.y1 - p.y0) * e - (float) Math.sin(e * Math.PI) * 40;
             float sc = 1 + 0.6f * (float) Math.sin(e * Math.PI);
-            float flipX = Math.abs((float) Math.cos(e * Math.PI * 2)); // se da la vuelta dos veces por el camino
+            float flipX = Math.abs((float) Math.cos(e * Math.PI * 2)); // flips over twice along the way
             MatrixStack m = ctx.getMatrices();
             m.push();
             m.translate(x, y, 120);
@@ -2841,7 +2841,7 @@ public class PtcgDuelScreen extends Screen {
             back(ctx, -iw / 2, -ih / 2, iw, ih);
             roundOutline(ctx, -iw / 2 - 1, -ih / 2 - 1, iw + 2, ih + 2, GOLD);
             m.pop();
-            if (RNG.nextFloat() < dt * 40) { // estela de chispas (por tiempo, no por fotograma)
+            if (RNG.nextFloat() < dt * 40) { // spark trail (time-based, not per frame)
                 Particle sp = new Particle();
                 sp.x = x;
                 sp.y = y;
@@ -2856,7 +2856,7 @@ public class PtcgDuelScreen extends Screen {
         }
     }
 
-    /** Destello de color en los bordes de la pantalla (te atacan, K.O.). */
+    /** Colored flash on the screen edges (you are attacked, K.O.). */
     private void vignetteDraw(DrawContext ctx, double t) {
         double a = t - vignetteAt;
         if (a > 0.9) return;
@@ -2872,20 +2872,20 @@ public class PtcgDuelScreen extends Screen {
         }
     }
 
-    /** Cambio de turno: franja que cruza la pantalla con "TU TURNO" / "TURNO DEL RIVAL" y destello. */
+    /** Turn change: band crossing the screen with "TU TURNO" / "TURNO DEL RIVAL" and a flash. */
     private void turnDraw(DrawContext ctx, double t) {
         double a = t - turnFxAt;
         if (a > 1.7) return;
         int col = turnFxMine ? BLUE : RED, dark = DuelPalette.sideDark(turnFxMine);
         float flash = (float) Math.max(0, 1 - a / 0.35);
         ctx.fill(0, 0, W, H, withAlpha(col, 0.22f * flash));
-        // franja: entra deslizándose con frenada suave, se queda y sale hacia el otro lado desvaneciéndose
+        // band: slides in with a soft brake, stays, and exits toward the other side while fading
         float in = DuelFx.outQuint(a / 0.45), out = a > 1.3 ? DuelFx.inCubic((a - 1.3) / 0.4) : 0;
         float al = Math.min(1, (float) a / 0.12f) * (1 - out);
-        int dir = turnFxMine ? 1 : -1; // tu turno entra por la izquierda, el del rival por la derecha
+        int dir = turnFxMine ? 1 : -1; // your turn enters from the left, the opponent's from the right
         int bh = 46, by = midY - bh / 2;
         int bx0 = Math.round(dir * (-W + W * in + W * out * 1.2f));
-        // sombra y bordes blancos
+        // shadow and white borders
         ctx.fill(bx0, by - 4, bx0 + W, by + bh + 5, withAlpha(0xFF0A1A30, 0.18f * al));
         ctx.fill(bx0, by - 3, bx0 + W, by + bh + 3, withAlpha(0xFFFFFFFF, 0.9f * al));
         ctx.fillGradient(bx0, by, bx0 + W, by + bh, withAlpha(Ui.brighten(col, 45), al), withAlpha(dark, al));
@@ -2894,7 +2894,7 @@ public class PtcgDuelScreen extends Screen {
             int sx = bx0 + (int) ((t * 220 * dir + k * 140) % (W + 140) + W + 140) % (W + 140) - 70;
             ctx.fill(sx, by, sx + 14, by + bh, withAlpha(0xFFFFFFFF, 0.12f * al));
         }
-        // flechas ">>>" que avanzan en la dirección del turno
+        // ">>>" arrows advancing in the turn's direction
         int ch = bh / 2 - 4;
         for (int k = 0; k < 3; k++) {
             float ph = (float) ((t * 1.6 + k / 3.0) % 1.0);
@@ -2931,7 +2931,7 @@ public class PtcgDuelScreen extends Screen {
         MatrixStack m = ctx.getMatrices();
         m.push();
         m.translate(cx, midY, 0);
-        float k = (0.8f + 0.2f * Math.max(0, in)) * Math.min(1f, (W - 24f) / Math.max(1, w)); // nunca se sale de la pantalla
+        float k = (0.8f + 0.2f * Math.max(0, in)) * Math.min(1f, (W - 24f) / Math.max(1, w)); // never goes off screen
         m.scale(k, k, 1);
         m.translate(-cx, -midY, 0);
         ctx.fill(x + 2, y + 4, x + w + 2, y + h + 4, withAlpha(0xFF0A2A50, 0.18f * alpha));
@@ -2947,7 +2947,7 @@ public class PtcgDuelScreen extends Screen {
         m.pop();
     }
 
-    /** Moneda lanzada: altura (0..1), giro y bamboleo en el instante a (s). Termina mostrando cara o cruz. */
+    /** Flipped coin: height (0..1), spin and wobble at instant a (s). Ends showing heads or tails. */
     private static float[] coinPose(double a, boolean heads, double air) {
         float end = 360f * 5 + (heads ? 0 : 180);
         if (a < air) {
@@ -2962,13 +2962,13 @@ public class PtcgDuelScreen extends Screen {
         return new float[]{bounce, end + wob * 0.5f, wob};
     }
 
-    /** Moneda de quien lanza: la que tenga equipada cada jugador (la casa usa la de su nivel). */
+    /** Coin of whoever flips: the one each player has equipped (the house uses its level's coin). */
     private int coinStyle() {
         String id = s(v, coinMine ? "coinMe" : "coinOpp");
         return dev.tcgshop.duel.Cosmetics.coinIndex(id.isEmpty() ? "gold" : id);
     }
 
-    /** Fondo de tablero equipado en la Liga (cada jugador ve el suyo). */
+    /** Board background equipped in the League (each player sees their own). */
     private String boardId() {
         if (v != null && v.has("board")) return v.get("board").getAsString();
         com.google.gson.JsonObject L = ClientPtcg.league;
@@ -2977,7 +2977,7 @@ public class PtcgDuelScreen extends Screen {
         return c.has("board") ? c.get("board").getAsString() : "classic";
     }
 
-    /** Moneda de efectos durante la partida (ataques que lanzan monedas). */
+    /** Effect coin during the match (attacks that flip coins). */
     private void coinDraw(DrawContext ctx, double t) {
         double a = t - coinAt;
         if (a < 0 || a > 2.2) return;
@@ -3008,7 +3008,7 @@ public class PtcgDuelScreen extends Screen {
         }
     }
 
-    /** La moneda del principio, que decide quién empieza: grande, en el centro, con su resultado. */
+    /** The opening coin that decides who goes first: large, centered, with its result. */
     private void bigCoinDraw(DrawContext ctx, double t) {
         if (bigCoinAt < 0 || introSkipped) return;
         double a = t - bigCoinAt;
@@ -3028,7 +3028,7 @@ public class PtcgDuelScreen extends Screen {
         m.translate(cx, ground + r * 0.95f, 0);
         Coin3D.shadow(ctx, r * (1.1f - pose[0] * 0.5f), alpha * (0.9f - pose[0] * 0.5f));
         m.pop();
-        if (a > air - 0.05) { // destello al caer
+        if (a > air - 0.05) { // flash on landing
             float g = (float) Math.max(0, 1 - (a - air) / 0.5);
             Draw.glow(ctx, cx, ground, size * 2.6f, size * 2.6f, coinHeads ? GOLD : 0xFFB8C8DC, 0.5f * g * alpha);
         }
@@ -3062,7 +3062,7 @@ public class PtcgDuelScreen extends Screen {
         }
     }
 
-    /** Presentación de la partida: la mesa aparece desde negro y las dos franjas de jugador se cruzan con un "VS". */
+    /** Match intro: the table fades in from black and the two player bands cross with a "VS". */
     private void introDraw(DrawContext ctx, double t) {
         double a = t - introAt;
         if (introSkipped || a > 1.95) return;
@@ -3076,15 +3076,15 @@ public class PtcgDuelScreen extends Screen {
         int yTop = midY - bh2 - gap / 2, yBot = midY + gap / 2;
         int xo = Math.round(W * (1 - in) + W * out * 0.4f), xm = Math.round(-W * (1 - in) - W * out * 0.4f);
         String me = s(side("me"), "name"), opp = s(side("opp"), "name");
-        // rival (arriba, desde la derecha)
+        // opponent (top, from the right)
         ctx.fill(xo, yTop - 2, xo + W, yTop + bh2 + 2, withAlpha(0xFFFFFFFF, 0.9f * alpha));
         ctx.fillGradient(xo, yTop, xo + W, yTop + bh2, withAlpha(Ui.brighten(RED, 35), alpha), withAlpha(RED, alpha));
         textCS(ctx, opp.toUpperCase(), xo + W / 2f + 40, yTop + 8, withAlpha(0xFFFFFFFF, alpha), 1.6f);
-        // tú (abajo, desde la izquierda)
+        // you (bottom, from the left)
         ctx.fill(xm, yBot - 2, xm + W, yBot + bh2 + 2, withAlpha(0xFFFFFFFF, 0.9f * alpha));
         ctx.fillGradient(xm, yBot, xm + W, yBot + bh2, withAlpha(Ui.brighten(BLUE, 35), alpha), withAlpha(BLUE, alpha));
         textCS(ctx, me.toUpperCase(), xm + W / 2f - 40, yBot + 8, withAlpha(0xFFFFFFFF, alpha), 1.6f);
-        for (int k = 0; k < 5; k++) { // destellos que recorren las franjas
+        for (int k = 0; k < 5; k++) { // flashes running along the bands
             int sx1 = xo + (int) ((a * 260 + k * 170) % (W + 120)) - 60, sx2 = xm + W - (int) ((a * 260 + k * 170) % (W + 120)) + 40;
             ctx.fill(sx1, yTop, sx1 + 12, yTop + bh2, withAlpha(0xFFFFFFFF, 0.12f * alpha));
             ctx.fill(sx2, yBot, sx2 + 12, yBot + bh2, withAlpha(0xFFFFFFFF, 0.12f * alpha));
@@ -3125,7 +3125,7 @@ public class PtcgDuelScreen extends Screen {
         text(ctx, Ui.ellipsis(toast, Math.round((w - 30) / sc)), x + 10 + ic * 2, y + (h - 8 * sc) / 2f + 0.5f, withAlpha(err ? 0xFFB0213A : INK, alpha), sc, false);
     }
 
-    // ================================================================== decisiones
+    // ================================================================== decisions
 
     private int ppx, ppy, ppw, pph;
 
@@ -3140,7 +3140,7 @@ public class PtcgDuelScreen extends Screen {
     }
 
     private void promptPanel(DrawContext ctx, JsonObject p, int mx, int my, double t) {
-        float veil = DuelFx.outCubic((t - promptAt) / 0.25); // el velo oscuro aparece con suavidad
+        float veil = DuelFx.outCubic((t - promptAt) / 0.25); // the dark veil fades in smoothly
         ctx.fill(0, 0, W, H, withAlpha(0xFF0E1E36, 0.4f * veil));
         areas.add(new Area(0, 0, W, H, () -> {}));
         String kind = s(p, "kind");
@@ -3298,8 +3298,8 @@ public class PtcgDuelScreen extends Screen {
     }
 
     /**
-     * Botón brillante del duelo: sombra, degradado, reflejo de cristal arriba, labio inferior del color y halo al pasar
-     * el ratón; se hunde un píxel al pulsarlo. filled = relleno del color (si no, blanco con borde del color).
+     * Glossy duel button: shadow, gradient, glass reflection on top, colored bottom lip and a halo on mouse
+     * hover; sinks one pixel when pressed. filled = filled with the color (otherwise white with a colored border).
      */
     private static void glossy(DrawContext ctx, int x, int y, int w, int h, int accent, boolean hover, boolean filled) {
         int r = Math.min(h / 2, 9), dy = Math.round(pressed(hover));
@@ -3767,13 +3767,13 @@ public class PtcgDuelScreen extends Screen {
         }
     }
 
-    // ================================================================== final
+    // ================================================================== end
 
     private void result(DrawContext ctx, int mx, int my, double t) {
         int w = i(v, "winner", -1), meIdx = i(v, "meIndex", 0);
         boolean win = w == meIdx, draw = w == 3 || w == -1;
         double age = t - changedAt;
-        // el fondo se oscurece poco a poco, el panel entra con escala y rebote y el título cae un poco después
+        // the background darkens gradually, the panel scales in with a bounce and the title drops a bit later
         float veil = DuelFx.outCubic(age / 0.6);
         ctx.fill(0, 0, W, H, withAlpha(win ? 0xFF1A1405 : 0xFF0E1E36, 0.6f * veil));
         if (!win && !draw) ctx.fillGradient(0, 0, W, H / 3, withAlpha(RED, 0.25f * veil), withAlpha(RED, 0f));
@@ -3781,7 +3781,7 @@ public class PtcgDuelScreen extends Screen {
         float in = DuelFx.outBack((age - 0.1) / 0.5);
         float tin = DuelFx.outElastic((age - 0.35) / 0.9);
         if (win) Draw.rays(ctx, W / 2f, H / 2f - 30, Math.max(W, H), t * 25, 0xFFFFE08A, 0.18f * veil, 14);
-        if (win && !confettiDone && age > 0.3) { // confeti dorado, azul y blanco
+        if (win && !confettiDone && age > 0.3) { // gold, blue and white confetti
             confettiDone = true;
             for (int k = 0; k < 4; k++) {
                 float bx = W * (0.2f + 0.2f * k), byy = H * 0.3f;
@@ -3809,7 +3809,7 @@ public class PtcgDuelScreen extends Screen {
         String subT = ui(draw ? "result_draw_sub" : win ? "result_win_sub" : "result_lose_sub");
         float ssc = Math.min(0.8f, (pw - 16f) / Math.max(1, textRenderer.getWidth(subT)));
         textC(ctx, subT, W / 2f, py + 34, withAlpha(SOFT, DuelFx.prog(t, changedAt + 0.4, 0.3)), ssc);
-        // resumen: turnos y premios de cada uno, con el color de cada jugador
+        // summary: turns and prizes for each player, in each player's color
         float stA = DuelFx.prog(t, changedAt + 0.55, 0.35);
         if (stA > 0) {
             int myTaken = 6 - i(side("me"), "prizes", 6), oppTaken = 6 - i(side("opp"), "prizes", 6);
@@ -3839,7 +3839,7 @@ public class PtcgDuelScreen extends Screen {
         int penalty = i(v, "penalty", 0);
         if (penalty > 0) textC(ctx, ui("penalty", penalty), W / 2f, ly + 2, RED, 0.9f);
         int bw2 = 96, by = py + ph - 30;
-        // los botones se dibujan dentro de la escala: el ratón se pasa al espacio escalado y sus áreas se llevan al de pantalla
+        // buttons are drawn inside the scale: the mouse is mapped to scaled space and their areas are mapped back to screen space
         int a0 = areas.size();
         mx = Math.round(W / 2f + (mx - W / 2f) / psc);
         my = Math.round(H / 2f + (my - H / 2f) / psc);
@@ -3860,14 +3860,14 @@ public class PtcgDuelScreen extends Screen {
             areas.set(k, new Area(ax, ay, Math.round(a.w() * psc), Math.round(a.h() * psc), a.action()));
         }
         rm.pop();
-        // confeti por encima del velo y del panel
+        // confetti above the veil and the panel
         rm.push();
         rm.translate(0, 0, 50);
         particles(ctx, confetti, t);
         rm.pop();
     }
 
-    // ================================================================== entrada
+    // ================================================================== input
 
     private boolean runAreas(double mouseX, double mouseY) {
         for (int k = areas.size() - 1; k >= 0; k--) {
@@ -3883,7 +3883,7 @@ public class PtcgDuelScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (v == null) return true;
-        if (intro()) { // un clic salta la presentación
+        if (intro()) { // a click skips the intro
             introSkipped = true;
             bigCoinAt = -10;
             return true;
@@ -3901,27 +3901,27 @@ public class PtcgDuelScreen extends Screen {
         }
         if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
         boolean modal = (prompt() != null && !over() && !peek) || zoomKey != null || discardSide != null || over();
-        // ampliación, decisiones y final: sus áreas tapan la mesa
+        // zoom, decisions and end screen: their areas cover the table
         if (modal) { runAreas(mouseX, mouseY); return true; }
-        // registro abierto: sus botones primero
+        // log open: its buttons first
         if (menuOpen) {
             int w = drawerW(), x = mx0 + 6;
             if (Ui.in(mouseX, mouseY, x, 24, w, H - 48)) { runAreas(mouseX, mouseY); return true; }
         }
-        // mano: pulsar (clic = ampliar, arrastrar = jugar)
+        // hand: press (click = zoom, drag = play)
         if (hoverHand >= 0) {
             pressHand = hoverHand;
             pressX = mouseX;
             pressY = mouseY;
             return true;
         }
-        // destinos iluminados (carta elegida o retirada) y botones del HUD
+        // highlighted targets (selected card or retreat) and HUD buttons
         if ((selectedHand >= 0 || retreatMode) && runAreas(mouseX, mouseY)) return true;
         for (String key : new String[]{"btn:pass", "btn:suggest", "btn:menu"}) {
             int[] r = rects.get(key);
             if (r != null && Ui.in(mouseX, mouseY, r[0], r[1], r[2], r[3])) return runAreas(mouseX, mouseY) || true;
         }
-        // Pokémon en juego: clic = ampliar; tu Activo también se puede arrastrar a la Banca
+        // Pokémon in play: click = zoom; your Active can also be dragged onto the Bench
         for (Map.Entry<String, int[]> e : rects.entrySet()) {
             String key = e.getKey();
             if (!isMonKey(key)) continue;

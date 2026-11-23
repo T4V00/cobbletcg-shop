@@ -13,7 +13,7 @@ import net.minecraft.util.Formatting;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Mendigo de cartas: darle monedas, darle la carta que llevas en la mano, decirle que no o echarle. */
+/** Card beggar: give them coins, give them the card in your hand, say no or chase them off. */
 public class BeggarScreen extends Screen {
     private final int id;
     private final String name;

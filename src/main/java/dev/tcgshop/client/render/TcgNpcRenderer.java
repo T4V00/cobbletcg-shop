@@ -22,8 +22,8 @@ import net.minecraft.util.Identifier;
 import org.joml.Matrix4f;
 
 /**
- * Renderizador de los NPC del mod (clientes, empleados, Scalper, Mayorista): piel por defecto de Minecraft
- * (modelo ancho o fino), nombre + una línea encima con su rol y su título de Pokémon, y el bocadillo de emoción.
+ * Renderer for the mod's NPCs (customers, employees, Scalper, Wholesaler): default Minecraft skin
+ * (wide or slim model), name + a line above with their role and Pokémon title, and the emotion speech bubble.
  */
 public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRenderer<T, PlayerEntityModel<T>> {
     private static final Identifier[] BUBBLES = {
@@ -61,7 +61,7 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
             return;
         }
         if (entity.wantsAttention()) {
-            // "!" dorado que bota y gira, visible a través de las paredes: quiere un trato contigo
+            // gold "!" that bounces and spins, visible through walls: wants a deal with you
             float t = entity.age + tickDelta;
             matrices.push();
             matrices.translate(0, entity.getHeight() + 1.25f + Math.abs((float) Math.sin(t * 0.12f)) * 0.18f, 0);
@@ -77,18 +77,18 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
             tr.draw(mark, x, -4, 0xFFFFD34D, false, mm, consumers, TextRenderer.TextLayerType.POLYGON_OFFSET, 0, 0xF000F0);
             int wait = entity.waitPermille();
             if (wait >= 0) {
-                // barra de paciencia: verde -> amarilla -> roja; si llega a 0 se marcha
+                // patience bar: green -> yellow -> red; leaves when it reaches 0
                 float f = wait / 1000f;
                 int col = f > 0.5f ? 0xFF5BD46B : f > 0.25f ? 0xFFFFC233 : 0xFFFF5050;
                 if (f <= 0.25f && ((int) (t / 4)) % 2 == 0) col = 0xFFFFFFFF;
-                wheel(tr, matrices, consumers, 0, -0.5f, 9.5f, 1.8f, 3.4f, f, col); // rueda alrededor del "!"
+                wheel(tr, matrices, consumers, 0, -0.5f, 9.5f, 1.8f, 3.4f, f, col); // wheel around the "!"
             }
             matrices.pop();
             return;
         }
         int waitQ = entity.waitPermille();
         if (waitQ >= 0) {
-            // en la fila de la caja: su barra de paciencia sobre la cabeza
+            // in the register queue: their patience bar above the head
             float tq = entity.age + tickDelta, f = waitQ / 1000f;
             int col = f > 0.5f ? 0xFF5BD46B : f > 0.25f ? 0xFFFFC233 : 0xFFFF5050;
             if (f <= 0.25f && ((int) (tq / 4)) % 2 == 0) col = 0xFFFFFFFF;
@@ -116,8 +116,8 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
     }
 
     /**
-     * Bocadillo de cómic sobre la cabeza: fondo blanco con borde y piquito hacia el NPC, texto que aparece letra a
-     * letra (los pitidos de "hablar" los pone ClientSpeech) y se desvanece al terminar.
+     * Comic speech bubble above the head: white background with border and a tail toward the NPC, text that appears letter by
+     * letter (the "talking" beeps come from ClientSpeech) and fades out when done.
      */
     private void speechBubble(T entity, dev.tcgshop.client.ClientSpeech.Speech sp, float tickDelta, MatrixStack matrices, VertexConsumerProvider consumers) {
         var cfg = dev.tcgshop.client.ClientSettings.INSTANCE;
@@ -144,8 +144,8 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
         int visible = sp.visibleChars(now), used = 0;
         int target = w + padX * 2;
         boolean typing = visible < sp.plain.length();
-        // Minecraft pinta el fondo de una línea de texto un poco POR DELANTE del texto. Por eso van en dos pasadas:
-        // 1) el fondo solo (líneas de espacios con color de fondo)
+        // Minecraft draws a text line's background slightly IN FRONT of the text. That is why there are two passes:
+        // 1) the background alone (lines of spaces with a background color)
         if (bgCol != 0) {
             Matrix4f mb = matrices.peek().getPositionMatrix();
             for (int i = 0; i < sp.lines.size(); i++) {
@@ -157,11 +157,11 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
             tr.draw(tail, -tr.getWidth(tail) / 2f, y0 + padY + sp.lines.size() * lineH - 2, (Math.max(8, Math.round(alpha * 255)) << 24) | (bg & 0xFFFFFF),
                     false, mb, consumers, TextRenderer.TextLayerType.NORMAL, 0, 0xF000F0);
         }
-        // 2) el texto, adelantado hacia la cámara y con desplazamiento de profundidad: siempre queda delante del fondo
+        // 2) the text, moved toward the camera and with a depth offset: it always stays in front of the background
         matrices.push();
         matrices.translate(0, 0, 1.5f);
         Matrix4f mt = matrices.peek().getPositionMatrix();
-        boolean shadow = bgCol == 0; // sin fondo: con sombra para leerse sobre cualquier cosa
+        boolean shadow = bgCol == 0; // no background: with shadow so it reads over anything
         for (int i = 0; i < sp.lines.size(); i++) {
             String l = sp.lines.get(i);
             int show = Math.max(0, Math.min(l.length(), visible - used));
@@ -175,12 +175,12 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
     }
 
     /**
-     * Barra hecha con el fondo del TextRenderer (espacios con color de fondo): se ve igual de bien que los nombres
-     * vanilla con cualquier configuración gráfica. width en unidades del texto; f de 0 a 1.
+     * Bar made with the TextRenderer background (spaces with a background color): looks as good as vanilla
+     * names with any graphics settings. width in text units; f from 0 to 1.
      */
     /**
-     * Temporizador en forma de rueda: 24 segmentos en círculo que se van apagando en sentido horario desde arriba.
-     * Cada segmento es el fondo de un espacio de texto (se ve igual con o sin shaders, igual que los bocadillos).
+     * Wheel-shaped timer: 24 segments in a circle that switch off clockwise from the top.
+     * Each segment is the background of a text space (looks the same with or without shaders, like the speech bubbles).
      */
     private static void wheel(TextRenderer tr, MatrixStack matrices, VertexConsumerProvider consumers, float cx, float cy,
                               float radius, float segW, float segH, float f, int col) {
@@ -192,8 +192,8 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
             matrices.translate(cx, cy, 0);
             matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Z.rotationDegrees(i * 360f / n));
             matrices.translate(0, -radius, 0);
-            matrices.scale(segW / 5f, segH / 10f, 1); // el fondo de " " mide 5 x 10
-            matrices.translate(-1.5f, -4f, 0);         // centrado en el punto del círculo
+            matrices.scale(segW / 5f, segH / 10f, 1); // the background of " " is 5 x 10
+            matrices.translate(-1.5f, -4f, 0);         // centered on the circle point
             boolean lit = i < fill;
             tr.draw(" ", 0, 0, 0x01000000, false, matrices.peek().getPositionMatrix(), consumers, TextRenderer.TextLayerType.NORMAL,
                     lit ? col : 0xB0101018, 0xF000F0);
@@ -201,11 +201,11 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
         }
     }
 
-    /** Rectángulo de fondo (mismo orden de vértices que el fondo de texto vanilla). */
+    /** Background rectangle (same vertex order as the vanilla text background). */
     private static MatrixStack.Entry bubbleEntry;
 
     private static void v(VertexConsumer vc, Matrix4f m, float x, float y, float z, int argb, float u, float vv) {
-        vc.vertex(m, x, y, z).color(argb).light(0xF000F0); // formato del fondo de texto: posición, color y luz
+        vc.vertex(m, x, y, z).color(argb).light(0xF000F0); // text background format: position, color and light
     }
 
     private static void quad(VertexConsumer vc, Matrix4f m, float ax, float ay, float bx, float by, float cx, float cy, float dx, float dy, float z, int argb) {
@@ -213,7 +213,7 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
         v(vc, m, bx, by, z, argb, 1, 1);
         v(vc, m, cx, cy, z, argb, 1, 0);
         v(vc, m, dx, dy, z, argb, 0, 0);
-        // cara trasera (por si la capa descarta las caras por su orientación)
+        // back face (in case the layer culls faces by orientation)
         v(vc, m, dx, dy, z, argb, 0, 0);
         v(vc, m, cx, cy, z, argb, 1, 0);
         v(vc, m, bx, by, z, argb, 1, 1);
@@ -226,7 +226,7 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
 
     private static final net.minecraft.util.Identifier BUBBLE_TEX = net.minecraft.util.Identifier.of("tcgshop", "textures/misc/white.png");
 
-    /** Piquito del bocadillo: base en y = top entre xl y xr, punta en y = tip. */
+    /** Speech bubble tail: base at y = top between xl and xr, point at y = tip. */
     private static void tail(VertexConsumer vc, Matrix4f m, float xl, float top, float xr, float tip, float z, int argb) {
         quad(vc, m, -0.6f, tip, 0.6f, tip, xr, top, xl, top, z * 40, argb);
     }
@@ -236,7 +236,7 @@ public class TcgNpcRenderer<T extends MobEntity & TcgNpc> extends BipedEntityRen
                 .normal(matrices.peek(), 0, 1, 0);
     }
 
-    /** Nombre (vanilla) + línea de rol / título encima. */
+    /** Name (vanilla) + role / title line above. */
     @Override
     protected void renderLabelIfPresent(T entity, Text text, MatrixStack matrices, VertexConsumerProvider consumers, int light, float tickDelta) {
         super.renderLabelIfPresent(entity, text, matrices, consumers, light, tickDelta);

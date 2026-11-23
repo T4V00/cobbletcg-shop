@@ -46,18 +46,18 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Lógica de la Llave de la Mansión MasterBall: vista previa con partículas, confirmación agachado, comprobaciones de
- * seguridad, arranque de la obra ({@link MansionBuilder}) y comandos de prueba.
+ * Logic of the MasterBall Mansion Key: particle preview, sneak-to-confirm, safety
+ * checks, construction start ({@link MansionBuilder}) and test commands.
  * <p>
- * Reglas: sólo en mundos con cielo abierto (ni Nether ni End), de pie en el suelo, con altura para los cimientos y el
- * tejado, dentro del borde del mundo y fuera de la protección del spawn, sin pisar tiendas ajenas (ShopZones) ni otra
- * mansión. Pisar tu propia tienda se permite, con aviso (la destruiría). El terreno se allana (aviso).
+ * Rules: only in open-sky worlds (neither Nether nor End), standing on the ground, with height for the foundations and the
+ * roof, inside the world border and outside spawn protection, without overlapping other players' shops (ShopZones) or another
+ * mansion. Overlapping your own shop is allowed, with a warning (it would destroy it). The terrain is flattened (warning).
  */
 public final class MansionService {
-    /** Segundos para confirmar tras la vista previa. */
+    /** Seconds to confirm after the preview. */
     public static final int CONFIRM_SECONDS = 10;
     private static final int MAX_JOBS = 4;
-    /** Ticks entre dos vistas previas del mismo jugador (cada una muestrea mucho terreno). */
+    /** Ticks between two previews by the same player (each one samples a lot of terrain). */
     private static final int PREVIEW_COOLDOWN = 50;
 
     private record Pending(MansionPlan plan, RegistryKey<World> world, long expires) {}
@@ -68,7 +68,7 @@ public final class MansionService {
 
     private MansionService() {}
 
-    /** Ganchos del servidor (llamado desde LuxuryBlocks.register). */
+    /** Server hooks (called from LuxuryBlocks.register). */
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             MansionBuilder.tick(server);
@@ -87,9 +87,9 @@ public final class MansionService {
         ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> MansionPokemon.onLoad(entity));
     }
 
-    // ------------------------------------------------------------------ llave
+    // ------------------------------------------------------------------ key
 
-    /** Clic derecho con la llave (servidor). */
+    /** Right-click with the key (server). */
     public static void onKeyUse(ServerPlayerEntity player, Hand hand) {
         ServerWorld world = player.getServerWorld();
         long now = world.getServer().getTicks();
@@ -145,7 +145,7 @@ public final class MansionService {
             return;
         }
         if (!start(world, player, plan)) return;
-        if (!player.isCreative()) st.decrement(1); // la llave sólo se gasta si la obra ha empezado
+        if (!player.isCreative()) st.decrement(1); // the key is only consumed if construction has started
         player.sendMessage(Text.translatable("tcgshop.mansion.started").formatted(Formatting.GOLD), false);
         player.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.PLAYERS, 0.8f, 1.0f);
         if (player.getServer() != null)
@@ -153,7 +153,7 @@ public final class MansionService {
                     .formatted(Formatting.LIGHT_PURPLE), false);
     }
 
-    /** Registra la mansión y mete la obra en la cola. false (con mensaje) si no se puede. */
+    /** Registers the mansion and queues the construction job. false (with a message) if not possible. */
     static boolean start(ServerWorld world, ServerPlayerEntity owner, MansionPlan plan) {
         if (MansionBuilder.busy(owner.getUuid())) {
             owner.sendMessage(Text.translatable("tcgshop.mansion.err_busy").formatted(Formatting.RED), false);
@@ -171,20 +171,20 @@ public final class MansionService {
         try {
             design = MansionDesign.generate(r.seed);
         } catch (Throwable t) {
-            TcgShop.LOGGER.error("[mansión] el diseño falló", t);
+            TcgShop.LOGGER.error("[mansion] design failed", t);
             owner.sendMessage(Text.translatable("tcgshop.mansion.failed").formatted(Formatting.RED), false);
             return false;
         }
         MansionState.get(world).add(r);
         MansionBuilder.start(world, r, design);
-        TcgShop.LOGGER.info("[mansión] {} empieza una mansión en {} mirando al {} ({} bloques)", r.ownerName, plan.origin,
+        TcgShop.LOGGER.info("[mansion] {} starts a mansion at {} facing {} ({} blocks)", r.ownerName, plan.origin,
                 plan.facing.asString(), design.blockCount());
         return true;
     }
 
     /**
-     * Comprobaciones de seguridad. null = se puede; si no, el motivo. warnings recibe los avisos (terreno, agua, tienda
-     * propia). force = saltar las comprobaciones de tiendas y mansiones (sólo el comando de prueba).
+     * Safety checks. null = allowed; otherwise, the reason. warnings receives the warnings (terrain, water, own
+     * shop). force = skip the shop and mansion checks (test command only).
      */
     @Nullable
     static Text check(ServerPlayerEntity player, ServerWorld world, MansionPlan plan, List<Text> warnings, boolean force, boolean loadChunks) {
@@ -193,14 +193,14 @@ public final class MansionService {
         Box box = plan.box();
         if (box.minY < world.getBottomY() || box.maxY > world.getTopY())
             return Text.translatable("tcgshop.mansion.err_height", MansionDesign.Y_MAX + 1, -MansionDesign.Y_MIN);
-        // borde del mundo y protecciones (de otros mods también): rejilla de sondeo cada 14 bloques como mucho
+        // world border and protections (from other mods too): probe grid every 14 blocks at most
         WorldBorder border = world.getWorldBorder();
         for (int lz : PROBE)
             for (int lx : PROBE) {
                 BlockPos p = plan.world(lx, 0, lz);
                 if (!border.contains(p) || !world.canPlayerModifyAt(player, p)) return Text.translatable("tcgshop.mansion.err_border");
             }
-        // protección del spawn: el cuadrado entero contra la caja (cabe entre dos sondeos si el radio es pequeño)
+        // spawn protection: the whole square against the box (it fits between two probes if the radius is small)
         MinecraftServer server = world.getServer();
         int radius = server.getSpawnProtectionRadius();
         BlockPos spawn = world.getSpawnPos();
@@ -221,12 +221,12 @@ public final class MansionService {
             if (other != null) return Text.translatable("tcgshop.mansion.err_mansion", other.ownerName);
             if (MansionBuilder.overlapsJob(world, box)) return Text.translatable("tcgshop.mansion.err_mansion", "?");
         }
-        // lo que la obra borraría sin dejar rastro: expositores, cofres con cosas y estatuas de lujo
+        // what construction would erase without a trace: displays, non-empty chests and luxury statues
         int x0 = (int) box.minX, x1 = (int) box.maxX - 1, y0 = (int) box.minY, y1 = (int) box.maxY - 1, z0 = (int) box.minZ, z1 = (int) box.maxZ - 1;
         int unloaded = 0, ownDisplays = 0;
         for (int cx = x0 >> 4; cx <= x1 >> 4; cx++)
             for (int cz = z0 >> 4; cz <= z1 >> 4; cz++) {
-                // en la vista previa no se cargan chunks (nada de tirones); al confirmar sí, una vez
+                // the preview does not load chunks (no lag spikes); confirming does, once
                 WorldChunk ch = loadChunks ? world.getChunk(cx, cz) : world.getChunkManager().getWorldChunk(cx, cz);
                 if (ch == null) {
                     unloaded++;
@@ -242,7 +242,7 @@ public final class MansionService {
                         if (!d.isEmpty()) ownDisplays++;
                         continue;
                     }
-                    if (be instanceof LootableContainerBlockEntity l && l.getLootTable() != null) continue; // cofre natural sin abrir
+                    if (be instanceof LootableContainerBlockEntity l && l.getLootTable() != null) continue; // unopened natural chest
                     if (be instanceof Inventory inv && !inv.isEmpty())
                         return Text.translatable("tcgshop.mansion.err_container", bp.toShortString());
                 }
@@ -251,8 +251,8 @@ public final class MansionService {
             }
         if (unloaded > 0) warnings.add(Text.translatable("tcgshop.mansion.warn_unloaded"));
         if (ownDisplays > 0) warnings.add(Text.translatable("tcgshop.mansion.warn_own_displays", ownDisplays).formatted(Formatting.RED));
-        // muestreo de 1 de cada 9 columnas (sólo chunks cargados): terreno a allanar, agua, salientes por encima del
-        // tejado (lo que pase de Y_MAX no se despeja) y huecos por debajo de los cimientos
+        // samples 1 in every 9 columns (loaded chunks only): terrain to flatten, water, overhangs above the
+        // roof (anything past Y_MAX is not cleared) and gaps below the foundations
         int solid = 0, water = 0, overhang = 0, hollow = 0;
         int roof = plan.origin.getY() + MansionDesign.Y_MAX;
         BlockPos.Mutable m = new BlockPos.Mutable();
@@ -282,7 +282,7 @@ public final class MansionService {
         return null;
     }
 
-    /** Sondeos locales cada 14 bloques como mucho (más pequeño que cualquier protección de spawn por defecto). */
+    /** Local probes every 14 blocks at most (smaller than any default spawn protection). */
     private static final int[] PROBE = {0, 14, 28, 42, 56, 70, 84, 98, MansionDesign.W - 1};
 
     private static boolean inside(BlockPos p, int x0, int y0, int z0, int x1, int y1, int z1) {
@@ -294,7 +294,7 @@ public final class MansionService {
         return false;
     }
 
-    /** Primera estatua de lujo de ese chunk dentro de la caja (mira la paleta de cada sección antes de recorrerla). */
+    /** First luxury statue of that chunk inside the box (checks each section's palette before scanning it). */
     @Nullable
     private static BlockPos findStatue(WorldChunk ch, int x0, int y0, int z0, int x1, int y1, int z1) {
         ChunkSection[] secs = ch.getSectionArray();
@@ -315,7 +315,7 @@ public final class MansionService {
         return null;
     }
 
-    // ------------------------------------------------------------------ vista previa
+    // ------------------------------------------------------------------ preview
 
     private static void tickPreviews(MinecraftServer server) {
         if (PENDING.isEmpty() || server.getTicks() % 10 != 0) return;
@@ -333,7 +333,7 @@ public final class MansionService {
         }
     }
 
-    /** Contorno de la finca (cada 2 bloques) y la verja marcada en verde, sólo para ese jugador. */
+    /** Outline of the estate (every 2 blocks) and the gate marked in green, only for that player. */
     private static void showOutline(ServerPlayerEntity pl, MansionPlan plan) {
         ServerWorld w = pl.getServerWorld();
         int W = MansionDesign.W, D = MansionDesign.D;
@@ -354,17 +354,17 @@ public final class MansionService {
         else w.spawnParticles(pl, OUTLINE, true, x, y, z, 1, 0, 0, 0, 0);
     }
 
-    // ------------------------------------------------------------------ pruebas
+    // ------------------------------------------------------------------ tests
 
-    /** Aviso en amarillo, salvo los que ya traen su color (los graves van en rojo). */
+    /** Warning in yellow, except those that already carry their color (severe ones are red). */
     private static Text warning(Text w) {
         return w.getStyle().getColor() != null ? w : w.copy().formatted(Formatting.YELLOW);
     }
 
     /**
-     * /tcgshop debug mansion [force|dry]: construye delante del jugador sin llave (op).
-     * /tcgshop debug mansion list | resume &lt;dueño&gt; | remove &lt;dueño&gt;: ver, volver a poner en obras (repara lo que
-     * falte) o borrar el registro de una mansión (los bloques se quedan).
+     * /tcgshop debug mansion [force|dry]: builds in front of the player without a key (op).
+     * /tcgshop debug mansion list | resume &lt;owner&gt; | remove &lt;owner&gt;: list, put back under construction (repairs whatever
+     * is missing) or delete a mansion's record (the blocks stay).
      */
     public static LiteralArgumentBuilder<ServerCommandSource> debugNode() {
         return CommandManager.literal("mansion")
@@ -377,7 +377,7 @@ public final class MansionService {
                         .executes(ctx -> debugRemove(ctx.getSource(), StringArgumentType.getString(ctx, "owner")))))
                 .then(CommandManager.literal("dry").executes(ctx -> {
                     int n = selfTest();
-                    ctx.getSource().sendFeedback(() -> Text.literal("[mansión] diseño OK: " + n + " bloques"), false);
+                    ctx.getSource().sendFeedback(() -> Text.literal("[mansion] design OK: " + n + " blocks"), false);
                     return 1;
                 }));
     }
@@ -400,7 +400,7 @@ public final class MansionService {
 
     private record Found(ServerWorld world, MansionState.Record rec) {}
 
-    /** Mansión de ese dueño (nombre o UUID): primero la última sin terminar, si no la última. */
+    /** That owner's mansion (name or UUID): the latest unfinished one first, otherwise the latest. */
     @Nullable
     private static Found find(MinecraftServer server, String who) {
         Found unfinished = null, any = null;
@@ -418,58 +418,58 @@ public final class MansionService {
         for (ServerWorld w : src.getServer().getWorlds())
             for (MansionState.Record r : MansionState.get(w).all()) {
                 n++;
-                String line = "[mansión] " + r.ownerName + " en " + w.getRegistryKey().getValue() + " " + r.origin.toShortString()
-                        + " (" + r.facing.asString() + ") " + (MansionBuilder.running(r) ? "EN OBRAS" : r.done ? "terminada" : "SIN TERMINAR")
-                        + ", intentos " + r.attempts;
+                String line = "[mansion] " + r.ownerName + " in " + w.getRegistryKey().getValue() + " " + r.origin.toShortString()
+                        + " (" + r.facing.asString() + ") " + (MansionBuilder.running(r) ? "BUILDING" : r.done ? "finished" : "UNFINISHED")
+                        + ", attempts " + r.attempts;
                 src.sendFeedback(() -> Text.literal(line), false);
             }
-        if (n == 0) src.sendFeedback(() -> Text.literal("[mansión] no hay mansiones registradas"), false);
+        if (n == 0) src.sendFeedback(() -> Text.literal("[mansion] no mansions registered"), false);
         return n;
     }
 
     private static int debugResume(ServerCommandSource src, String who) {
         Found f = find(src.getServer(), who);
         if (f == null) {
-            src.sendError(Text.literal("[mansión] no hay ninguna mansión de " + who));
+            src.sendError(Text.literal("[mansion] no mansion found for " + who));
             return 0;
         }
         if (!MansionBuilder.requeue(f.world, f.rec)) {
-            src.sendError(Text.literal("[mansión] la obra de " + f.rec.ownerName + " ya está en marcha"));
+            src.sendError(Text.literal("[mansion] " + f.rec.ownerName + "'s build is already running"));
             return 0;
         }
-        src.sendFeedback(() -> Text.literal("[mansión] la obra de " + f.rec.ownerName + " en " + f.rec.origin.toShortString() + " vuelve a la cola"), true);
+        src.sendFeedback(() -> Text.literal("[mansion] " + f.rec.ownerName + "'s build at " + f.rec.origin.toShortString() + " is back in the queue"), true);
         return 1;
     }
 
     private static int debugRemove(ServerCommandSource src, String who) {
         Found f = find(src.getServer(), who);
         if (f == null) {
-            src.sendError(Text.literal("[mansión] no hay ninguna mansión de " + who));
+            src.sendError(Text.literal("[mansion] no mansion found for " + who));
             return 0;
         }
         MansionBuilder.cancel(f.rec);
         MansionState.get(f.world).remove(f.rec);
-        src.sendFeedback(() -> Text.literal("[mansión] registro de la mansión de " + f.rec.ownerName + " en " + f.rec.origin.toShortString()
-                + " borrado (los bloques y los residentes se quedan)"), true);
+        src.sendFeedback(() -> Text.literal("[mansion] record of " + f.rec.ownerName + "'s mansion at " + f.rec.origin.toShortString()
+                + " deleted (the blocks and residents stay)"), true);
         return 1;
     }
 
-    /** Prueba en seco del generador (selftest): genera la finca y comprueba que tiene sentido. Lanza si falla. */
+    /** Dry run of the generator (selftest): generates the estate and checks that it makes sense. Throws on failure. */
     public static int selfTest() {
         MansionDesign d = MansionDesign.generate(12345L);
         int n = d.blockCount();
         int deco = d.decor().size();
-        TcgShop.LOGGER.info("[selftest] mansión: {} bloques ({} de decoración, {} residentes; furnies={}, cobblemon={}, peluches={})",
+        TcgShop.LOGGER.info("[selftest] mansion: {} blocks ({} decoration, {} residents; furnies={}, cobblemon={}, plushies={})",
                 n, deco, d.residents.size(), d.furnies, d.cobblemon, d.plush);
-        if (n < 25_000) throw new IllegalStateException("la mansión tiene muy pocos bloques: " + n);
-        if (deco < 500) throw new IllegalStateException("la mansión tiene muy poca decoración: " + deco);
-        // la orientación: el sur local apunta hacia donde mira el jugador
+        if (n < 25_000) throw new IllegalStateException("the mansion has too few blocks: " + n);
+        if (deco < 500) throw new IllegalStateException("the mansion has too little decoration: " + deco);
+        // orientation: local south points where the player is facing
         MansionPlan p = MansionPlan.inFrontOf(BlockPos.ORIGIN, net.minecraft.util.math.Direction.EAST);
-        if (p.world(50, 0, 99).getX() <= p.world(50, 0, 0).getX()) throw new IllegalStateException("orientación de la finca mal");
+        if (p.world(50, 0, 99).getX() <= p.world(50, 0, 0).getX()) throw new IllegalStateException("wrong estate orientation");
         return n;
     }
 
-    /** Para usos futuros: ¿este jugador tiene una vista previa pendiente? */
+    /** For future use: does this player have a pending preview? */
     public static boolean hasPending(PlayerEntity p) {
         return PENDING.containsKey(p.getUuid());
     }

@@ -7,18 +7,18 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.text.Text;
 
-/** Estado de las mejoras del teléfono en el cliente (lo manda el servidor con PhonePayloads.Sync). */
+/** Client-side state of the phone upgrades (sent by the server via PhonePayloads.Sync). */
 public final class PhoneClient {
     private PhoneClient() {}
 
     public static boolean enabled = true, legacy, calls = true, callUsed;
     public static int tier;
     public static long[] costs = PhoneTier.DEFAULT_COSTS.clone();
-    /** Candados del último catálogo abierto: source y nivel necesario de cada producto. */
+    /** Locks of the last opened catalog: source and required level of each product. */
     private static int locksSource = Integer.MIN_VALUE;
     private static int[] locks = new int[0];
 
-    /** Llamar UNA vez desde TcgShopClient.onInitializeClient. */
+    /** Call ONCE from TcgShopClient.onInitializeClient. */
     public static void register() {
         ClientPlayNetworking.registerGlobalReceiver(PhonePayloads.Sync.ID, (p, ctx) -> ctx.client().execute(() -> apply(p.data())));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(PhoneClient::reset));
@@ -49,7 +49,7 @@ public final class PhoneClient {
         }
     }
 
-    /** Nivel necesario de cada producto de un catálogo (todo 0 si no llegaron candados para ese catálogo). */
+    /** Required level of each product in a catalog (all 0 if no locks arrived for that catalog). */
     public static int[] locksFor(int source, int size) {
         if (source == locksSource && locks.length == size) return locks.clone();
         return new int[size];

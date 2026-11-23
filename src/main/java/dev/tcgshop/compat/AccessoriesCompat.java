@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** Integración con Accessories (io.wispforest) por reflexión. Funciona en cliente y servidor. */
+/** Integration with Accessories (io.wispforest) via reflection. Works on client and server. */
 public final class AccessoriesCompat {
     private static Method getOptionally, getEquipped, entryStack;
     private static boolean tried;
@@ -28,7 +28,7 @@ public final class AccessoriesCompat {
                     getEquipped = cap.getMethod("getEquipped", Item.class);
                     entryStack = Class.forName("io.wispforest.accessories.api.slot.SlotEntryReference").getMethod("stack");
                 } catch (Throwable t) {
-                    TcgShop.LOGGER.warn("No se pudo enlazar con Accessories", t);
+                    TcgShop.LOGGER.warn("Could not link with Accessories", t);
                     getOptionally = null;
                 }
             }
@@ -36,7 +36,7 @@ public final class AccessoriesCompat {
         return getOptionally != null;
     }
 
-    /** Stacks equipados de ese ítem en slots de Accessories (vivos: modificarlos modifica el equipado). */
+    /** Equipped stacks of that item in Accessories slots (live: modifying them modifies the equipped one). */
     public static List<ItemStack> equipped(LivingEntity entity, Item item) {
         List<ItemStack> out = new ArrayList<>();
         if (!init()) return out;

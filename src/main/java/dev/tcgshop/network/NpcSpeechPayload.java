@@ -9,7 +9,7 @@ import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 import net.minecraft.util.Identifier;
 
-/** Servidor -> cliente: un NPC dice algo (se muestra en un bocadillo sobre su cabeza, con sonidos de "hablar"). */
+/** Server -> client: an NPC says something (shown in a speech bubble over its head, with "talking" sounds). */
 public record NpcSpeechPayload(int entityId, Text text) implements CustomPayload {
     public static final Id<NpcSpeechPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "npc_speech"));
     public static final PacketCodec<RegistryByteBuf, NpcSpeechPayload> CODEC = PacketCodec.tuple(

@@ -10,8 +10,8 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 /**
- * "notify": avisos extra al dueño (mensaje de chat al empezar, sólo a él) y partículas por la tienda mientras dura
- * (para que se VEA que pasa algo). Las frases de los clientes van en "notify" de la definición (EventDef.Notify).
+ * "notify": extra notices to the owner (chat message at start, only to them) and particles around the shop while it lasts
+ * (so it is VISIBLE that something is happening). Customer lines go in the definition's "notify" (EventDef.Notify).
  * particles: happy, note, heart, smoke, angry, glow, crit, cloud.
  */
 public final class NotifyEffect implements EventEffect {
@@ -23,7 +23,7 @@ public final class NotifyEffect implements EventEffect {
         message = EventDef.str(o, "message", "");
         particles = EventDef.str(o, "particles", "");
         whileUnresolved = EventDef.bool(o, "whileUnresolved", true);
-        if (!particles.isEmpty() && particle(particles) == null) throw new IllegalArgumentException("notify.particles desconocido: " + particles);
+        if (!particles.isEmpty() && particle(particles) == null) throw new IllegalArgumentException("unknown notify.particles: " + particles);
     }
 
     private static ParticleEffect particle(String k) {

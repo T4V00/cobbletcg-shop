@@ -19,8 +19,8 @@ import net.minecraft.world.World;
 import java.util.UUID;
 
 /**
- * Bloque de tienda: al colocarlo crea una zona de tienda protegida (centrada en él) del tamaño de su nivel.
- * Romperlo (sólo el dueño puede) elimina la zona.
+ * Shop block: placing it creates a protected shop zone (centered on it) sized by its tier.
+ * Breaking it (only the owner can) removes the zone.
  */
 public class ShopCoreBlock extends Block {
     public final ShopTier tier;
@@ -62,7 +62,7 @@ public class ShopCoreBlock extends Block {
             ShopZones zones = ShopZones.get(sw);
             ShopZones.Zone z = zones.byCore(pos);
             if (z != null) {
-                dev.tcgshop.events.EventManager.onZoneRemoved(sw, z); // 0.9: los eventos limpian lo suyo antes de borrar la zona
+                dev.tcgshop.events.EventManager.onZoneRemoved(sw, z); // 0.9: events clean up their own state before the zone is deleted
                 zones.remove(z);
                 ShopServer.syncZones(sw.getServer());
             }
@@ -83,10 +83,10 @@ public class ShopCoreBlock extends Block {
     }
 
     /**
-     * Dueño: ventana con las estadísticas, el aforo, el flujo de clientes y las misiones para atraer más gente
-     * (ShopMissions). Si el cálculo es viejo (más de 10 s), se rehace como vista previa (ShopLife.preview: factores y
-     * misiones, sin mover la reputación ni avanzar los eventos, que sólo lo hace el recálculo de cada minuto). Sin el
-     * add-on en el cliente, lo mismo resumido en el chat.
+     * Owner: window with the stats, capacity, customer flow and the missions to attract more people
+     * (ShopMissions). If the calculation is stale (over 10 s), it is redone as a preview (ShopLife.preview: factors and
+     * missions, without moving reputation or advancing events, which only the per-minute recalculation does). Without the
+     * add-on on the client, the same summarized in chat.
      */
     private static void showStatus(ServerWorld sw, ServerPlayerEntity sp, ShopZones.Zone z) {
         if (z.lastCalc < 0 || z.missionProgress == null || sw.getTime() - z.lastCalc > 200 || sw.getTime() < z.lastCalc)

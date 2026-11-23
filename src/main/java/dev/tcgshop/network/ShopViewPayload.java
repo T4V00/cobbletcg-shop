@@ -11,7 +11,7 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
 
-/** Servidor -> cliente: contenido de un mueble de tienda (para comprar, o gestionarlo si eres el dueño). */
+/** Server -> client: contents of a shop fixture (to buy, or to manage it if you are the owner). */
 public record ShopViewPayload(BlockPos pos, List<ItemStack> items, List<Long> prices, boolean owner, String ownerName) implements CustomPayload {
     public static final Id<ShopViewPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "shop_view"));
     public static final PacketCodec<RegistryByteBuf, ShopViewPayload> CODEC = PacketCodec.tuple(

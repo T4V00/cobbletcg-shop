@@ -27,14 +27,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Venta de las estatuas de lujo en la tienda de muebles (Vendedor de muebles y app del teléfono), pestaña "Exclusivos".
- * Precio fijo de la configuración (sin recargo de envío ni descuento del vendedor), una a una, cobrado en el servidor
- * igual que los muebles. No se pueden revender: son un sumidero de dinero y un símbolo de estatus.
+ * Sale of the luxury statues in the furniture shop (Furniture Seller and phone app), "Exclusives" tab.
+ * Fixed price from the config (no shipping surcharge or seller discount), one at a time, charged on the server
+ * just like furniture. They cannot be resold: they are a money sink and a status symbol.
  */
 public final class LuxuryShop {
     private LuxuryShop() {}
 
-    /** ¿Hay algo a la venta en Exclusivos? (estatuas o llave de la mansión) */
+    /** Is anything for sale in Exclusives? (statues or the mansion key) */
     public static boolean enabled() {
         return LuxuryConfig.INSTANCE.enabled || LuxuryConfig.INSTANCE.mansionEnabled;
     }
@@ -53,7 +53,7 @@ public final class LuxuryShop {
         return !st.isEmpty() && st.getItem() instanceof StatueItem;
     }
 
-    /** Id de la Llave de la Mansión MasterBall (0.9.5). */
+    /** Id of the MasterBall Mansion Key (0.9.5). */
     public static final Identifier MANSION_KEY_ID = Identifier.of(TcgShop.MOD_ID, "mansion_key");
 
     public static boolean isMansionKey(@Nullable Identifier id) {
@@ -64,12 +64,12 @@ public final class LuxuryShop {
         return LuxuryConfig.INSTANCE.mansionEnabled;
     }
 
-    /** ¿Es un artículo de la pestaña Exclusivos (estatua o llave de la mansión)? Precio fijo, de uno en uno, sin reventa. */
+    /** Is it an item from the Exclusives tab (statue or mansion key)? Fixed price, one at a time, no resale. */
     public static boolean isExclusive(@Nullable Identifier id) {
         return isStatue(id) || isMansionKey(id);
     }
 
-    /** Precio real (servidor) de un exclusivo, o -1 si no lo es. */
+    /** Real (server) price of an exclusive, or -1 if it is not one. */
     public static long priceOf(@Nullable Identifier id) {
         StatueTier t = tierOf(id);
         if (t != null) return t.price();
@@ -77,22 +77,22 @@ public final class LuxuryShop {
         return -1;
     }
 
-    /** Ids de los exclusivos a la venta (estatuas de la más barata a la más cara y la llave de la mansión). */
+    /** Ids of the exclusives for sale (statues from cheapest to most expensive, and the mansion key). */
     public static List<Identifier> catalog() {
         List<Identifier> out = new ArrayList<>();
         if (LuxuryConfig.INSTANCE.enabled) for (StatueTier t : StatueTier.values()) out.add(Identifier.of(TcgShop.MOD_ID, t.blockName()));
-        if (mansionEnabled()) out.add(MANSION_KEY_ID); // la más cara, al final
+        if (mansionEnabled()) out.add(MANSION_KEY_ID); // the most expensive, at the end
         return out;
     }
 
-    /** Compra una estatua (siempre de una en una). Validar antes la fuente (distancia al NPC / teléfono). */
+    /** Buys a statue (always one at a time). Validate the source first (distance to the NPC / phone). */
     public static void buy(ServerPlayerEntity player, Identifier id, @Nullable Entity npc) {
         StatueTier t = tierOf(id);
         boolean key = isMansionKey(id);
         if (key ? !mansionEnabled() : (t == null || !LuxuryConfig.INSTANCE.enabled)) return;
         long price = priceOf(id);
         ItemStack shown = key ? new ItemStack(LuxuryBlocks.MANSION_KEY) : new ItemStack(LuxuryBlocks.item(t));
-        // nunca al suelo: una estatua de hasta 10^15 tirada (p.ej. comprada por teléfono) la coge cualquiera o desaparece
+        // never onto the ground: a dropped statue worth up to 10^15 (e.g. bought by phone) could be picked up by anyone or despawn
         if (player.getInventory().getEmptySlot() < 0) {
             player.sendMessage(Text.translatable("tcgshop.lux.inv_full").formatted(Formatting.RED), true);
             return;
@@ -102,9 +102,9 @@ public final class LuxuryShop {
             if (npc instanceof FurnitureSellerEntity s) NpcLines.say(s, player, "furn_no_money");
             return;
         }
-        player.getInventory().offerOrDrop(shown.copy()); // hay hueco libre (comprobado arriba)
+        player.getInventory().offerOrDrop(shown.copy()); // there is a free slot (checked above)
         ShopZones.get(player.getServerWorld()).addCost(player.getUuid(), price);
-        int level = key ? StatueTier.values().length : t.index(); // la llave cuenta como el nivel más alto
+        int level = key ? StatueTier.values().length : t.index(); // the key counts as the highest tier
         player.sendMessage(Text.translatable("tcgshop.lux.bought", shown.getName(),
                 Text.literal(PriceService.format(price)).formatted(Formatting.GOLD)), false);
         player.getWorld().playSound(null, player.getBlockPos(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.PLAYERS,
@@ -120,15 +120,15 @@ public final class LuxuryShop {
         ShopServer.syncZones(player);
     }
 
-    // ------------------------------------------------------------------ sincronización con el cliente
+    // ------------------------------------------------------------------ client sync
 
     @Nullable private static MinecraftServer server;
 
     /**
-     * Manda al cliente si se venden estatuas y a qué precio (config del SERVIDOR): la app del teléfono, el botón
-     * Exclusivos y el precio del tooltip dependen de esto, no de la config local del cliente. Va en un
-     * FurniturePayloads.Open con source = {@link FurniturePayloads#SOURCE_LUXURY_SYNC}: ids = estatuas a la venta (vacío si
-     * están desactivadas), buy = sus precios.
+     * Tells the client whether statues are sold and at what price (SERVER config): the phone app, the
+     * Exclusives button and the tooltip price depend on this, not on the client's local config. Sent in a
+     * FurniturePayloads.Open with source = {@link FurniturePayloads#SOURCE_LUXURY_SYNC}: ids = statues for sale (empty if
+     * disabled), buy = their prices.
      */
     public static void syncTo(ServerPlayerEntity player) {
         if (!ServerPlayNetworking.canSend(player, FurniturePayloads.Open.ID)) return;
@@ -144,26 +144,26 @@ public final class LuxuryShop {
         ServerPlayNetworking.send(player, new FurniturePayloads.Open(FurniturePayloads.SOURCE_LUXURY_SYNC, false, true, -1, ids, buy, sell, ""));
     }
 
-    /** Reenvía la info a todos los conectados (tras /tcgshop reload, que relee la config). */
+    /** Resends the info to everyone online (after /tcgshop reload, which re-reads the config). */
     public static void syncAll() {
         MinecraftServer s = server;
         if (s == null) return;
         for (ServerPlayerEntity pl : s.getPlayerManager().getPlayerList()) syncTo(pl);
     }
 
-    /** Ganchos del servidor: info al entrar y referencia al servidor para el reenvío tras recargar. */
+    /** Server hooks: info on join and a server reference for resending after a reload. */
     static void registerSync() {
         ServerLifecycleEvents.SERVER_STARTED.register(s -> server = s);
         ServerLifecycleEvents.SERVER_STOPPED.register(s -> server = null);
         ServerPlayConnectionEvents.JOIN.register((handler, sender, s) -> syncTo(handler.getPlayer()));
     }
 
-    /** Intento de vender una estatua: se explica que no se revenden. */
+    /** Attempt to sell a statue: explains that they cannot be resold. */
     public static void refuseSale(ServerPlayerEntity player) {
         player.sendMessage(Text.translatable("tcgshop.lux.no_resale").formatted(Formatting.RED), true);
     }
 
-    /** Intento de vender un exclusivo (estatua o llave de la mansión). */
+    /** Attempt to sell an exclusive (statue or mansion key). */
     public static void refuseSale(ServerPlayerEntity player, @Nullable Identifier id) {
         if (isMansionKey(id)) player.sendMessage(Text.translatable("tcgshop.mansion.no_resale").formatted(Formatting.RED), true);
         else refuseSale(player);

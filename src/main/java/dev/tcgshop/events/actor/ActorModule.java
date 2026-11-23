@@ -64,20 +64,20 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Módulo de actores: Pokémon REALES de Cobblemon (por reflexión, compat/CobblemonActors) que visitan, bloquean o
- * ayudan en la tienda durante un evento. Registra el tipo de efecto "actor" ({@link ActorEffect}), el predicado
- * de Pokémon cercanos de las condiciones y todos los ganchos:
- *  · ganchos de Cobblemon: no guardar en el mundo, no capturar y sin botín (actores y Pokémon temporales del mod);
- *    si el de "no guardar" no se puede poner, NO se saca ningún actor (se avisa una vez en el log);
- *  · ENTITY_LOAD: un actor (o Pokémon temporal) que aparece cargado sin estar vivo en el registro se borra en el tick
- *    siguiente (nunca dentro del propio evento de carga);
- *  · UseEntityCallback: sólo el dueño (u operador) espanta, da de comer, acaricia o reta (agachado) a un actor;
- *  · AttackEntityCallback: a los actores no se les puede pegar;
- *  · tick propio: los que se marchan andando, los que miran al jugador quietos y los combates en curso.
- * Nada de esto afecta al Meowth del tutorial (otras etiquetas) ni a los Pokémon normales del mundo.
+ * Actor module: REAL Cobblemon Pokémon (via reflection, compat/CobblemonActors) that visit, block or
+ * help in the shop during an event. Registers the "actor" effect type ({@link ActorEffect}), the conditions'
+ * nearby-Pokémon predicate and all the hooks:
+ *  · Cobblemon hooks: no saving to the world, no capture and no loot (actors and the mod's temporary Pokémon);
+ *    if the "no save" one cannot be installed, NO actor is spawned (warned once in the log);
+ *  · ENTITY_LOAD: an actor (or temporary Pokémon) that shows up loaded without being alive in the registry is removed on
+ *    the next tick (never inside the load event itself);
+ *  · UseEntityCallback: only the owner (or an operator) shoos, feeds, pets or challenges (sneaking) an actor;
+ *  · AttackEntityCallback: actors cannot be hit;
+ *  · own tick: those walking away, those standing still facing the player, and battles in progress.
+ * None of this affects the tutorial Meowth (different tags) or the world's normal Pokémon.
  */
 public final class ActorModule {
-    /** Etiqueta propia de los actores (además de EventManager.EVENT_TAG y "tcgshop_ev_&lt;uid&gt;"). */
+    /** The actors' own tag (in addition to EventManager.EVENT_TAG and "tcgshop_ev_&lt;uid&gt;"). */
     public static final String ACTOR_TAG = "tcgshop_actor";
 
     private record Ref(long uid, int index) {}
@@ -86,13 +86,13 @@ public final class ActorModule {
 
     private record Battle(RegistryKey<World> world, UUID player, Object pokemon, long start, boolean wasHeld) {}
 
-    /** Actores vivos de esta sesión: uuid -> (evento, índice del efecto). Se pierde al parar (los actores también). */
+    /** Live actors of this session: uuid -> (event, effect index). Lost on stop (so are the actors). */
     private static final Map<UUID, Ref> RUNTIME = new HashMap<>();
     private static final Map<UUID, Leaving> LEAVING = new HashMap<>();
-    /** Actores quietos que miran al jugador más cercano (uuid -> mundo). */
+    /** Stationary actors facing the nearest player (uuid -> world). */
     private static final Map<UUID, RegistryKey<World>> HELD = new HashMap<>();
     private static final Map<UUID, Battle> BATTLES = new HashMap<>();
-    /** Marcha pedida en pleno combate: se aplica cuando el combate termina (target null = desaparecer ya). */
+    /** Departure requested mid-battle: applied when the battle ends (target null = disappear right away). */
     private record PendingLeave(@Nullable Vec3d target, boolean happy) {}
     private static final Map<UUID, PendingLeave> PENDING_LEAVE = new HashMap<>();
     private static final ArrayDeque<Object[]> PURGE = new ArrayDeque<>();
@@ -102,7 +102,7 @@ public final class ActorModule {
 
     private ActorModule() {}
 
-    /** Servidor y común (TcgShop.onInitialize, antes de cargar los datapacks). */
+    /** Server and common (TcgShop.onInitialize, before datapacks load). */
     public static void init() {
         if (registered) return;
         registered = true;
@@ -111,7 +111,7 @@ public final class ActorModule {
         EventConditions.setNearbyPokemon(ActorModule::nearbyPokemon);
         if (CobblemonActors.available()) {
             hooks = CobblemonActors.installHooks(ActorModule::noSave, ActorModule::isOurs, ActorModule::isOurs);
-            if (!hooks) TcgShop.LOGGER.warn("[eventos] actores desactivados: no se pudo impedir que se guarden en el mundo");
+            if (!hooks) TcgShop.LOGGER.warn("[events] actors disabled: could not prevent them from being saved to the world");
         }
         ServerTickEvents.END_SERVER_TICK.register(ActorModule::tick);
         ServerLifecycleEvents.SERVER_STARTED.register(ActorModule::onStarted);
@@ -137,12 +137,12 @@ public final class ActorModule {
         });
     }
 
-    /** ¿Se pueden sacar actores ahora? (Cobblemon, gancho de guardado puesto y configuración) */
+    /** Can actors be spawned now? (Cobblemon, save hook installed and config) */
     public static boolean ready() {
         return hooks && CobblemonActors.hooksOk() && ActorConfig.INSTANCE.enabled && ActorConfig.INSTANCE.maxPerShop > 0;
     }
 
-    /** Para EventConditions ("actors" en requires): igual que {@link #ready()}. */
+    /** For EventConditions ("actors" in requires): same as {@link #ready()}. */
     public static boolean available() { return ready(); }
 
     private static boolean isOurs(Entity e) {
@@ -152,11 +152,11 @@ public final class ActorModule {
 
     private static boolean noSave(Entity e) { return isOurs(e); }
 
-    // ------------------------------------------------------------------ aparecer / irse
+    // ------------------------------------------------------------------ spawn / leave
 
     /**
-     * Mete un actor en el mundo con todas las reglas: etiquetas, invulnerable, persistente (pero nunca se guarda: el
-     * gancho lo impide), no combatible, registrado ANTES de spawnEntity. false si no se pudo (y no queda nada).
+     * Puts an actor into the world with all the rules: tags, invulnerable, persistent (but never saved: the
+     * hook prevents it), not battleable, registered BEFORE spawnEntity. false if it failed (and nothing is left behind).
      */
     static boolean spawn(ServerWorld w, Entity e, long uid, int index, boolean hold) {
         EventState st = EventState.get(w.getServer());
@@ -187,9 +187,9 @@ public final class ActorModule {
         return true;
     }
 
-    /** Se marcha andando hacia target y desaparece (con una nube) al llegar o a los leaveTicks. */
+    /** Walks away toward target and disappears (with a cloud) on arrival or after leaveTicks. */
     static void leave(ServerWorld w, Entity e, Vec3d target, boolean happy) {
-        // en combate: no se le saca de él; se marcha cuando termine (battleTick)
+        // in battle: it is not pulled out of it; it leaves when the battle ends (battleTick)
         if (BATTLES.containsKey(e.getUuid())) {
             PENDING_LEAVE.put(e.getUuid(), new PendingLeave(target, happy));
             return;
@@ -201,7 +201,7 @@ public final class ActorModule {
         LEAVING.put(e.getUuid(), new Leaving(w.getRegistryKey(), w.getTime() + ActorConfig.INSTANCE.leaveTicks, target));
     }
 
-    /** Desaparece ya (nube). */
+    /** Disappears right away (cloud). */
     static void vanish(ServerWorld w, Entity e) {
         if (BATTLES.containsKey(e.getUuid())) {
             PENDING_LEAVE.put(e.getUuid(), new PendingLeave(null, false));
@@ -213,7 +213,7 @@ public final class ActorModule {
         e.discard();
     }
 
-    /** Lo quita de los registros (ya no es un actor "vivo" del evento). */
+    /** Removes it from the registries (it is no longer a "live" actor of the event). */
     static void forget(ServerWorld w, UUID id) {
         RUNTIME.remove(id);
         HELD.remove(id);
@@ -229,7 +229,7 @@ public final class ActorModule {
 
     static boolean isHeld(Entity e) { return HELD.containsKey(e.getUuid()); }
 
-    /** Quieto y mirando al jugador más cercano (lo gira el tick del módulo). */
+    /** Stationary and facing the nearest player (the module tick turns it). */
     static void hold(Entity e, ServerWorld w) {
         if (e instanceof MobEntity mob) {
             mob.getNavigation().stop();
@@ -243,7 +243,7 @@ public final class ActorModule {
         if (e instanceof MobEntity mob && mob.isAiDisabled()) mob.setAiDisabled(false);
     }
 
-    /** Andar hasta un punto: WALK_TARGET del cerebro si lo tiene (Cobblemon 1.8 usa cerebro), si no la navegación. */
+    /** Walk to a point: the brain's WALK_TARGET if it has one (Cobblemon 1.8 uses a brain), otherwise navigation. */
     static void walkTo(Entity e, Vec3d t, double speed) {
         if (!(e instanceof MobEntity mob)) return;
         try {
@@ -256,11 +256,11 @@ public final class ActorModule {
         mob.getNavigation().startMovingTo(t.x, t.y, t.z, speed);
     }
 
-    // ------------------------------------------------------------------ interacción
+    // ------------------------------------------------------------------ interaction
 
     private static ActionResult onUse(ServerWorld w, ServerPlayerEntity p, Hand hand, Entity e) {
         Ref ref = RUNTIME.get(e.getUuid());
-        if (ref == null) return ActionResult.FAIL; // se está yendo o es un resto: no se toca
+        if (ref == null) return ActionResult.FAIL; // it is leaving or a leftover: do not touch
         EventInstance inst = EventManager.instance(ref.uid);
         ShopZones.Zone z = inst == null ? null : ShopZones.get(w).byId(inst.zoneId);
         if (inst == null || z == null) return ActionResult.FAIL;
@@ -304,7 +304,7 @@ public final class ActorModule {
         return true;
     }
 
-    // ------------------------------------------------------------------ tick del módulo
+    // ------------------------------------------------------------------ module tick
 
     private static void tick(MinecraftServer s) {
         while (!PURGE.isEmpty()) {
@@ -316,7 +316,7 @@ public final class ActorModule {
             EventState st = EventManager.state();
             boolean live = tags.contains(ACTOR_TAG) ? st != null && st.isLiveActor(e.getUuid()) : TempPokemon.isLive(e.getUuid());
             if (!live) {
-                TcgShop.LOGGER.info("[eventos] Pokémon de evento huérfano borrado al cargar ({})", e.getUuid());
+                TcgShop.LOGGER.info("[events] orphaned event Pokémon removed on load ({})", e.getUuid());
                 e.discard();
             }
         }
@@ -371,9 +371,9 @@ public final class ActorModule {
             Entity e = w == null ? null : w.getEntity(en.getKey());
             long age = w == null ? Long.MAX_VALUE : w.getTime() - b.start();
             boolean battling = e != null && !e.isRemoved() && CobblemonActors.isBattling(e);
-            // mientras Cobblemon diga que sigue en combate no se suelta, dure lo que dure (no se le pone tope)
+            // while Cobblemon says it is still in battle it is not released, however long it takes (no cap)
             if (battling) continue;
-            if (!battling && e != null && !e.isRemoved() && age < 40) continue; // el combate aún se monta
+            if (!battling && e != null && !e.isRemoved() && age < 40) continue; // the battle is still being set up
             it.remove();
             done.add(new Object[]{en.getKey(), b, w, e});
         }
@@ -402,7 +402,7 @@ public final class ActorModule {
             NbtCompound a = entry(d, id);
             if (a != null) ae.battleOver(w, d, a, e == null || e.isRemoved() ? null : e, p, won);
             boolean alive = e != null && !e.isRemoved();
-            // marcha pedida durante el combate (echarlo, fin del evento, guardia): se aplica ahora
+            // departure requested during the battle (shooed, event end, guard): applied now
             boolean left = alive && applyPendingLeave(w, e);
             if (!alive) PENDING_LEAVE.remove(id);
             if (!won && !left && alive && b.wasHeld()) hold(e, w);
@@ -411,7 +411,7 @@ public final class ActorModule {
         }
     }
 
-    /** Aplica la marcha que se pidió en pleno combate (si la hay). true si se ha ido / desaparecido. */
+    /** Applies the departure requested mid-battle (if any). true if it has left / disappeared. */
     private static boolean applyPendingLeave(ServerWorld w, Entity e) {
         PendingLeave pl = PENDING_LEAVE.remove(e.getUuid());
         if (pl == null || e.isRemoved()) return pl != null;
@@ -420,7 +420,7 @@ public final class ActorModule {
         return true;
     }
 
-    /** Gira cuerpo, cabeza y mirada hacia el jugador (como el Meowth del tutorial). */
+    /** Turns body, head and gaze toward the player (like the tutorial Meowth). */
     private static void face(Entity e, ServerPlayerEntity p, float maxStep) {
         double dx = p.getX() - e.getX(), dz = p.getZ() - e.getZ();
         double dy = p.getEyeY() - e.getEyeY();
@@ -439,13 +439,13 @@ public final class ActorModule {
         }
     }
 
-    // ------------------------------------------------------------------ arranque / parada
+    // ------------------------------------------------------------------ startup / shutdown
 
     private static void onStarted(MinecraftServer s) {
         ActorConfig.load();
         if (!hooks && CobblemonActors.available()) {
             hooks = CobblemonActors.installHooks(ActorModule::noSave, ActorModule::isOurs, ActorModule::isOurs);
-            if (hooks) TcgShop.LOGGER.info("[eventos] ganchos de Cobblemon para los actores puestos al arrancar el servidor");
+            if (hooks) TcgShop.LOGGER.info("[events] Cobblemon actor hooks installed on server start");
         }
         RUNTIME.clear();
         LEAVING.clear();
@@ -453,7 +453,7 @@ public final class ActorModule {
         BATTLES.clear();
         PENDING_LEAVE.clear();
         PURGE.clear();
-        // los actores nunca se guardan: los que figuren en el registro de una sesión anterior ya no existen
+        // actors are never saved: any listed in the registry from a previous session no longer exist
         EventState st = EventState.get(s);
         for (ServerWorld w : s.getWorlds())
             for (ShopZones.Zone z : ShopZones.get(w).all())
@@ -479,9 +479,9 @@ public final class ActorModule {
         TempPokemon.clear();
     }
 
-    // ------------------------------------------------------------------ condición "nearbyPokemon"
+    // ------------------------------------------------------------------ "nearbyPokemon" condition
 
-    /** Pokémon SALVAJES de verdad cerca de la tienda (sin dueño, sin contar actores ni temporales del mod). */
+    /** Real WILD Pokémon near the shop (ownerless, not counting the mod's actors or temporary ones). */
     private static boolean nearbyPokemon(ServerWorld w, ShopZones.Zone z, List<String> species, int radius, int min) {
         if (!CobblemonActors.available()) return false;
         Set<String> want = new HashSet<>();
@@ -497,11 +497,11 @@ public final class ActorModule {
         return false;
     }
 
-    // ------------------------------------------------------------------ utilidades
+    // ------------------------------------------------------------------ utilities
 
     /**
-     * Un cliente se va por el camino normal (devuelve lo que llevaba). Usa CustomerEntity.leaveForEvent(String) si
-     * existe (gancho pedido al orquestador); si no, no hace nada (los modificadores del evento ya lo castigan).
+     * A customer leaves the normal way (returns what it was carrying). Uses CustomerEntity.leaveForEvent(String) if
+     * it exists (hook requested from the orchestrator); otherwise does nothing (the event's modifiers already penalize it).
      */
     static boolean customerLeave(CustomerEntity c, String reviewKey) {
         if (!leaveLookedUp) {
@@ -509,7 +509,7 @@ public final class ActorModule {
             try {
                 leaveForEvent = CustomerEntity.class.getMethod("leaveForEvent", String.class);
             } catch (NoSuchMethodException e) {
-                TcgShop.LOGGER.info("[eventos] CustomerEntity.leaveForEvent no existe: los clientes no se irán por el canto");
+                TcgShop.LOGGER.info("[events] CustomerEntity.leaveForEvent does not exist: customers will not leave because of the singing");
             }
         }
         if (leaveForEvent == null) return false;
@@ -546,7 +546,7 @@ public final class ActorModule {
         };
     }
 
-    /** Botín pequeño de una tabla tcgshop:events/* (nunca cartas, sobres ni objetos de la tienda), al inventario del dueño. */
+    /** Small loot from a tcgshop:events/* table (never cards, packs or shop items), into the owner's inventory. */
     static void giveLoot(ServerWorld w, ShopZones.Zone z, @Nullable ServerPlayerEntity owner, String loot, int rolls) {
         if (owner == null) return;
         Identifier id = Identifier.tryParse(loot);

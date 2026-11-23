@@ -36,7 +36,7 @@ public final class TcgItems {
     public static final Item MANAGER_GOGGLES = register("manager_goggles", new ManagerGogglesItem(new Item.Settings().maxCount(1).rarity(Rarity.RARE)));
     public static final Item TCG_PHONE = register("tcg_phone", new PhoneItem(new Item.Settings().maxCount(1).rarity(Rarity.RARE)));
     public static final Item DEODORANT_SPRAY = register("deodorant_spray", new DeodorantSprayItem(new Item.Settings().maxDamage(72)));
-    /** 0.9 eventos: fregona (charcos, excrementos, desorden) y kit de reparación (chispas, quemaduras, vitrinas). */
+    /** 0.9 events: mop (puddles, droppings, mess) and repair kit (sparks, scorch marks, showcases). */
     public static final Item MOP = register("mop", new dev.tcgshop.events.incident.IncidentToolItem(new Item.Settings().maxDamage(64), "mop"));
     public static final Item REPAIR_KIT = register("repair_kit", new dev.tcgshop.events.incident.IncidentToolItem(new Item.Settings().maxDamage(12), "repair_kit"));
     public static final Item WHOLESALER_SPAWN_EGG = register("wholesaler_spawn_egg",

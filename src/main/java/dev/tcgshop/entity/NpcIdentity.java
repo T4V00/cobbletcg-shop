@@ -7,8 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Identidad de los NPC del mod: nombre de persona real, piel propia pintada por código y, con cierta probabilidad,
- * un título de Pokémon ("Fan de Pikachu", "Obsesionado con Gengar"...).
+ * Identity of the mod's NPCs: a real person's name, its own code-painted skin and, with some probability,
+ * a Pokémon title ("Pikachu Fan", "Obsessed with Gengar"...).
  */
 public final class NpcIdentity {
     public static final String[] NAMES = {
@@ -30,7 +30,7 @@ public final class NpcIdentity {
             "Astrid", "Mikhail", "Anya", "Dmitri", "Katya", "Kai", "Zuri", "Noor", "Efe", "Makena"
     };
 
-    /** Variantes de piel propias (se pintan en el cliente según el rol: client/render/NpcSkins). */
+    /** Custom skin variants (painted on the client according to the role: client/render/NpcSkins). */
     public static final int SKIN_COUNT = 48;
 
     private NpcIdentity() {}
@@ -43,7 +43,7 @@ public final class NpcIdentity {
         return r.nextInt(SKIN_COUNT);
     }
 
-    /** Con probabilidad `chance`, un título "especie|tier" de un Pokémon con cartas; si no, "". */
+    /** With probability `chance`, a "species|tier" title of a Pokémon that has cards; otherwise "". */
     public static String randomTitle(Random r, float chance) {
         if (r.nextFloat() >= chance) return "";
         List<String> species = new ArrayList<>(Titles.allSpecies());

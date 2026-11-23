@@ -10,9 +10,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Contenido del Personal Binder (componente de datos del ítem).
- *  slots   un id de carta por bolsillo ("" = vacío). 9 bolsillos por página.
- *  style   ids de personalización: fondo, patrón y paleta (ver BinderStyles).
+ * Personal Binder contents (item data component).
+ *  slots   one card id per pocket ("" = empty). 9 pockets per page.
+ *  style   customization ids: background, pattern and palette (see BinderStyles).
  */
 public record PersonalBinderData(List<String> slots, String background, String pattern, String palette) {
     public static final int POCKETS_PER_PAGE = 9;
@@ -28,8 +28,8 @@ public record PersonalBinderData(List<String> slots, String background, String p
     ).apply(i, (slots, bg, pat, pal) -> new PersonalBinderData(migrate(slots), bg, pat, pal)));
 
     /**
-     * Huecos guardados con ids de ScalperTCG ("cobbletcg:..." o "wish:cobbletcg:...") -> MasterBall Traders API.
-     * Las cartas de TCG Pocket (quitadas en la 0.9) dejan el hueco vacío.
+     * Slots saved with ScalperTCG ids ("cobbletcg:..." or "wish:cobbletcg:...") -> MasterBall Traders API.
+     * TCG Pocket cards (removed in 0.9) leave the slot empty.
      */
     private static List<String> migrate(List<String> slots) {
         List<String> out = new ArrayList<>(slots.size());

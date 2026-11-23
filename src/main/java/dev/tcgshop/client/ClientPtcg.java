@@ -19,10 +19,10 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Cliente del TCG real: equivalencias carta del motor -> carta de cobbletcg (para la imagen), detalles y Liga. */
+/** Real TCG client: engine card -> cobbletcg card mapping (for the image), details and League. */
 public final class ClientPtcg {
     private static Map<String, String> itemByName;
-    /** Detalles de cartas recibidos en las vistas (ataques, habilidades, textos...). */
+    /** Card details received in the views (attacks, abilities, texts...). */
     public static final Map<String, JsonObject> DEFS = new HashMap<>();
     public static JsonObject league;
     public static int leagueVersion;
@@ -49,7 +49,7 @@ public final class ClientPtcg {
     private static final Pattern BASIC_ENERGY = Pattern.compile("^(Grass|Fire|Water|Lightning|Psychic|Fighting|Darkness|Metal|Fairy) Energy \\S+$");
     private static Map<String, String> energyByType;
 
-    /** Energía básica del motor (p. ej. "Fire Energy SVE") -> carta de Energía real de cobbletcg del mismo tipo (prefiere Crown Zenith). */
+    /** Engine basic Energy (e.g. "Fire Energy SVE") -> real cobbletcg Energy card of the same type (prefers Crown Zenith). */
     @Nullable
     private static String basicEnergyItem(String fullName) {
         Matcher mt = BASIC_ENERGY.matcher(fullName);
@@ -85,12 +85,12 @@ public final class ClientPtcg {
         return d;
     }
 
-    // ------------------------------------------------------------------ textos de las cartas en el idioma del juego
+    // ------------------------------------------------------------------ card texts in the game language
 
     private static String i18nLang;
     private static Map<String, JsonObject> i18n = Map.of();
 
-    /** Textos de la carta en el idioma del juego (assets/tcgshop/ptcg/i18n/<idioma>.json, de TCGdex), o null. */
+    /** Card texts in the game language (assets/tcgshop/ptcg/i18n/<language>.json, from TCGdex), or null. */
     @Nullable
     private static JsonObject localized(String fullName) {
         String code = MinecraftClient.getInstance().getLanguageManager().getLanguage();
@@ -113,12 +113,12 @@ public final class ClientPtcg {
     private static String pick(@Nullable JsonObject loc, String arr, int idx, int part, int expectedSize, String fallback) {
         if (loc == null || !loc.has(arr)) return fallback;
         var a = loc.getAsJsonArray(arr);
-        if (a.size() != expectedSize || idx >= a.size()) return fallback; // si no cuadran, mejor el original
+        if (a.size() != expectedSize || idx >= a.size()) return fallback; // if they don't match, better to use the original
         String s = a.get(idx).getAsJsonArray().get(part).getAsString();
         return s.isEmpty() && part == 1 ? fallback.isEmpty() ? "" : s : s;
     }
 
-    /** Nombre de la carta en el idioma del juego. */
+    /** Card name in the game language. */
     public static String cardName(String fullName, String fallback) {
         JsonObject l = localized(fullName);
         return l != null && l.has("n") && !l.get("n").getAsString().isEmpty() ? l.get("n").getAsString() : fallback;
@@ -137,12 +137,12 @@ public final class ClientPtcg {
         return l != null && l.has("t") ? l.get("t").getAsString() : fallback;
     }
 
-    // ------------------------------------------------------------------ iconos de energía reales
+    // ------------------------------------------------------------------ real energy icons
 
     private static final String[] ENERGY_NAMES = {null, "Grass", "Fire", "Water", "Lightning", "Psychic", "Fighting", "Darkness", "Metal"};
     private static final Map<Integer, Identifier> ENERGY_TEX = new HashMap<>();
 
-    /** Textura de la carta de Energía básica real (cobbletcg) del tipo, para recortar su orbe como icono; null si no hay. */
+    /** Texture of the real basic Energy card (cobbletcg) of the type, to crop its orb as an icon; null if none. */
     @Nullable
     public static Identifier energyTexture(int type) {
         if (type < 1 || type >= ENERGY_NAMES.length) return null;
@@ -157,7 +157,7 @@ public final class ClientPtcg {
 
     private static final Pattern PARAM = Pattern.compile("\\{\\{\\s*(\\w+)\\s*}}");
 
-    /** Traduce una clave del motor (mensaje o registro) y rellena sus {{ parámetros }}. */
+    /** Translates an engine key (message or log) and fills in its {{ parameters }}. */
     public static String tr(String prefix, String key, @Nullable JsonObject params) {
         String full = "tcgshop.ptcg." + prefix + "." + key;
         String s = Text.translatable(full).getString();
@@ -187,7 +187,7 @@ public final class ClientPtcg {
         } catch (Exception ignored) {}
     }
 
-    // ------------------------------------------------------------------ tipos de energía
+    // ------------------------------------------------------------------ energy types
 
     private static final int[] TYPE_COLORS = {0xFF9A9A9A, 0xFF5BAE3C, 0xFFE04A2A, 0xFF3D8AE0, 0xFFF2CC2E, 0xFF9A5CC6, 0xFFC0703A, 0xFF3A3640,
             0xFF9AA4B0, 0xFFEFEFEF, 0xFFE882B4, 0xFFC9A227};

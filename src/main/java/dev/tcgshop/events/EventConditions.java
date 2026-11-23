@@ -20,12 +20,12 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Condiciones de un evento (objeto "conditions" del JSON). Todas opcionales. Las de historial (cooldownDays,
- * maxPerWeek) y exclusiveGroup las comprueba EventManager con el estado del dueño.
+ * Conditions of an event (the JSON "conditions" object). All optional. The history ones (cooldownDays,
+ * maxPerWeek) and exclusiveGroup are checked by EventManager against the owner's state.
  *
- * nearbyPokemon usa un predicado enchufable ({@link #setNearbyPokemon}) que registra el módulo de actores
- * (sabe leer la especie por reflexión). Sin módulo: sin especies cuenta cualquier entidad "cobblemon:" cerca; con
- * especies, la condición falla (más vale no disparar un evento de un Pokémon que no se puede comprobar).
+ * nearbyPokemon uses a pluggable predicate ({@link #setNearbyPokemon}) registered by the actor module
+ * (it can read the species via reflection). Without the module: with no species, any nearby "cobblemon:" entity counts; with
+ * species, the condition fails (better not to fire an event for a Pokémon that cannot be checked).
  */
 public record EventConditions(List<String> biomes, List<String> notBiomes, Set<String> weather, int[] time,
                               int repMin, int repMax, int minTier, int maxTier, Set<String> requires, int minDisplays, int minSales,
@@ -35,7 +35,7 @@ public record EventConditions(List<String> biomes, List<String> notBiomes, Set<S
 
     public record NearbyPokemon(List<String> species, int radius, int min) {}
 
-    /** Predicado de Pokémon cercanos (lo registra ActorModule). species vacío = cualquiera. */
+    /** Nearby-Pokémon predicate (registered by ActorModule). Empty species = any. */
     @FunctionalInterface
     public interface NearbyPokemonPredicate {
         boolean test(ServerWorld world, ShopZones.Zone zone, List<String> species, int radius, int min);
@@ -44,8 +44,8 @@ public record EventConditions(List<String> biomes, List<String> notBiomes, Set<S
     private static NearbyPokemonPredicate nearby = EventConditions::defaultNearby;
 
     /**
-     * Hora del día (0-24000) con la que se evalúa "time" en lugar de la del mundo; -1 = la real. Sólo la usa el
-     * planificador (hilo del servidor) para ver si un evento encaja más tarde hoy (eventos de noche).
+     * Time of day (0-24000) used to evaluate "time" instead of the world's; -1 = the real one. Only used by the
+     * scheduler (server thread) to see whether an event fits later today (night events).
      */
     static int timeOverride = -1;
 
@@ -63,7 +63,7 @@ public record EventConditions(List<String> biomes, List<String> notBiomes, Set<S
         return false;
     }
 
-    // ------------------------------------------------------------------ lectura
+    // ------------------------------------------------------------------ parsing
 
     public static EventConditions parse(JsonObject o) {
         int[] time = null;
@@ -106,11 +106,11 @@ public record EventConditions(List<String> biomes, List<String> notBiomes, Set<S
         return Collections.unmodifiableSet(s);
     }
 
-    // ------------------------------------------------------------------ evaluación
+    // ------------------------------------------------------------------ evaluation
 
     /**
-     * ¿Se cumplen en esta tienda ahora? why (opcional) recibe el motivo del primer fallo (para /tcgshop event y eventtest).
-     * extraRequires: requisitos implícitos de los efectos (p. ej. "cobblemon" en los actores).
+     * Are they met in this shop right now? why (optional) receives the reason for the first failure (for /tcgshop event and eventtest).
+     * extraRequires: implicit requirements of the effects (e.g. "cobblemon" for actors).
      */
     public boolean test(ServerWorld world, ShopZones.Zone z, Set<String> extraRequires, StringBuilder why) {
         RegistryEntry<Biome> biome = world.getBiome(z.core);
@@ -151,8 +151,8 @@ public record EventConditions(List<String> biomes, List<String> notBiomes, Set<S
             case "cashier" -> z.cashier || z.cashier2;
             case "guard" -> z.guard;
             case "no_guard" -> !z.guard;
-            case "unguarded" -> !z.guard && z.detectors < 2; // ni guardia ni 2 detectores (objetivo "guarded" sin cumplir)
-            case "overpriced" -> z.factors.getOrDefault("price", 0) < 0; // objetivo "price_ok" sin cumplir
+            case "unguarded" -> !z.guard && z.detectors < 2; // neither a guard nor 2 detectors ("guarded" goal not met)
+            case "overpriced" -> z.factors.getOrDefault("price", 0) < 0; // "price_ok" goal not met
             case "staff_slot" -> !z.cashier || !z.cashier2 || !z.guard;
             case "register" -> z.events.hasRegister;
             case "door" -> !z.events.doors.isEmpty();

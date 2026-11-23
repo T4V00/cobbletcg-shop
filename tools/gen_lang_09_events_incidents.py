@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Textos (es_es / en_us) del módulo de incidentes de los eventos 0.9: bloque, herramientas, avisos de arreglo, los 9
-eventos de incidente (nombre, descripción, inicio, cómo arreglarlo, variantes) y las frases de los clientes.
-Sólo escribe SUS claves; recarga el JSON justo antes de escribir. Idempotente.
+Texts (es_es / en_us) for the 0.9 events incident module: block, tools, fix hints, the 9
+incident events (name, description, start, how to fix it, variants) and the customer lines.
+Only writes ITS OWN keys; reloads the JSON right before writing. Idempotent.
 
-Uso:  python -I -X utf8 tools/gen_lang_09_events_incidents.py
+Usage:  python -I -X utf8 tools/gen_lang_09_events_incidents.py
 """
 import json
 from pathlib import Path
@@ -20,7 +20,7 @@ def put(key, es, en):
     EN[key] = en
 
 
-# ------------------------------------------------------------------ bloque y herramientas
+# ------------------------------------------------------------------ block and tools
 put("block.tcgshop.incident", "Incidente", "Incident")
 put("item.tcgshop.mop", "Fregona", "Mop")
 put("item.tcgshop.mop.tip", "Limpia charcos, excrementos y desorden de tu tienda.", "Cleans puddles, droppings and mess in your shop.")
@@ -46,7 +46,7 @@ NEED = {
 for k, (es, en) in NEED.items():
     put(f"tcgshop.incident.need.{k}", es, en)
 
-# ------------------------------------------------------------------ eventos
+# ------------------------------------------------------------------ events
 EV = {
     "power_failure": (
         ("Fallo eléctrico", "Power Failure"),
@@ -131,7 +131,7 @@ put("tcgshop.event.clumsy_customer.dropped", "¡Ay! El cliente patoso ha tirado 
     "Oops! The clumsy customer knocked products off a display.")
 put("tcgshop.role.ev_clumsy", "Cliente patoso", "Clumsy customer")
 
-# ------------------------------------------------------------------ frases de clientes (al entrar)
+# ------------------------------------------------------------------ customer lines (on entering)
 LINES = {
     "inc_power": [
         ("¿Habéis cerrado? Está todo a oscuras.", "Are you closed? It's pitch dark in here."),
@@ -205,7 +205,7 @@ for fam, lines in LINES.items():
 
 def write(name, values):
     path = LANG / name
-    data = json.loads(path.read_text(encoding="utf-8"))  # recargar justo antes de escribir
+    data = json.loads(path.read_text(encoding="utf-8"))  # reload right before writing
     changed = sum(1 for k, v in values.items() if data.get(k) != v)
     data.update(values)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -216,4 +216,4 @@ if __name__ == "__main__":
     assert set(ES) == set(EN)
     a = write("es_es.json", ES)
     b = write("en_us.json", EN)
-    print(f"gen_lang_09_events_incidents: {len(ES)} claves por idioma ({a} es / {b} en cambiadas)")
+    print(f"gen_lang_09_events_incidents: {len(ES)} keys per language ({a} es / {b} en changed)")

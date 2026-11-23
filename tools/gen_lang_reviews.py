@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Reseñas de clientes: frases según las estrellas (1-5) y el motivo (tcgshop.review.<motivo>).
-Genera tcgshop.reviewtext.<motivo>.<estrellas>.<n> (n = 0..7) en es_es y en_us: 28 motivos x 5 x 8 = 1120 por idioma.
+Customer reviews: lines by stars (1-5) and reason (tcgshop.review.<reason>).
+Generates tcgshop.reviewtext.<reason>.<stars>.<n> (n = 0..7) in es_es and en_us: 28 reasons x 5 x 8 = 1120 per language.
 
-Cada motivo tiene 4 frases "buenas" (para 4-5 estrellas) y 4 "malas" (1-2 estrellas); 3 estrellas mezcla ambas.
-Se combinan con 8 entradillas distintas por cada nº de estrellas, así ninguna frase se repite.
-Uso: python tools/gen_lang_reviews.py   (fusiona en los json de lang)
+Each reason has 4 "good" lines (for 4-5 stars) and 4 "bad" ones (1-2 stars); 3 stars mixes both.
+They are combined with 8 different lead-ins per star count, so no line repeats.
+Usage: python tools/gen_lang_reviews.py   (merges into the lang json files)
 """
 import json
 from pathlib import Path
@@ -40,7 +40,7 @@ FRAME = {
     },
 }
 
-# motivo: (buenas, malas), cada una lista de (es, en)
+# reason: (good, bad), each a list of (es, en)
 CORE = {
     "bargain": ([("Los precios eran una ganga", "Prices were a steal"),
                  ("Me llevé una carta por menos de lo que vale", "I got a card for less than it's worth"),
@@ -272,7 +272,7 @@ KEEP_CAPS = ("I ", "I'", "Pokémon")
 
 
 def fit(frame, core):
-    """Encaja la frase en la entradilla: minúscula tras ':' y sin doble puntuación."""
+    """Fits the line into the lead-in: lowercase after ':' and no double punctuation."""
     after_colon = frame.rstrip().endswith(": {c}")
     c = core
     if after_colon and not c.startswith(KEEP_CAPS) and not (len(c) > 1 and c[1].isupper()):
@@ -304,10 +304,10 @@ def main():
         p = LANG / f
         data = json.loads(p.read_text(encoding="utf-8"))
         add = build(lang)
-        assert len(set(add.values())) == len(add), "frases repetidas"
+        assert len(set(add.values())) == len(add), "repeated lines"
         data.update(add)
         p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        print(f"{f}: {len(add)} frases de reseña")
+        print(f"{f}: {len(add)} review lines")
 
 
 if __name__ == "__main__":

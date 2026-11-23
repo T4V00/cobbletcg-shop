@@ -20,10 +20,10 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * Duelo Pokémon entre dos NPC (Scalper contra Scalper, guardia contra ladrón...). Cobblemon sólo monta combates
- * de verdad cuando hay un jugador (o sus propios NPC), así que aquí cada NPC saca un Pokémon real (no capturable,
- * quieto) y el combate se simula por turnos con sus movimientos, partículas, sonidos y bocadillos sobre el NPC.
- * El que se queda sin PS pierde: su Pokémon se debilita y el resultado lo decide el callback.
+ * Pokémon duel between two NPCs (Scalper vs Scalper, guard vs thief...). Cobblemon only sets up real battles
+ * when a player (or its own NPCs) is involved, so here each NPC sends out a real Pokémon (uncatchable,
+ * stationary) and the battle is simulated turn by turn with its moves, particles, sounds and speech bubbles above the NPC.
+ * Whoever runs out of HP loses: their Pokémon faints and the callback decides the outcome.
  */
 public final class NpcPokemonDuel {
     public interface End {
@@ -36,7 +36,7 @@ public final class NpcPokemonDuel {
         final List<List<String>> moves = new ArrayList<>();
         final int[] hp = {100, 100};
         final int[] power = new int[2];
-        final double bias; // probabilidad extra de que gane el lado 0
+        final double bias; // extra probability that side 0 wins
         final End end;
         long nextTurn;
         int turn, finishedAt = -1;
@@ -64,8 +64,8 @@ public final class NpcPokemonDuel {
     }
 
     /**
-     * Empieza un duelo. bias > 0 favorece al primero (0.35 = gana ~85%). Devuelve false si no hay Cobblemon o falla
-     * (entonces el que llama hace su alternativa, p. ej. pelea a puñetazos).
+     * Starts a duel. bias > 0 favors the first one (0.35 = wins ~85%). Returns false if Cobblemon is missing or it fails
+     * (then the caller does its fallback, e.g. a fistfight).
      */
     public static boolean start(MobEntity a, MobEntity b, String[] poolA, String[] poolB, int level, double bias, End end) {
         if (!CobblemonBattles.available() || busy(a) || busy(b) || !(a.getWorld() instanceof ServerWorld world)) return false;
@@ -81,7 +81,7 @@ public final class NpcPokemonDuel {
                 mon.refreshPositionAndAngles(spot.x, me.getY(), spot.z, 0, 0);
                 if (mon instanceof MobEntity mm) mm.setAiDisabled(true);
                 mon.setInvulnerable(true);
-                TempPokemon.mark(mon); // 0.9: nunca se guarda en el mundo (sin huérfanos si se cierra a mitad)
+                TempPokemon.mark(mon); // 0.9: never saved to the world (no orphans if closed midway)
                 world.spawnEntity(mon);
                 d.mon[i] = mon;
                 d.moves.add(movesOf(mon));
@@ -104,7 +104,7 @@ public final class NpcPokemonDuel {
             b.setAiDisabled(false);
             if (!warned) {
                 warned = true;
-                TcgShop.LOGGER.warn("No se pudo empezar un duelo Pokémon entre NPC: {}", e.toString());
+                TcgShop.LOGGER.warn("Could not start a Pokémon duel between NPCs: {}", e.toString());
             }
             return false;
         }
@@ -118,7 +118,7 @@ public final class NpcPokemonDuel {
         return (Entity) propsClass.getMethod("createEntity", World.class).invoke(props, world);
     }
 
-    /** Nombres de los movimientos del Pokémon (o genéricos si no se pueden leer). */
+    /** Names of the Pokémon's moves (or generic ones if they cannot be read). */
     private static List<String> movesOf(Entity mon) {
         List<String> out = new ArrayList<>();
         try {
@@ -170,7 +170,7 @@ public final class NpcPokemonDuel {
             List<String> mv = d.moves.get(atk);
             Text move = mv.isEmpty() ? Text.translatable("tcgshop.duel_npc.move." + world.random.nextInt(6)) : Text.literal(mv.get(world.random.nextInt(mv.size())));
             NpcLines.speak(trainer, Text.translatable("tcgshop.duel_npc.use", mon.getDisplayName(), move));
-            // daño (con sesgo hacia el lado 0 si lo hay)
+            // damage (biased toward side 0 if there is a bias)
             double luck = atk == 0 ? 1 + d.bias : 1 - d.bias * 0.6;
             int dmg = (int) Math.round((d.power[atk] * 0.45 + world.random.nextInt(18)) * luck);
             boolean crit = world.random.nextFloat() < 0.12f, miss = world.random.nextFloat() < 0.08f;
@@ -198,7 +198,7 @@ public final class NpcPokemonDuel {
                 d.finishedAt = (int) now;
                 world.spawnParticles(ParticleTypes.POOF, tp.x, tp.y + 0.5, tp.z, 20, 0.3, 0.3, 0.3, 0.02);
                 world.playSound(null, target.getBlockPos(), SoundEvents.ENTITY_GENERIC_DEATH, SoundCategory.NEUTRAL, 0.8f, 1.3f);
-                target.discard(); // se debilita
+                target.discard(); // it faints
                 TempPokemon.release(target);
                 NpcLines.speak(d.npc[def], Text.translatable("tcgshop.duel_npc.fainted", target.getDisplayName()));
                 for (var p : world.getPlayers(pl -> pl.squaredDistanceTo(trainer) < 40 * 40))
@@ -206,7 +206,7 @@ public final class NpcPokemonDuel {
                 MobEntity winner = trainer, loser = d.npc[def];
                 winner.setAiDisabled(false);
                 loser.setAiDisabled(false);
-                try { d.end.onEnd(winner, loser); } catch (Throwable e) { TcgShop.LOGGER.warn("duelo NPC: {}", e.toString()); }
+                try { d.end.onEnd(winner, loser); } catch (Throwable e) { TcgShop.LOGGER.warn("NPC duel: {}", e.toString()); }
             }
         }
     }
@@ -216,7 +216,7 @@ public final class NpcPokemonDuel {
             if (d.mon[i] != null && !d.mon[i].isRemoved()) {
                 if (d.mon[i].getWorld() instanceof ServerWorld w)
                     w.spawnParticles(ParticleTypes.CLOUD, d.mon[i].getX(), d.mon[i].getY() + 0.5, d.mon[i].getZ(), 10, 0.3, 0.3, 0.3, 0.02);
-                d.mon[i].discard(); // vuelve a su Poké Ball
+                d.mon[i].discard(); // returns to its Poké Ball
             }
             TempPokemon.release(d.mon[i]);
             d.npc[i].setAiDisabled(false);

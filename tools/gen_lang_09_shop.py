@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""0.9 - stream "shop": misiones de la tienda, aforo y cola (ShopMissions, ShopLife.queueGate, ShopStatusScreen).
+"""0.9 - "shop" stream: shop missions, capacity and queue (ShopMissions, ShopLife.queueGate, ShopStatusScreen).
 
-Sólo añade / actualiza sus propias claves en es_es.json y en_us.json (idempotente, conserva el orden del resto).
+Only adds / updates its own keys in es_es.json and en_us.json (idempotent, keeps the order of the rest).
 """
 import json
 import os
@@ -18,7 +18,7 @@ def k(key, es, en):
     EN[key] = en
 
 
-# ---------------------------------------------------------------- ventana de estado de la tienda
+# ---------------------------------------------------------------- shop status window
 k("tcgshop.status.stats", "Estadísticas", "Statistics")
 k("tcgshop.status.rep", "Reputación", "Reputation")
 k("tcgshop.status.revenue", "Ingresos", "Revenue")
@@ -63,7 +63,7 @@ k("tcgshop.status.chat_line",
   "Capacity %s/%s · Missions %s/%s · Customer flow %s")
 k("tcgshop.status.chat_next", "Siguiente paso: %s — %s", "Next step: %s — %s")
 
-# ---------------------------------------------------------------- misiones
+# ---------------------------------------------------------------- missions
 MISSIONS = [
     ("stock", "Vitrinas con producto", "Products on display",
      "Pon algo a la venta en al menos 2 vitrinas o expositores.",
@@ -109,7 +109,7 @@ k("tcgshop.mission.completed",
   "✔ Misión cumplida: %s (%s/%s) · Flujo de clientes %s",
   "✔ Mission complete: %s (%s/%s) · Customer flow %s")
 
-# ---------------------------------------------------------------- aforo / cola
+# ---------------------------------------------------------------- capacity / queue
 k("tcgshop.shop.full_queue",
   "Tienda llena (aforo %s): hay clientes esperando fuera.",
   "Shop full (capacity %s): customers are waiting outside.")
@@ -162,7 +162,7 @@ for i in range(8):
     k("tcgshop.npc.shop_full_wait.%d" % i, WAIT_ES[i], WAIT_EN[i])
     k("tcgshop.npc.shop_full_leave.%d" % i, LEAVE_ES[i], LEAVE_EN[i])
 
-# reseñas "shop_full": tcgshop.reviewtext.shop_full.<estrellas>.<0-7> (ShopZones.Review.textKey)
+# "shop_full" reviews: tcgshop.reviewtext.shop_full.<stars>.<0-7> (ShopZones.Review.textKey)
 REV_ES = {
     1: ["Horrible. Ni siquiera pude entrar.", "Una hora en la puerta para nada. No vuelvo.",
         "Tienda llena y nadie hace nada. Una estrella.", "Me dejaron fuera esperando. Pésimo.",

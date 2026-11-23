@@ -14,22 +14,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Cosméticos del modo duelo: monedas 3D y fondos de tablero. Se desbloquean por rango de Liga (también el mejor
- * rango alcanzado), por logros (victorias, partidas, rachas, sobres abiertos) o como botín raro al abrir sobres.
- * El servidor decide qué tienes; el cliente sólo dibuja lo que le dicen.
+ * Duel mode cosmetics: 3D coins and board backgrounds. Unlocked by League rank (including the best
+ * rank reached), by achievements (wins, matches, streaks, packs opened) or as rare loot when opening packs.
+ * The server decides what you have; the client only draws what it is told.
  */
 public final class Cosmetics {
     private Cosmetics() {}
 
-    /** Cómo se consigue. RANK usa el mejor rango alcanzado; PEAK la mejor puntuación. */
+    /** How it is obtained. RANK uses the best rank reached; PEAK the best rating. */
     public enum Rule { FREE, RANK, PEAK, WINS, AI_WINS, PLAYED, STREAK, PACKS, LOOT }
 
-    /** Emblemas de la cara de la moneda (la cruz siempre lleva estrella). */
+    /** Coin face emblems (the reverse always has a star). */
     public static final int E_BALL = 0, E_STAR = 1, E_BOLT = 2, E_FLAME = 3, E_DROP = 4, E_LEAF = 5, E_MOON = 6, E_SUN = 7,
             E_CROWN = 8, E_GEM = 9, E_SNOW = 10, E_HEART = 11, E_SPIRAL = 12, E_SHIELD = 13;
-    /** Efectos: brillo arcoíris en el canto / destellos. */
+    /** Effects: rainbow shine on the edge / sparkles. */
     public static final int FX_NONE = 0, FX_RAINBOW = 1, FX_SPARKLE = 2;
-    /** Probabilidad por sobre de botín (EconomyConfig). */
+    /** Loot chance per pack (EconomyConfig). */
     public static double LOOT_CHANCE = 1 / 140.0;
 
     public record Coin(String id, Rule rule, int arg, int rim, int face, int faceDark, int emA, int emB, int emblem, int fx) {}
@@ -112,9 +112,9 @@ public final class Cosmetics {
         return null;
     }
 
-    // ------------------------------------------------------------------ servidor
+    // ------------------------------------------------------------------ server
 
-    /** Progreso de una regla para este jugador (para la barra de logros) y si ya la cumple. */
+    /** Progress of a rule for this player (for the achievements bar) and whether it is already met. */
     public static int progress(Rule r, League.Entry e, int packs) {
         return switch (r) {
             case RANK -> League.rank(e.peak);
@@ -152,7 +152,7 @@ public final class Cosmetics {
         return false;
     }
 
-    /** Revisa todo lo desbloqueable y avisa de lo nuevo. Llamar tras una partida, al abrir sobres y al abrir la Liga. */
+    /** Checks everything unlockable and announces what is new. Call after a match, when opening packs and when opening the League. */
     public static void check(ServerPlayerEntity p) {
         League lg = League.get(p.getServer());
         League.Entry e = lg.entry(p.getUuid(), p.getName().getString());
@@ -182,7 +182,7 @@ public final class Cosmetics {
         }
     }
 
-    /** Botín: cada sobre abierto tiene una pequeña probabilidad de traer una moneda de botín que aún no tengas. */
+    /** Loot: each opened pack has a small chance of containing a loot coin you don't have yet. */
     public static void rollLoot(ServerPlayerEntity p, int packsOpened) {
         if (packsOpened <= 0) return;
         League lg = League.get(p.getServer());
@@ -200,7 +200,7 @@ public final class Cosmetics {
         p.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.8f, 1.6f);
     }
 
-    /** Equipar una moneda o un fondo (sólo si es tuyo). */
+    /** Equip a coin or a background (only if it is yours). */
     public static boolean equip(ServerPlayerEntity p, String kind, String id) {
         League lg = League.get(p.getServer());
         League.Entry e = lg.entry(p.getUuid(), p.getName().getString());
@@ -223,7 +223,7 @@ public final class Cosmetics {
         return owns(e, "board:" + e.board) ? e.board : "classic";
     }
 
-    /** Lo que se manda al teléfono: equipado, desbloqueado y el progreso de cada regla. */
+    /** What is sent to the phone: equipped, unlocked and the progress of each rule. */
     public static JsonObject json(ServerPlayerEntity p) {
         League.Entry e = League.get(p.getServer()).entry(p.getUuid(), p.getName().getString());
         int packs = packs(p);

@@ -14,14 +14,14 @@ import net.minecraft.util.math.MathHelper;
 import org.joml.Matrix4f;
 
 /**
- * Carta con volumen "estilo TCG Pocket" en una pantalla 2D: la imagen se proyecta con perspectiva real sobre una malla
- * subdividida (sin la deformación de un solo quad), con canto/grosor, sombreado según la inclinación, reflejo de luz
- * que sigue al ratón y lámina holográfica arcoíris para las cartas raras. Se dibuja centrada en el origen actual.
+ * Card with "TCG Pocket style" volume on a 2D screen: the image is projected with real perspective onto a subdivided
+ * mesh (without the distortion of a single quad), with edge/thickness, shading based on tilt, a light reflection
+ * that follows the mouse and a rainbow holographic foil for rare cards. Drawn centered on the current origin.
  */
 public final class Card3D {
     private Card3D() {}
 
-    /** Proyección: giro Y (ry: + = lado derecho se aleja), giro X (rx: + = borde de arriba se aleja) y perspectiva. */
+    /** Projection: Y rotation (ry: + = right side moves away), X rotation (rx: + = top edge moves away) and perspective. */
     private static final class Proj {
         final float cy, sy, cx, sx, d;
         float x, y, z;
@@ -46,10 +46,10 @@ public final class Card3D {
     }
 
     /**
-     * @param tex   textura de la carta (imagen completa 0..1)
-     * @param foil  0 = normal, 1 = holo, 2 = holo intenso (graduada / rara secreta)
-     * @param glow  color del halo alrededor (0 = sin halo)
-     * @param dim   0..1 oscurece la carta (no jugable)
+     * @param tex   card texture (full image 0..1)
+     * @param foil  0 = normal, 1 = holo, 2 = intense holo (graded / secret rare)
+     * @param glow  color of the surrounding halo (0 = no halo)
+     * @param dim   0..1 darkens the card (not playable)
      */
     public static void draw(DrawContext ctx, Identifier tex, float w, float h, float rx, float ry, float alpha, int foil, int glow, float dim, double t) {
         ctx.draw();
@@ -65,7 +65,7 @@ public final class Card3D {
         RenderSystem.disableCull();
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 
-        // halo (jugable, elegida, destino...)
+        // halo (playable, selected, target...)
         if (glow != 0) {
             BufferBuilder g = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
             fan(g, mat, pr, hw + b + 3.5f, hh + b + 3.5f, rad + 3.5f, 0, Draw.withAlpha(glow, 0.22f * alpha));
@@ -73,7 +73,7 @@ public final class Card3D {
             fan(g, mat, pr, hw + b + 1f, hh + b + 1f, rad + 1f, 0, Draw.withAlpha(glow, 0.55f * alpha));
             BufferRenderer.drawWithGlobalProgram(g.end());
         }
-        // canto (grosor): una capa más atrás que asoma al inclinarse, y el marco blanco
+        // edge (thickness): a layer further back that peeks out when tilted, and the white frame
         BufferBuilder f = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
         float thick = Math.max(1.2f, w * 0.03f);
         if (tilt > 0.02f) {
@@ -82,7 +82,7 @@ public final class Card3D {
         fan(f, mat, pr, hw + b, hh + b, rad, 0, Draw.withAlpha(shade(0xFFFFFFFF, light * (1 - dim * 0.35f)), alpha));
         BufferRenderer.drawWithGlobalProgram(f.end());
 
-        // imagen sobre malla subdividida, sombreada por profundidad
+        // image on a subdivided mesh, shaded by depth
         int nx = MathHelper.clamp(Math.round(w / 9f), 3, 12), ny = MathHelper.clamp(Math.round(nx * 1.4f), 4, 16);
         RenderSystem.setShader(GameRenderer::getPositionTexColorProgram);
         RenderSystem.setShaderTexture(0, tex);
@@ -99,7 +99,7 @@ public final class Card3D {
         }
         BufferRenderer.drawWithGlobalProgram(q.end());
 
-        // reflejo + lámina holo: mezcla aditiva
+        // reflection + holo foil: additive blending
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
         RenderSystem.blendFuncSeparate(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE, GlStateManager.SrcFactor.ONE, GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA);
         float gx = 0.5f + MathHelper.clamp(ry / 26f, -1, 1) * 0.55f, gy = 0.42f - MathHelper.clamp(rx / 22f, -1, 1) * 0.55f;
@@ -121,7 +121,7 @@ public final class Card3D {
         RenderSystem.setShaderColor(1, 1, 1, 1);
     }
 
-    /** Sombra suave proyectada bajo la carta; lift (0..1+) la separa y difumina más. */
+    /** Soft shadow cast under the card; lift (0..1+) separates and blurs it more. */
     public static void shadow(DrawContext ctx, float w, float h, float rx, float ry, float lift, float alpha) {
         ctx.draw();
         Matrix4f mat = ctx.getMatrices().peek().getPositionMatrix();
@@ -181,7 +181,7 @@ public final class Card3D {
         s.vertex(mat, pr.x, pr.y, 0).color(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), MathHelper.clamp(Math.round(a * 255), 0, 255));
     }
 
-    /** Rectángulo redondeado proyectado, en triángulos desde el centro. */
+    /** Projected rounded rectangle, as triangles from the center. */
     private static void fan(BufferBuilder bb, Matrix4f mat, Proj pr, float hw, float hh, float r, float lz, int color) {
         final int seg = 4;
         float[] px = new float[seg * 4 + 4], py = new float[seg * 4 + 4];

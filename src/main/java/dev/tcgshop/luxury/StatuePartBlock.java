@@ -21,10 +21,10 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.WorldView;
 
 /**
- * Pieza invisible encima de una estatua alta (nivel 1 = justo encima de la base, 2 = la siguiente). Ocupa el hueco que
- * pinta el modelo de la base, tiene colisión ajustada a la figura y, en la estatua MasterBall, el nivel 2 pinta la parte
- * de arriba del orbe y la corona. Romperla rompe la estatua entera (y suelta la estatua); si se queda huérfana, se quita.
- * No tiene objeto propio ni suelta nada.
+ * Invisible part above a tall statue (level 1 = right above the base, 2 = the next one). Fills the space that
+ * the base model draws, has collision fitted to the figure and, on the MasterBall statue, level 2 draws the top
+ * of the orb and the crown. Breaking it breaks the whole statue (and drops the statue); if orphaned, it is removed.
+ * It has no item of its own and drops nothing.
  */
 public class StatuePartBlock extends Block {
     public static final DirectionProperty FACING = Properties.HORIZONTAL_FACING;
@@ -55,9 +55,9 @@ public class StatuePartBlock extends Block {
         if (!world.isClient) {
             BlockPos base = basePos(pos, state);
             BlockState bs = world.getBlockState(base);
-            // la base en una zona ajena: no se rompe desde aquí (StatueProtection ya lo impide antes; por si acaso)
+            // base in someone else's zone: not broken from here (StatueProtection already prevents it earlier; just in case)
             if (bs.getBlock() instanceof StatueBlock && StatueProtection.canBuild(world, player, base)) {
-                // romper la pieza = romper la estatua (en creativo sin soltar nada, como las puertas)
+                // breaking the part = breaking the statue (in creative without dropping anything, like doors)
                 if (player.isCreative()) world.setBlockState(base, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL | Block.SKIP_DROPS);
                 else world.breakBlock(base, true, player);
             }
@@ -67,7 +67,7 @@ public class StatuePartBlock extends Block {
 
     @Override
     protected void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean moved) {
-        // quitada sin jugador (comandos, explosiones...): se rompe la base, que suelta la estatua
+        // removed without a player (commands, explosions...): break the base, which drops the statue
         if (!world.isClient && !state.isOf(newState.getBlock())) {
             BlockPos base = basePos(pos, state);
             if (world.getBlockState(base).getBlock() instanceof StatueBlock) world.breakBlock(base, true);
@@ -83,7 +83,7 @@ public class StatuePartBlock extends Block {
             boolean ok = level == 1
                     ? neighborState.getBlock() instanceof StatueBlock
                     : neighborState.isOf(this) && neighborState.get(LEVEL) == level - 1;
-            if (!ok) return Blocks.AIR.getDefaultState(); // huérfana
+            if (!ok) return Blocks.AIR.getDefaultState(); // orphaned
         }
         return super.getStateForNeighborUpdate(state, direction, neighborState, world, pos, neighborPos);
     }

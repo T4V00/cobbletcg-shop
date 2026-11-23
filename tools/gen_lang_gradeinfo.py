@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Textos del sistema de Grado (teléfono → CobbleGrade → Cómo funciona) y término «Grado» en los textos de gradeo.
-Deben coincidir con dev.tcgshop.pricing.GradeModel. Uso: python tools/gen_lang_gradeinfo.py"""
+"""Texts for the Grade system (phone → CobbleGrade → How it works) and the term «Grado» in the grading texts.
+They must match dev.tcgshop.pricing.GradeModel. Usage: python tools/gen_lang_gradeinfo.py"""
 import json
 import re
 from pathlib import Path

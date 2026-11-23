@@ -33,19 +33,19 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Panel de la tienda de muebles (CobbleFurnies) y peluches: carril de categorías, comprar / vender, buscador, rejilla
- * paginada con iconos y precios, cantidad y total. Se usa dentro de la pantalla del Vendedor de muebles
- * (FurnitureScreen), en la pestaña Muebles del Mayorista (StoreScreen) y como app del teléfono (PhoneScreen).
- * El catálogo y los precios los manda el servidor (FurniturePayloads.Open); las compras/ventas se validan allí.
+ * Furniture (CobbleFurnies) and plushie shop panel: category rail, buy / sell, search box, paginated
+ * grid with icons and prices, quantity and total. Used inside the Furniture Seller's screen
+ * (FurnitureScreen), in the Wholesaler's Furniture tab (StoreScreen) and as a phone app (PhoneScreen).
+ * The catalog and prices are sent by the server (FurniturePayloads.Open); purchases/sales are validated there.
  */
 public class FurnitureApp {
-    /** excl = artículo de Exclusivos (estatua, lux != null, o la Llave de la Mansión): precio fijo, de uno en uno. */
+    /** excl = Exclusives item (statue, lux != null, or the Mansion Key): fixed price, one at a time. */
     private record Entry(Identifier id, ItemStack stack, String cat, long buy, long sell, String name, @Nullable StatueTier lux, boolean excl) {}
 
-    /** Color de la ficha de la Llave de la Mansión (dorado). */
+    /** Color of the Mansion Key tile (gold). */
     private static final int MANSION_COLOR = 0xFFC640;
 
-    /** Panel que espera / muestra datos ahora mismo (el último que se creó o pidió el catálogo). */
+    /** Panel currently waiting for / showing data (the last one created or that requested the catalog). */
     @Nullable private static FurnitureApp active;
 
     private static final int ACCENT = 0xFFC08A52, SURF = 0xF0171A26, SURF2 = 0xF01F2333, LINE = 0xFF2C3149;
@@ -58,14 +58,14 @@ public class FurnitureApp {
     private final List<Runnable> clicks = new ArrayList<>();
     private final TextFieldWidget search;
     private boolean loaded, selling;
-    /** Motivo por el que el servidor no nos atiende (clave de traducción) o null. */
+    /** Reason the server won't serve us (translation key) or null. */
     @Nullable private String error;
     private long balance = -1;
     private String category = "all";
     private int page, qty = 1;
     @Nullable private Identifier selected;
     private double pageAt = -10, armedAt = -10;
-    // zonas de este fotograma (para la rueda del ratón y el buscador)
+    // regions for this frame (for the mouse wheel and the search box)
     private int sbX, sbY, sbW, gridX, gridY, gridW, gridH, pages = 1;
 
     public FurnitureApp(int source, Screen host) {
@@ -83,20 +83,20 @@ public class FurnitureApp {
     private static double now() { return System.nanoTime() / 1e9; }
 
     /**
-     * ¿El servidor vende estatuas de lujo? Lo manda él al entrar y tras /tcgshop reload (FurniturePayloads.Open con
-     * source SOURCE_LUXURY_SYNC); nunca se mira la config local del cliente.
+     * Does the server sell luxury statues? It sends this on join and after /tcgshop reload (FurniturePayloads.Open with
+     * source SOURCE_LUXURY_SYNC); the client's local config is never consulted.
      */
     private static boolean serverLuxury;
 
     /**
-     * ¿Hay algo que vender en el teléfono? CobbleFurnies / Pokéblocks o las estatuas de lujo del servidor (si no, no hay
-     * app). El Mayorista no vende estatuas: su pestaña Muebles mira sólo CobbleFurniesCompat.available().
+     * Is there anything to sell on the phone? CobbleFurnies / Pokéblocks or the server's luxury statues (if not, there's no
+     * app). The Wholesaler doesn't sell statues: its Furniture tab only checks CobbleFurniesCompat.available().
      */
     public static boolean available() {
         return CobbleFurniesCompat.available() || serverLuxury;
     }
 
-    /** Info de las estatuas según el servidor (precios del tooltip incluidos). */
+    /** Statue info as reported by the server (tooltip prices included). */
     private static void acceptLuxurySync(FurniturePayloads.Open p) {
         for (StatueTier t : StatueTier.values()) t.clientPrice = -1;
         dev.tcgshop.luxury.house.MansionKeyItem.clientPrice = -1;
@@ -116,20 +116,20 @@ public class FurnitureApp {
         serverLuxury = any;
     }
 
-    /** Olvida la info del servidor (al desconectarse). */
+    /** Forgets the server info (on disconnect). */
     public static void resetServerInfo() {
         serverLuxury = false;
         for (StatueTier t : StatueTier.values()) t.clientPrice = -1;
         dev.tcgshop.luxury.house.MansionKeyItem.clientPrice = -1;
     }
 
-    /** ¿El catálogo recibido trae estatuas de lujo? (botón Exclusivos del Vendedor de muebles) */
+    /** Does the received catalog include luxury statues? (Furniture Seller's Exclusives button) */
     public boolean hasLuxury() {
         for (Entry e : entries) if (e.excl) return true;
         return false;
     }
 
-    /** Salta a una categoría (p.ej. "luxury" desde el botón Exclusivos del Vendedor). */
+    /** Jumps to a category (e.g. "luxury" from the Seller's Exclusives button). */
     public void showCategory(String cat) {
         if (selling) setSelling(false);
         category = cat;
@@ -137,7 +137,7 @@ public class FurnitureApp {
         pageAt = now();
     }
 
-    /** Icono para la app / pestaña. */
+    /** Icon for the app / tab. */
     public static ItemStack icon() {
         Identifier chair = Identifier.of(CobbleFurniesCompat.FURNIES, "poke_ball_chair");
         if (Registries.ITEM.containsId(chair)) return new ItemStack(Registries.ITEM.get(chair));
@@ -145,14 +145,14 @@ public class FurnitureApp {
         return all.isEmpty() ? new ItemStack(Items.PAINTING) : new ItemStack(Registries.ITEM.get(all.get(0)));
     }
 
-    /** Pide el catálogo al servidor (al abrir la pestaña / app). */
+    /** Requests the catalog from the server (when opening the tab / app). */
     public void request() {
         active = this;
         search.setFocused(false);
         ClientPlayNetworking.send(new FurniturePayloads.Request(source));
     }
 
-    /** Receptor del cliente (registrar en TcgShopClient): rellena el panel abierto o abre la pantalla del Vendedor. */
+    /** Client receiver (register in TcgShopClient): fills the open panel or opens the Seller's screen. */
     public static void receive(FurniturePayloads.Open p) {
         if (p.source() == FurniturePayloads.SOURCE_LUXURY_SYNC) {
             acceptLuxurySync(p);
@@ -174,7 +174,7 @@ public class FurnitureApp {
     void accept(FurniturePayloads.Open p) {
         balance = p.balance();
         if (!p.error().isEmpty()) {
-            // rechazo del servidor: se deja de esperar y se enseña el motivo
+            // server rejection: stop waiting and show the reason
             error = p.error();
             entries.clear();
             selected = null;
@@ -190,7 +190,7 @@ public class FurnitureApp {
             ItemStack st = new ItemStack(Registries.ITEM.get(id));
             if (st.isEmpty()) continue;
             StatueTier lux = LuxuryShop.tierOf(id);
-            if (lux != null) lux.clientPrice = p.buy().get(i); // para el tooltip del objeto
+            if (lux != null) lux.clientPrice = p.buy().get(i); // for the item tooltip
             boolean key = LuxuryShop.isMansionKey(id);
             if (key) dev.tcgshop.luxury.house.MansionKeyItem.clientPrice = p.buy().get(i);
             entries.add(new Entry(id, st, FurnitureShop.category(id), p.buy().get(i), p.sell().get(i),
@@ -200,15 +200,15 @@ public class FurnitureApp {
         if (selected != null && entries.stream().noneMatch(e -> e.id.equals(selected))) selected = null;
     }
 
-    // ------------------------------------------------------------------ datos
+    // ------------------------------------------------------------------ data
 
-    /** Unidades en el inventario principal. sellable = sólo las que la tienda recompra (peluches o muebles con marca). */
+    /** Units in the main inventory. sellable = only those the shop buys back (plushies or tagged furniture). */
     private Map<Item, Integer> owned(boolean sellable) {
         Map<Item, Integer> m = new HashMap<>();
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null) return m;
         var inv = mc.player.getInventory();
-        for (int i = 0; i < 36; i++) { // igual que el servidor: sólo el inventario principal
+        for (int i = 0; i < 36; i++) { // same as the server: main inventory only
             ItemStack st = inv.getStack(i);
             if (st.isEmpty() || (sellable && !FurnitureShop.isShopStock(st))) continue;
             m.merge(st.getItem(), st.getCount(), Integer::sum);
@@ -241,7 +241,7 @@ public class FurnitureApp {
         clicks.add(r);
     }
 
-    // ------------------------------------------------------------------ dibujo
+    // ------------------------------------------------------------------ drawing
 
     public void render(DrawContext ctx, int x, int y, int w, int h, int mouseX, int mouseY, float delta) {
         rects.clear();
@@ -258,12 +258,12 @@ public class FurnitureApp {
             Ui.text(ctx, Text.translatable(error != null ? error : "tcgshop.furn.unavailable"), x, y + h / 2 - 5, w, 10, Ui.MUTED, false);
             return;
         }
-        // al vender sólo cuenta lo que la tienda recompra (comprado aquí y sin colocar)
+        // when selling, only what the shop buys back counts (bought here and not placed)
         Map<Item, Integer> owned = owned(selling);
         String q = search.getText().trim().toLowerCase(Locale.ROOT);
 
-        // ---- carril de categorías (con contador según el modo y la búsqueda)
-        // filas más bajas si no caben todas las categorías (14 desde que existe Exclusivos); mínimo 11 px
+        // ---- category rail (with a count based on the mode and the search)
+        // shorter rows if not all categories fit (14 since Exclusives exists); minimum 11 px
         int railW = MathHelper.clamp(w / 5, 74, 104);
         int rowH = MathHelper.clamp((h - 11) / FurnitureShop.CATEGORIES.length, 11, 15), textDy = (rowH - 7) / 2;
         int rx = x + 4, ry = y + 4;
@@ -275,7 +275,7 @@ public class FurnitureApp {
             int n = 0;
             for (Entry e : entries) if (matches(e, owned, c, q)) n++;
             if (n == 0 && !c.equals("all") && !c.equals(category)) {
-                // categoría vacía: se ve apagada pero sigue ahí para que el carril no salte
+                // empty category: shown dimmed but kept so the rail doesn't jump
                 ctx.drawText(tr, Ui.ellipsis(Text.translatable("tcgshop.furn.cat." + c).getString(), railW - 26), rx + 7, yy + textDy, 0xFF555A6E, false);
                 continue;
             }
@@ -292,7 +292,7 @@ public class FurnitureApp {
             area(rx + 2, yy, railW - 4, rowH - 1, () -> { category = c; page = 0; pageAt = now(); });
         }
 
-        // ---- cabecera: comprar / vender, buscador y saldo
+        // ---- header: buy / sell, search box and balance
         int cx = x + railW + 10, cw = w - railW - 14, hy = y + 5;
         Text tBuy = Text.translatable("tcgshop.furn.mode_buy"), tSell = Text.translatable("tcgshop.furn.mode_sell");
         int bw = Math.max(Ui.chipWidth(tBuy), Ui.chipWidth(tSell)) + 4;
@@ -314,7 +314,7 @@ public class FurnitureApp {
         search.setWidth(sbW - 18);
         search.render(ctx, mouseX, mouseY, delta);
 
-        // ---- rejilla paginada
+        // ---- paginated grid
         int detailH = 40, pagerH = 14;
         gridX = cx;
         gridY = hy + 20;
@@ -331,19 +331,19 @@ public class FurnitureApp {
         Entry hovered = null;
         if (vis.isEmpty()) {
             Ui.text(ctx, Text.translatable(selling ? "tcgshop.furn.nothing_to_sell" : "tcgshop.furn.empty"), gridX, gridY + gridH / 2 - 5, gridW, 10, Ui.MUTED, false);
-            if (selling) // por qué no sale lo fabricado o lo ya colocado
+            if (selling) // why crafted or already-placed items don't show up
                 Ui.text(ctx, Text.translatable("tcgshop.furn.buyback_rule"), gridX, gridY + gridH / 2 + 8, gridW, 10, 0xFF6E7390, false);
         }
         for (int k = page * per; k < Math.min(vis.size(), (page + 1) * per); k++) {
             Entry e = vis.get(k);
             int slot = k - page * per;
             int tx = gx + (slot % cols) * (TILE_W + GAP), ty = gridY + (slot / cols) * (TILE_H + GAP);
-            ty += Math.round((1 - appear) * 6); // pequeña entrada al cambiar de página
+            ty += Math.round((1 - appear) * 6); // small entrance animation when changing page
             boolean sel = e.id.equals(selected), hov = Ui.in(mouseX, mouseY, tx, ty, TILE_W, TILE_H);
             if (hov) hovered = e;
             Ui.rounded(ctx, tx + 1, ty + 2, TILE_W, TILE_H, 4, 0x40000000);
             if (e.excl) {
-                // Exclusivos: fondo con el color del nivel y borde que late un poco
+                // Exclusives: background in the tier color and a slightly pulsing border
                 int c = 0xFF000000 | (e.lux != null ? e.lux.color : MANSION_COLOR);
                 float pulse = 0.55f + 0.25f * (float) Math.sin(now() * 3 + (e.lux != null ? e.lux.ordinal() : 7));
                 Ui.roundedGradient(ctx, tx, ty - (hov ? 1 : 0), TILE_W, TILE_H, 4,
@@ -364,21 +364,21 @@ public class FurnitureApp {
             int have = owned.getOrDefault(e.stack.getItem(), 0);
             if (have > 0) {
                 m.push();
-                m.translate(0, 0, 250); // por encima del objeto
+                m.translate(0, 0, 250); // above the item
                 String hs = "x" + have;
                 ctx.drawText(tr, hs, tx + TILE_W - 3 - tr.getWidth(hs), ty + 3, 0xFF8BE08B, true);
                 m.pop();
             }
             long price = selling ? e.sell : e.buy;
             String ps = PriceService.format(price);
-            if (tr.getWidth(ps) > TILE_W - 4) ps = compact(price); // 1.000.000.000 ₽ no cabe en la ficha
+            if (tr.getWidth(ps) > TILE_W - 4) ps = compact(price); // 1.000.000.000 ₽ doesn't fit on the tile
             Ui.text(ctx, Text.literal(ps), tx + 1, ty + TILE_H - 13, TILE_W - 2, 10, selling ? 0xFF8BE08B : Ui.GOLD, true);
             area(tx, ty, TILE_W, TILE_H, () -> {
                 if (!e.id.equals(selected)) { selected = e.id; qty = 1; armedAt = -10; }
             });
         }
 
-        // ---- paginador
+        // ---- pager
         int py = gridY + gridH + 1;
         String pl = (page + 1) + " / " + pages;
         int plw = tr.getWidth(pl), pcx = gridX + gridW / 2;
@@ -390,7 +390,7 @@ public class FurnitureApp {
         Text found = Text.translatable("tcgshop.furn.found", vis.size());
         ctx.drawText(tr, found, gridX + 2, py + 2, 0xFF8A8FA8, false);
 
-        // ---- detalle: cantidad, total y botón
+        // ---- detail: quantity, total and button
         detail(ctx, tr, cx, y + h - detailH - 2, cw, detailH - 2, owned, mouseX, mouseY);
 
         if (hovered != null) {
@@ -407,7 +407,7 @@ public class FurnitureApp {
                 tooltip(tip);
                 return;
             }
-            if (hovered.excl) { // Llave de la Mansión
+            if (hovered.excl) { // Mansion Key
                 tip.add(Text.translatable("tcgshop.mansion.tip_size").withColor(MANSION_COLOR));
                 tip.add(Text.translatable("tcgshop.mansion.flavor").formatted(Formatting.DARK_GRAY, Formatting.ITALIC));
                 tip.add(Text.translatable("tcgshop.lux.tip_no_resale").formatted(Formatting.RED));
@@ -432,7 +432,7 @@ public class FurnitureApp {
             return;
         }
         int have = owned.getOrDefault(e.stack.getItem(), 0);
-        int maxQty = e.excl ? 1 : selling ? Math.max(1, have) : 64; // las estatuas, de una en una
+        int maxQty = e.excl ? 1 : selling ? Math.max(1, have) : 64; // statues, one at a time
         qty = MathHelper.clamp(qty, 1, maxQty);
         long unit = selling ? e.sell : e.buy, total = unit * qty;
         ctx.drawItem(e.stack, x + 6, y + (h - 16) / 2);
@@ -443,7 +443,7 @@ public class FurnitureApp {
         Text sub = Text.translatable("tcgshop.furn.unit", PriceService.format(unit)).append("  ")
                 .append(Text.translatable("tcgshop.furn.owned", have));
         ctx.drawText(tr, Ui.ellipsis(sub.getString(), Math.max(20, textW)), x + 26, y + 20, 0xFF9AA0B8, false);
-        // cantidad (Mayús = de 10 en 10)
+        // quantity (Shift = in steps of 10)
         int qx = x + w - btnW - 8 - ctrlW, qy = y + (h - 16) / 2;
         boolean shift = Screen.hasShiftDown();
         Ui.button(ctx, qx, qy, 16, 16, Text.literal("-"), mouseX, mouseY, qty > 1, 0xFF444A60);
@@ -458,7 +458,7 @@ public class FurnitureApp {
         }
         if (shift && Ui.in(mouseX, mouseY, qx, qy, 60, 16))
             tooltip(List.of(Text.translatable("tcgshop.furn.shift_hint")));
-        // botón: ventas grandes piden un segundo clic para confirmar
+        // button: large sales require a second click to confirm
         boolean afford = selling || balance < 0 || total <= balance;
         boolean big = total >= 100_000;
         boolean armed = big && now() - armedAt < 3;
@@ -472,7 +472,7 @@ public class FurnitureApp {
             Identifier id = e.id;
             int q = qty;
             boolean sell = selling;
-            long confirmedUnit = unit; // el servidor rechaza la compra si su precio ya no es este
+            long confirmedUnit = unit; // the server rejects the purchase if its price is no longer this one
             area(bx, by, btnW, bh, () -> {
                 if (big && now() - armedAt >= 3) { armedAt = now(); return; }
                 armedAt = -10;
@@ -483,8 +483,8 @@ public class FurnitureApp {
     }
 
     /**
-     * Tooltip diferido: se lo pasamos a la pantalla actual para que lo pinte después de todo (fuera del recorte del
-     * teléfono y por encima del resto), en vez de ctx.drawTooltip dentro del scissor.
+     * Deferred tooltip: we hand it to the current screen so it draws it after everything else (outside the phone's
+     * clipping and above the rest), instead of ctx.drawTooltip inside the scissor.
      */
     private static void tooltip(List<Text> lines) {
         Screen screen = MinecraftClient.getInstance().currentScreen;
@@ -494,7 +494,7 @@ public class FurnitureApp {
         screen.setTooltip(out, HoveredTooltipPositioner.INSTANCE, true);
     }
 
-    /** Precio corto para las fichas: 10k, 1M, 1.000M... */
+    /** Short price for the tiles: 10k, 1M, 1.000M... */
     private static String compact(long v) {
         String suf = dev.tcgshop.TcgShopConfig.INSTANCE.currencySuffix;
         if (v >= 1_000_000L && v % 1_000_000L == 0) return PriceService.format(v / 1_000_000L).replace(suf, "") + "M" + suf;
@@ -517,7 +517,7 @@ public class FurnitureApp {
         if (np != page) { page = np; pageAt = now(); }
     }
 
-    // ------------------------------------------------------------------ entrada
+    // ------------------------------------------------------------------ input
 
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (loaded && Ui.in(mouseX, mouseY, sbX, sbY, sbW, 14)) {
@@ -537,7 +537,7 @@ public class FurnitureApp {
         return false;
     }
 
-    /** Rueda: pasa de página sobre la rejilla. */
+    /** Wheel: changes page over the grid. */
     public boolean mouseScrolled(double mouseX, double mouseY, double v) {
         if (!loaded || v == 0) return false;
         turn(v > 0 ? -1 : 1);
@@ -562,7 +562,7 @@ public class FurnitureApp {
         return false;
     }
 
-    /** Quita el foco del buscador (al cambiar de app/pestaña). */
+    /** Removes focus from the search box (when switching app/tab). */
     public void unfocus() {
         search.setFocused(false);
     }

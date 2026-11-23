@@ -1,7 +1,7 @@
 /*
- * Puente entre el motor de Pokémon TCG de twinleaf.gg (MIT, basado en ryuu-play de keeshii, MIT) y MasterBall Traders Co..
- * Se compila con esbuild a un único archivo y se ejecuta dentro de Minecraft con GraalJS. Todas las funciones
- * reciben y devuelven texto (JSON) para que la interoperabilidad con Java sea trivial.
+ * Bridge between the twinleaf.gg Pokémon TCG engine (MIT, based on keeshii's ryuu-play, MIT) and MasterBall Traders Co..
+ * Compiled with esbuild into a single file and run inside Minecraft with GraalJS. Every function
+ * takes and returns text (JSON) so interop with Java is trivial.
  */
 import { Store } from '../../vendor/twinleafgg/ptcg-server/src/game/store/store';
 import { StoreHandler } from '../../vendor/twinleafgg/ptcg-server/src/game/store/store-handler';
@@ -50,7 +50,7 @@ import { SimpleTacticsAi } from '../../vendor/twinleafgg/ptcg-server/src/simple-
 import { allSimpleTactics, allPromptResolvers, defaultStateScores, defaultArbiterOptions } from '../../vendor/twinleafgg/ptcg-server/src/simple-bot/simple-bot-definitions';
 import * as sets from '../../vendor/twinleafgg/ptcg-server/src/sets';
 
-// ------------------------------------------------------------------ cartas
+// ------------------------------------------------------------------ cards
 
 let initialized = false;
 
@@ -62,9 +62,9 @@ function init(): number {
     try {
       cm.defineSet(value as Card[]);
     } catch (e) {
-      // un set con nombres repetidos: se añaden las cartas que no choquen
+      // a set with duplicate names: add the cards that don't clash
       for (const c of value as Card[]) {
-        try { cm.defineSet([c]); } catch (ignored) { /* repetida */ }
+        try { cm.defineSet([c]); } catch (ignored) { /* duplicate */ }
       }
     }
   }
@@ -89,7 +89,7 @@ function brief(c: Card): any {
   return o;
 }
 
-/** Lista compacta de todas las cartas (para emparejarlas con cobbletcg y montar mazos). */
+/** Compact list of every card (to match them with cobbletcg and build decks). */
 function cardsJson(): string {
   init();
   return JSON.stringify(CardManager.getInstance().getAllCards().map(brief));
@@ -118,14 +118,14 @@ function detailsJson(namesJson: string): string {
   return JSON.stringify(out);
 }
 
-// ------------------------------------------------------------------ partidas
+// ------------------------------------------------------------------ matches
 
 class Match implements StoreHandler {
   store: Store;
   arbiter = new Arbiter();
   bots: { [id: number]: SimpleTacticsAi } = {};
   busy = false;
-  /** Animaciones pendientes para los clientes (ataques, habilidades, cambios de fase), con número de secuencia. */
+  /** Pending animations for the clients (attacks, abilities, phase changes), with a sequence number. */
   anims: any[] = [];
   seq = 0;
 
@@ -133,11 +133,11 @@ class Match implements StoreHandler {
     this.store = new Store(this);
   }
 
-  onStateChange(state: State): void { /* el puente lee el estado bajo demanda */ }
+  onStateChange(state: State): void { /* the bridge reads the state on demand */ }
 
   /**
-   * Resuelve lo que no es una decisión de ningún jugador: barajados y monedas (árbitro) y las pausas de animación
-   * (WaitPrompt), que se convierten en eventos de animación para el cliente.
+   * Resolves what isn't any player's decision: shuffles and coin flips (arbiter) and animation pauses
+   * (WaitPrompt), which are turned into animation events for the client.
    */
   pump(): void {
     for (let guard = 0; guard < 400; guard++) {
@@ -208,7 +208,7 @@ function target(t: any): CardTarget {
   return { player: t.player, slot: t.slot, index: t.index };
 }
 
-/** Acción de un jugador (JSON: {t:"play"|"attack"|"ability"|"retreat"|"stadium"|"pass"|"concede", ...}). */
+/** A player's action (JSON: {t:"play"|"attack"|"ability"|"retreat"|"stadium"|"pass"|"concede", ...}). */
 function act(id: string, clientId: number, json: string): string {
   const m = matches[id];
   if (!m) return 'NO_MATCH';
@@ -229,13 +229,13 @@ function myPrompt(m: Match, clientId: number): Prompt<any> | undefined {
   return m.store.state.prompts.find(p => p.playerId === clientId && p.result === undefined);
 }
 
-/** Responde al prompt actual del jugador (resultado ya codificado como lo espera el motor). */
+/** Answers the player's current prompt (result already encoded the way the engine expects it). */
 function resolve(id: string, clientId: number, promptId: number, resultJson: string): string {
   const m = matches[id];
   if (!m) return 'NO_MATCH';
   const p = myPrompt(m, clientId);
   if (!p || p.id !== promptId) return 'PROMPT_GONE';
-  // como el servidor oficial: decodificar (índices -> cartas / Pokémon) y validar antes de pasarlo al motor
+  // like the official server: decode (indices -> cards / Pokémon) and validate before passing it to the engine
   let result: any;
   try {
     result = p.decode(JSON.parse(resultJson), m.store.state);
@@ -246,7 +246,7 @@ function resolve(id: string, clientId: number, promptId: number, resultJson: str
   return m.dispatch(new ResolvePromptAction(promptId, result));
 }
 
-/** Sugerencia de jugada para el jugador (lo que haría la IA de twinleaf en su lugar). */
+/** Move suggestion for the player (what twinleaf's AI would do in their place). */
 function suggest(id: string, clientId: number): string {
   const m = matches[id];
   if (!m) return '';
@@ -268,7 +268,7 @@ function suggest(id: string, clientId: number): string {
   return '';
 }
 
-/** El bot responde por el jugador al prompt actual (botón "automático" y respaldo para prompts complejos). */
+/** The bot answers the current prompt for the player ("auto" button and fallback for complex prompts). */
 function auto(id: string, clientId: number): string {
   const m = matches[id];
   if (!m) return 'NO_MATCH';
@@ -282,7 +282,7 @@ function auto(id: string, clientId: number): string {
   return m.dispatch(action);
 }
 
-/** Un paso de los bots: devuelve true si alguno ha hecho algo. */
+/** One bot step: returns true if any of them did something. */
 function botStep(id: string): boolean {
   const m = matches[id];
   if (!m) return false;
@@ -297,7 +297,7 @@ function botStep(id: string): boolean {
     if (!action) continue;
     const err = m.dispatch(action);
     if (err) {
-      // el bot se ha equivocado: si es su turno, pasa; si era un prompt, que lo resuelva el automático
+      // the bot made a mistake: if it's its turn, pass; if it was a prompt, let auto resolve it
       const s = m.store.state;
       if (s.phase === GamePhase.PLAYER_TURN && s.players[s.activePlayer] && s.players[s.activePlayer].id === Number(key)
           && !s.prompts.some(p => p.result === undefined)) {
@@ -309,7 +309,7 @@ function botStep(id: string): boolean {
   return false;
 }
 
-// ------------------------------------------------------------------ vista
+// ------------------------------------------------------------------ view
 
 function hpOf(m: Match, player: Player, list: PokemonCardList): number {
   try {
@@ -337,7 +337,7 @@ function pokemonView(m: Match, player: Player, list: PokemonCardList, defs: Set<
   };
 }
 
-/** Pokémon en juego que puede tocar un prompt (con daño, PS y energías unidas con su posición en la pila). */
+/** In-play Pokémon a prompt can target (with damage, HP and attached energies with their position in the stack). */
 function boardTargets(m: Match | null, state: State, perspective: number, playerType: PlayerType, slots: SlotType[], blocked: CardTarget[], defs: Set<string>): any[] {
   const out: any[] = [];
   const me = state.players.find(pl => pl.id === perspective);
@@ -484,7 +484,7 @@ function playerView(m: Match, pl: Player, me: boolean, defs: Set<string>): any {
     const turn = m.store.state.turn;
     o.used = { sup: pl.supporterTurn === turn, energy: pl.energyPlayedTurn === turn, retreat: pl.retreatedTurn === turn,
       stadium: pl.stadiumUsedTurn === turn };
-    // qué ataques del Activo puedes pagar ahora mismo (mismas comprobaciones que el motor) y si puedes retirarte
+    // which of the Active's attacks you can pay for right now (same checks as the engine) and whether you can retreat
     o.atkOk = [];
     const top = pl.active.getPokemonCard();
     if (top) {
@@ -544,7 +544,7 @@ function view(id: string, clientId: number): string {
   return JSON.stringify(o);
 }
 
-// ------------------------------------------------------------------ mazos
+// ------------------------------------------------------------------ decks
 
 function basicEnergy(type: CardType): string | null {
   init();
@@ -558,7 +558,7 @@ function basicEnergy(type: CardType): string | null {
   return best ? best.fullName : null;
 }
 
-/** Energías básicas disponibles: [{type, f}]. */
+/** Available basic Energies: [{type, f}]. */
 function energiesJson(): string {
   const out: any[] = [];
   for (const t of [CardType.GRASS, CardType.FIRE, CardType.WATER, CardType.LIGHTNING, CardType.PSYCHIC, CardType.FIGHTING,
@@ -581,7 +581,7 @@ function hasTag(c: Card, t: CardTag): boolean {
   return ((c as any).tags || []).includes(t);
 }
 
-/** Motivo por el que un mazo no es legal ("" = legal). Mismas reglas que el analizador del motor. */
+/** Reason a deck isn't legal ("" = legal). Same rules as the engine's analyser. */
 function deckProblem(deck: string[]): string {
   init();
   if (deck.length !== 60) return 'DECK_SIZE:' + deck.length;
@@ -616,9 +616,9 @@ function deckProblem(deck: string[]): string {
 }
 
 /**
- * Monta un mazo legal de 60 cartas a partir de un pool {fullName: copias} (máx. 4 por nombre salvo Energía básica):
- * líneas evolutivas completas, entrenadores clave (respetando ACE SPEC / Radiante únicos y combinaciones prohibidas)
- * y Energía básica gratis del tipo principal hasta 60. chaos (0..1) = cuánto azar hay al elegir (IA fácil = mucho).
+ * Builds a legal 60-card deck from a pool {fullName: copies} (max. 4 per name except basic Energy):
+ * complete evolution lines, key trainers (respecting single ACE SPEC / Radiant and banned combinations)
+ * and free basic Energy of the main type up to 60. chaos (0..1) = how much randomness when choosing (easy AI = a lot).
  */
 function buildDeckOnce(pool: { [f: string]: number }, house: boolean, rand: () => number, chaos: number, seeds: string[] = []): string[] {
   const cm = CardManager.getInstance();
@@ -659,7 +659,7 @@ function buildDeckOnce(pool: { [f: string]: number }, house: boolean, rand: () =
   const pokes = all.filter(c => c instanceof PokemonCard) as PokemonCard[];
   const types: { [t: number]: number } = {};
   let lines = 0;
-  // --- cartas que ya puso el jugador: se respetan y el mazo se arma a su alrededor
+  // --- cards the player already added: they are kept and the deck is built around them
   const seedCount: { [f: string]: number } = {};
   for (const f of seeds) seedCount[f] = (seedCount[f] || 0) + 1;
   const seedTypes = new Set<number>();
@@ -685,7 +685,7 @@ function buildDeckOnce(pool: { [f: string]: number }, house: boolean, rand: () =
   for (const f of Object.keys(seedCount)) {
     const c = cm.getCardByName(f);
     if (!c) continue;
-    if (c instanceof EnergyCard && c.energyType === EnergyType.BASIC) continue; // la Energía básica se reparte al final
+    if (c instanceof EnergyCard && c.energyType === EnergyType.BASIC) continue; // basic Energy is distributed at the end
     if (c instanceof PokemonCard) {
       seedNames.push(c.name);
       c.cardType.forEach(t => { if (t !== CardType.COLORLESS) seedTypes.add(t); });
@@ -713,7 +713,7 @@ function buildDeckOnce(pool: { [f: string]: number }, house: boolean, rand: () =
     }
     if (!ok || line[0].stage !== Stage.BASIC) continue;
     if ((countName[top.name] || 0) > 0) continue;
-    // la línea debe ser del tipo principal (o incolora) para no mezclar demasiadas energías
+    // the line must be of the main type (or colorless) to avoid mixing too many energies
     const mainTypes = Object.keys(types).map(Number).filter(t => t !== CardType.COLORLESS);
     if (mainTypes.length >= 2 && !top.cardType.some(t => t === CardType.COLORLESS || mainTypes.includes(t))) continue;
     const counts = line.length === 3 ? [4, 2, 3] : line.length === 2 ? [4, 3] : [3];
@@ -725,7 +725,7 @@ function buildDeckOnce(pool: { [f: string]: number }, house: boolean, rand: () =
     'Buddy-Buddy Poffin', 'Super Rod', 'Night Stretcher', 'Earthen Vessel', 'Pokégear 3.0', 'Energy Retrieval', 'Quick Ball',
     'Evolution Incense', 'Marnie', 'Potion', 'Great Ball', 'Poké Ball', 'Hop', 'Hilda', 'Lillie\'s Determination'];
   const trainers = all.filter(c => c instanceof TrainerCard) as TrainerCard[];
-  // Entrenadores que nombran a tus Pokémon semilla (p. ej. los que buscan o potencian a ese Pokémon)
+  // Trainers that name your seed Pokémon (e.g. ones that search for or power up that Pokémon)
   for (const c of trainers) if (seedNames.length && seedText(c) && deck.length < 44) add(c, 2);
   const hasStage2 = () => deck.some(f => { const k = cm.getCardByName(f) as any; return k && k.stage === Stage.STAGE_2; });
   for (const name of staples) {
@@ -767,7 +767,7 @@ function buildDeck(poolJson: string, seed: number, chaos?: number, seedsJson?: s
   return JSON.stringify(best);
 }
 
-/** Comprueba un mazo: "" si es legal, o el motivo ("DECK_SIZE:n", "MAX_COPIES:nombre", "ACE_SPEC:nombre", "NO_BASIC"...). */
+/** Checks a deck: "" if legal, or the reason ("DECK_SIZE:n", "MAX_COPIES:name", "ACE_SPEC:name", "NO_BASIC"...). */
 function validateDeck(deckJson: string): string {
   return deckProblem(JSON.parse(deckJson));
 }

@@ -1,5 +1,5 @@
 {
-  "_comment": "#9 Murkrow ladron: 'se lleva' lo mas barato de un expositor (robo VIRTUAL: la casilla queda vacia para los clientes, el objeto no se mueve). Espantalo o vencelo; un guardia lo recupera solo. Si no, pierdes su valor de la caja.",
+  "_comment": "#9 thief Murkrow: 'takes' the cheapest item from a display (VIRTUAL theft: the slot appears empty to customers, the item does not move). Scare it off or defeat it; a guard recovers it automatically. Otherwise, you lose its value from the register.",
   "category": "negative",
   "tier": "uncommon",
   "template": "thief_pkmn",

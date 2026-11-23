@@ -41,22 +41,22 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Scalper: revendedor humanoide (aspecto de Steve) que acecha a los coleccionistas.
- *  · Si te ve abriendo sobres, te ataca para robarte.
- *  · Si no, se acerca y te ofrece un sobre a precio inflado (2,5x-4x el de mercado, en Pokédólares).
- *    Si lo rechazas o le ignoras, se vuelve hostil.
- *  · Si consigue golpearte, te roba un montón de sobres o cartas del inventario y huye.
- *    Las cartas guardadas en el Binder General están a salvo. Si lo matas, suelta lo robado.
- * Daño = jugador con espada de diamante (7). Defensa = armadura completa de netherita (20 armadura, 12 dureza,
- * 0,4 resistencia al empuje), sin equipo visible.
+ * Scalper: humanoid reseller (Steve-like look) that stalks collectors.
+ *  · If it sees you opening packs, it attacks you to rob you.
+ *  · Otherwise, it approaches and offers you a pack at an inflated price (2.5x-4x the market price, in Pokédollars).
+ *    If you reject or ignore it, it turns hostile.
+ *  · If it manages to hit you, it steals a stack of packs or cards from your inventory and flees.
+ *    Cards stored in the General Binder are safe. If you kill it, it drops what it stole.
+ * Damage = player with a diamond sword (7). Defense = full netherite armor (20 armor, 12 toughness,
+ * 0.4 knockback resistance), with no visible gear.
  */
 public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.compat.CobblemonBattles.Fighter {
     public enum Mode { CALM, OFFERING, HOSTILE, FLEEING, SATISFIED, BRAWL }
 
-    /** Pokémon "de mala calaña" que sacan los Scalpers en combate. */
+    /** "Shady" Pokémon that Scalpers send out in battle. */
     private static final String[] POOL = {"meowth", "sneasel", "murkrow", "purrloin", "scraggy", "sableye", "nickit", "impidimp",
             "grimer", "koffing", "houndour", "poochyena", "stunky", "zorua", "trubbish", "croagunk"};
-    /** Ticks que le quedan a la pelea actual (contra otro Scalper o un monstruo). */
+    /** Ticks left in the current fight (against another Scalper or a monster). */
     private int brawlTimer;
 
     private Mode mode = Mode.CALM;
@@ -67,12 +67,12 @@ public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.
     private long offerPrice;
     private final SimpleInventory stolen = new SimpleInventory(9);
     private final List<UUID> alreadyOffered = new ArrayList<>();
-    /** Al huir alterna correr / pararse a admirar el botín (ticks restantes de la fase actual). */
+    /** While fleeing it alternates running / stopping to admire the loot (ticks left in the current phase). */
     private int fleePhaseTicks;
     private boolean admiring;
     private int lostTicks;
 
-    /** 0 = nada, 1 = pensando en dinero, 2 = le encanta lo que ve. Se sincroniza al cliente para el bocadillo. */
+    /** 0 = nothing, 1 = thinking about money, 2 = loves what it sees. Synced to the client for the bubble. */
     private static final net.minecraft.entity.data.TrackedData<Integer> EMOTE =
             net.minecraft.entity.data.DataTracker.registerData(ScalperEntity.class, net.minecraft.entity.data.TrackedDataHandlerRegistry.INTEGER);
 
@@ -93,7 +93,7 @@ public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.
     @Override public String npcTitle() { return dataTracker.get(TITLE); }
     @Override public int npcSkin() { return dataTracker.get(SKIN); }
 
-    /** Nombre real, piel y (40%) un título de Pokémon. */
+    /** Real name, skin and (40%) a Pokémon title. */
     private void ensureIdentity() {
         if (hasCustomName()) return;
         setCustomName(Text.literal(NpcIdentity.randomName(random)));
@@ -114,8 +114,8 @@ public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.
     public static DefaultAttributeContainer.Builder createAttributes() {
         return HostileEntity.createHostileAttributes()
                 .add(EntityAttributes.GENERIC_MAX_HEALTH, 20.0)
-                .add(EntityAttributes.GENERIC_ATTACK_DAMAGE, 7.0)       // espada de diamante
-                .add(EntityAttributes.GENERIC_ARMOR, 20.0)              // armadura completa de netherita
+                .add(EntityAttributes.GENERIC_ATTACK_DAMAGE, 7.0)       // diamond sword
+                .add(EntityAttributes.GENERIC_ARMOR, 20.0)              // full netherite armor
                 .add(EntityAttributes.GENERIC_ARMOR_TOUGHNESS, 12.0)
                 .add(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, 0.4)
                 .add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.31)
@@ -218,7 +218,7 @@ public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.
                 if (fleePhaseTicks <= 0) {
                     admiring = !admiring;
                     if (admiring) {
-                        // se para a mirar lo que ha robado: el jugador puede alcanzarlo
+                        // stops to look at what it stole: the player can catch up
                         fleePhaseTicks = 50 + random.nextInt(30);
                         dataTracker.set(EMOTE, 1 + random.nextInt(2));
                         playSound(SoundEvents.ENTITY_PIGLIN_ADMIRING_ITEM, 1f, 1.1f);
@@ -236,7 +236,7 @@ public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.
                     Vec3d away = getPos().subtract(p.getPos()).normalize().multiply(12);
                     getNavigation().startMovingTo(getX() + away.x, getY(), getZ() + away.z, 1.45);
                 }
-                // sólo desaparece si el jugador robado murió/se fue o está muy lejos
+                // only despawns if the robbed player died/left or is very far away
                 lostTicks = (p == null || squaredDistanceTo(p) > 64 * 64) ? lostTicks + 10 : 0;
                 if (lostTicks > 600) discard();
             }
@@ -249,13 +249,13 @@ public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.
         }
     }
 
-    /** Otro Scalper en su "territorio": a veces se pelean entre ellos. */
+    /** Another Scalper in its "territory": sometimes they fight each other. */
     private void lookForRival(ServerWorld sw) {
         List<ScalperEntity> near = sw.getEntitiesByClass(ScalperEntity.class, getBoundingBox().expand(12),
                 o -> o != this && o.isAlive() && (o.mode == Mode.CALM || o.mode == Mode.SATISFIED) && !dev.tcgshop.compat.CobblemonBattles.isFighting(o));
         if (near.isEmpty()) return;
         ScalperEntity rival = near.get(random.nextInt(near.size()));
-        // con Cobblemon, la mitad de las veces lo arreglan con un duelo Pokémon
+        // with Cobblemon, half the time they settle it with a Pokémon duel
         if (random.nextFloat() < 0.5f && dev.tcgshop.compat.NpcPokemonDuel.start(this, rival, POOL, POOL, 20 + random.nextInt(25), 0,
                 (winner, loser) -> {
                     if (loser instanceof ScalperEntity ls) ls.loseDuel();
@@ -267,7 +267,7 @@ public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.
         playSound(SoundEvents.ENTITY_VINDICATOR_CELEBRATE, 1f, 0.8f);
     }
 
-    /** Perdió un duelo Pokémon contra otro Scalper: suelta parte de lo robado y se larga. */
+    /** Lost a Pokémon duel against another Scalper: drops part of its loot and leaves. */
     void loseDuel() {
         for (int i = 0; i < stolen.size(); i++) if (!stolen.getStack(i).isEmpty() && random.nextBoolean()) dropStack(stolen.removeStack(i));
         NpcLines.speak(this, Text.translatable("tcgshop.scalper.duel_lost"));
@@ -276,7 +276,7 @@ public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.
     }
 
     public void startBrawl(net.minecraft.entity.LivingEntity enemy) {
-        if (mode == Mode.FLEEING && !stolen.isEmpty() && !(enemy instanceof PlayerEntity)) return; // con botín prefiere huir
+        if (mode == Mode.FLEEING && !stolen.isEmpty() && !(enemy instanceof PlayerEntity)) return; // with loot it prefers to flee
         mode = Mode.BRAWL;
         brawlTimer = 20 * 30;
         admiring = false;
@@ -284,7 +284,7 @@ public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.
         setTarget(enemy);
     }
 
-    /** Aviso en el chat a los jugadores cercanos. */
+    /** Chat notice to nearby players. */
     private void shout(ServerWorld sw, String key, Object... args) {
         for (ServerPlayerEntity p : sw.getPlayers(pl -> pl.squaredDistanceTo(this) < 40 * 40))
             p.sendMessage(Text.translatable(key, args).formatted(Formatting.GOLD), false);
@@ -293,7 +293,7 @@ public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.
     @Override
     public String[] battlePool() { return POOL; }
 
-    /** Clic derecho (con Cobblemon instalado): le retas a un combate Pokémon. Si pierde, cae. */
+    /** Right click (with Cobblemon installed): you challenge it to a Pokémon battle. If it loses, it dies. */
     @Override
     protected net.minecraft.util.ActionResult interactMob(PlayerEntity player, net.minecraft.util.Hand hand) {
         if (hand != net.minecraft.util.Hand.MAIN_HAND || !dev.tcgshop.compat.CobblemonBattles.available()) return super.interactMob(player, hand);
@@ -337,7 +337,7 @@ public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.
         offerPrice = Math.max(50, Math.round(market * (2.5 + random.nextDouble() * 1.5) / 50.0) * 50);
         mode = Mode.OFFERING;
         mark = p.getUuid();
-        timer = 400; // 20 s para decidir
+        timer = 400; // 20 s to decide
         alreadyOffered.add(p.getUuid());
         say(p, "tcgshop.scalper.offer_line");
         playSound(SoundEvents.ENTITY_VILLAGER_AMBIENT, 1f, 0.7f);
@@ -347,7 +347,7 @@ public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.
         }
     }
 
-    /** Respuesta del jugador a la oferta. */
+    /** The player's answer to the offer. */
     public void answer(ServerPlayerEntity p, boolean accept) {
         if (mode != Mode.OFFERING || !p.getUuid().equals(mark)) return;
         if (!accept) {
@@ -373,7 +373,7 @@ public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.
         if (hit && mode == Mode.HOSTILE && target instanceof ServerPlayerEntity p) {
             ItemStack loot = steal(p);
             if (loot.isEmpty() && !stolen.isEmpty()) {
-                startFleeing(); // ya tiene botín: vuelve a huir
+                startFleeing(); // already has loot: flees again
             } else if (!loot.isEmpty()) {
                 stolen.addStack(loot);
                 say(p, "tcgshop.scalper.stole", loot.toHoverableText());
@@ -393,16 +393,16 @@ public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.
         lostTicks = 0;
         dataTracker.set(EMOTE, 0);
         setTarget(null);
-        setPersistent(); // con botín no desaparece de forma natural
+        setPersistent(); // with loot it does not despawn naturally
     }
 
-    /** Si el jugador le pega, se defiende (aunque esté huyendo con el botín). */
+    /** If the player hits it, it fights back (even while fleeing with the loot). */
     @Override
     public boolean damage(DamageSource source, float amount) {
         boolean hurt = super.damage(source, amount);
         if (hurt && isAlive() && source.getAttacker() instanceof net.minecraft.entity.mob.MobEntity mob && mob != this && mob.isAlive()
                 && mode != Mode.HOSTILE) {
-            startBrawl(mob); // un zombi, un esqueleto u otro Scalper le pega: se defiende
+            startBrawl(mob); // a zombie, a skeleton or another Scalper hits it: it fights back
         }
         if (hurt && isAlive() && source.getAttacker() instanceof ServerPlayerEntity p && !p.isCreative()) {
             if (mode != Mode.HOSTILE) {
@@ -417,7 +417,7 @@ public class ScalperEntity extends HostileEntity implements TcgNpc, dev.tcgshop.
         return hurt;
     }
 
-    /** Roba un montón aleatorio de sobres o cartas del inventario (no del Binder General). */
+    /** Steals a random stack of packs or cards from the inventory (not from the General Binder). */
     private ItemStack steal(ServerPlayerEntity p) {
         PlayerInventory inv = p.getInventory();
         List<Integer> slots = new ArrayList<>();

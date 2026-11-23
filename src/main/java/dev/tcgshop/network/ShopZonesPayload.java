@@ -8,7 +8,7 @@ import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
-/** Servidor -> cliente: zonas de tienda de la dimensión + contabilidad propia (para las Gafas de Gerente y el teléfono). */
+/** Server -> client: the dimension's shop zones + your own accounting (for the Manager Glasses and the phone). */
 public record ShopZonesPayload(NbtCompound data) implements CustomPayload {
     public static final Id<ShopZonesPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "shop_zones"));
     public static final PacketCodec<RegistryByteBuf, ShopZonesPayload> CODEC =

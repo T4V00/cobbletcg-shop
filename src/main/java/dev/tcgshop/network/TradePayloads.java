@@ -11,7 +11,7 @@ import net.minecraft.util.Uuids;
 
 import java.util.UUID;
 
-/** Paquetes del intercambio de cartas entre jugadores (estilo TCG Pocket). */
+/** Packets for card trading between players (TCG Pocket style). */
 public final class TradePayloads {
     private TradePayloads() {}
 
@@ -19,35 +19,35 @@ public final class TradePayloads {
         return new CustomPayload.Id<>(Identifier.of(TcgShop.MOD_ID, path));
     }
 
-    /** C→S: pedir un intercambio al jugador indicado (desde la rueda de Cobblemon). */
+    /** C→S: request a trade with the given player (from the Cobblemon wheel). */
     public record Request(UUID target) implements CustomPayload {
         public static final Id<Request> ID = id("trade_request");
         public static final PacketCodec<RegistryByteBuf, Request> CODEC = PacketCodec.tuple(Uuids.PACKET_CODEC, Request::target, Request::new);
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** C→S: ofrecer la carta de esa casilla del inventario (0-35). */
+    /** C→S: offer the card in that inventory slot (0-35). */
     public record Select(int slot) implements CustomPayload {
         public static final Id<Select> ID = id("trade_select");
         public static final PacketCodec<RegistryByteBuf, Select> CODEC = PacketCodec.tuple(PacketCodecs.VAR_INT, Select::slot, Select::new);
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** C→S: confirmar (true) o cancelar el intercambio (false). */
+    /** C→S: confirm (true) or cancel the trade (false). */
     public record Answer(boolean confirm) implements CustomPayload {
         public static final Id<Answer> ID = id("trade_answer");
         public static final PacketCodec<RegistryByteBuf, Answer> CODEC = PacketCodec.tuple(PacketCodecs.BOOL, Answer::confirm, Answer::new);
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** S→C: abrir la pantalla de intercambio con ese compañero. */
+    /** S→C: open the trade screen with that partner. */
     public record Open(String partner) implements CustomPayload {
         public static final Id<Open> ID = id("trade_open");
         public static final PacketCodec<RegistryByteBuf, Open> CODEC = PacketCodec.tuple(PacketCodecs.STRING, Open::partner, Open::new);
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** S→C: estado actual. message = clave de idioma ("" si nada). */
+    /** S→C: current state. message = language key ("" if none). */
     public record State(ItemStack mine, ItemStack theirs, boolean myOk, boolean theirOk, String message) implements CustomPayload {
         public static final Id<State> ID = id("trade_state");
         public static final PacketCodec<RegistryByteBuf, State> CODEC = PacketCodec.tuple(
@@ -56,7 +56,7 @@ public final class TradePayloads {
         @Override public Id<? extends CustomPayload> getId() { return ID; }
     }
 
-    /** S→C: fin del intercambio (hecho o cancelado). */
+    /** S→C: end of the trade (completed or cancelled). */
     public record Done(ItemStack gave, ItemStack got, boolean success, String message) implements CustomPayload {
         public static final Id<Done> ID = id("trade_done");
         public static final PacketCodec<RegistryByteBuf, Done> CODEC = PacketCodec.tuple(

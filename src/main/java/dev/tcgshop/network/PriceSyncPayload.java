@@ -11,8 +11,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Servidor -> cliente al entrar / recargar datos: tabla de precios y parámetros del mercado.
- * (~7.700 cartas ≈ 300 KB; se envía una sola vez, el cambio de día va en MarketDayPayload).
+ * Server -> client on join / data reload: price table and market parameters.
+ * (~7,700 cards ≈ 300 KB; sent only once, the day change goes in MarketDayPayload).
  */
 public record PriceSyncPayload(Map<String, Double> cardsUsd, Map<String, Double> sealedUsd, Map<String, Double> rarityMedianUsd,
                                Map<String, Double> gradedUsd, Market market, String economy) implements CustomPayload {

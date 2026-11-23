@@ -37,16 +37,16 @@ import net.minecraft.world.World;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Objetos de tienda con animación: póster, mesa de juego, detector de robos, ruleta y caja registradora. */
+/** Animated shop objects: poster, play table, theft detector, roulette and cash register. */
 public final class DecorBlocks {
     private DecorBlocks() {}
 
-    /** Entidad de bloque común: set (póster), inicio de animación y valor (resultado de la ruleta). */
+    /** Shared block entity: set (poster), animation start and value (roulette result). */
     public static class DecorEntity extends BlockEntity {
         public String set = "mew151";
         public long animStart = -1000;
         public int value = -1;
-        /** Mesa de juego: cartas en juego de la partida (Activo + Banca de cada lado) para dibujarlas sobre la mesa. */
+        /** Play table: the match's cards in play (Active + Bench on each side) to draw them on the table. */
         public final java.util.List<String> board = new java.util.ArrayList<>();
 
         public DecorEntity(BlockPos pos, BlockState state) { super(TcgBlocks.DECOR_BE, pos, state); }
@@ -83,7 +83,7 @@ public final class DecorBlocks {
             net.minecraft.nbt.NbtList b = nbt.getList("Board", net.minecraft.nbt.NbtElement.STRING_TYPE);
             for (int i = 0; i < b.size(); i++) {
                 String id = dev.masterball.api.card.CardInfo.migrate(b.getString(i));
-                board.add(dev.masterball.api.card.CardCatalog.isRemovedId(id) ? "" : id); // TCG Pocket: quitado en la 0.9
+                board.add(dev.masterball.api.card.CardCatalog.isRemovedId(id) ? "" : id); // TCG Pocket: removed in 0.9
             }
         }
 
@@ -94,7 +94,7 @@ public final class DecorBlocks {
         public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup lookup) { return createNbt(lookup); }
     }
 
-    /** Base: bloque con orientación horizontal y entidad de decoración. */
+    /** Base: block with horizontal facing and a decor block entity. */
     public abstract static class FacingDecor extends BlockWithEntity {
         public static final DirectionProperty FACING = Properties.HORIZONTAL_FACING;
         private final VoxelShape north, south, east, west;
@@ -140,9 +140,9 @@ public final class DecorBlocks {
         return out;
     }
 
-    // ------------------------------------------------------------------ póster
+    // ------------------------------------------------------------------ poster
 
-    /** Póster de pared con el arte de un sobre. Clic derecho (dueño de la zona o fuera de tiendas): cambia de set. */
+    /** Wall poster with a pack's art. Right-click (zone owner or outside shops): changes the set. */
     public static class PosterBlock extends FacingDecor implements ShopFurniture {
         public PosterBlock(Settings s) {
             super(s, Block.createCuboidShape(1, 0, 15, 15, 16, 16), Block.createCuboidShape(1, 0, 0, 15, 16, 1),
@@ -170,15 +170,15 @@ public final class DecorBlocks {
         }
     }
 
-    // ------------------------------------------------------------------ mesa de juego
+    // ------------------------------------------------------------------ play table
 
-    /** Mesa de juego competitivo con tapete y cartas. Clic derecho: barajar (animación). Suma reputación. */
+    /** Competitive play table with playmat and cards. Right-click: shuffle (animation). Adds reputation. */
     public static class PlayTableBlock extends FacingDecor implements ShopFurniture {
         private static final VoxelShape SHAPE = Block.createCuboidShape(0, 0, 0, 16, 13, 16);
 
         public PlayTableBlock(Settings s) { super(s, SHAPE, SHAPE, SHAPE, SHAPE); }
 
-        /** La mesa de juego vale en cualquier sitio (casa, torneos...), no sólo en la tienda. */
+        /** The play table works anywhere (home, tournaments...), not only in the shop. */
         @Override
         public boolean shopOnly() { return false; }
 
@@ -187,18 +187,18 @@ public final class DecorBlocks {
 
         @Override
         protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-            // clic: esperar rival / jugar partida de liga · Mayús + clic: jugar contra la casa
+            // click: wait for an opponent / play a league match · Shift + click: play against the house
             if (!world.isClient && player instanceof net.minecraft.server.network.ServerPlayerEntity sp)
                 dev.tcgshop.ptcg.PtcgDuels.useTable(sp, pos, sp.isSneaking());
             return ActionResult.success(world.isClient);
         }
     }
 
-    // ------------------------------------------------------------------ detector de robos
+    // ------------------------------------------------------------------ theft detector
 
     /**
-     * Arco detector de robos: si un ladrón roba cerca (12 bloques) salta la alarma (luz roja y campana),
-     * el ladrón queda marcado y es mucho más fácil atraparlo.
+     * Theft detector gate: if a thief steals nearby (12 blocks) the alarm goes off (red light and bell),
+     * the thief is marked and becomes much easier to catch.
      */
     public static class TheftDetectorBlock extends FacingDecor implements ShopFurniture {
         public static final BooleanProperty ALARM = BooleanProperty.of("alarm");
@@ -233,9 +233,9 @@ public final class DecorBlocks {
         }
     }
 
-    // ------------------------------------------------------------------ caja registradora
+    // ------------------------------------------------------------------ cash register
 
-    /** Caja registradora: el dueño cobra aquí; el cajón se abre con cada venta. Si hay cajero contratado, él atiende. */
+    /** Cash register: the owner takes payments here; the drawer opens with each sale. If a cashier is hired, they serve. */
     public static class RegisterBlock extends FacingDecor implements ShopFurniture {
         private static final VoxelShape SHAPE = Block.createCuboidShape(2, 0, 2, 14, 11, 14);
 
@@ -255,9 +255,9 @@ public final class DecorBlocks {
         }
     }
 
-    // ------------------------------------------------------------------ ruleta
+    // ------------------------------------------------------------------ roulette
 
-    /** Ruleta Poké (sólo se compra con el Teléfono TCG): apuesta a rojo o negro. */
+    /** Poké Roulette (only bought with the TCG Phone): bet on red or black. */
     public static class RouletteBlock extends FacingDecor {
         private static final VoxelShape SHAPE = Block.createCuboidShape(0, 0, 0, 16, 14, 16);
 

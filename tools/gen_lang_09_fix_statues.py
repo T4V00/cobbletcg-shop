@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v0.9 fix - estatuas / tienda de muebles: inventario lleno y precio cambiado. Idempotente; sólo toca sus claves."""
+"""v0.9 fix - statues / furniture shop: inventory full and price changed. Idempotent; only touches its own keys."""
 import json
 from pathlib import Path
 
@@ -28,4 +28,4 @@ if __name__ == "__main__":
     assert set(ES) == set(EN)
     apply("es_es.json", ES)
     apply("en_us.json", EN)
-    print("gen_lang_09_fix_statues:", len(ES), "claves")
+    print("gen_lang_09_fix_statues:", len(ES), "keys")

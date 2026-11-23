@@ -1,10 +1,10 @@
-"""Logo del proyecto (512x512): toldo de tienda y tres cartas en abanico con brillo holo. Sin marcas registradas."""
+"""Project logo (512x512): shop awning and three fanned cards with holo shine. No trademarks."""
 import math
 import struct
 import zlib
 from pathlib import Path
 
-N, SS = 512, 2  # supermuestreo 2x2 para bordes suaves
+N, SS = 512, 2  # 2x2 supersampling for smooth edges
 OUT = Path(__file__).resolve().parent.parent / "release/logo.png"
 
 
@@ -28,7 +28,7 @@ def hsv(h, s, v):
 
 
 def rounded_rect_sdf(px, py, cx, cy, hw, hh, r, ang):
-    # punto en el sistema de la carta (rotada ang radianes alrededor de su centro)
+    # point in the card's frame (rotated ang radians around its center)
     dx, dy = px - cx, py - cy
     ca, sa = math.cos(-ang), math.sin(-ang)
     x, y = dx * ca - dy * sa, dx * sa + dy * ca
@@ -37,7 +37,7 @@ def rounded_rect_sdf(px, py, cx, cy, hw, hh, r, ang):
     return out, x, y
 
 
-CARDS = [  # centro, rotación, tono holo
+CARDS = [  # center, rotation, holo hue
     (196, 300, math.radians(-18), 0.55),
     (316, 300, math.radians(18), 0.08),
     (256, 280, 0.0, 0.83),
@@ -46,14 +46,14 @@ HW, HH, R = 78, 108, 12
 
 
 def shade(x, y):
-    # fondo: degradado radial azul noche -> violeta
+    # background: radial gradient night blue -> violet
     d = math.hypot(x - 256, y - 300) / 360
     col = mix((0.20, 0.16, 0.42), (0.04, 0.04, 0.10), min(1, d))
-    # destellos de fondo
+    # background sparkles
     for sx, sy, s in ((80, 120, 3), (430, 150, 2.5), (60, 420, 2), (450, 430, 3), (380, 80, 2)):
         g = max(0, 1 - math.hypot(x - sx, y - sy) / (s * 4))
         col = mix(col, (1, 0.95, 0.8), g * 0.9)
-    # toldo de tienda a rayas con borde ondulado
+    # striped shop awning with wavy edge
     stripe = int(x // 64) % 2
     wave = 120 + 14 * math.cos((x % 64) / 64 * math.pi * 2 - math.pi)
     if y < wave and y > 34:
@@ -61,11 +61,11 @@ def shade(x, y):
         c = mix(c, (0, 0, 0), max(0, (y - 34) / (wave - 34)) * 0.18)
         col = c
     if 22 <= y <= 40:
-        col = (0.36, 0.22, 0.14)  # barra del toldo
-    # cartas (de atrás hacia delante)
+        col = (0.36, 0.22, 0.14)  # awning bar
+    # cards (back to front)
     for cx, cy, ang, hue in CARDS:
         dist, lx, ly = rounded_rect_sdf(x, y, cx, cy, HW, HH, R, ang)
-        # sombra
+        # shadow
         sd, _, _ = rounded_rect_sdf(x - 8, y - 12, cx, cy, HW, HH, R, ang)
         if sd < 10:
             col = mix(col, (0, 0, 0), max(0, min(1, (10 - sd) / 14)) * 0.5)
@@ -75,25 +75,25 @@ def shade(x, y):
             if border:
                 c = mix((1.0, 0.82, 0.30), (0.75, 0.52, 0.12), (ly + HH) / (2 * HH))
             else:
-                # cara holo: arcoíris en diagonal con bandas de brillo
+                # holo face: diagonal rainbow with shine bands
                 t = (lx * 0.6 + ly * 0.9) / 260 + hue
                 c = hsv(t % 1, 0.45, 1.0)
                 band = 0.5 + 0.5 * math.sin((lx - ly) / 18)
                 c = mix(c, (1, 1, 1), band * 0.25)
-                # ventana de ilustración
+                # illustration window
                 if -HW + 14 < lx < HW - 14 and -HH + 22 < ly < 8:
                     c = mix(c, (0.12, 0.14, 0.30), 0.55)
-                    # estrella central
+                    # central star
                     rr = math.hypot(lx, ly + 40)
                     th = math.atan2(ly + 40, lx)
                     star = 24 * (0.55 + 0.45 * math.cos(5 * th))
                     if rr < star:
                         c = mix((1, 0.9, 0.35), (1, 1, 1), 1 - rr / max(1, star))
-                # líneas de texto
+                # text lines
                 if 22 < ly < 26 and abs(lx) < HW - 18 or 36 < ly < 40 and abs(lx) < HW - 30:
                     c = mix(c, (0.2, 0.2, 0.3), 0.5)
             col = mix(col, c, a)
-    # moneda dorada abajo a la derecha
+    # gold coin at the bottom right
     dc = math.hypot(x - 410, y - 430)
     if dc < 46:
         a = max(0, min(1, 46 - dc))

@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
 """
-Generador de precios reales para MasterBall Traders Co..
+Real-price generator for MasterBall Traders Co..
 
-Fuente: tcgcsv.com — espejo público y gratuito de la API de TCGplayer, actualizado a diario
-(~20:00 UTC), sin clave. Cubre los 72 sets del catálogo de MasterBall Traders API y también
-productos sellados (sobres, cajas, ETB).
+Source: tcgcsv.com — free public mirror of the TCGplayer API, updated daily
+(~20:00 UTC), no key. Covers the 72 sets of the MasterBall Traders API catalog and also
+sealed products (packs, boxes, ETB).
 
-Proceso:
-  1. Lee el catálogo de MasterBall Traders API (../masterball-api). Cada carta se llama
-     "<CÓDIGO> <número>  <nombre> [sufijo]"  p.ej. "PAL 269  Iono SIR".
-  2. Para cada código descarga productos y precios de su(s) grupo(s) TCGplayer (tabla SET_GROUPS).
-  3. Empareja por número + nombre, con varios respaldos (sólo nombre, nombre normalizado, promos).
-  4. Escribe src/main/resources/data/tcgshop/tcgshop_prices/cards.json
+Process:
+  1. Reads the MasterBall Traders API catalog (../masterball-api). Each card is named
+     "<CODE> <number>  <name> [suffix]"  e.g. "PAL 269  Iono SIR".
+  2. For each code downloads products and prices from its TCGplayer group(s) (SET_GROUPS table).
+  3. Matches by number + name, with several fallbacks (name only, normalized name, promos).
+  4. Writes src/main/resources/data/tcgshop/tcgshop_prices/cards.json
 
-Formato de salida:
+Output format:
   { "source": "...", "generated": "YYYY-MM-DD",
-    "cards_usd":  { "masterball:paldeanevolved/cards/pal269": 92.5, ... },      # precio de mercado (USD)
+    "cards_usd":  { "masterball:paldeanevolved/cards/pal269": 92.5, ... },      # market price (USD)
     "sealed_usd": { "paldeanevolved": {"pack": 4.9, "box": 210.0, "etb": 55.0}, ... } }
 
-Uso:  python tools/fetch_prices.py [--cache carpeta]   (cartas: catálogo de ../masterball-api)
-Sólo librería estándar.
+Usage:  python tools/fetch_prices.py [--cache folder]   (cards: ../masterball-api catalog)
+Standard library only.
 """
 import argparse
 import collections
@@ -33,12 +33,12 @@ import time
 import urllib.request
 from pathlib import Path
 
-BASE = "https://tcgcsv.com/tcgplayer/3"  # categoría 3 = Pokémon
+BASE = "https://tcgcsv.com/tcgplayer/3"  # category 3 = Pokémon
 OUT = Path(__file__).resolve().parent.parent / "src/main/resources/data/tcgshop/tcgshop_prices/cards.json"
 UA = {"User-Agent": "tcgshop-price-tool/1.0"}
 
-# Código de set de cobbletcg -> grupos TCGplayer (verificados contra https://tcgcsv.com/tcgplayer/3/groups).
-# El primer grupo es el set principal; los siguientes son subsets (Trainer Gallery, Galarian Gallery, Shiny Vault...).
+# cobbletcg set code -> TCGplayer groups (verified against https://tcgcsv.com/tcgplayer/3/groups).
+# The first group is the main set; the following ones are subsets (Trainer Gallery, Galarian Gallery, Shiny Vault...).
 SET_GROUPS = {
     "BS": [604], "TR": [1373], "GYM": [1440], "ROS": [1534],
     "HIF": [2480, 2594], "TEU": [2377], "UNB": [2420], "UNM": [2464],
@@ -49,11 +49,11 @@ SET_GROUPS = {
     "JTG": [24073], "DRI": [24269], "BLK": [24325], "WHT": [24326], "MEG": [24380], "PFL": [24448],
     "ASC": [24541], "POR": [24587], "CRI": [24655], "PBL": [24688],
 }
-# Grupos de promos donde buscar por nombre las cartas "ETB"/"UPC"/"Promo" de cobbletcg.
+# Promo groups in which to look up cobbletcg's "ETB"/"UPC"/"Promo" cards by name.
 PROMO_GROUP_NAME = re.compile(r"(Promo|Black Star)", re.I)
 
 SUFFIXES = r"(ETB|UPC|PROMO|PC|IR|SIR|SR|HR|UR|ACE|BS|BSP|TR|GC|NEO|RAINBOW|GOLD|FA|TG|GG|SV)"
-# Sólo sufijos al final del nombre ("Zorua ETB", "Snorlax Promo ETB"); "Surprise Box" NO es promo.
+# Only suffixes at the end of the name ("Zorua ETB", "Snorlax Promo ETB"); "Surprise Box" is NOT a promo.
 PROMO_RE = re.compile(r"\s+(Promo\s+)?(ETB|UPC|PC|Promo)\s*$", re.I)
 
 
@@ -73,10 +73,10 @@ class Fetcher:
                     raw = r.read()
                 if f:
                     f.write_bytes(raw)
-                time.sleep(0.15)  # ser amables con el servidor
+                time.sleep(0.15)  # be gentle with the server
                 return json.loads(raw)["results"]
             except Exception as e:  # noqa: BLE001
-                print(f"  {path}: {e} (reintento {attempt + 1})", file=sys.stderr)
+                print(f"  {path}: {e} (retry {attempt + 1})", file=sys.stderr)
                 time.sleep(2 ** attempt)
         raise RuntimeError(path)
 
@@ -109,14 +109,14 @@ def catalog_sets():
 
 
 def load_cards(_jar=None):
-    """Todas las cartas del catálogo de MasterBall Traders API (../masterball-api), con su nombre oficial
-    (el del lang de la API, ya corregido con TCGplayer). El argumento antiguo (jar de ScalperTCG) se ignora."""
+    """All cards in the MasterBall Traders API catalog (../masterball-api), with their official name
+    (the one from the API's lang, already corrected with TCGplayer). The old argument (ScalperTCG jar) is ignored."""
     lang = json.loads(API_LANG.read_text(encoding="utf-8"))
     out = []
     for set_id, s in catalog_sets().items():
         for leaf, c in s["cards"].items():
             disp = lang.get(f"item.masterball.{set_id}.cards.{leaf}", c.get("n") or leaf)
-            name = re.sub(r"\s*\([^()]*\)$", "", disp).strip()  # quita el " (BS 4)" final
+            name = re.sub(r"\s*\([^()]*\)$", "", disp).strip()  # strips the trailing " (BS 4)"
             no = c.get("no") or ""
             d = re.search(r"\d+", no)
             out.append({"id": f"masterball:{set_id}/cards/{leaf}", "set": set_id, "code": s["code"],
@@ -126,20 +126,20 @@ def load_cards(_jar=None):
 
 
 def load_rarities(_jar=None):
-    """id de carta -> clave de rareza (MasterBall Traders API, rareza oficial)."""
+    """card id -> rarity key (MasterBall Traders API, official rarity)."""
     cards = json.loads(API_RARITY.read_text(encoding="utf-8"))["cards"]
     return {f"masterball:{k.split('/')[0]}/cards/{k.split('/')[1]}": v["r"] for k, v in cards.items()}
 
 
-# Variante preferida de cada carta: la normal/holo (y la Unlimited en los sets antiguos) antes que la reverse
-# holo o la 1ª edición, que valen otra cosa. Antes se cogía el máximo de todas y los sets antiguos salían a precio
-# de 1ª edición.
+# Preferred variant of each card: normal/holo (and Unlimited in old sets) before reverse
+# holo or 1st edition, which are worth something else. It used to take the max of all and old sets came out at
+# 1st edition prices.
 SUB_RANK = {"Normal": 0, "Holofoil": 0, "Unlimited": 0, "Unlimited Holofoil": 0,
             "Reverse Holofoil": 1, "1st Edition": 2, "1st Edition Holofoil": 2}
 
 
 def product_price(prices, pid):
-    """Precio de mercado (ventas reales). Sin ventas: el anuncio más barato, nunca el precio medio de anuncios."""
+    """Market price (real sales). No sales: the cheapest listing, never the average listing price."""
     best = {}
     for p in prices.get(pid, []):
         v = p.get("marketPrice") or p.get("lowPrice")
@@ -155,7 +155,7 @@ SEALED_SKIP = ("pokemon center", "exclusive", "set of", "mini", "half", "case", 
 
 
 def sealed_kind(name):
-    """'pack' / 'box' / 'etb' para el producto sellado estándar del set; None para variantes y exclusivas."""
+    """'pack' / 'box' / 'etb' for the set's standard sealed product; None for variants and exclusives."""
     raw = name.lower()
     if any(k in raw for k in SEALED_SKIP):
         return None
@@ -171,20 +171,20 @@ def sealed_kind(name):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("jar", nargs="?", help="(ya no se usa: las cartas salen del catálogo de MasterBall Traders API)")
+    ap.add_argument("jar", nargs="?", help="(no longer used: cards come from the MasterBall Traders API catalog)")
     ap.add_argument("--cache")
     args = ap.parse_args()
     fx = Fetcher(args.cache)
 
     cards = load_cards(args.jar)
-    print(f"{len(cards)} cartas en el jar")
+    print(f"{len(cards)} cards in the jar")
 
     result, sealed, misses = {}, {}, []
     by_code = collections.defaultdict(list)
     for c in cards:
         by_code[c["code"]].append(c)
 
-    # catálogo de promos (para cartas ETB/UPC)
+    # promo catalog (for ETB/UPC cards)
     promo_index = collections.defaultdict(list)
     promo_prices = {}
     for g in fx.get("groups"):
@@ -215,7 +215,7 @@ def main():
                 if d:
                     by_num[int(d.group(1))].append(p)
                 by_name[norm(p["name"])].append(p)
-            else:  # producto sellado: sólo ventas reales (las cajas antiguas sólo tienen anuncios de 100.000 $)
+            else:  # sealed product: real sales only (old boxes only have $100,000 listings)
                 kind = sealed_kind(p["name"])
                 vals = [pr.get("marketPrice") for pr in prices.get(p["productId"], []) if pr.get("marketPrice")]
                 if kind and vals:
@@ -225,20 +225,20 @@ def main():
             base = norm(clean_name(PROMO_RE.sub("", c["name"])))
             price = None
             if not c["promo"]:
-                # 1) número + nombre
+                # 1) number + name
                 for p in by_num.get(c["num"], []):
                     pn = norm(p["name"])
                     if pn.startswith(base) or base.startswith(pn[:max(4, len(pn) - 2)]) or base in pn:
                         price = product_price(prices, p["productId"])
                         if price:
                             break
-                # 2) nombre único dentro del set (numeración distinta en cobbletcg)
+                # 2) unique name within the set (different numbering in cobbletcg)
                 if price is None:
                     same = [p for k, ps in by_name.items() if k.startswith(base) for p in ps]
                     if len(same) == 1:
                         price = product_price(prices, same[0]["productId"])
             else:
-                # 3) promos ETB/UPC: buscar por nombre en grupos de promos, tomar la más barata
+                # 3) ETB/UPC promos: look up by name in promo groups, take the cheapest
                 vals = [product_price(promo_prices, pid) for k, pids in promo_index.items() if k.startswith(base) for pid in pids]
                 vals = [v for v in vals if v]
                 price = min(vals) if vals else None
@@ -248,13 +248,13 @@ def main():
                 misses.append(f'{c["code"]} {c["num"]} {c["name"]}')
 
         if set_sealed and by_code.get(code):
-            # varias versiones estándar (p.ej. dos ETB con distinto arte): la más barata
+            # several standard versions (e.g. two ETBs with different art): the cheapest
             got = {k: min(v) for k, v in set_sealed.items()}
             if "box" not in got and "pack" in got:
-                got["box"] = got["pack"] * 36  # sin ventas de caja: 36 sobres
+                got["box"] = got["pack"] * 36  # no box sales: 36 packs
             sealed[by_code[code][0]["set"]] = {k: round(v, 2) for k, v in got.items()}
 
-    # Medianas reales por set y rareza: estimación para las cartas sin precio (y futuras cartas nuevas).
+    # Real medians per set and rarity: estimate for unpriced cards (and future new cards).
     rarity_of = load_rarities(args.jar)
     buckets = collections.defaultdict(list)
     global_buckets = collections.defaultdict(list)
@@ -277,14 +277,14 @@ def main():
         "sealed_usd": dict(sorted(sealed.items())),
         "rarity_median_usd": dict(sorted(estimates.items())),
     }, indent=1, ensure_ascii=False), encoding="utf-8")
-    print("Medianas globales por rareza (USD):", estimates["*"])
+    print("Global medians by rarity (USD):", estimates["*"])
 
-    print(f"\nCon precio: {len(result)}/{len(cards)} ({100 * len(result) / len(cards):.1f}%)  -> {OUT}")
-    print(f"Sellados: {len(sealed)} sets")
+    print(f"\nPriced: {len(result)}/{len(cards)} ({100 * len(result) / len(cards):.1f}%)  -> {OUT}")
+    print(f"Sealed: {len(sealed)} sets")
     if unknown:
-        print("Códigos sin grupo en SET_GROUPS:", ", ".join(unknown))
+        print("Codes with no group in SET_GROUPS:", ", ".join(unknown))
     if misses:
-        print(f"Sin coincidencia ({len(misses)}, usarán precio estimado):")
+        print(f"No match ({len(misses)}, will use estimated price):")
         for m in misses[:40]:
             print("  ", m)
 

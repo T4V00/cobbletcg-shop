@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Textos en español de las cartas del TCG real (nombre, ataques, habilidades y texto de Entrenador/Energía) desde la API
-abierta de TCGdex (https://tcgdex.dev). Empareja cada carta del motor (set oficial + número) con la de TCGdex.
-Salida: src/main/resources/assets/tcgshop/ptcg/i18n/es.json -> {fullName: {"n": nombre, "a": [[ataque, efecto]], "p": [[habilidad, efecto]], "t": texto}}
-Uso: python tools/fetch_card_i18n.py [lang=es]
+Spanish texts of the real TCG cards (name, attacks, abilities and Trainer/Energy text) from the open
+TCGdex API (https://tcgdex.dev). Matches each engine card (official set + number) with the TCGdex one.
+Output: src/main/resources/assets/tcgshop/ptcg/i18n/es.json -> {fullName: {"n": name, "a": [[attack, effect]], "p": [[ability, effect]], "t": text}}
+Usage: python tools/fetch_card_i18n.py [lang=es]
 """
 import json
 import re
@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 LANG = sys.argv[1] if len(sys.argv) > 1 else "es"
 OUT = ROOT / f"src/main/resources/assets/tcgshop/ptcg/i18n/{LANG}.json"
 API = f"https://api.tcgdex.net/v2/{LANG}"
-# códigos del motor que en TCGdex tienen otra abreviatura
+# engine codes that have a different abbreviation in TCGdex
 ALIASES = {"SVP": ["PR-SV", "SVP"], "SSH": ["SSH"], "BS": ["BS", "BS1"], "TR": ["TR"], "CEL": ["CEL"], "G2": ["G2", "GYM2"]}
 
 
@@ -48,7 +48,7 @@ def main():
             mapped.update(d["cards"])
     wanted = [by[n] for n in mapped if n in by]
     sets = get(f"{API}/sets") or []
-    print("sets en TCGdex:", len(sets))
+    print("sets in TCGdex:", len(sets))
     details = {}
     with ThreadPoolExecutor(12) as ex:
         for sid, d in zip([s["id"] for s in sets], ex.map(lambda s: get(f"{API}/sets/{s['id']}"), sets)):
@@ -59,7 +59,7 @@ def main():
         ab = (d.get("abbreviation") or {}).get("official")
         if ab:
             by_abbr.setdefault(ab.upper(), []).append(d)
-    # carta del motor -> id de TCGdex
+    # engine card -> TCGdex id
     jobs, missing_sets = {}, {}
     for c in wanted:
         code = c["s"].upper()
@@ -78,7 +78,7 @@ def main():
             jobs[c["f"]] = found
         else:
             missing_sets[code] = missing_sets.get(code, 0) + 1
-    print("cartas a traducir:", len(jobs), "/", len(wanted), " sin set/numero en TCGdex:", missing_sets)
+    print("cards to translate:", len(jobs), "/", len(wanted), " no set/number in TCGdex:", missing_sets)
     out = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
     todo = [(f, cid) for f, cid in jobs.items() if f not in out]
 
@@ -108,7 +108,7 @@ def main():
                 OUT.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    print("traducidas:", len(out), "->", OUT)
+    print("translated:", len(out), "->", OUT)
 
 
 if __name__ == "__main__":

@@ -63,26 +63,26 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Cliente de la tienda. Llega andando desde fuera, recorre los expositores, mira los productos y decide según el
- * precio frente al mercado, su personalidad y la reputación. Si compra, coge el producto (lo lleva en la mano),
- * va a pagar a la caja registradora y se marcha con él. Al irse deja una reseña (1-5 estrellas) y, si salió
- * contento, puede volver otro día como cliente habitual.
+ * Shop customer. Walks in from outside, goes around the displays, looks at the products and decides based on the
+ * price versus the market, their personality and the reputation. If they buy, they take the product (carry it in hand),
+ * go pay at the cash register and leave with it. On leaving they write a review (1-5 stars) and, if they left
+ * happy, may come back another day as a regular customer.
  *
- * Tipos:
- *  · REGULAR   compra si el precio es razonable.
- *  · PICKY     quisquilloso: sólo compra por debajo del mercado y se queja si está caro.
- *  · WHALE     coleccionista adinerado: paga hasta casi el doble por cosas raras.
- *  · THIEF     ladrón: roba un producto y huye. Con guardia, siempre lo detienen; sin guardia huye como un
- *              Scalper (puedes perseguirlo, pegarle o retarlo a un combate Pokémon para recuperar lo robado).
- *  · HAGGLER   regateador: te ofrece comprar algo por encima o por debajo de tu precio.
- *  · SELLER    vendedor: quiere venderte una carta, un sobre o una caja, y te cuenta por qué.
- *  · TRADER    coleccionista que quiere cambiarte una carta suya por una de tus expositores.
- * Los que quieren un trato muestran un "!" sobre la cabeza: haz clic derecho para verlo.
+ * Types:
+ *  · REGULAR   buys if the price is reasonable.
+ *  · PICKY     fussy: only buys below market and complains if it's expensive.
+ *  · WHALE     wealthy collector: pays up to almost double for rare things.
+ *  · THIEF     thief: steals a product and runs. With a guard, always caught; without a guard flees like a
+ *              Scalper (you can chase it, hit it or challenge it to a Pokémon battle to recover the stolen item).
+ *  · HAGGLER   haggler: offers to buy something above or below your price.
+ *  · SELLER    seller: wants to sell you a card, a pack or a box, and tells you why.
+ *  · TRADER    collector who wants to trade one of their cards for one from your displays.
+ * Those who want a deal show a "!" above their head: right-click to see it.
  */
 public class CustomerEntity extends PathAwareEntity implements TcgNpc, CobblemonBattles.Fighter {
     public enum Type { REGULAR, PICKY, WHALE, THIEF, HAGGLER, SELLER, TRADER }
 
-    /** 0.9.5: SIT_GO (va a una silla libre), SIT (sentado un rato) y LOOK (se para a mirar un mueble o un peluche). */
+    /** 0.9.5: SIT_GO (goes to a free chair), SIT (sitting for a while) and LOOK (stops to look at furniture or a plush). */
     private enum State { ENTER, GO, BROWSE, CHECKOUT, WAIT_DEAL, LEAVE, FLEE, SIT_GO, SIT, LOOK }
 
     private static final String[] THIEF_POOL = {"purrloin", "nickit", "sneasel", "murkrow", "zorua", "meowth", "sableye", "impidimp", "poochyena"};
@@ -94,7 +94,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     private static final TrackedData<Boolean> WANTS = DataTracker.registerData(CustomerEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     private static final TrackedData<Boolean> SMELLY = DataTracker.registerData(CustomerEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     private static final TrackedData<Integer> WAIT = DataTracker.registerData(CustomerEntity.class, TrackedDataHandlerRegistry.INTEGER);
-    /** 0.9 eventos: rol que se ve sobre la cabeza de un visitante de evento (clave de idioma; vacío = el de su tipo). */
+    /** 0.9 events: role shown above an event visitor's head (language key; empty = the one for its type). */
     private static final TrackedData<String> EV_ROLE = DataTracker.registerData(CustomerEntity.class, TrackedDataHandlerRegistry.STRING);
 
     private UUID zoneId;
@@ -102,68 +102,68 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     private BlockPos target;
     private int targetSlot = -1, timer, browsesLeft;
     private boolean detected, entered, reviewed, returning;
-    /** Ya ha tenido un duelo Pokémon con el guardia (sólo uno por huida). */
+    /** Has already had a Pokémon duel with the guard (only one per escape). */
     public boolean duelled;
     private ItemStack loot = ItemStack.EMPTY;
     private ItemStack dealItem = ItemStack.EMPTY, dealWant = ItemStack.EMPTY;
     private int dealMode;
-    /** El cliente ya recibió el cierre del trato (CLOSED): leave() no debe mandarlo otra vez. */
+    /** The client already received the deal close (CLOSED): leave() must not send it again. */
     private boolean dealNotified = true;
     private long dealPrice;
     private int reasonKey;
-    // comerciante que te vende algo: personalidad, motivo y regateo
+    // merchant selling you something: personality, motive and haggling
     public static final int P_COLLECTOR = 0, P_BEGINNER = 1, P_EXPERT = 2, P_NEGOTIATOR = 3, P_DESPERATE = 4, P_CASUAL = 5;
     public static final String[] PERSONAS = {"collector", "beginner", "expert", "negotiator", "desperate", "casual"};
     private static final int[] PERSONA_W = {16, 18, 12, 18, 14, 22};
-    /** Motivos de venta (tcgshop.motive.<cat>.<n>): dinero urgente, sacar beneficio y otros. */
+    /** Sale motives (tcgshop.motive.<cat>.<n>): urgent cash, making a profit and others. */
     public static final int MOTIVES_CASH = 40, MOTIVES_PROFIT = 35, MOTIVES_OTHER = 45;
-    /** Peso de cada tipo de motivo según la personalidad (dinero, beneficio, otros): casi siempre es por dinero. */
+    /** Weight of each motive type by personality (cash, profit, other): it is almost always about money. */
     private static final int[][] MOTIVE_W = {{25, 35, 40}, {35, 25, 40}, {25, 60, 15}, {20, 70, 10}, {85, 5, 10}, {40, 35, 25}};
     private int persona = -1, patience, maxPatience, thinks, waitMax = 1;
     private String motive = "";
     private long floorPrice;
-    /** Cliente regateador (te compra algo): lo máximo que pagaría (no lo ves). Sube con la reputación de la tienda. */
+    /** Haggling customer (buys something from you): the most they would pay (hidden from you). Rises with shop reputation. */
     private long ceilPrice;
-    /** Frases del cliente regateador cuando TÚ le vendes (tcgshop.haggle.buy.<cat>.<n>, tools/gen_lang_haggle_rep.py). */
+    /** Haggling customer's lines when YOU sell to them (tcgshop.haggle.buy.<cat>.<n>, tools/gen_lang_haggle_rep.py). */
     public static final java.util.Map<String, Integer> BUY_LINES = java.util.Map.ofEntries(
             java.util.Map.entry("counter", 8), java.util.Map.entry("hold", 6), java.util.Map.entry("insulted", 6), java.util.Map.entry("walkaway", 6),
             java.util.Map.entry("accept", 8), java.util.Map.entry("arg_good", 5), java.util.Map.entry("arg_bad", 5), java.util.Map.entry("rep_good", 6),
             java.util.Map.entry("rep_bad", 5), java.util.Map.entry("think_raise", 5), java.util.Map.entry("think_same", 5), java.util.Map.entry("final_no", 5));
-    /** Resultado de un trato cerrado (va en el campo patience del DealOpenPayload CLOSED; price = precio final). */
+    /** Outcome of a closed deal (goes in the patience field of the CLOSED DealOpenPayload; price = final price). */
     public static final int OUT_UNKNOWN = 0, OUT_DEAL = 1, OUT_WALK = 2, OUT_REJECT = 3, OUT_TIMEOUT = 4;
     private Vec3d exit, spot;
-    /** Compra pendiente de pagar en caja. */
+    /** Purchase pending payment at the register. */
     private ItemStack bought = ItemStack.EMPTY;
     private long payPrice;
     private BlockPos register;
-    /** Ánimo para la reseña final (empieza en 3 estrellas). */
+    /** Mood for the final review (starts at 3 stars). */
     private int mood = 3;
     private String reviewKey = "browse";
-    // huida "a lo Scalper"
+    // Scalper-style escape
     private int fleePhaseTicks, lostTicks;
     private boolean admiring;
-    // ---- 0.9 eventos aleatorios
-    /** Visitante de un evento (null = cliente normal). No se guarda: al recargar se marcha como los demás. */
+    // ---- 0.9 random events
+    /** Event visitor (null = normal customer). Not saved: on reload it leaves like the rest. */
     @Nullable
     private dev.tcgshop.events.VisitorSpec visitor;
-    /** Cuándo apareció (world.getTime()), para la memoria de reseñas. -1 = cargado de disco. */
+    /** When it appeared (world.getTime()), for the review memory. -1 = loaded from disk. */
     private long arrivedAt = -1;
-    /** Compras que le quedan a un visitante que compra varias cosas. */
+    /** Purchases left for a visitor who buys several things. */
     private int visitorBuys = 1;
-    // ---- 0.9.5 asientos y muebles (ShopSeats)
-    /** Asiento reservado (yendo hacia él o sentado). */
+    // ---- 0.9.5 seats and furniture (ShopSeats)
+    /** Reserved seat (heading to it or seated). */
     @Nullable
     private dev.tcgshop.shop.ShopSeats.Seat sitSeat;
     @Nullable
     private Vec3d sitStand;
-    /** Ya ha intentado sentarse en esta visita (sólo una vez); se sienta tras pagar; ha comprado algo. */
+    /** Already tried to sit this visit (only once); sits after paying; has bought something. */
     private boolean sitTried, sitBuyer, boughtAny, browsedOnce;
     private long sitSince;
-    /** Comprobaciones seguidas con la silla ocupada (de camino / sentado): un roce pasajero no le hace rendirse. */
+    /** Consecutive checks with the chair occupied (on the way / seated): a passing bump doesn't make it give up. */
     private int sitBlocked, sitShared;
-    /** Ya ha probado otra silla tras perder la suya (una vez por visita). */
+    /** Already tried another chair after losing its own (once per visit). */
     private boolean sitRetried;
-    /** Mueble o peluche que se ha parado a mirar. */
+    /** Furniture or plush it stopped to look at. */
     @Nullable
     private BlockPos lookPos;
     private boolean lookPlush, lookArrived;
@@ -172,17 +172,17 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     public CustomerEntity(EntityType<? extends PathAwareEntity> type, World world) {
         super(type, world);
         if (getNavigation() instanceof net.minecraft.entity.ai.pathing.MobNavigation nav) {
-            nav.setCanPathThroughDoors(true); // abren las puertas de madera de la tienda
+            nav.setCanPathThroughDoors(true); // they open the shop's wooden doors
             nav.setCanEnterOpenDoors(true);
         }
     }
 
-    /** Turnos de la fila de la caja (quien llegó antes, paga antes). */
+    /** Register queue tickets (first come, first paid). */
     private static final java.util.concurrent.atomic.AtomicLong QUEUE_TICKETS = new java.util.concurrent.atomic.AtomicLong();
     private long queueTicket;
     private int serviceTicks;
     private boolean askedForService;
-    /** Puerta por la que entra (y por la que sale); null si la tienda no tiene puertas. */
+    /** Door it enters through (and leaves through); null if the shop has no doors. */
     @Nullable
     private BlockPos entryDoor;
     @Nullable
@@ -209,7 +209,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     @Override
     protected void initGoals() {
         goalSelector.add(0, new SwimGoal(this));
-        goalSelector.add(1, new net.minecraft.entity.ai.goal.LongDoorInteractGoal(this, true)); // abre y cierra la puerta al pasar
+        goalSelector.add(1, new net.minecraft.entity.ai.goal.LongDoorInteractGoal(this, true)); // opens and closes the door when passing
         goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 6f));
         goalSelector.add(8, new LookAroundGoal(this));
     }
@@ -230,7 +230,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
 
     public boolean isSmelly() { return dataTracker.get(SMELLY); }
 
-    /** Le has echado desodorante: deja de oler mal. */
+    /** You sprayed deodorant on them: they stop smelling bad. */
     public void sprayed(PlayerEntity by) {
         if (!isSmelly()) return;
         dataTracker.set(SMELLY, false);
@@ -242,7 +242,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     public boolean isFleeingThief() { return type() == Type.THIEF && state == State.FLEE && !loot.isEmpty(); }
     public boolean isDetected() { return detected; }
 
-    // ------------------------------------------------------------------ aparición
+    // ------------------------------------------------------------------ spawning
 
     public static CustomerEntity spawn(ServerWorld world, ShopZones.Zone z, Type type, Vec3d pos, Vec3d exit, @Nullable ShopZones.Regular regular) {
         return spawn(world, z, type, pos, exit, regular, null, null);
@@ -253,7 +253,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         return spawn(world, z, type, pos, exit, regular, door, doorOutside, null);
     }
 
-    /** 0.9: con VisitorSpec = visitante de un evento aleatorio (ShopLife.forceSpawnVisitor). */
+    /** 0.9: with VisitorSpec = visitor of a random event (ShopLife.forceSpawnVisitor). */
     public static CustomerEntity spawn(ServerWorld world, ShopZones.Zone z, Type type, Vec3d pos, Vec3d exit, @Nullable ShopZones.Regular regular,
                                        @Nullable BlockPos door, @Nullable Vec3d doorOutside, @Nullable dev.tcgshop.events.VisitorSpec spec) {
         CustomerEntity c = TcgEntities.CUSTOMER.create(world);
@@ -293,7 +293,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         return c;
     }
 
-    /** Lo que trae para venderte: casi siempre una carta, a veces un sobre y muy de vez en cuando una caja. */
+    /** What it brings to sell you: almost always a card, sometimes a pack and very occasionally a box. */
     private void prepareSellOffer(ServerWorld world) {
         float r = random.nextFloat();
         if (r < 0.08f) {
@@ -323,16 +323,16 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             case 1 -> "profit." + random.nextInt(MOTIVES_PROFIT);
             default -> "other." + random.nextInt(MOTIVES_OTHER);
         };
-        // lo que pide (sobre el mercado) y lo mínimo que aceptaría (no lo ves)
+        // what it asks (relative to market) and the minimum it would accept (hidden from you)
         double[] ask = {0.9, 1.3, 0.6, 1.1, 0.95, 1.25, 1.05, 1.35, 0.5, 0.85, 0.7, 1.05};
         double a = ask[persona * 2] + random.nextDouble() * (ask[persona * 2 + 1] - ask[persona * 2]);
-        if (cat == 0) a -= 0.08; // necesita el dinero ya
-        else if (cat == 1) a += 0.08; // quiere ganar dinero, le dé igual si a ti te sale bien o no
+        if (cat == 0) a -= 0.08; // needs the money now
+        else if (cat == 1) a += 0.08; // wants to make money, doesn't care whether it works out for you
         dealPrice = Math.max(10, Math.round(market * a));
         double[] fl = {0.85, 0.97, 0.7, 0.85, 0.85, 0.95, 0.72, 0.85, 0.6, 0.75, 0.75, 0.9};
         double f = fl[persona * 2] + random.nextDouble() * (fl[persona * 2 + 1] - fl[persona * 2]);
         floorPrice = Math.min(dealPrice, Math.max(Math.round(market * 0.45), Math.round(dealPrice * f)));
-        if (visitor != null && visitor.fairSeller) { // 0.9 eventos: coleccionista que vende: nunca por debajo del mercado
+        if (visitor != null && visitor.fairSeller) { // 0.9 events: collector who sells: never below market
             dealPrice = Math.max(dealPrice, market);
             floorPrice = Math.max(floorPrice, market);
         }
@@ -356,7 +356,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         return cards;
     }
 
-    /** Coleccionista: elige una carta de tus expositores y te ofrece a cambio una suya de valor parecido. */
+    /** Collector: picks a card from your displays and offers one of theirs of similar value in exchange. */
     private boolean prepareTrade(ServerWorld world, ShopZones.Zone z) {
         List<BlockPos> poss = new ArrayList<>();
         List<Integer> slots = new ArrayList<>();
@@ -375,7 +375,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             ItemStack c = new ItemStack(cards.get(random.nextInt(cards.size())));
             if (c.isOf(want.getItem())) continue;
             double ratio = ShopServer.priceOf(c, 1.0) / (double) Math.max(1, wantValue);
-            double target = 0.75 + random.nextDouble() * 0.55; // a veces sale a cuenta, a veces no
+            double target = 0.75 + random.nextDouble() * 0.55; // sometimes it's worth it, sometimes not
             double diff = Math.abs(ratio - target);
             if (diff < bestDiff) { bestDiff = diff; offer = c; }
         }
@@ -389,13 +389,13 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         return true;
     }
 
-    // ------------------------------------------------------------------ comportamiento
+    // ------------------------------------------------------------------ behavior
 
     @Override
     public void tick() {
         super.tick();
         if (getWorld().isClient) return;
-        if (getVehicle() instanceof ShopSeatEntity seat) { // 0.9.5: sentado, mirando hacia donde mira la silla
+        if (getVehicle() instanceof ShopSeatEntity seat) { // 0.9.5: seated, facing the way the chair faces
             setYaw(seat.getYaw());
             setBodyYaw(seat.getYaw());
         }
@@ -412,10 +412,10 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         }
         if (!entered && z.contains(getBlockPos())) {
             entered = true;
-            dev.tcgshop.shop.ShopLife.onEntered(getUuid()); // 0.9: ya dentro -> suelta la reserva de paso y la cola
+            dev.tcgshop.shop.ShopLife.onEntered(getUuid()); // 0.9: now inside -> releases the path reservation and the queue
             Text evLine = visitor != null && visitor.linesCount > 0 && random.nextFloat() < 0.8f
                     ? Text.translatable("tcgshop.evline." + visitor.lines + "." + random.nextInt(visitor.linesCount))
-                    : dev.tcgshop.events.EventManager.enterLine(z, random); // 0.9 eventos: comentan lo que pasa
+                    : dev.tcgshop.events.EventManager.enterLine(z, random); // 0.9 events: they comment on what is happening
             if (evLine != null) NpcLines.speak(this, evLine);
             else if (returning) NpcLines.sayNear(this, type() == Type.SELLER ? "seller_back" : "regular_back");
             else if (!z.flags.isEmpty() && random.nextFloat() < 0.35f) commentOnShop(z);
@@ -423,28 +423,28 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         }
         switch (state) {
             case ENTER -> {
-                if (!entered) { // 0.9: aforo -> con la tienda llena espera fuera en la cola (ShopLife.queueGate)
+                if (!entered) { // 0.9: capacity -> with the shop full it waits outside in the queue (ShopLife.queueGate)
                     int gate = dev.tcgshop.shop.ShopLife.queueGate(this, world, z, entryDoor, entryOutside);
                     if (gate == dev.tcgshop.shop.ShopLife.GATE_WAIT) return;
                     if (gate == dev.tcgshop.shop.ShopLife.GATE_GIVE_UP) { mood -= dev.tcgshop.shop.ShopLife.FULL_MOOD_PENALTY; reviewKey = "shop_full"; leave(world, z, null); return; }
-                    // 0.9 eventos: se cansó porque un evento bloquea la puerta: sin reseña de "llena" ni castigo de aforo
+                    // 0.9 events: gave up because an event blocks the door: no "full" review and no capacity penalty
                     if (gate == dev.tcgshop.shop.ShopLife.GATE_BLOCKED_GIVE_UP) { leave(world, z, null); return; }
                 }
                 if (!entered && entryOutside != null && squaredDistanceTo(entryOutside) > 2.2 * 2.2) {
-                    // camina desde lejos hasta la puerta de la tienda (la navegación la abre al pasar)
+                    // walks from afar to the shop door (navigation opens it when passing)
                     if (getNavigation().isIdle() || age % 40 == 0) getNavigation().startMovingTo(entryOutside.x, entryOutside.y, entryOutside.z, 0.85);
-                    if (timer < -20 * 90) { entryOutside = null; } // atascado: que entre como pueda
+                    if (timer < -20 * 90) { entryOutside = null; } // stuck: let it get in however it can
                     return;
                 }
                 if (type() == Type.SELLER) { goDeal(world, z, "seller_hello"); return; }
                 if (type() == Type.TRADER) {
                     if (prepareTrade(world, z)) { goDeal(world, z, "trader_hello"); return; }
-                    dataTracker.set(TYPE, Type.REGULAR.ordinal()); // no hay cartas que le interesen: mira como uno más
+                    dataTracker.set(TYPE, Type.REGULAR.ordinal()); // no cards it's interested in: browses like anyone else
                 }
-                // 0.9.5: entre producto y producto, a veces se para a mirar un mueble o un peluche de la tienda
+                // 0.9.5: between products, sometimes stops to look at a piece of furniture or a plush in the shop
                 if (entered && browsedOnce && furnLooks < 2 && type() != Type.THIEF && random.nextFloat() < 0.25f && startLook(world, z)) return;
                 if (!pickTarget(world, z)) {
-                    // 0.9.5: ya ha mirado todo: a veces se sienta un rato en una silla antes de irse
+                    // 0.9.5: has looked at everything: sometimes sits on a chair for a while before leaving
                     if (trySit(world, z, boughtAny)) return;
                     leave(world, z, "nothing");
                     return;
@@ -494,7 +494,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             case LEAVE -> {
                 if (exit == null) exit = getPos();
                 if (!reviewed && !z.contains(getBlockPos())) finishVisit(world, z);
-                // se aleja andando de la tienda: al llegar a un punto, sigue más lejos
+                // walks away from the shop: on reaching a point, keeps going farther
                 if (squaredDistanceTo(exit) < 2.5 * 2.5) {
                     Vec3d away = getPos().subtract(z.core.toCenterPos()).multiply(1, 0, 1);
                     if (away.lengthSquared() < 1e-3) away = new Vec3d(random.nextDouble() - 0.5, 0, random.nextDouble() - 0.5);
@@ -502,7 +502,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                     getNavigation().stop();
                 }
                 if (getNavigation().isIdle()) getNavigation().startMovingTo(exit.x, exit.y, exit.z, 0.9);
-                // solo desaparece lejos de la tienda y donde ningún jugador lo vea (o, si se atasca, al cabo de 2 minutos)
+                // only despawns far from the shop and where no player can see it (or, if stuck, after 2 minutes)
                 double half = z.tierInfo().size / 2.0 + 14;
                 net.minecraft.entity.player.PlayerEntity near = world.getClosestPlayer(this, 48);
                 boolean unseen = near == null || squaredDistanceTo(near) > 40 * 40 || (squaredDistanceTo(near) > 20 * 20 && !near.canSee(this));
@@ -543,13 +543,13 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                 if (ch == null) continue;
                 for (BlockEntity be : ch.getBlockEntities().values()) {
                     if (!(be instanceof ShopDisplayBlockEntity d) || d.isHome() || !z.contains(be.getPos())) continue;
-                    // 0.9 eventos: expositores o casillas inutilizados (quemados, averiados, producto por el suelo...)
+                    // 0.9 events: displays or slots out of action (burned, broken, product on the floor...)
                     for (int i = 0; i < d.size(); i++) if (!d.getStack(i).isEmpty() && !mods.isDisplayDisabled(d.getPos(), i)) v.visit(d, i);
                 }
             }
     }
 
-    /** Elige un producto expuesto (los coleccionistas y los ladrones prefieren lo caro). */
+    /** Picks a displayed product (collectors and thieves prefer expensive items). */
     private boolean pickTarget(ServerWorld world, ShopZones.Zone z) {
         if (browsesLeft-- <= 0) return false;
         List<BlockPos> cands = new ArrayList<>();
@@ -557,7 +557,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         forDisplays(world, z, (d, i) -> { cands.add(d.getPos()); slots.add(i); });
         if (cands.isEmpty()) return false;
         int pick = random.nextInt(cands.size());
-        if (visitor != null && visitor.filter != null) { // 0.9 eventos: el visitante busca algo concreto (un set, sobres...)
+        if (visitor != null && visitor.filter != null) { // 0.9 events: the visitor looks for something specific (a set, packs...)
             List<Integer> fit = new ArrayList<>();
             for (int i = 0; i < cands.size(); i++)
                 if (world.getBlockEntity(cands.get(i)) instanceof ShopDisplayBlockEntity d && dev.tcgshop.events.Mods.matchesFilter(visitor.filter, d.getStack(slots.get(i)), 1.0))
@@ -584,22 +584,22 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         ShopDisplayBlockEntity be = targetDisplay(world);
         if (be == null || be.getStack(targetSlot).isEmpty()) { state = State.ENTER; return; }
         dev.tcgshop.events.Mods mods = dev.tcgshop.events.EventManager.mods(z);
-        if (mods.isDisplayDisabled(be.getPos(), targetSlot)) { state = State.ENTER; return; } // 0.9: se estropeó mientras venía
+        if (mods.isDisplayDisabled(be.getPos(), targetSlot)) { state = State.ENTER; return; } // 0.9: broke while it was on its way
         ItemStack st = be.getStack(targetSlot);
         long price = be.price(targetSlot), market = ShopServer.priceOf(st, 1.0);
         double ratio = market <= 0 ? 1 : price / (double) market;
-        double rep = 0.6 + dev.tcgshop.shop.ShopLife.effectiveRep(z) / 125.0; // con repDelta y luz/decoración de eventos
-        // en una tienda con buena fama se paga más: el precio "percibido" es el real dividido por (1 + sobreprecio aceptado)
+        double rep = 0.6 + dev.tcgshop.shop.ShopLife.effectiveRep(z) / 125.0; // with repDelta and event light/decoration
+        // in a shop with a good reputation people pay more: the "perceived" price is the real one divided by (1 + accepted markup)
         double prem = z.premiumFor(st);
         double adj = ratio / Math.max(0.5, 1 + prem) * mods.perceivedMult;
         if (type() == Type.THIEF) { steal(world, z, be); return; }
-        // Sobres y cajas necesitan a alguien cobrando (cajero o tú en la caja), pero ya no se quejan al momento:
-        // se ponen en la fila y sólo protestan si se les acaba la paciencia sin que nadie les atienda.
+        // Packs and boxes need someone at the till (cashier or you at the register), but they no longer complain right away:
+        // they join the queue and only protest if they run out of patience without anyone serving them.
         if (type() == Type.HAGGLER) {
             dealItem = st.copyWithCount(1);
             persona = weighted(PERSONA_W);
             dealPrice = Math.max(10, Math.round(market * (0.75 + random.nextDouble() * 0.5) * (1 + prem * 0.6) * mods.haggleMult));
-            // lo máximo que llegaría a pagar: según su personalidad y la fama de la tienda
+            // the most it would pay: based on its personality and the shop's reputation
             double[] cl = {1.05, 1.25, 0.95, 1.05, 0.95, 1.1, 1.0, 1.2, 0.95, 1.15, 0.95, 1.15};
             double cm = cl[persona * 2] + random.nextDouble() * (cl[persona * 2 + 1] - cl[persona * 2]);
             ceilPrice = Math.max(dealPrice, Math.round(market * cm * (1 + prem) * mods.haggleMult));
@@ -618,7 +618,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             default -> 0;
         };
         if (returning) p = Math.min(0.95, p + 0.15);
-        // 0.9 eventos: ganas de comprar (modificadores) y visitantes: tope de precio sobre el mercado y "sólo mira"
+        // 0.9 events: desire to buy (modifiers) and visitors: price cap over market and "just looking"
         p *= mods.buyMultFor(st, ratio);
         if (visitor != null) {
             p *= visitor.buyMult;
@@ -637,7 +637,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             }
         }
         if (random.nextDouble() < p) {
-            // coge el producto y va a pagar a la caja
+            // takes the product and goes to pay at the register
             bought = be.removeStack(targetSlot, 1);
             payPrice = price;
             if (bought.isEmpty()) { state = State.ENTER; return; }
@@ -646,7 +646,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             emote(EMOTE_LOVE);
             mood += adj <= 0.9 ? 3 : adj <= 1.0 ? 2 : 1;
             reviewKey = adj <= 0.9 ? "bargain" : adj <= 1.15 ? "fair" : "pricey";
-            // paga por encima del mercado y encantado, porque la tienda lo vale
+            // pays above market and happily, because the shop is worth it
             boolean overpay = prem > 0.01 && ratio > 1.03 && adj <= 1.15;
             if (type() == Type.WHALE) {
                 mood += 1;
@@ -658,7 +658,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             playSound(SoundEvents.ENTITY_VILLAGER_YES, 0.8f, 1.1f);
             register = nearestRegister(world, z);
             if (register == null) {
-                if (ShopServer.needsCashier(bought) && !ShopServer.cashierOnDuty(world, z)) { // sin caja no hay quien cobre
+                if (ShopServer.needsCashier(bought) && !ShopServer.cashierOnDuty(world, z)) { // without a register there's nobody to take payment
                     returnBought(world);
                     NpcLines.sayNear(this, "no_cashier");
                     z.complaints++;
@@ -680,9 +680,9 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         state = State.ENTER;
     }
 
-    // ------------------------------------------------------------------ fila de la caja
+    // ------------------------------------------------------------------ register queue
 
-    /** Se pone a la cola de la caja: coge turno y empieza a contar su paciencia. */
+    /** Joins the register queue: takes a ticket and starts counting down its patience. */
     private void joinQueue() {
         state = State.CHECKOUT;
         queueTicket = QUEUE_TICKETS.incrementAndGet();
@@ -692,7 +692,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         dataTracker.set(WAIT, 1000);
     }
 
-    /** 0.9 eventos: paciencia de este cliente (modificadores de la tienda y del visitante). */
+    /** 0.9 events: this customer's patience (shop and visitor modifiers). */
     private double eventPatience(World w) {
         double m = visitor != null ? visitor.patienceMult : 1.0;
         if (w instanceof ServerWorld sw && zoneId != null) {
@@ -702,7 +702,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         return Math.max(0.3, Math.min(2.0, m));
     }
 
-    /** Cuántos van delante en la misma caja. */
+    /** How many are ahead at the same register. */
     private int queueIndex(ServerWorld world, ShopZones.Zone z) {
         final BlockPos reg = register;
         return world.getEntitiesByClass(CustomerEntity.class, z.box().expand(8),
@@ -715,8 +715,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     }
 
     /**
-     * Sitio número k de la fila: el primero delante del mostrador y los demás uno detrás de otro, alejándose de la caja;
-     * si hay una pared o un mueble, la fila dobla hacia un lado.
+     * Spot number k in the queue: the first in front of the counter and the rest one behind another, moving away from the register;
+     * if there's a wall or furniture, the queue turns to one side.
      */
     private static BlockPos queueSpot(ServerWorld world, BlockPos front, Direction f, int k) {
         java.util.List<BlockPos> line = new java.util.ArrayList<>();
@@ -737,9 +737,9 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     }
 
     /**
-     * En la cola: va a su sitio (detrás del de delante), espera mirando a la caja y, cuando es su turno y está en el
-     * mostrador, le cobran (más rápido con cajero). Todos tienen su barra de paciencia: si se acaba, deja el producto
-     * en su sitio y se va sin comprar.
+     * In the queue: goes to its spot (behind the one in front), waits facing the register and, when it's its turn and it's at the
+     * counter, gets charged (faster with a cashier). Everyone has a patience bar: if it runs out, it puts the product
+     * back and leaves without buying.
      */
     private void checkoutTick(ServerWorld world, ShopZones.Zone z) {
         if (register == null || !world.getBlockState(register).isOf(TcgBlocks.CASH_REGISTER)) { pay(world, z); return; }
@@ -759,7 +759,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         boolean needsStaff = ShopServer.needsCashier(bought);
         if (idx == 0 && dx * dx + dz * dz < 1.3 * 1.3) {
             if (needsStaff && !staffed) {
-                serviceTicks = 0; // espera a que llegue alguien a la caja (tú o un cajero)
+                serviceTicks = 0; // waits for someone to come to the register (you or a cashier)
                 if (!askedForService) {
                     askedForService = true;
                     NpcLines.sayNear(this, "wait_register");
@@ -774,20 +774,20 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         if (timer <= 0) leaveQueue(world, z, needsStaff && !staffed);
     }
 
-    /** El dueño le cobra en mano (clic derecho a un cliente de la fila). */
+    /** The owner charges them by hand (right-click a customer in the queue). */
     public boolean serveByOwner(ServerPlayerEntity owner) {
         if (state != State.CHECKOUT || bought.isEmpty()) return false;
         ServerWorld world = owner.getServerWorld();
         ShopZones.Zone z = ShopZones.get(world).byId(zoneId);
         if (z == null || !z.owner.equals(owner.getUuid())) return false;
-        mood += timer > waitMax / 2 ? 1 : 0; // atendido rápido: un poco más contento
+        mood += timer > waitMax / 2 ? 1 : 0; // served quickly: a bit happier
         if ("queue_slow".equals(reviewKey) || "no_cashier".equals(reviewKey)) reviewKey = "fair";
         owner.getWorld().playSound(null, getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_BELL.value(), SoundCategory.NEUTRAL, 0.7f, 1.6f);
         pay(world, z);
         return true;
     }
 
-    /** Se cansa de esperar: devuelve el producto y se va. */
+    /** Gets tired of waiting: returns the product and leaves. */
     private void leaveQueue(ServerWorld world, ShopZones.Zone z, boolean nobody) {
         returnBought(world);
         NpcLines.sayNear(this, nobody ? "no_cashier" : "queue_leave");
@@ -800,8 +800,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         leave(world, z, null);
     }
 
-    /** Deja el producto que iba a comprar en su casilla (o en otra libre del mismo mueble; si no hay, en el suelo). */
-    /** 0.9 eventos (Jigglypuff...): el cliente se marcha devolviendo lo que llevaba, con la reseña del evento. */
+    /** Puts the product it was going to buy back in its slot (or another free one on the same display; if none, on the floor). */
+    /** 0.9 events (Jigglypuff...): the customer leaves, returning what it was carrying, with the event's review. */
     public boolean leaveForEvent(String key) {
         if (!(getWorld() instanceof ServerWorld world) || type() == Type.THIEF || visitor != null) return false;
         if (state == State.LEAVE || state == State.FLEE || state == State.WAIT_DEAL) return false;
@@ -838,7 +838,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         return null;
     }
 
-    /** Paga lo que lleva en la mano: el dinero entra en la caja de la tienda. */
+    /** Pays for what it's holding: the money goes into the shop's register. */
     private void pay(ServerWorld world, ShopZones.Zone z) {
         if (bought.isEmpty()) { leave(world, z, null); return; }
         long earned = ShopServer.payFromNpc(world, z, bought, payPrice, register != null ? register : getBlockPos());
@@ -849,13 +849,13 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         register = null;
         boughtAny = true;
         ShopServer.syncZones(world.getServer());
-        if (visitor != null && --visitorBuys > 0 && browsesLeft > 0) { // 0.9: el visitante de evento sigue comprando
+        if (visitor != null && --visitorBuys > 0 && browsesLeft > 0) { // 0.9: the event visitor keeps buying
             equipStack(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
             dataTracker.set(WAIT, -1);
             state = State.ENTER;
             return;
         }
-        if (trySit(world, z, true)) return; // 0.9.5: a veces se sienta a admirar su compra antes de irse
+        if (trySit(world, z, true)) return; // 0.9.5: sometimes sits down to admire its purchase before leaving
         leave(world, z, null);
     }
 
@@ -879,9 +879,9 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                 break;
             }
         }
-        if (guard) detected = true; // el guardia lo ve todo
+        if (guard) detected = true; // the guard sees everything
         if (detected) {
-            dev.tcgshop.shop.ShopSeats.alarm(z.id, world.getTime()); // 0.9.5: con la alarma, los que están sentados se levantan
+            dev.tcgshop.shop.ShopSeats.alarm(z.id, world.getTime()); // 0.9.5: with the alarm, those seated stand up
             addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, 20 * 40, 0, false, false));
             addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 20 * 30, guard ? 1 : 0, false, false));
         }
@@ -899,7 +899,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         return g.isEmpty() ? null : g.get(0);
     }
 
-    /** Huida del ladrón: con guardia lo atrapan sí o sí; sin guardia huye como un Scalper hasta que lo pilles o te alejes. */
+    /** Thief escape: with a guard it is always caught; without a guard it flees like a Scalper until you catch it or move away. */
     private void fleeTick(ServerWorld world, ShopZones.Zone z) {
         EmployeeEntity guard = guardOf(world, z);
         ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
@@ -909,7 +909,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                 Vec3d away = getPos().subtract(z.core.toCenterPos()).normalize().multiply(14);
                 getNavigation().startMovingTo(getX() + away.x, getY(), getZ() + away.z, 1.0);
             }
-            // si llega a salir, el guardia avisa por radio y lo detienen igualmente
+            // if it gets out, the guard radios it in and it's detained anyway
             if (squaredDistanceTo(z.core.toCenterPos()) > escape) detain(world, z, guard);
             return;
         }
@@ -942,7 +942,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         }
     }
 
-    /** Lo detienen: el producto vuelve a su expositor (o se abona en caja). guard puede ser null (lo pilla el dueño). */
+    /** Detained: the product goes back to its display (or is credited to the register). guard may be null (caught by the owner). */
     public void detain(ServerWorld world, ShopZones.Zone z, @Nullable EmployeeEntity guard) {
         if (loot.isEmpty()) return;
         returnLoot(world, z);
@@ -964,7 +964,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         if (loot.isEmpty()) return;
         ShopDisplayBlockEntity be = targetDisplay(world);
         if (be != null && be.getStack(targetSlot).isEmpty()) be.setStack(targetSlot, loot);
-        else z.balance += ShopServer.priceOf(loot, 1.0); // el hueco ya no está libre: se abona su valor en caja
+        else z.balance += ShopServer.priceOf(loot, 1.0); // the slot is no longer free: its value is credited to the register
         z.recovered++;
         loot = ItemStack.EMPTY;
         equipStack(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
@@ -986,9 +986,9 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     }
 
     private void leave(ServerWorld world, ShopZones.Zone z, String line) {
-        dev.tcgshop.shop.ShopLife.forget(getUuid()); // 0.9: fuera de la cola de la puerta y de las reservas de paso
-        standUp(world); // 0.9.5: si estaba sentado (o yendo a sentarse), se levanta y suelta la silla
-        // si se va en mitad de un trato sin haberlo cerrado (objeto desaparecido, se cansa, se asusta...), avisa a la ventana
+        dev.tcgshop.shop.ShopLife.forget(getUuid()); // 0.9: out of the door queue and path reservations
+        standUp(world); // 0.9.5: if it was seated (or going to sit), it stands up and releases the chair
+        // if it leaves mid-deal without closing it (item gone, gets tired, gets scared...), notify the window
         if (state == State.WAIT_DEAL && !dealNotified && z != null) {
             ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
             if (owner != null) closeDeal(owner, Text.translatable("tcgshop.deal.gone"), OUT_UNKNOWN, 0);
@@ -1004,13 +1004,13 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         getNavigation().stop();
     }
 
-    /** Estrellas de la reseña: la 5ª exige un cliente muy contento (ánimo >= fiveStarMood; empieza en 3). */
+    /** Review stars: the 5th requires a very happy customer (mood >= fiveStarMood; starts at 3). */
     private int stars() {
         if (mood >= Math.max(5, EconomyConfig.INSTANCE.fiveStarMood)) return 5;
         return Math.max(1, Math.min(4, mood));
     }
 
-    /** Comenta algo que ha notado de la tienda (techo, luz, monstruos cerca, animales, precios...) y le afecta un poco. */
+    /** Comments on something it noticed about the shop (roof, light, nearby monsters, animals, prices...) and is slightly affected by it. */
     private void commentOnShop(ShopZones.Zone z) {
         List<String> f = new ArrayList<>(z.flags);
         String k = f.get(random.nextInt(f.size()));
@@ -1026,7 +1026,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     @Override
     public int waitPermille() { return dataTracker.get(WAIT); }
 
-    /** Ha visto cómo matabas a alguien: se asusta y se va con la peor reseña. */
+    /** Saw you kill someone: gets scared and leaves with the worst review. */
     public void witnessMurder() {
         if (!(getWorld() instanceof ServerWorld world) || type() == Type.THIEF) return;
         ShopZones.Zone z = zoneId == null ? null : ShopZones.get(world).byId(zoneId);
@@ -1039,11 +1039,11 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         getNavigation().stop();
     }
 
-    /** Al salir de la tienda: deja su reseña y, si salió contento, se apunta como cliente habitual. */
+    /** On leaving the shop: writes its review and, if it left happy, signs up as a regular customer. */
     private void finishVisit(ServerWorld world, ShopZones.Zone z) {
         reviewed = true;
         if (type() == Type.THIEF) return;
-        // 0.9 eventos: la reseña recuerda lo que pasó en la tienda mientras estaba (o que lo arreglaron rápido)
+        // 0.9 events: the review remembers what happened in the shop while it was there (or that it was fixed quickly)
         dev.tcgshop.events.EventManager.ReviewOutcome ro = dev.tcgshop.events.EventManager.reviewFor(z, arrivedAt, world.getTime(), reviewKey, random);
         if (ro.key() != null) reviewKey = ro.key();
         mood += ro.mood();
@@ -1069,7 +1069,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         if (owner != null && owner.squaredDistanceTo(this) < 96 * 96) owner.sendMessage(msg, true);
     }
 
-    // ------------------------------------------------------------------ interacción, tratos y combate
+    // ------------------------------------------------------------------ interaction, deals and battle
 
     @Override
     protected ActionResult interactMob(PlayerEntity player, Hand hand) {
@@ -1097,24 +1097,24 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                 ServerPlayNetworking.send(sp, new DealOpenPayload(getId(), getDisplayName(), line, dealItem, dealPrice, market, dealMode, dealWant, wantMarket,
                         dealMode == DealOpenPayload.SELL || dealMode == DealOpenPayload.BUY ? persona : -1, patience, maxPatience));
         } else if (state == State.SIT) {
-            NpcLines.speak(this, dev.tcgshop.shop.ShopSeats.talkLine(random)); // 0.9.5: sentado, descansando
+            NpcLines.speak(this, dev.tcgshop.shop.ShopSeats.talkLine(random)); // 0.9.5: seated, resting
         } else {
             NpcLines.say(this, sp, switch (type()) { case PICKY -> "picky"; case WHALE -> "whale_talk"; case THIEF -> "thief_talk"; default -> "greet"; });
         }
         return ActionResult.SUCCESS;
     }
 
-    /** Respuesta del dueño a un trato. */
+    /** Owner's answer to a deal. */
     public void answerDeal(ServerPlayerEntity owner, boolean accept) {
         respond(owner, accept ? DealAnswerPayload.ACCEPT : DealAnswerPayload.REJECT_POLITE, 0);
     }
 
-    /** Respuesta del dueño: aceptar, rechazar o regatear (sólo con quien te vende algo). */
+    /** Owner's answer: accept, reject or haggle (only with someone selling you something). */
     public void respond(ServerPlayerEntity owner, int action, long counter) {
         ServerWorld world = owner.getServerWorld();
         ShopZones.Zone z = ShopZones.get(world).byId(zoneId);
         if (state != State.WAIT_DEAL || z == null || !z.owner.equals(owner.getUuid()) || dealItem.isEmpty()) {
-            // el trato ya no existe (se fue, se vendió el objeto...): cierra la ventana en vez de dejarla esperando
+            // the deal no longer exists (it left, the item was sold...): close the window instead of leaving it waiting
             sendClosed(owner, Text.translatable("tcgshop.deal.gone"), OUT_UNKNOWN, 0);
             return;
         }
@@ -1124,10 +1124,10 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             default -> {}
         }
         if (persona < 0 || (dealMode != DealOpenPayload.SELL && dealMode != DealOpenPayload.BUY)) {
-            updateDeal(owner, NpcLines.random(random, "haggle_offer")); // acción no válida aquí: reenvía el trato para que la ventana no se quede esperando
+            updateDeal(owner, NpcLines.random(random, "haggle_offer")); // action not valid here: resend the deal so the window isn't left waiting
             return;
         }
-        timer = Math.min(waitMax, timer + 20 * 10); // mientras habláis, espera un poco más
+        timer = Math.min(waitMax, timer + 20 * 10); // while you talk, it waits a bit longer
         if (dealMode == DealOpenPayload.BUY) {
             if (action == DealAnswerPayload.INTEREST) thinkBuy(owner, world, z);
             else negotiateBuy(owner, world, z, action, counter);
@@ -1146,7 +1146,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         if (persona >= 0) neg *= pm[persona];
         long day = world.getTimeOfDay() / 24000;
         if (z.rejectDay != day) { z.rejectDay = day; z.rejectPenalties = 0; }
-        // la reseña neutral es lo normal; la negativa es posible pero con tope diario (sin castigos desproporcionados)
+        // a neutral review is the norm; a negative one is possible but with a daily cap (no disproportionate penalties)
         boolean bad = z.rejectPenalties < c.maxRejectPenaltiesPerDay && random.nextDouble() < Math.min(1, neg);
         if (bad) {
             z.rejectPenalties++;
@@ -1188,7 +1188,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             default -> {}
         }
         long eff = Math.round(floorPrice * mod);
-        if (counter < floorPrice * 0.6) { // oferta ridícula: se ofende
+        if (counter < floorPrice * 0.6) { // ridiculous offer: takes offense
             patience -= 2;
             mood -= 1;
             say.append(NpcLines.random(random, "neg_insulted_" + pk()));
@@ -1220,14 +1220,14 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     }
 
     /**
-     * Regateo con un cliente que quiere COMPRARTE algo: tú pides más y él sube (o no) hasta su máximo, que depende de
-     * su personalidad y de la reputación de la tienda. Argumentos: el mercado, «no lo encontrarás en otro sitio» y
-     * la fama de la tienda (funciona mucho mejor cuanta más reputación tienes).
+     * Haggling with a customer who wants to BUY something from you: you ask for more and they go up (or not) to their maximum, which depends on
+     * their personality and the shop's reputation. Arguments: the market, "you won't find it anywhere else" and
+     * the shop's reputation (works much better the more reputation you have).
      */
     private void negotiateBuy(ServerPlayerEntity owner, ServerWorld world, ShopZones.Zone z, int action, long counter) {
         long market = Math.max(1, ShopServer.priceOf(dealItem, 1.0));
         counter = Math.max(1, counter);
-        if (counter <= dealPrice) { acceptDeal(owner); return; } // pides lo que ofrece: hecho
+        if (counter <= dealPrice) { acceptDeal(owner); return; } // you ask for what it offers: done
         int pi = Math.max(0, Math.min(PERSONAS.length - 1, persona));
         double prem = z.premiumFor(dealItem);
         double mod = 1;
@@ -1242,14 +1242,14 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                 mod = new double[]{1.06, 1.08, 0.96, 0.98, 1.04, 1.02}[pi];
                 say.append(buyLine(mod > 1 ? "arg_good" : "arg_bad")).append(" ");
             }
-            case DealAnswerPayload.ARG_BROKE -> { // al vender: «aquí pagas la calidad de la tienda»
+            case DealAnswerPayload.ARG_BROKE -> { // when selling: "here you pay for the shop's quality"
                 mod = prem > 0.02 ? 1 + prem * 0.5 : prem < 0 ? 0.94 : 0.99;
                 say.append(buyLine(mod > 1 ? "rep_good" : "rep_bad")).append(" ");
             }
             default -> {}
         }
         long eff = Math.round(ceilPrice * mod);
-        if (counter > ceilPrice * 1.6 + 5) { // pides una barbaridad: se ofende
+        if (counter > ceilPrice * 1.6 + 5) { // you ask for an outrageous amount: takes offense
             patience -= 2;
             mood -= 1;
             say.append(buyLine("insulted"));
@@ -1276,7 +1276,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         updateDeal(owner, say);
     }
 
-    /** "Déjame pensarlo" con un cliente que te compra: a veces sube un poco; si insistes mucho se cansa. */
+    /** "Let me think about it" with a customer buying from you: sometimes goes up a bit; if you push too much it gets tired. */
     private void thinkBuy(ServerPlayerEntity owner, ServerWorld world, ShopZones.Zone z) {
         thinks++;
         if (thinks > 2) patience--;
@@ -1288,7 +1288,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         } else updateDeal(owner, buyLine("think_same"));
     }
 
-    /** "Me interesa, déjame pensarlo": a veces baja un poco; si insistes mucho se cansa. */
+    /** "I'm interested, let me think about it": sometimes goes down a bit; if you push too much it gets tired. */
     private void think(ServerPlayerEntity owner, ServerWorld world, ShopZones.Zone z) {
         thinks++;
         if (thinks > 2) patience--;
@@ -1300,7 +1300,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         } else updateDeal(owner, NpcLines.random(random, "neg_think_same").copy());
     }
 
-    /** Se va sin trato porque no os entendéis (no es un rechazo tuyo: reseña neutral). */
+    /** Leaves without a deal because you can't agree (not a rejection from you: neutral review). */
     private void walkAway(ServerPlayerEntity owner, ServerWorld world, ShopZones.Zone z, Text line) {
         mood = Math.min(mood, 3);
         reviewKey = "deal_walk";
@@ -1316,16 +1316,16 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                 dealWant.isEmpty() ? 0 : ShopServer.priceOf(dealWant, 1.0), persona, patience, maxPatience));
     }
 
-    /** Cierra la ventana del trato en el cliente mostrando la última frase. */
+    /** Closes the deal window on the client showing the last line. */
     private void closeDeal(ServerPlayerEntity owner, Text line, int outcome, long finalPrice) {
         dealNotified = true;
         sendClosed(owner, line, outcome, finalPrice);
     }
 
-    /** Manda el cierre a un jugador sin marcar el trato como cerrado (p. ej. a quien responde a un trato que no es suyo). */
+    /** Sends the close to a player without marking the deal as closed (e.g. to someone answering a deal that isn't theirs). */
     private void sendClosed(ServerPlayerEntity owner, Text line, int outcome, long finalPrice) {
         if (!ServerPlayNetworking.canSend(owner, DealOpenPayload.ID)) return;
-        // en un trato cerrado, patience lleva el resultado (OUT_*) y price el precio final, para que la ventana lo muestre
+        // in a closed deal, patience carries the outcome (OUT_*) and price the final price, so the window can show it
         ServerPlayNetworking.send(owner, new DealOpenPayload(getId(), getDisplayName(), line, ItemStack.EMPTY, finalPrice, 0, DealOpenPayload.CLOSED,
                 ItemStack.EMPTY, 0, persona, outcome, maxPatience));
     }
@@ -1336,7 +1336,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         if (state != State.WAIT_DEAL || z == null || !z.owner.equals(owner.getUuid()) || dealItem.isEmpty()) return;
         long market = ShopServer.priceOf(dealItem, 1.0);
         switch (dealMode) {
-            case DealOpenPayload.SELL -> { // tú le compras
+            case DealOpenPayload.SELL -> { // you buy from it
                 if (!CobbleDollarsBridge.tryCharge(owner, dealPrice)) {
                     owner.sendMessage(Text.translatable("tcgshop.shop.no_money", PriceService.format(dealPrice)).formatted(Formatting.RED), true);
                     updateDeal(owner, NpcLines.random(random, "neg_no_money"));
@@ -1346,7 +1346,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                 ShopZones.get(world).addCost(owner.getUuid(), dealPrice);
                 if (dealPrice < market) CardAdvancements.grant(owner, "deal_bargain");
             }
-            case DealOpenPayload.TRADE -> { // cambias tu carta expuesta por la suya
+            case DealOpenPayload.TRADE -> { // you trade your displayed card for theirs
                 ShopDisplayBlockEntity be = targetDisplay(world);
                 if (be == null || !ItemStack.areItemsAndComponentsEqual(be.getStack(targetSlot), dealWant)) {
                     owner.sendMessage(Text.translatable("tcgshop.deal.gone").formatted(Formatting.GRAY), true);
@@ -1360,7 +1360,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                 setEquipmentDropChance(EquipmentSlot.MAINHAND, 0f);
                 CardAdvancements.grant(owner, "npc_trade");
             }
-            default -> { // le vendes tu producto al precio que ofrece
+            default -> { // you sell your product at the price it offers
                 ShopDisplayBlockEntity be = targetDisplay(world);
                 if (be == null || !ItemStack.areItemsAndComponentsEqual(be.getStack(targetSlot), dealItem)) {
                     owner.sendMessage(Text.translatable("tcgshop.deal.gone").formatted(Formatting.GRAY), true);
@@ -1383,7 +1383,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         Text done;
         if (persona >= 0 && dealMode == DealOpenPayload.SELL) done = NpcLines.random(random, "neg_accept_" + pk());
         else if (persona >= 0 && dealMode == DealOpenPayload.BUY)
-            // te paga por encima del mercado y encantado gracias a la fama de la tienda
+            // pays you above market and happily thanks to the shop's reputation
             done = dealPrice > market * 1.02 && z.premiumFor(dealItem) > 0.01 && random.nextFloat() < 0.75f
                     ? NpcLines.random(random, "overpay_happy") : buyLine("accept");
         else done = NpcLines.random(random, "deal_accepted");
@@ -1417,10 +1417,10 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         }
     }
 
-    /** A los clientes normales no se les puede pegar (se quejan); a los ladrones sí. */
+    /** Normal customers can't be hit (they complain); thieves can. */
     @Override
     public boolean damage(DamageSource source, float amount) {
-        // 0.9.5: si le pega algo (jugador, criatura, flecha...) estando sentado o yendo a sentarse, se levanta de un salto y se va
+        // 0.9.5: if something hits it (player, creature, arrow...) while seated or going to sit, it jumps up and leaves
         if (getWorld() instanceof ServerWorld sw && (state == State.SIT || state == State.SIT_GO) && amount > 0
                 && (source.getAttacker() != null || source.getSource() != null)) {
             ShopZones.Zone z = zoneId == null ? null : ShopZones.get(sw).byId(zoneId);
@@ -1460,12 +1460,12 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     @Override
     public boolean canImmediatelyDespawn(double distanceSquared) { return false; }
 
-    /** 0.9: al desaparecer o morir, deja libre su sitio en la cola de la puerta y su reserva de paso. */
+    /** 0.9: on despawning or dying, frees its spot in the door queue and its path reservation. */
     @Override
     public void remove(net.minecraft.entity.Entity.RemovalReason reason) {
         if (!getWorld().isClient) {
             dev.tcgshop.shop.ShopLife.forget(getUuid());
-            // 0.9.5: suelta la silla y borra el asiento invisible (nunca quedan asientos huérfanos)
+            // 0.9.5: releases the chair and removes the invisible seat (no orphaned seats are ever left)
             dev.tcgshop.shop.ShopSeats.release(getUuid());
             if (getVehicle() instanceof ShopSeatEntity seat) {
                 stopRiding();
@@ -1475,17 +1475,17 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         super.remove(reason);
     }
 
-    // ------------------------------------------------------------------ 0.9.5 asientos y muebles
+    // ------------------------------------------------------------------ 0.9.5 seats and furniture
 
     /**
-     * Intenta sentarse un rato (una vez por visita, con probabilidad): busca una silla libre y alcanzable en la tienda,
-     * la reserva y va hacia ella. false = no se sienta (sigue como siempre).
+     * Tries to sit for a while (once per visit, by chance): looks for a free, reachable chair in the shop,
+     * reserves it and heads to it. false = doesn't sit (carries on as usual).
      */
     private boolean trySit(ServerWorld world, ShopZones.Zone z, boolean buyer) {
         if (sitTried || !entered || type() == Type.THIEF || !dev.tcgshop.shop.ShopSeats.enabled()) return false;
         if (random.nextDouble() >= (buyer ? dev.tcgshop.shop.ShopSeats.buyerSitChance() : dev.tcgshop.shop.ShopSeats.sitChance())) return false;
         sitTried = true;
-        if (hostileNear(world, z)) return false; // con un monstruo cerca nadie se sienta (se levantaría al segundo)
+        if (hostileNear(world, z)) return false; // with a monster nearby nobody sits (they'd stand up right away)
         dev.tcgshop.shop.ShopSeats.Pick pick = dev.tcgshop.shop.ShopSeats.pickSeat(world, z, this);
         if (pick == null) return false;
         sitSeat = pick.seat();
@@ -1496,14 +1496,14 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         dataTracker.set(WAIT, -1);
         emote(EMOTE_NONE);
         state = State.SIT_GO;
-        timer = 20 * 20; // si en 20 s no llega, se olvida de la silla
+        timer = 20 * 20; // if it doesn't get there in 20 s, it forgets the chair
         getNavigation().startMovingTo(sitStand.x, sitStand.y, sitStand.z, 0.8);
         return true;
     }
 
     /**
-     * Camino de la silla: al llegar al lado se sienta. Si la rompen o la reserva otro, prueba otra silla (una vez) o se va;
-     * si sólo hay alguien de paso encima (una mascota, otro cliente...), espera un poco antes de rendirse.
+     * On the way to the chair: sits down on reaching it. If it's broken or someone else reserves it, tries another chair (once) or leaves;
+     * if someone is just passing over it (a pet, another customer...), waits a bit before giving up.
      */
     private void sitGoTick(ServerWorld world, ShopZones.Zone z) {
         if (sitSeat == null || sitStand == null || !dev.tcgshop.shop.ShopSeats.stillSeat(world, sitSeat.pos())
@@ -1513,7 +1513,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         }
         boolean free = dev.tcgshop.shop.ShopSeats.isFree(world, sitSeat.pos(), this);
         if (age % 5 == 0) sitBlocked = free ? 0 : sitBlocked + 1;
-        if (sitBlocked >= 6) { sitGiveUp(world, z); return; } // ~1,5 s seguidos ocupada: es de otro
+        if (sitBlocked >= 6) { sitGiveUp(world, z); return; } // ~1.5 s occupied in a row: it's someone else's
         Vec3d c = sitSeat.pos().toCenterPos();
         double dx = c.x - getX(), dz = c.z - getZ();
         if (free && dx * dx + dz * dz < 1.45 * 1.45 && Math.abs(getY() - sitSeat.pos().getY()) < 1.2) { sitDown(world, z); return; }
@@ -1521,7 +1521,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         if (timer <= 0) leave(world, z, null);
     }
 
-    /** Ha perdido su silla de camino: prueba otra libre una sola vez; si no hay, se va. */
+    /** Lost its chair on the way: tries another free one only once; if there's none, leaves. */
     private void sitGiveUp(ServerWorld world, ShopZones.Zone z) {
         dev.tcgshop.shop.ShopSeats.release(getUuid());
         if (!sitRetried && !hostileNear(world, z)) {
@@ -1553,14 +1553,14 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         timer = 20 * (10 + random.nextInt(31)); // 10-40 s
         emote(sitBuyer ? EMOTE_LOVE : EMOTE_NONE);
         if (random.nextFloat() < 0.65f) NpcLines.speak(this, dev.tcgshop.shop.ShopSeats.sitLine(random, sitBuyer));
-        // descansar a gusto en una tienda acogedora deja un buen recuerdo (un poco)
+        // resting comfortably in a cozy shop leaves a good memory (a little)
         if (!sitBuyer && "browse".equals(reviewKey) && random.nextFloat() < 0.3f) reviewKey = "env_cozy";
         if (!sitBuyer && mood < 4 && random.nextFloat() < 0.2f) mood++;
     }
 
-    /** Sentado: descansa mirando la tienda; se levanta al acabar, con una alarma, un ladrón huyendo o un monstruo cerca. */
+    /** Seated: rests looking at the shop; stands up when done, on an alarm, a fleeing thief or a nearby monster. */
     private void sitTick(ServerWorld world, ShopZones.Zone z) {
-        if (!(getVehicle() instanceof ShopSeatEntity)) { leave(world, z, null); return; } // le quitaron la silla
+        if (!(getVehicle() instanceof ShopSeatEntity)) { leave(world, z, null); return; } // its chair was taken away
         getNavigation().stop();
         if (age % 20 == 0 && sitDanger(world, z)) {
             emote(EMOTE_ANGRY);
@@ -1568,7 +1568,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             leave(world, z, null);
             return;
         }
-        // alguien más se ha sentado en la misma silla (un jugador, el asiento de CobbleFurnies...): le deja el sitio
+        // someone else sat on the same chair (a player, the CobbleFurnies seat...): gives up the spot
         if (age % 20 == 0 && sitSeat != null) {
             sitShared = dev.tcgshop.shop.ShopSeats.isFree(world, sitSeat.pos(), this) ? 0 : sitShared + 1;
             if (sitShared >= 2) {
@@ -1590,8 +1590,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     }
 
     /**
-     * ¿Un monstruo cerca que dé miedo? Sólo cuenta si está dentro de la tienda o a la vista (uno al otro lado de la pared
-     * no asusta), y un revendedor sólo si va a por alguien.
+     * A scary monster nearby? Only counts if it's inside the shop or in sight (one on the other side of the wall
+     * isn't scary), and a scalper only if it's going after someone.
      */
     private boolean hostileNear(ServerWorld world, ShopZones.Zone z) {
         return !world.getEntitiesByClass(net.minecraft.entity.mob.HostileEntity.class, getBoundingBox().expand(7), e -> e.isAlive()
@@ -1599,7 +1599,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                 && (z.contains(e.getBlockPos()) || canSee(e))).isEmpty();
     }
 
-    /** Se levanta (si estaba sentado) y suelta la silla reservada. */
+    /** Stands up (if seated) and releases the reserved chair. */
     private void standUp(ServerWorld world) {
         if (getVehicle() instanceof ShopSeatEntity seat) {
             Vec3d st = seat.standPos();
@@ -1612,7 +1612,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         sitStand = null;
     }
 
-    /** Se para a mirar un mueble (CobbleFurnies, Cozyhome...) o un peluche cercano. */
+    /** Stops to look at a nearby piece of furniture (CobbleFurnies, Cozyhome...) or plush. */
     private boolean startLook(ServerWorld world, ShopZones.Zone z) {
         furnLooks++;
         BlockPos p = dev.tcgshop.shop.ShopSeats.randomDecorNear(world, z, getBlockPos(), 12, random);
@@ -1621,7 +1621,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         lookPlush = dev.tcgshop.shop.ShopSeats.isPlushAt(world, p);
         lookArrived = false;
         state = State.LOOK;
-        timer = 20 * 8; // tiempo para llegar
+        timer = 20 * 8; // time to get there
         getNavigation().startMovingTo(p.getX() + 0.5, p.getY(), p.getZ() + 0.5, 0.8);
         return true;
     }
@@ -1634,13 +1634,13 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             if (d2 < 2.4 * 2.4 || (getNavigation().isIdle() && d2 < 4.5 * 4.5)) {
                 lookArrived = true;
                 getNavigation().stop();
-                timer = 50 + random.nextInt(70); // 2,5-6 s mirándolo
+                timer = 50 + random.nextInt(70); // 2.5-6 s looking at it
                 emote(lookPlush ? EMOTE_LOVE : EMOTE_THINK);
                 if (random.nextFloat() < 0.5f) NpcLines.speak(this, dev.tcgshop.shop.ShopSeats.lookLine(random, lookPlush));
                 if (lookPlush) world.spawnParticles(ParticleTypes.HEART, c.x, c.y + 0.6, c.z, 2, 0.2, 0.15, 0.2, 0);
             } else {
                 if (getNavigation().isIdle() || age % 40 == 0) getNavigation().startMovingTo(c.x, lookPos.getY(), c.z, 0.8);
-                if (timer <= 0) { state = State.ENTER; emote(EMOTE_NONE); } // no llega: sigue mirando productos
+                if (timer <= 0) { state = State.ENTER; emote(EMOTE_NONE); } // can't get there: keeps browsing products
                 return;
             }
         }
@@ -1653,9 +1653,9 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     }
 
     /**
-     * Sentado en un asiento invisible: los pies van justo a la altura del asiento (sin el desfase de montura vanilla).
-     * En el servidor el asiento es un ShopSeatEntity; el cliente sólo ve un soporte vanilla, así que ahí se reconoce por
-     * sus banderas sincronizadas (marcador + invisible + sin gravedad). Un cliente de la tienda sólo monta en esos.
+     * Seated on an invisible seat: the feet sit right at seat height (without the vanilla mount offset).
+     * On the server the seat is a ShopSeatEntity; the client only sees a vanilla armor stand, so there it's recognized by
+     * its synced flags (marker + invisible + no gravity). A shop customer only rides those.
      */
     @Override
     public Vec3d getVehicleAttachmentPos(net.minecraft.entity.Entity vehicle) {
@@ -1665,14 +1665,14 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         return super.getVehicleAttachmentPos(vehicle);
     }
 
-    /** El asiento no se guarda: sentado, el cliente se guarda solo (como si estuviera de pie a su lado). */
+    /** The seat isn't saved: when seated, the customer is saved alone (as if standing next to it). */
     @Override
     public boolean saveNbt(NbtCompound nbt) {
         if (getVehicle() instanceof ShopSeatEntity) return saveSelfNbt(nbt);
         return super.saveNbt(nbt);
     }
 
-    /** 0.9 eventos: su puerta está bloqueada y hay otra abierta: entra por esa (ShopLife.queueGate). */
+    /** 0.9 events: its door is blocked and another is open: enters through that one (ShopLife.queueGate). */
     public void redirectDoor(BlockPos door, Vec3d outside) {
         entryDoor = door;
         entryOutside = outside;
@@ -1687,7 +1687,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         if (!bought.isEmpty()) nbt.put("Bought", bought.encode(getRegistryManager()));
         nbt.putLong("PayPrice", payPrice);
         nbt.putInt("Type", dataTracker.get(TYPE));
-        // 0.9.5: sentado se guarda en la posición de la silla: al cargar aparece de pie a su lado
+        // 0.9.5: when seated it's saved at the chair's position: on load it appears standing next to it
         if (getVehicle() instanceof ShopSeatEntity seat && seat.standPos() != null) {
             Vec3d st = seat.standPos();
             nbt.putDouble("SitStandX", st.x);
@@ -1705,12 +1705,12 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         bought = nbt.contains("Bought") ? ItemStack.fromNbt(getRegistryManager(), nbt.get("Bought")).orElse(ItemStack.EMPTY) : ItemStack.EMPTY;
         payPrice = nbt.getLong("PayPrice");
         if (nbt.contains("SitStandY")) setPosition(nbt.getDouble("SitStandX"), nbt.getDouble("SitStandY"), nbt.getDouble("SitStandZ"));
-        exit = null; // al recargar: se marcha andando desde donde esté
+        exit = null; // on reload: walks away from wherever it is
         reviewed = true;
-        dev.tcgshop.shop.ShopLife.forget(getUuid()); // 0.9: lo que quedara suyo en la cola de la puerta ya no vale
-        // al recargar: el ladrón sigue huyendo con su botín; quien iba a pagar paga; el resto se marcha
+        dev.tcgshop.shop.ShopLife.forget(getUuid()); // 0.9: whatever it had left in the door queue is no longer valid
+        // on reload: the thief keeps fleeing with its loot; whoever was going to pay pays; the rest leave
         if (!loot.isEmpty()) { state = State.FLEE; fleePhaseTicks = 40; }
-        else if (!bought.isEmpty()) { joinQueue(); register = null; } // sin caja: pagará al recalcular (pay)
+        else if (!bought.isEmpty()) { joinQueue(); register = null; } // no register: will pay on recalculation (pay)
         else state = State.LEAVE;
     }
 }

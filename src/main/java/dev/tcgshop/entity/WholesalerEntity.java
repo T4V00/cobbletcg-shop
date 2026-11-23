@@ -33,9 +33,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Mayorista misterioso: vendedor ambulante que aparece de vez en cuando cerca de los jugadores.
- * Vende cajas de sobres de 8 sets al azar (a precio de mayorista, más barato que el teléfono), los bloques de
- * tienda de todos los niveles, muebles y herramientas. Se marcha pasados dos días de Minecraft.
+ * Mysterious wholesaler: wandering merchant that shows up now and then near players.
+ * Sells booster boxes from 8 random sets (at wholesale price, cheaper than the phone), shop blocks
+ * of every tier, furniture and tools. Leaves after two Minecraft days.
  */
 public class WholesalerEntity extends PathAwareEntity implements TcgNpc {
     private final List<String> boxSets = new ArrayList<>();
@@ -95,7 +95,7 @@ public class WholesalerEntity extends PathAwareEntity implements TcgNpc {
         if (player instanceof ServerPlayerEntity sp) {
             playSound(SoundEvents.ENTITY_WANDERING_TRADER_YES, 1f, 0.8f);
             ShopServer.openStore(sp, getId(), goods(), ShopServer.WHOLESALE_FACTOR);
-            // consejo (una vez por jugador): las esmeraldas se cambian aquí por CobbleDollars
+            // tip (once per player): emeralds are exchanged here for CobbleDollars
             if (tipped.add(sp.getUuid())) sp.sendMessage(net.minecraft.text.Text.literal("[" + getName().getString() + "] ").formatted(net.minecraft.util.Formatting.GOLD)
                     .append(net.minecraft.text.Text.translatable("tcgshop.wholesaler.tip_emeralds",
                             dev.tcgshop.pricing.PriceService.format(dev.tcgshop.shop.CardSales.emeraldPrice())).formatted(net.minecraft.util.Formatting.YELLOW)), false);

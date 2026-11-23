@@ -18,14 +18,14 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Zonas de tienda de una dimensión. Cada bloque de tienda crea una zona cuadrada centrada en él (16x16 … 100x100)
- * que va de BELOW bloques por debajo a tier.up por encima. Guarda también las métricas de la tienda: ventas,
- * reputación, empleados, seguridad y clientes.
+ * Shop zones of a dimension. Each shop block creates a square zone centered on it (16x16 … 100x100)
+ * that goes from BELOW blocks below to tier.up above. It also stores the shop's metrics: sales,
+ * reputation, employees, security and customers.
  */
 public class ShopZones extends PersistentState {
     public static final int BELOW = 2;
 
-    /** Reseña de un cliente al salir: estrellas (1-5) y motivo (tcgshop.review.<key>). */
+    /** A customer's review on leaving: stars (1-5) and reason (tcgshop.review.<key>). */
     public record Review(String name, int stars, String key, long day) {
         public NbtCompound toNbt() {
             NbtCompound c = new NbtCompound();
@@ -36,7 +36,7 @@ public class ShopZones extends PersistentState {
             return c;
         }
 
-        /** Frase completa de la reseña (1120 variantes por estrellas y motivo, tools/gen_lang_reviews.py); fija por cliente y día. */
+        /** Full review sentence (1120 variants by stars and reason, tools/gen_lang_reviews.py); fixed per customer and day. */
         public String textKey() {
             int n = Math.floorMod((name + "#" + day + "#" + key).hashCode(), 8);
             return "tcgshop.reviewtext." + key + "." + Math.max(1, Math.min(5, stars)) + "." + n;
@@ -47,7 +47,7 @@ public class ShopZones extends PersistentState {
         }
     }
 
-    /** Cliente habitual (salió contento): puede volver con el mismo nombre y aspecto. */
+    /** Regular customer (left happy): can come back with the same name and look. */
     public record Regular(String name, int skin, String title, int visits) {}
 
     public static final class Zone {
@@ -56,69 +56,69 @@ public class ShopZones extends PersistentState {
         public String ownerName;
         public final BlockPos core;
         public final int tier;
-        // dinero
+        // money
         public long revenue, balance, wagesPaid;
         public int sales;
-        // empleados
+        // employees
         public boolean cashier, guard;
         public String cashierName = "", guardName = "";
         public long lastWageDay = -1;
-        // seguridad y clientes
+        // security and customers
         public int stolen, detained, recovered, customers, complaints, dealsAccepted, whales;
-        // reputación (0-100) y su desglose (clave de texto -> puntos)
+        // reputation (0-100) and its breakdown (text key -> points)
         public int reputation = 50;
         public final Map<String, Integer> factors = new LinkedHashMap<>();
         public int decor, detectors, displays, buzz;
-        /** Mal olor de la tienda (0-100): lo traen algunos clientes y se quita con el spray desodorante. */
+        /** Shop's bad smell (0-100): brought by some customers and removed with the deodorant spray. */
         public int smell;
-        /** Últimas reseñas (la más reciente primero) y clientes habituales que pueden volver. */
+        /** Latest reviews (most recent first) and regular customers who can come back. */
         public final java.util.List<Review> reviews = new java.util.ArrayList<>();
         public final java.util.List<Regular> regulars = new java.util.ArrayList<>();
-        /** Clientes que se fueron sin que los atendieras, rechazos del día (con reseña negativa) y mala fama por matar NPC. */
+        /** Customers who left without being served, the day's rejections (with a negative review) and infamy for killing NPCs. */
         public int unattended, rejectPenalties, infamy;
-        /** Segundo puesto de caja. */
+        /** Second register station. */
         public boolean cashier2;
-        /** Buena o mala fama por cómo tratas al mendigo (-15..15, vuelve a 0 con los días). */
+        /** Good or bad reputation for how you treat the beggar (-15..15, returns to 0 over the days). */
         public int charity;
         public String cashier2Name = "";
-        /** Último estado del turno visto (para avisar al dueño al empezar/acabar). No se guarda. */
+        /** Last shift state seen (to notify the owner on start/end). Not saved. */
         public Boolean shiftSeen;
         public long rejectDay = -1, infamyDay = -1;
-        /** Lo que han notado los clientes del entorno en el último cálculo (no se guarda): no_roof, dark, hostile... */
+        /** What customers noticed about the surroundings in the last computation (not saved): no_roof, dark, hostile... */
         public final java.util.Set<String> flags = new java.util.HashSet<>();
         /**
-         * Reputación con decimales (sube despacio, baja deprisa). -1 = aún no calculada (mundos antiguos: se toma
-         * {@link #reputation}). {@link #reputation} es siempre su valor redondeado.
+         * Reputation with decimals (rises slowly, falls fast). -1 = not computed yet (old worlds: takes
+         * {@link #reputation}). {@link #reputation} is always its rounded value.
          */
         public double repExact = -1;
-        /** Último objetivo y techo de reputación calculados (no se guardan; los enseña el teléfono vía factors m_target / m_ceiling). */
+        /** Last computed reputation target and ceiling (not saved; shown by the phone via factors m_target / m_ceiling). */
         public int repTarget = -1, repCeiling = 100;
-        // ---- 0.9: misiones de la tienda y aforo (ShopMissions)
-        /** Misiones cumplidas (bit i = ShopMissions.Mission i). -1 = aún sin calcular (mundos antiguos: flujo normal). */
+        // ---- 0.9: shop missions and capacity (ShopMissions)
+        /** Completed missions (bit i = ShopMissions.Mission i). -1 = not computed yet (old worlds: normal flow). */
         public int missions = -1;
-        /** Misiones que se han cumplido alguna vez (para avisar sólo la primera vez, sin spam si una va y viene). */
+        /** Missions ever completed (to notify only the first time, no spam if one comes and goes). */
         public int missionsEver;
-        /** Asientos (sillas, bancos, sofás de muebles) y mesas de juego de la tienda en el último cálculo. */
+        /** The shop's seats (chairs, benches, furniture sofas) and play tables in the last computation. */
         public int seats, playTables;
-        /** Clientes que se quedaron sin entrar por aforo: hoy y el día anterior (para sugerir mejorar la tienda). */
+        /** Customers turned away due to capacity: today and the previous day (to suggest upgrading the shop). */
         public int overflowToday, overflowPrev;
         public long overflowDay = -1;
-        /** No se guardan: progreso de cada misión del último cálculo (null = sin calcular) y cuándo se calculó. */
+        /** Not saved: each mission's progress from the last computation (null = not computed) and when it was computed. */
         public int[] missionProgress;
         public long lastCalc = -1;
         /**
-         * No se guarda: lo que suman / restan ahora mismo los eventos de luz y decoración (apagón, Flaaffy...) a la
-         * reputación. Sólo cuenta para la reputación efectiva de los clientes (ShopLife.effectiveRep), nunca para
-         * settleReputation, igual que Mods.repDelta.
+         * Not saved: what the lighting and decoration events (blackout, Flaaffy...) currently add / subtract to the
+         * reputation. Only counts for the customers' effective reputation (ShopLife.effectiveRep), never for
+         * settleReputation, same as Mods.repDelta.
          */
         public int eventEnvRep;
-        /** 0.9 eventos aleatorios: eventos activos, memoria para reseñas, historial e ingresos por día (ext.events). */
+        /** 0.9 random events: active events, memory for reviews, history and revenue per day (ext.events). */
         public dev.tcgshop.events.ZoneEvents events = new dev.tcgshop.events.ZoneEvents();
 
-        /** Aforo actual: base del nivel + bonus de misiones y asientos. */
+        /** Current capacity: tier base + missions and seats bonus. */
         public int capacity() { return ShopMissions.capacity(this); }
 
-        /** Multiplicador de llegada de clientes por las misiones cumplidas. */
+        /** Customer arrival multiplier from completed missions. */
         public double flow() { return ShopMissions.flow(missions); }
 
         public void addReview(String name, int stars, String key, long day) {
@@ -127,18 +127,18 @@ public class ShopZones extends PersistentState {
         }
 
         /**
-         * Aplica el valor "bruto" de reputación que sale del entorno (ShopLife.recompute) con la economía de la
-         * reputación:
-         *  · rendimientos decrecientes por encima de repSoftCap (los últimos puntos cuestan mucho más),
-         *  · un techo por experiencia (ventas hechas) y por estrellas medias (con 5+ reseñas),
-         *  · sube poco a poco (más despacio cuanto más alta) y baja deprisa.
+         * Applies the "raw" reputation value coming from the surroundings (ShopLife.recompute) with the reputation
+         * economy:
+         *  · diminishing returns above repSoftCap (the last points cost much more),
+         *  · a ceiling from experience (sales made) and from average stars (with 5+ reviews),
+         *  · rises little by little (slower the higher it is) and falls fast.
          */
         public void settleReputation(int raw) {
             dev.tcgshop.EconomyConfig c = dev.tcgshop.EconomyConfig.INSTANCE;
             int knee = Math.max(0, Math.min(100, c.repSoftCap));
             double t = Math.max(0, Math.min(100, raw));
             if (t > knee && knee < 100) t = knee + (100 - knee) * Math.pow((t - knee) / (100.0 - knee), Math.max(1, c.repTopExponent));
-            // techo: hace falta experiencia (ventas) para llegar arriba, y no se puede estar muy alto con malas reseñas
+            // ceiling: experience (sales) is needed to reach the top, and you can't be very high with bad reviews
             double exp = c.repSalesForMax <= 0 ? 1 : Math.min(1, sales / (double) c.repSalesForMax);
             double ceiling = knee + (100 - knee) * Math.sqrt(exp);
             if (reviews.size() >= 5) ceiling = Math.min(ceiling, 40 + avgStars() * 12); // 5★ = 100, 4★ = 88, 3★ = 76
@@ -146,12 +146,12 @@ public class ShopZones extends PersistentState {
             if (repExact < 0) repExact = reputation;
             double gap = t - repExact;
             if (gap > 0) {
-                double slow = Math.max(0.15, 1 - repExact / 125.0); // cuanto más alta, más le cuesta
+                double slow = Math.max(0.15, 1 - repExact / 125.0); // the higher it is, the harder it gets
                 double step = Math.min(c.repMaxRisePerUpdate, Math.max(0.05, gap * c.repRiseRate * slow));
                 repExact = Math.min(t, repExact + step);
             } else if (gap < 0) {
-                // baja deprisa sólo si el objetivo bajo se repite (dos cálculos seguidos); una lectura suelta
-                // (un monstruo que pasa, un cálculo raro) apenas la mueve, para no perder en un minuto lo que cuesta horas
+                // falls fast only if the low target repeats (two computations in a row); a single reading
+                // (a passing monster, an odd computation) barely moves it, so as not to lose in a minute what takes hours
                 boolean confirmed = repTarget >= 0 && repTarget <= Math.round(t) + 2;
                 double rate = confirmed ? c.repFallRate : Math.min(c.repFallRate, 0.05);
                 repExact = Math.max(t, repExact + (confirmed ? Math.min(-0.25, gap * rate) : gap * rate));
@@ -164,7 +164,7 @@ public class ShopZones extends PersistentState {
             factors.put("m_ceiling", repCeiling);
         }
 
-        /** Lo que los clientes están dispuestos a pagar por encima del mercado en esta tienda (0.2 = +20%). */
+        /** What customers are willing to pay above market in this shop (0.2 = +20%). */
         public double premiumFor(ItemStack st) {
             return repPremium(reputation, isSealed(st));
         }
@@ -290,7 +290,7 @@ public class ShopZones extends PersistentState {
                 NbtCompound g = gl.getCompound(i);
                 z.regulars.add(new Regular(g.getString("n"), g.getInt("k"), g.getString("t"), g.getInt("v")));
             }
-            NbtCompound x = c.getCompound("ext"); // mundos antiguos: todo a 0
+            NbtCompound x = c.getCompound("ext"); // old worlds: everything at 0
             z.unattended = x.getInt("unattended");
             z.rejectPenalties = x.getInt("reject_pen");
             z.rejectDay = x.contains("reject_day") ? x.getLong("reject_day") : -1;
@@ -312,14 +312,14 @@ public class ShopZones extends PersistentState {
         }
     }
 
-    // ------------------------------------------------------------------ economía de la reputación
+    // ------------------------------------------------------------------ reputation economy
 
     /**
-     * Sobreprecio que aceptan los clientes según la reputación de la tienda (configurable en tcgshop-economy.json):
-     * nada hasta repPremiumStart, luego crece con la curva repPremiumCurve hasta repPremiumMax a 100. Sobres y cajas
-     * (repPremiumSealedBonus) se pagan aún mejor en una tienda famosa. Por debajo de repPenaltyBelow es negativo:
-     * en una tienda de mala fama quieren precios por debajo del mercado. Común a cliente y servidor (el cliente
-     * tiene EconomyConfig sincronizado), así la ventana de trato puede enseñarlo.
+     * Markup customers accept based on the shop's reputation (configurable in tcgshop-economy.json):
+     * nothing up to repPremiumStart, then it grows along the repPremiumCurve curve up to repPremiumMax at 100. Packs and boxes
+     * (repPremiumSealedBonus) sell even better in a famous shop. Below repPenaltyBelow it's negative:
+     * in a shop with a bad reputation they want prices below market. Shared by client and server (the client
+     * has EconomyConfig synced), so the deal window can show it.
      */
     public static double repPremium(int rep, boolean sealed) {
         dev.tcgshop.EconomyConfig c = dev.tcgshop.EconomyConfig.INSTANCE;
@@ -331,7 +331,7 @@ public class ShopZones extends PersistentState {
         return sealed ? p * Math.max(0, c.repPremiumSealedBonus) : p;
     }
 
-    /** Sobres, cajas y Mystery Box (los productos "sellados"). */
+    /** Packs, boxes and Mystery Box (the "sealed" products). */
     public static boolean isSealed(ItemStack st) {
         return dev.masterball.api.card.CardInfo.isPack(st) || st.isOf(TcgBlocks.BOOSTER_BOX_ITEM) || st.isOf(TcgBlocks.MYSTERY_BOX);
     }
@@ -345,7 +345,7 @@ public class ShopZones extends PersistentState {
     private static final Type<ShopZones> TYPE = new Type<>(ShopZones::new, ShopZones::fromNbt, null);
 
     private final List<Zone> zones = new ArrayList<>();
-    /** Gastos de cada jugador en mercancía (Mayorista / teléfono): para el beneficio de sus tiendas. */
+    /** Each player's spending on merchandise (Wholesaler / phone): for their shops' profit. */
     private final Map<UUID, Long> costs = new HashMap<>();
 
     public static ShopZones get(ServerWorld world) {
@@ -398,7 +398,7 @@ public class ShopZones extends PersistentState {
         ShopZones s = new ShopZones();
         NbtList l = nbt.getList("zones2", 10);
         for (int i = 0; i < l.size(); i++) s.zones.add(Zone.read(l.getCompound(i)));
-        if (!nbt.contains("zones2")) { // migración desde la versión anterior (formato con codec)
+        if (!nbt.contains("zones2")) { // migration from the previous version (codec format)
             NbtList old = nbt.getList("zones", 10);
             for (int i = 0; i < old.size(); i++) {
                 NbtCompound o = old.getCompound(i);

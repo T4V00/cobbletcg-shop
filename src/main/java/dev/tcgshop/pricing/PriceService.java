@@ -21,32 +21,32 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Precios de cartas y productos sellados en CobbleDollars.
+ * Prices of cards and sealed products in CobbleDollars.
  *
- * <h2>Precio base (USD)</h2>
+ * <h2>Base price (USD)</h2>
  * <ol>
- *   <li>Precio real de mercado TCGplayer de esa carta (data/&lt;ns&gt;/tcgshop_prices/*.json, campo cards_usd),
- *       generado con tools/fetch_prices.py desde tcgcsv.com. Cubre el 99% de las cartas de cobbletcg 1.6.0.</li>
- *   <li>Si no hay: mediana real de su set y rareza (rarity_median_usd) × variación estable por carta.</li>
- *   <li>Si tampoco: mediana global de la rareza ("*") o el valor de {@link Rarity#baseUsd}.</li>
+ *   <li>Real TCGplayer market price of that card (data/&lt;ns&gt;/tcgshop_prices/*.json, field cards_usd),
+ *       generated with tools/fetch_prices.py from tcgcsv.com. Covers 99% of cobbletcg 1.6.0 cards.</li>
+ *   <li>If missing: real median of its set and rarity (rarity_median_usd) × stable per-card variation.</li>
+ *   <li>If that is missing too: global rarity median ("*") or the value of {@link Rarity#baseUsd}.</li>
  * </ol>
  *
- * <h2>Precio actual (CobbleDollars)</h2>
- * base × {@link MarketModel tendencia del mercado del día} × {@link TcgShopConfig#cobbleDollarsPerUsd}.
+ * <h2>Current price (CobbleDollars)</h2>
+ * base × {@link MarketModel the day's market trend} × {@link TcgShopConfig#cobbleDollarsPerUsd}.
  *
- * Los datapacks pueden sobreescribir cualquier precio: los archivos se fusionan en orden de carga.
- * El servidor envía la tabla al cliente al entrar (PriceSyncPayload) y el día de mercado al cambiar (MarketDayPayload).
+ * Datapacks can override any price: files are merged in load order.
+ * The server sends the table to the client on join (PriceSyncPayload) and the market day when it changes (MarketDayPayload).
  */
 public final class PriceService {
     public static final String DATA_FOLDER = "tcgshop_prices";
 
-    /** id de carta -> USD */
+    /** card id -> USD */
     private static Map<String, Double> cardUsd = new HashMap<>();
-    /** "set|tipo" -> USD   (tipo = pack, box, etb) */
+    /** "set|type" -> USD   (type = pack, box, etb) */
     private static Map<String, Double> sealedUsd = new HashMap<>();
-    /** "set|rareza" -> USD  (set "*" = global) */
+    /** "set|rarity" -> USD  (set "*" = global) */
     private static Map<String, Double> rarityMedianUsd = new HashMap<>();
-    /** "id|nota" -> USD de la carta gradeada (notas "7", "8", "9", "9.5", "10"; PriceCharting vía tools/import_pricecharting.py) */
+    /** "id|grade" -> USD of the graded card (grades "7", "8", "9", "9.5", "10"; PriceCharting via tools/import_pricecharting.py) */
     private static Map<String, Double> gradedUsd = new HashMap<>();
 
     private static double cdPerUsd = 250.0;
@@ -56,7 +56,7 @@ public final class PriceService {
 
     private PriceService() {}
 
-    // ------------------------------------------------------------------ cartas
+    // ------------------------------------------------------------------ cards
 
     public static long priceCd(ItemStack stack) {
         if (!CardInfo.isCard(stack)) return 0;
@@ -69,8 +69,8 @@ public final class PriceService {
     }
 
     /**
-     * Precio de referencia (USD, sin tendencia ni Grado) de esa copia concreta: el de su variante de impresión
-     * (reverse holo, Poké Ball, 1ª edición...) o el de la impresión estándar.
+     * Reference price (USD, without trend or Grade) of that specific copy: that of its print variant
+     * (reverse holo, Poké Ball, 1st edition...) or that of the standard print.
      */
     public static double stackBaseUsd(ItemStack stack) {
         Identifier id = CardInfo.id(stack);
@@ -78,22 +78,22 @@ public final class PriceService {
         return base * dev.masterball.api.card.PrintVariant.of(stack).ratio(id, base);
     }
 
-    // ------------------------------------------------------------------ gradeadas
+    // ------------------------------------------------------------------ graded
 
     private static final double[] GRADE_PTS = {7, 8, 9, 9.5, 10};
     private static final String[] GRADE_KEYS = {"7", "8", "9", "9.5", "10"};
-    /** Valor en USD (sin tendencia de mercado) de la carta con Grado g (décimas, 100 = 10): precio sin Grado · Mg. */
+    /** USD value (without market trend) of the card at Grade g (tenths, 100 = 10): ungraded price · Mg. */
     public static double gradedUsd(Identifier id, Rarity rarity, int g) {
         return baseUsd(id, rarity) * GradeModel.mult(gradeM10(id, rarity), g);
     }
 
-    /** Multiplicador máximo (Grado 10) de esta carta según GradeModel. */
+    /** Maximum multiplier (Grade 10) of this card according to GradeModel. */
     public static double gradeM10(Identifier id, Rarity rarity) {
         Double pack = sealedUsd.get(CardInfo.setId(id) + "|pack");
         return GradeModel.m10(id, rarity, pack != null ? pack : Sealed.PACK.defaultUsd);
     }
 
-    /** Multiplicador efectivo de esa nota para esa carta (para mostrarlo en pantalla). */
+    /** Effective multiplier of that grade for that card (for on-screen display). */
     public static double gradedMultiplier(Identifier id, Rarity rarity, int g) {
         double raw = baseUsd(id, rarity);
         return raw <= 0 ? 1 : gradedUsd(id, rarity, g) / raw;
@@ -107,7 +107,7 @@ public final class PriceService {
         return priceCdOnDay(id, rarity, marketDay);
     }
 
-    /** Precio en un día de mercado concreto (para historial y gráficas). */
+    /** Price on a specific market day (for history and charts). */
     public static long priceCdOnDay(Identifier id, Rarity rarity, long day) {
         double usd = baseUsd(id, rarity) * marketMultiplier(id, rarity, day);
         return toCd(usd);
@@ -117,7 +117,7 @@ public final class PriceService {
         return MarketModel.multiplier(marketSeed, CardInfo.setId(id), id.toString(), rarity.tier, day, marketVolatility);
     }
 
-    /** Precio de referencia sin la tendencia del mercado, en USD. */
+    /** Reference price without the market trend, in USD. */
     public static double baseUsd(Identifier id, Rarity rarity) {
         Double real = cardUsd.get(id.toString());
         if (real != null) return real;
@@ -131,7 +131,7 @@ public final class PriceService {
         return cardUsd.containsKey(id.toString());
     }
 
-    // ------------------------------------------------------------------ sellados
+    // ------------------------------------------------------------------ sealed
 
     public enum Sealed {
         PACK("pack", 4.5), BOX("box", 160.0), ETB("etb", 55.0);
@@ -140,25 +140,25 @@ public final class PriceService {
         Sealed(String key, double defaultUsd) { this.key = key; this.defaultUsd = defaultUsd; }
     }
 
-    /** Precio de mercado de un producto sellado del set (cobbletcg set id, p.ej. "mew151"). */
+    /** Market price of a sealed product of the set (cobbletcg set id, e.g. "mew151"). */
     public static long sealedCd(String setId, Sealed kind) {
         double mult = MarketModel.multiplier(marketSeed, setId, setId + "#" + kind.key, 0, marketDay, marketVolatility);
         return toCd(sealedUsd(setId, kind) * mult);
     }
 
-    /** Lo que trae de media un sobre sellado no puede valer mucho más que el sobre: precio mínimo = 85 % de ese valor. */
+    /** A sealed pack's average contents can't be worth much more than the pack: minimum price = 85 % of that value. */
     public static final double PACK_EV_FLOOR = 0.85;
-    /** Sin precio real del sobre (sets que no se venden sellados o sin ventas): valor medio del contenido + 10 %. */
+    /** No real pack price (sets not sold sealed or with no sales): average contents value + 10 %. */
     public static final double PACK_EV_MARKUP = 1.10;
     private static final Map<String, Double> PACK_EV = new java.util.concurrent.ConcurrentHashMap<>();
 
-    /** Valor medio (USD, sin tendencia) de lo que trae un sobre sellado del set (MasterBall Traders API). */
+    /** Average value (USD, without trend) of what a sealed pack of the set contains (MasterBall Traders API). */
     public static double packExpectedUsd(String setId) {
         return PACK_EV.computeIfAbsent(setId, s -> dev.masterball.api.pack.PackContents.expectedValue(s,
                 id -> baseUsd(id, Rarity.of(id))));
     }
 
-    /** Precio de referencia (USD, sin tendencia) de un producto sellado del set. */
+    /** Reference price (USD, without trend) of a sealed product of the set. */
     public static double sealedUsd(String setId, Sealed kind) {
         Double usd = sealedUsd.get(setId + "|" + kind.key);
         if (kind == Sealed.PACK) {
@@ -171,7 +171,7 @@ public final class PriceService {
             else if (ev > 0) usd = Math.max(usd, ev * PACK_EV_FLOOR);
             return usd;
         }
-        double pack = sealedUsd(setId, Sealed.PACK); // caja ~36 sobres, ETB ~10: nunca por debajo de sus sobres
+        double pack = sealedUsd(setId, Sealed.PACK); // box ~36 packs, ETB ~10: never below its packs
         double min = pack * (kind == Sealed.BOX ? 36 : 10) * 0.9;
         return usd == null ? pack * (kind == Sealed.BOX ? 36 : 10) : Math.max(usd, min);
     }
@@ -182,7 +182,7 @@ public final class PriceService {
         return Math.max(1L, Math.round(usd * cdPerUsd));
     }
 
-    /** Variación estable por carta (0.41x .. 2.46x, aprox. log-normal) para las estimaciones. */
+    /** Stable per-card variation (0.41x .. 2.46x, approx. log-normal) for the estimates. */
     private static double variance(Identifier id) {
         long h = id.toString().hashCode() * 0x9E3779B97F4A7C15L;
         double a = ((h >>> 1) & 0xFFFF) / 65535.0;
@@ -196,7 +196,7 @@ public final class PriceService {
         return n + TcgShopConfig.INSTANCE.currencySuffix;
     }
 
-    // ------------------------------------------------------------------ sincronización
+    // ------------------------------------------------------------------ synchronization
 
     public static Map<String, Double> cardUsdView() { return cardUsd; }
     public static Map<String, Double> sealedUsdView() { return sealedUsd; }
@@ -209,7 +209,7 @@ public final class PriceService {
 
     public static void setMarketDay(long day) { marketDay = day; }
 
-    /** Cliente: aplica la tabla recibida del servidor. */
+    /** Client: applies the table received from the server. */
     public static void applySync(Map<String, Double> cards, Map<String, Double> sealed, Map<String, Double> medians,
                                  Map<String, Double> graded, double rate, long seed, double volatility, long day) {
         gradedUsd = new HashMap<>(graded);
@@ -223,7 +223,7 @@ public final class PriceService {
         marketDay = day;
     }
 
-    /** Servidor: refresca los parámetros de la config (al cargar datos o el mundo). */
+    /** Server: refreshes the config parameters (when loading data or the world). */
     public static void applyConfig() {
         TcgShopConfig c = TcgShopConfig.INSTANCE;
         cdPerUsd = c.cobbleDollarsPerUsd;
@@ -231,7 +231,7 @@ public final class PriceService {
         marketVolatility = c.marketEnabled ? c.marketVolatility : 0;
     }
 
-    // ------------------------------------------------------------------ carga de datos
+    // ------------------------------------------------------------------ data loading
 
     public static class ReloadListener implements SimpleSynchronousResourceReloadListener {
         @Override
@@ -243,8 +243,8 @@ public final class PriceService {
         public void reload(ResourceManager manager) {
             Map<String, Double> cards = new HashMap<>(), sealed = new HashMap<>(), medians = new HashMap<>(), graded = new HashMap<>();
             Map<Identifier, List<Resource>> files = new java.util.TreeMap<>(manager.findAllResources(DATA_FOLDER, p -> p.getPath().endsWith(".json")));
-            for (Map.Entry<Identifier, List<Resource>> e : files.entrySet()) { // orden alfabético: pricecharting.json gana a cards.json
-                for (Resource res : e.getValue()) { // todos los datapacks, en orden: el último gana
+            for (Map.Entry<Identifier, List<Resource>> e : files.entrySet()) { // alphabetical order: pricecharting.json wins over cards.json
+                for (Resource res : e.getValue()) { // all datapacks, in order: the last one wins
                     try (Reader r = res.getReader()) {
                         JsonObject root = JsonParser.parseReader(r).getAsJsonObject();
                         readFlat(root, "cards_usd", cards);
@@ -252,7 +252,7 @@ public final class PriceService {
                         readNested(root, "rarity_median_usd", medians);
                         readNested(root, "graded_usd", graded);
                     } catch (Exception ex) {
-                        TcgShop.LOGGER.error("Archivo de precios inválido: {}", e.getKey(), ex);
+                        TcgShop.LOGGER.error("Invalid price file: {}", e.getKey(), ex);
                     }
                 }
             }
@@ -262,7 +262,7 @@ public final class PriceService {
             rarityMedianUsd = medians;
             gradedUsd = graded;
             applyConfig();
-            TcgShop.LOGGER.info("Precios: {} cartas con precio real, {} productos sellados, {} medianas, {} precios gradeados",
+            TcgShop.LOGGER.info("Prices: {} cards with real price, {} sealed products, {} medians, {} graded prices",
                     cards.size(), sealed.size(), medians.size(), graded.size());
         }
 

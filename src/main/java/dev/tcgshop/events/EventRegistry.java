@@ -16,9 +16,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Definiciones de eventos: data/&lt;ns&gt;/tcgshop_events/&lt;path&gt;.json -> id "&lt;ns&gt;:&lt;path&gt;". Un datapack puede
- * sustituir un evento (mismo archivo) o desactivarlo con {"enabled": false}. Las definiciones inválidas (tipo de
- * efecto desconocido, negativo sin forma de arreglarlo...) se descartan con una línea en el log.
+ * Event definitions: data/&lt;ns&gt;/tcgshop_events/&lt;path&gt;.json -> id "&lt;ns&gt;:&lt;path&gt;". A datapack can
+ * replace an event (same file) or disable it with {"enabled": false}. Invalid definitions (unknown effect
+ * type, negative with no way to fix it...) are discarded with a line in the log.
  */
 public final class EventRegistry implements SimpleSynchronousResourceReloadListener {
     public static final String FOLDER = "tcgshop_events";
@@ -52,20 +52,20 @@ public final class EventRegistry implements SimpleSynchronousResourceReloadListe
             } catch (Exception ex) {
                 String msg = id + ": " + ex.getMessage();
                 errors.add(msg);
-                TcgShop.LOGGER.warn("[eventos] definición descartada {}", msg);
+                TcgShop.LOGGER.warn("[events] discarded definition {}", msg);
             }
         }
         defs = Collections.unmodifiableMap(out);
         lastErrors = List.copyOf(errors);
         EventManager.onDefsReloaded();
-        TcgShop.LOGGER.info("[eventos] {} eventos cargados ({} descartados)", out.size(), errors.size());
+        TcgShop.LOGGER.info("[events] {} events loaded ({} discarded)", out.size(), errors.size());
     }
 
-    /** Lee y valida una definición (también la usa eventtest). */
+    /** Reads and validates a definition (also used by eventtest). */
     public static EventDef validate(String id, JsonObject o) {
         EventDef def = EventDef.parse(id, o);
-        if (def.negative() && !def.hasFix()) throw new IllegalArgumentException("evento negativo sin ninguna forma de arreglarlo (fix/resolve)");
-        if (def.effects().isEmpty() && def.variants().isEmpty()) throw new IllegalArgumentException("sin efectos");
+        if (def.negative() && !def.hasFix()) throw new IllegalArgumentException("negative event with no way to fix it (fix/resolve)");
+        if (def.effects().isEmpty() && def.variants().isEmpty()) throw new IllegalArgumentException("no effects");
         return def;
     }
 }

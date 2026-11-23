@@ -43,24 +43,24 @@ import java.util.Random;
 import java.util.Set;
 
 /**
- * P2 "incident": pone bloques tcgshop:incident en la tienda y los conecta con los bloqueos del núcleo (expositor o
- * casilla inutilizable, caja averiada, puerta atascada, apagón). El jugador los arregla con la herramienta del tag
- * (fregona, kit de reparación, pala o mano vacía); el evento se resuelve cuando están todos (o uno, "any") arreglados.
+ * P2 "incident": places tcgshop:incident blocks in the shop and links them to the core's locks (unusable display or
+ * slot, broken register, jammed door, blackout). The player fixes them with the tool from the tag
+ * (mop, repair kit, shovel or empty hand); the event resolves when all of them (or one, "any") are fixed.
  *
- * Estado por instancia en ctx.data() (se guarda con la zona):
- *   placed (bool), at (long, colocación retrasada), fail (bool: no había sitio), b (lista de incidentes:
- *   p = pos, k = tipo, f = arreglado, d = expositor bloqueado, s = casilla, o = puerta cerrada, r = caja averiada).
+ * Per-instance state in ctx.data() (saved with the zone):
+ *   placed (bool), at (long, delayed placement), fail (bool: there was no room), b (list of incidents:
+ *   p = pos, k = kind, f = fixed, d = locked display, s = slot, o = closed door, r = broken register).
  *
- * JSON (EFFECTS.md §8 y extras):
+ * JSON (EFFECTS.md §8 and extras):
  * <pre>
  * {"type":"incident","kind":"puddle","count":[3,6],"near":"floor",       // door|outside_door|display|register|core|floor
  *  "fix":{"items":"#tcgshop:fix/puddle","hand":false,"uses":1,"hits":1,"consume":false},
- *  "disable":"display",            // "" | display | slot (bloquea el expositor o una casilla con producto, al lado)
+ *  "disable":"display",            // "" | display | slot (locks the display or a stocked slot, next to it)
  *  "registerDown":false, "closeDoor":false, "lighting":-1, "resolveWhen":"all",
- *  "delay":[0,0],                  // ticks antes de aparecer (p. ej. cuando ya ha entrado el cliente patoso)
- *  "message":"",                   // clave de idioma: aviso extra al dueño cuando aparece
- *  "reviewTag":"",                 // cambia el tag de reseña del evento (inst.reviewTag)
- *  "loot":"tcgshop:events/package","rolls":1,"money":[0,0],"weeklyCap":2}   // sólo kind=package: premio al abrirlo
+ *  "delay":[0,0],                  // ticks before appearing (e.g. once the clumsy customer has come in)
+ *  "message":"",                   // language key: extra notice to the owner when it appears
+ *  "reviewTag":"",                 // changes the event's review tag (inst.reviewTag)
+ *  "loot":"tcgshop:events/package","rolls":1,"money":[0,0],"weeklyCap":2}   // kind=package only: reward on opening it
  * </pre>
  */
 public final class IncidentEffect implements EventEffect {
@@ -80,11 +80,11 @@ public final class IncidentEffect implements EventEffect {
         countMin = (int) Math.max(1, Math.min(8, c[0]));
         countMax = (int) Math.max(countMin, Math.min(8, c[1]));
         near = EventDef.str(o, "near", kind == IncidentKind.PACKAGE ? "door" : "floor").toLowerCase(Locale.ROOT);
-        if (!NEARS.contains(near)) throw new IllegalArgumentException("incident.near inválido: " + near + " (" + NEARS + ")");
+        if (!NEARS.contains(near)) throw new IllegalArgumentException("invalid incident.near: " + near + " (" + NEARS + ")");
         disable = EventDef.str(o, "disable", "").toLowerCase(Locale.ROOT);
-        if (!List.of("", "display", "slot").contains(disable)) throw new IllegalArgumentException("incident.disable inválido: " + disable);
+        if (!List.of("", "display", "slot").contains(disable)) throw new IllegalArgumentException("invalid incident.disable: " + disable);
         resolveWhen = EventDef.str(o, "resolveWhen", "all").toLowerCase(Locale.ROOT);
-        if (!List.of("all", "any").contains(resolveWhen)) throw new IllegalArgumentException("incident.resolveWhen inválido: " + resolveWhen);
+        if (!List.of("all", "any").contains(resolveWhen)) throw new IllegalArgumentException("invalid incident.resolveWhen: " + resolveWhen);
         registerDown = EventDef.bool(o, "registerDown", false);
         closeDoor = EventDef.bool(o, "closeDoor", false);
         lighting = Math.max(-1, Math.min(15, EventDef.integer(o, "lighting", -1)));
@@ -98,7 +98,7 @@ public final class IncidentEffect implements EventEffect {
         if (!loot.isEmpty()) {
             Identifier id = Identifier.tryParse(loot);
             if (id == null || !id.getNamespace().equals("tcgshop") || !id.getPath().startsWith("events/"))
-                throw new IllegalArgumentException("incident.loot sólo puede usar tablas tcgshop:events/*");
+                throw new IllegalArgumentException("incident.loot can only use tcgshop:events/* tables");
         }
         rolls = Math.max(1, Math.min(3, EventDef.integer(o, "rolls", 1)));
         long[] m = EventDef.range(o.get("money"), 0);
@@ -107,9 +107,9 @@ public final class IncidentEffect implements EventEffect {
         weeklyCap = Math.max(0, Math.min(14, EventDef.integer(o, "weeklyCap", 2)));
     }
 
-    // ------------------------------------------------------------------ arreglo (herramienta)
+    // ------------------------------------------------------------------ fix (tool)
 
-    /** Qué arregla un incidente: objetos (tag "#ns:path" o id), mano vacía, durabilidad por golpe, golpes. */
+    /** What fixes an incident: items (tag "#ns:path" or id), empty hand, durability per hit, hits. */
     record FixSpec(List<String> items, boolean hand, int uses, int hits, boolean consume) {
         static FixSpec parse(JsonObject o, IncidentKind kind) {
             List<String> items = new ArrayList<>();
@@ -122,11 +122,11 @@ public final class IncidentEffect implements EventEffect {
             boolean hand = EventDef.bool(o, "hand", e != null && e.isJsonPrimitive() && e.getAsString().equals("hand") || e == null && kind.handByDefault);
             for (String s : items) {
                 String id = s.startsWith("#") ? s.substring(1) : s;
-                if (Identifier.tryParse(id) == null) throw new IllegalArgumentException("incident.fix.items: id inválido " + s);
+                if (Identifier.tryParse(id) == null) throw new IllegalArgumentException("incident.fix.items: invalid id " + s);
                 if (!s.startsWith("#") && (id.endsWith("bucket") || id.equals("minecraft:flint_and_steel") || id.equals("minecraft:fire_charge")))
-                    throw new IllegalArgumentException("incident.fix.items: nunca cubos ni fuego (" + s + ")");
+                    throw new IllegalArgumentException("incident.fix.items: never buckets or fire (" + s + ")");
             }
-            if (items.isEmpty() && !hand) throw new IllegalArgumentException("incident.fix: sin objetos ni mano, no se podría arreglar");
+            if (items.isEmpty() && !hand) throw new IllegalArgumentException("incident.fix: no items and no hand, it could not be fixed");
             int uses = Math.max(0, Math.min(16, EventDef.integer(o, "uses", 1)));
             int hits = Math.max(1, Math.min(10, EventDef.integer(o, "hits", kind.defaultHits)));
             return new FixSpec(List.copyOf(items), hand, uses, hits, EventDef.bool(o, "consume", false));
@@ -136,7 +136,7 @@ public final class IncidentEffect implements EventEffect {
 
         boolean matches(ItemStack st) {
             if (st.isEmpty()) return hand;
-            // jamás agua ni fuego de verdad, diga lo que diga un datapack
+            // never real water or fire, whatever a datapack says
             if (st.getItem() instanceof BucketItem || st.getItem() instanceof FlintAndSteelItem || st.getItem() instanceof FireChargeItem) return false;
             Identifier id = Registries.ITEM.getId(st.getItem());
             for (String s : items) {
@@ -149,7 +149,7 @@ public final class IncidentEffect implements EventEffect {
         }
     }
 
-    // ------------------------------------------------------------------ ciclo de vida
+    // ------------------------------------------------------------------ lifecycle
 
     @Override
     public void start(EventContext ctx) {
@@ -170,10 +170,10 @@ public final class IncidentEffect implements EventEffect {
             return;
         }
         if (d.getBoolean("fail")) {
-            // sin sitio para el incidente: si nada más del evento se puede arreglar, se cancela (nunca un negativo sin arreglo)
+            // no room for the incident: if nothing else in the event can be fixed, it is cancelled (never a negative without a fix)
             if (!otherFixExists(ctx)) {
                 long uid = ctx.instance.uid;
-                ctx.zone.events.log.removeIf(r -> r.uid == uid); // un evento que nunca llegó a pasar no deja reseña
+                ctx.zone.events.log.removeIf(r -> r.uid == uid); // an event that never actually happened leaves no review
                 EventManager.end(uid, "cancelled");
             }
             return;
@@ -208,12 +208,12 @@ public final class IncidentEffect implements EventEffect {
     }
 
     /**
-     * Precondición para el núcleo (EventEffect.canStart): ¿hay sitio para al menos un incidente? Así un evento sin
-     * sitio no llega a empezar (sin aviso, sin reseña, sin gastar el historial del dueño). Con retraso se decide al colocar.
+     * Precondition for the core (EventEffect.canStart): is there room for at least one incident? That way an event with no
+     * room never starts (no notice, no review, no spending the owner's history). With a delay it is decided on placement.
      */
     public boolean canStart(ServerWorld w, ShopZones.Zone z) {
         if (delayMax > 0) return true;
-        if (!disable.isEmpty() && IncidentPlacer.displays(w, z).isEmpty()) return false; // su bloqueo no tendría dónde ir
+        if (!disable.isEmpty() && IncidentPlacer.displays(w, z).isEmpty()) return false; // its lock would have nowhere to go
         List<BlockPos> anchors = IncidentPlacer.anchors(w, z, near);
         Random rng = new Random(w.getTime() ^ z.id.getLeastSignificantBits());
         if (!IncidentPlacer.candidates(w, z, anchors, near.equals("outside_door"), rng, countMin).isEmpty()) return true;
@@ -232,7 +232,7 @@ public final class IncidentEffect implements EventEffect {
         return false;
     }
 
-    // ------------------------------------------------------------------ colocar
+    // ------------------------------------------------------------------ placement
 
     private void place(EventContext ctx) {
         NbtCompound d = ctx.data();
@@ -247,7 +247,7 @@ public final class IncidentEffect implements EventEffect {
         List<BlockPos> anchors = IncidentPlacer.anchors(w, z, near);
         List<BlockPos> cands = IncidentPlacer.candidates(w, z, anchors, near.equals("outside_door"), rng, want);
         boolean fallback = false;
-        if (cands.isEmpty() && !anchors.isEmpty()) { // plan B: suelo
+        if (cands.isEmpty() && !anchors.isEmpty()) { // plan B: floor
             cands = IncidentPlacer.candidates(w, z, List.of(), false, rng, want);
             fallback = true;
         }
@@ -260,18 +260,18 @@ public final class IncidentEffect implements EventEffect {
         boolean locked = false;
         for (BlockPos p : cands) {
             if (list.size() >= want) break;
-            if (!IncidentPlacer.safe(w, z, p)) continue; // re-comprobar: el anterior puede estar al lado
+            if (!IncidentPlacer.safe(w, z, p)) continue; // re-check: the previous one may be next to it
             if (!w.setBlockState(p, TcgBlocks.INCIDENT.getDefaultState().with(IncidentBlock.KIND, kind), Block.NOTIFY_LISTENERS | Block.FORCE_STATE))
                 continue;
             if (w.getBlockEntity(p) instanceof IncidentBlockEntity be) be.init(inst.uid, z.id, ctx.index, fix.hits(), inst.end);
             NbtCompound r = new NbtCompound();
             r.putLong("p", p.asLong());
             r.putString("k", kind.key());
-            // bloqueos de esta pieza
+            // locks for this piece
             if (!disable.isEmpty()) {
                 BlockPos dp = IncidentPlacer.nearest(p, displayPos, 3.5);
-                // en el suelo al azar (plan B) o sin expositor al lado: el más cercano sin límite, para que el evento
-                // tenga siempre el bloqueo que lo define
+                // randomly on the floor (plan B) or with no display nearby: the nearest one with no limit, so the event
+                // always has the lock that defines it
                 if (dp == null && (fallback || !locked)) dp = IncidentPlacer.nearest(p, displayPos, 1024);
                 if (dp != null) {
                     if (disable.equals("display")) {
@@ -289,7 +289,7 @@ public final class IncidentEffect implements EventEffect {
                     }
                 }
             }
-            if (closeDoor && !doors.isEmpty() && list.isEmpty()) { // una puerta por evento: la más cercana a la primera pieza
+            if (closeDoor && !doors.isEmpty() && list.isEmpty()) { // one door per event: the one nearest the first piece
                 BlockPos door = IncidentPlacer.nearest(p, doors, 64);
                 if (door != null) {
                     inst.closeDoor(door);
@@ -305,7 +305,7 @@ public final class IncidentEffect implements EventEffect {
         d.put("b", list);
         if (list.isEmpty()) {
             d.putBoolean("fail", true);
-            dev.tcgshop.TcgShop.LOGGER.info("[eventos] {}: no hay sitio seguro para el incidente {} en la tienda de {}", inst.defId, kind.key(), z.ownerName);
+            dev.tcgshop.TcgShop.LOGGER.info("[events] {}: no safe spot for incident {} in {}'s shop", inst.defId, kind.key(), z.ownerName);
         } else {
             if (lighting >= 0) inst.setLightingOverride(lighting);
             if (!message.isEmpty()) ctx.tellOwner(Text.translatable(message).formatted(Formatting.GOLD), false);
@@ -314,7 +314,7 @@ public final class IncidentEffect implements EventEffect {
         ctx.markDirty();
     }
 
-    /** Una casilla con producto del expositor que aún no esté bloqueada por esta pieza del evento (o -1). list = la que se está colocando. */
+    /** A stocked display slot not yet locked by this piece of the event (or -1). list = the one being placed. */
     private static int stockedSlot(ServerWorld w, BlockPos dp, Random rng, NbtList list) {
         if (!(w.getBlockEntity(dp) instanceof ShopDisplayBlockEntity de)) return -1;
         Set<Integer> used = new HashSet<>();
@@ -324,9 +324,9 @@ public final class IncidentEffect implements EventEffect {
         return ok.isEmpty() ? -1 : ok.get(rng.nextInt(ok.size()));
     }
 
-    // ------------------------------------------------------------------ arreglar / quitar
+    // ------------------------------------------------------------------ fix / remove
 
-    /** ¿Esta pieza del evento ya está cumplida? */
+    /** Is this piece of the event already completed? */
     boolean done(NbtCompound d) {
         if (!d.getBoolean("placed")) return false;
         if (d.getBoolean("fail")) return true;
@@ -337,8 +337,8 @@ public final class IncidentEffect implements EventEffect {
     }
 
     /**
-     * Un incidente de esta pieza se ha arreglado (herramienta del dueño, o quitado por otra vía): suelta sus bloqueos,
-     * da el premio del paquete y, si ya están todos los incidentes del evento, lo resuelve.
+     * An incident of this piece has been fixed (owner's tool, or removed some other way): releases its locks,
+     * gives the package reward and, if all of the event's incidents are done, resolves it.
      */
     void onFixed(ServerWorld w, ShopZones.Zone z, EventInstance inst, EventDef def, int index, BlockPos pos, String how,
                  ServerPlayerEntity player) {
@@ -350,7 +350,7 @@ public final class IncidentEffect implements EventEffect {
         rec.putBoolean("f", true);
         release(inst, rec);
         if (done(d) && lighting >= 0 && !actorHoldsLight(inst, def)) inst.setLightingOverride(-1);
-        reapplyLocks(inst, def); // lo que siga bloqueando otra pieza (de este u otro efecto) vuelve a su sitio
+        reapplyLocks(inst, def); // whatever another piece (of this or another effect) still locks goes back in place
         if (kind == IncidentKind.PACKAGE && player != null && player.getUuid().equals(z.owner)) openPackage(w, z, player, new Random(inst.uid * 31 + pos.asLong()));
         ShopZones.get(w).markDirty();
         if (allIncidentsDone(inst, def)) EventManager.resolve(inst.uid, how);
@@ -365,8 +365,8 @@ public final class IncidentEffect implements EventEffect {
     }
 
     /**
-     * Suelta los bloqueos de una pieza. Los bloqueos de EventInstance no llevan cuenta de quién los puso, así que se
-     * quitan sin más y luego {@link #reapplyLocks} vuelve a poner los que siga teniendo cualquier otra pieza viva.
+     * Releases a piece's locks. EventInstance locks do not track who set them, so they are
+     * simply removed and then {@link #reapplyLocks} puts back the ones any other live piece still holds.
      */
     private static void release(EventInstance inst, NbtCompound rec) {
         if (rec.contains("d")) inst.enableDisplay(BlockPos.fromLong(rec.getLong("d")));
@@ -375,10 +375,10 @@ public final class IncidentEffect implements EventEffect {
     }
 
     /**
-     * Vuelve a poner todos los bloqueos que aún tienen las piezas vivas de la instancia: incidentes sin arreglar (de
-     * cualquier efecto "incident") y los lk_* de los efectos "actor". Idempotente (son conjuntos). La luz de un actor
-     * no se reaplica (su nivel no se guarda): quien la quita debe mirar antes {@link #actorHoldsLight}.
-     * Para el núcleo/actores: llamarlo tras soltar bloqueos con enableDisplay/openDoor/setRegisterDown/setLightingOverride.
+     * Re-applies every lock still held by the instance's live pieces: unfixed incidents (from
+     * any "incident" effect) and the lk_* of "actor" effects. Idempotent (they are sets). An actor's light
+     * is not re-applied (its level is not saved): whoever removes it must check {@link #actorHoldsLight} first.
+     * For the core/actors: call it after releasing locks with enableDisplay/openDoor/setRegisterDown/setLightingOverride.
      */
     public static void reapplyLocks(EventInstance inst, EventDef def) {
         if (def == null || inst.resolved()) return;
@@ -418,7 +418,7 @@ public final class IncidentEffect implements EventEffect {
         }
     }
 
-    /** ¿Algún efecto "actor" de la instancia mantiene su luz? (entonces no se devuelve la luz real) */
+    /** Does any "actor" effect of the instance hold its light? (then the real light is not restored) */
     static boolean actorHoldsLight(EventInstance inst, EventDef def) {
         if (def == null) return false;
         List<EventEffect> effs = def.effectsFor(inst.variant);
@@ -427,7 +427,7 @@ public final class IncidentEffect implements EventEffect {
         return false;
     }
 
-    /** ¿Están cumplidas TODAS las piezas "incident" de la instancia? */
+    /** Are ALL of the instance's "incident" pieces completed? */
     static boolean allIncidentsDone(EventInstance inst, EventDef def) {
         if (def == null) return true;
         List<EventEffect> effs = def.effectsFor(inst.variant);
@@ -436,7 +436,7 @@ public final class IncidentEffect implements EventEffect {
         return true;
     }
 
-    /** Cada 10 s: si un incidente ya no está (comando, otro mod...), cuenta como arreglado. Sólo chunks cargados. */
+    /** Every 10 s: if an incident is gone (command, another mod...), it counts as fixed. Loaded chunks only. */
     private void verify(ServerWorld w, ShopZones.Zone z, EventInstance inst, EventDef def, int index, NbtCompound d) {
         NbtList list = d.getList("b", NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < list.size(); i++) {
@@ -451,7 +451,7 @@ public final class IncidentEffect implements EventEffect {
         }
     }
 
-    /** Quita todos los incidentes que queden (sólo en chunks cargados: los demás se quitan solos al cargar). */
+    /** Removes all remaining incidents (only in loaded chunks: the rest remove themselves on load). */
     private static void removeAll(ServerWorld w, NbtCompound d) {
         NbtList list = d.getList("b", NbtElement.COMPOUND_TYPE);
         for (int i = 0; i < list.size(); i++) {
@@ -461,9 +461,9 @@ public final class IncidentEffect implements EventEffect {
         }
     }
 
-    // ------------------------------------------------------------------ paquete
+    // ------------------------------------------------------------------ package
 
-    /** Premio pequeño al abrir el paquete, con tope semanal por dueño (y el dinero con el tope del núcleo). */
+    /** Small reward on opening the package, with a weekly cap per owner (and the money under the core's cap). */
     private void openPackage(ServerWorld w, ShopZones.Zone z, ServerPlayerEntity p, Random rng) {
         long day = w.getTimeOfDay() / 24000;
         IncidentState st = IncidentState.get(w.getServer());

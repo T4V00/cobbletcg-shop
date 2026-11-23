@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Genera los recursos de las 7 estatuas de lujo (v0.9): texturas 16x16, modelos de bloque (base y piezas altas),
-modelos de objeto, blockstates, loot tables y tags. Sólo biblioteca estándar (PNG con zlib + struct).
-Diseños abstractos y originales (trofeo, obelisco, orbe, figura alada, corona, cristales, gran orbe): nada de arte Pokémon.
+Generates the resources for the 7 luxury statues (v0.9): 16x16 textures, block models (base and tall parts),
+item models, blockstates, loot tables and tags. Standard library only (PNG with zlib + struct).
+Abstract, original designs (trophy, obelisk, orb, winged figure, crown, crystals, great orb): no Pokémon art.
 
-Uso:  python -I -X utf8 tools/gen_statue_assets.py
-Escribe únicamente dentro de src/main/resources. Idempotente.
+Usage:  python -I -X utf8 tools/gen_statue_assets.py
+Writes only inside src/main/resources. Idempotent.
 """
 import json
 import random
@@ -22,7 +22,7 @@ NS = "tcgshop"
 # ------------------------------------------------------------------ PNG
 
 def write_png(path, px):
-    """px: lista de filas de (r, g, b, a)."""
+    """px: list of rows of (r, g, b, a)."""
     h = len(px)
     w = len(px[0])
     raw = bytearray()
@@ -57,7 +57,7 @@ def mix(a, b, t):
 
 
 def metal(seed, base, light, dark, streaks=True):
-    """Metal pulido: degradado diagonal, vetas y algún brillo."""
+    """Polished metal: diagonal gradient, streaks and some highlights."""
     rnd = random.Random(seed)
     b, l, d = hexc(base), hexc(light), hexc(dark)
     px = []
@@ -77,7 +77,7 @@ def metal(seed, base, light, dark, streaks=True):
 
 
 def trim(seed, base, dark):
-    """Moldura: bandas horizontales con remaches."""
+    """Trim: horizontal bands with rivets."""
     rnd = random.Random(seed)
     b, d = hexc(base), hexc(dark)
     px = []
@@ -95,7 +95,7 @@ def trim(seed, base, dark):
 
 
 def stone(seed, base, vein, dark):
-    """Mármol / obsidiana con vetas."""
+    """Veined marble / obsidian."""
     rnd = random.Random(seed)
     b, v, d = hexc(base), hexc(vein), hexc(dark)
     px = [[mul(b, 0.93 + rnd.random() * 0.1) for _ in range(16)] for _ in range(16)]
@@ -112,7 +112,7 @@ def stone(seed, base, vein, dark):
 
 
 def glow(seed, core, edge):
-    """Acento 'emisivo': centro casi blanco, chispas brillantes."""
+    """'Emissive' accent: near-white center, bright sparks."""
     rnd = random.Random(seed)
     c, e = hexc(core), hexc(edge)
     px = []
@@ -130,7 +130,7 @@ def glow(seed, core, edge):
 
 
 def crystal(seed, base, light, dark):
-    """Facetas de cristal (amatista / diamante)."""
+    """Crystal facets (amethyst / diamond)."""
     rnd = random.Random(seed)
     b, l, d = hexc(base), hexc(light), hexc(dark)
     px = []
@@ -168,10 +168,10 @@ TEXTURES = {
 }
 
 
-# ------------------------------------------------------------------ modelos
+# ------------------------------------------------------------------ models
 
 def B(f, t, tex, glow_=False, rot=None):
-    """Cubo en píxeles de mundo: f/t = (x, y, z)."""
+    """Cuboid in world pixels: f/t = (x, y, z)."""
     return {"f": list(f), "t": list(t), "tex": tex, "glow": glow_, "rot": rot}
 
 
@@ -193,17 +193,17 @@ def element(b, dy=0):
         el["faces"][face] = {"uv": uv_for(face, f, t), "texture": "#" + b["tex"]}
     if b["glow"]:
         el["shade"] = False
-        el["light_emission"] = 15  # ignorado por versiones sin soporte; el bloque además emite luz
+        el["light_emission"] = 15  # ignored by versions without support; the block also emits light
     if b["rot"]:
         axis, ang, ox, oy, oz = b["rot"]
         el["rotation"] = {"origin": [ox, oy - dy, oz], "axis": axis, "angle": ang}
     for v in f + t:
-        assert -16 <= v <= 32, ("fuera de rango", b)
+        assert -16 <= v <= 32, ("out of range", b)
     return el
 
 
 def orb_layers(cx, cz, y0, radius, tex, step=2):
-    """Esfera aproximada por capas (de abajo arriba), en píxeles de mundo."""
+    """Sphere approximated by layers (bottom to top), in world pixels."""
     out = []
     n = int(radius * 2 / step)
     for i in range(n):
@@ -214,8 +214,8 @@ def orb_layers(cx, cz, y0, radius, tex, step=2):
     return out
 
 
-# Diseños: texturas por clave lógica ("main", "trim", "base", "glow"...)
-def design_bronze():  # Emprendedor: trofeo de sobremesa
+# Designs: textures by logical key ("main", "trim", "base", "glow"...)
+def design_bronze():  # Emprendedor (Entrepreneur): tabletop trophy
     return [
         B((4.5, 0, 4.5), (11.5, 1.5, 11.5), "base"),
         B((5.5, 1.5, 5.5), (10.5, 2.5, 10.5), "trim"),
@@ -228,7 +228,7 @@ def design_bronze():  # Emprendedor: trofeo de sobremesa
     ]
 
 
-def design_silver():  # Comerciante: obelisco
+def design_silver():  # Comerciante (Trader): obelisk
     return [
         B((3, 0, 3), (13, 2.5, 13), "base"),
         B((4, 2.5, 4), (12, 3.5, 12), "trim"),
@@ -240,7 +240,7 @@ def design_silver():  # Comerciante: obelisco
     ]
 
 
-def design_gold():  # Mercader: orbe sobre columna (1,5 bloques)
+def design_gold():  # Mercader (Merchant): orb on a column (1.5 blocks)
     out = [
         B((2, 0, 2), (14, 2, 14), "base"),
         B((3, 2, 3), (13, 3, 13), "trim"),
@@ -257,16 +257,16 @@ def design_gold():  # Mercader: orbe sobre columna (1,5 bloques)
     return out
 
 
-def design_emerald():  # Inversor: figura alada abstracta con halo
+def design_emerald():  # Inversor (Investor): abstract winged figure with halo
     return [
         B((1, 0, 1), (15, 3, 15), "base"),
         B((2, 3, 2), (14, 4.5, 14), "trim"),
         B((5, 4.5, 5), (11, 7, 11), "trim"),
-        B((6, 7, 6.5), (10, 17, 9.5), "main"),          # cuerpo
-        B((5.5, 15, 6), (10.5, 18, 10), "main"),         # hombros
-        B((6.5, 18, 6.5), (9.5, 22, 9.5), "main"),       # cabeza
-        B((0.5, 13, 7.5), (6, 25, 8.5), "main", rot=("z", 22.5, 6, 17, 8)),    # ala izq.
-        B((10, 13, 7.5), (15.5, 25, 8.5), "main", rot=("z", -22.5, 10, 17, 8)),  # ala der.
+        B((6, 7, 6.5), (10, 17, 9.5), "main"),          # body
+        B((5.5, 15, 6), (10.5, 18, 10), "main"),         # shoulders
+        B((6.5, 18, 6.5), (9.5, 22, 9.5), "main"),       # head
+        B((0.5, 13, 7.5), (6, 25, 8.5), "main", rot=("z", 22.5, 6, 17, 8)),    # left wing
+        B((10, 13, 7.5), (15.5, 25, 8.5), "main", rot=("z", -22.5, 10, 17, 8)),  # right wing
         B((5, 24.5, 7.5), (11, 25.5, 8.5), "trim"),      # halo
         B((5, 24.5, 7.5), (6, 28, 8.5), "trim"),
         B((10, 24.5, 7.5), (11, 28, 8.5), "trim"),
@@ -274,7 +274,7 @@ def design_emerald():  # Inversor: figura alada abstracta con halo
     ]
 
 
-def design_diamond():  # Visionario: corona sobre columna (2 bloques)
+def design_diamond():  # Visionario (Visionary): crown on a column (2 blocks)
     return [
         B((0, 0, 0), (16, 3, 16), "base"),
         B((1, 3, 1), (15, 4.5, 15), "trim"),
@@ -283,24 +283,24 @@ def design_diamond():  # Visionario: corona sobre columna (2 bloques)
         B((7, 4.5, 3.5), (9, 20, 4), "trim"), B((7, 4.5, 12), (9, 20, 12.5), "trim"),
         B((2, 20, 2), (14, 22.5, 14), "trim"),
         B((4, 22.5, 4), (12, 24, 12), "main"),
-        B((3, 24, 3), (13, 27, 13), "trim"),              # aro de la corona
+        B((3, 24, 3), (13, 27, 13), "trim"),              # crown ring
         B((3, 27, 3), (5, 31, 5), "trim"), B((11, 27, 3), (13, 31, 5), "trim"),
         B((3, 27, 11), (5, 31, 13), "trim"), B((11, 27, 11), (13, 31, 13), "trim"),
         B((7, 27, 2.5), (9, 30, 3.5), "trim"), B((7, 27, 12.5), (9, 30, 13.5), "trim"),
         B((2.5, 27, 7), (3.5, 30, 9), "trim"), B((12.5, 27, 7), (13.5, 30, 9), "trim"),
-        B((6, 27, 6), (10, 32, 10), "main"),              # gran diamante
+        B((6, 27, 6), (10, 32, 10), "main"),              # great diamond
     ]
 
 
-def design_netherite():  # Soberano: drusa de amatista sobre dais de netherita (más ancha)
+def design_netherite():  # Soberano (Sovereign): amethyst geode on a netherite dais (wider)
     return [
         B((-4, 0, -4), (20, 3, 20), "base"),
         B((-2, 3, -2), (18, 5, 18), "trim"),
         B((1, 5, 1), (15, 7, 15), "trim"),
-        B((5, 7, 5), (11, 28, 11), "main"),               # cristal central
+        B((5, 7, 5), (11, 28, 11), "main"),               # central crystal
         B((6, 28, 6), (10, 31, 10), "main"),
         B((7, 31, 7), (9, 32, 9), "glow"),
-        B((6.5, 9, 6.5), (9.5, 26, 9.5), "glow"),         # núcleo luminoso (asoma por las caras)
+        B((6.5, 9, 6.5), (9.5, 26, 9.5), "glow"),         # glowing core (peeks through the faces)
         B((1, 6, 6), (5, 20, 10), "main", rot=("z", 22.5, 5, 7, 8)),
         B((11, 6, 6), (15, 20, 10), "main", rot=("z", -22.5, 11, 7, 8)),
         B((6, 6, 1), (10, 18, 5), "main", rot=("x", -22.5, 8, 7, 5)),
@@ -310,36 +310,36 @@ def design_netherite():  # Soberano: drusa de amatista sobre dais de netherita (
     ]
 
 
-def design_masterball():  # Magnate: gran orbe púrpura con aro dorado y corona, 3 bloques de alto y 2 de ancho
+def design_masterball():  # Magnate (Tycoon): great purple orb with golden ring and crown, 3 blocks tall and 2 wide
     out = [
         B((-8, 0, -8), (24, 3, 24), "base"),
         B((-6, 3, -6), (22, 5, 22), "trim"),
         B((-4, 5, -4), (20, 7, 20), "base"),
-        # obeliscos dorados con remate luminoso en las esquinas
+        # golden obelisks with glowing finials at the corners
         B((-6, 5, -6), (-3, 18, -3), "trim"), B((19, 5, -6), (22, 18, -3), "trim"),
         B((-6, 5, 19), (-3, 18, 22), "trim"), B((19, 5, 19), (22, 18, 22), "trim"),
         B((-5.5, 18, -5.5), (-3.5, 20, -3.5), "glow"), B((19.5, 18, -5.5), (21.5, 20, -3.5), "glow"),
         B((-5.5, 18, 19.5), (-3.5, 20, 21.5), "glow"), B((19.5, 18, 19.5), (21.5, 20, 21.5), "glow"),
-        # columna
+        # column
         B((3, 7, 3), (13, 9, 13), "trim"),
         B((4, 9, 4), (12, 24, 12), "main"),
         B((3.5, 9, 7), (4, 24, 9), "glow"), B((12, 9, 7), (12.5, 24, 9), "glow"),
         B((7, 9, 3.5), (9, 24, 4), "glow"), B((7, 9, 12), (9, 24, 12.5), "glow"),
         B((2, 24, 2), (14, 26, 14), "trim"),
     ]
-    # orbe: centro y=34, radio 8 -> capas 26..42 (las de y>=32 van a la pieza superior)
+    # orb: center y=34, radius 8 -> layers 26..42 (those with y>=32 go to the upper part)
     out += [
         B((4, 26, 4), (12, 28, 12), "main"),
         B((2, 28, 2), (14, 30, 14), "main"),
         B((1, 30, 1), (15, 32, 15), "main"),
         B((0, 32, 0), (16, 36, 16), "main"),
-        B((-0.5, 33, -0.5), (16.5, 35, 16.5), "trim"),     # aro dorado
-        B((6, 32.5, -1), (10, 35.5, 0), "glow"),            # gemas del aro
+        B((-0.5, 33, -0.5), (16.5, 35, 16.5), "trim"),     # golden ring
+        B((6, 32.5, -1), (10, 35.5, 0), "glow"),            # ring gems
         B((6, 32.5, 16), (10, 35.5, 17), "glow"),
         B((1, 36, 1), (15, 38, 15), "main"),
         B((2, 38, 2), (14, 40, 14), "main"),
         B((4, 40, 4), (12, 42, 12), "main"),
-        # corona luminosa
+        # glowing crown
         B((5, 42, 5), (11, 43, 11), "trim"),
         B((5, 43, 5), (6.5, 46, 6.5), "trim"), B((9.5, 43, 5), (11, 46, 6.5), "trim"),
         B((5, 43, 9.5), (6.5, 46, 11), "trim"), B((9.5, 43, 9.5), (11, 46, 11), "trim"),
@@ -422,18 +422,18 @@ def main():
         if tall:
             model["ambientocclusion"] = False
         dump(A / "models" / "block" / f"{name}.json", model)
-        # pieza invisible (sólo partícula) y, si hace falta, la parte superior visible
+        # invisible part (particle only) and, if needed, the visible upper part
         dump(A / "models" / "block" / f"{name}_part.json", {"textures": {"particle": f"{NS}:block/{tm['main']}"}})
         if top_boxes:
             dump(A / "models" / "block" / f"{name}_top.json", {
                 "parent": "minecraft:block/block", "ambientocclusion": False, "textures": tex_map(tm),
                 "elements": [element(b, dy=32) for b in top_boxes]})
-        # objeto: el modelo de la base con su propio encuadre
+        # item: the base model with its own framing
         dump(A / "models" / "item" / f"{name}.json", {"parent": f"{NS}:block/{name}", "display": item_display(base_boxes)})
-        # blockstate de la base
+        # base blockstate
         dump(A / "blockstates" / f"{name}.json", {"variants": {
             f"facing={f}": ({"model": f"{NS}:block/{name}"} | ({"y": r} if r else {})) for f, r in FACINGS}})
-        # loot table: se suelta a sí misma (también si explota: es carísima)
+        # loot table: drops itself (also when blown up: it's very expensive)
         dump(D / NS / "loot_table" / "blocks" / f"{name}.json", {
             "type": "minecraft:block",
             "pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": f"{NS}:{name}"}]}]})
@@ -451,7 +451,7 @@ def main():
     dump(D / NS / "tags" / "item" / "luxury_statues.json", {"replace": False, "values": names})
     dump(D / "minecraft" / "tags" / "block" / "mineable" / "pickaxe.json",
          {"replace": False, "values": names + [f"{NS}:statue_part"]})
-    print("Estatuas generadas:", len(TIERS), "niveles,", len(TEXTURES), "texturas")
+    print("Statues generated:", len(TIERS), "tiers,", len(TEXTURES), "textures")
 
 
 if __name__ == "__main__":

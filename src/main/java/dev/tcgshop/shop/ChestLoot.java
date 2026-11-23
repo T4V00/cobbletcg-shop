@@ -14,12 +14,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Sorpresa: los cofres generados del mundo (aldeas, templos, minas, estructuras de otros mods...) tienen una
- * probabilidad muy pequeña de traer un sobre sellado al azar de cualquier expansión.
+ * Surprise: world-generated chests (villages, temples, mines, other mods' structures...) have a
+ * very small chance of containing a random sealed pack from any expansion.
  */
 public final class ChestLoot {
-    /** 1 de cada 100 cofres. */
-    public static float CHANCE = 0.01f; // EconomyConfig (se aplica al recargar datos)
+    /** 1 in 100 chests. */
+    public static float CHANCE = 0.01f; // EconomyConfig (applied on data reload)
 
     private ChestLoot() {}
 
@@ -37,7 +37,7 @@ public final class ChestLoot {
                 pool.with(ItemEntry.builder(it).conditionally(() -> new PackLock.Unlocked(set)));
             }
             builder.pool(pool);
-            // premio rarísimo: un sobre de los sets bloqueados (por defecto 0,001% por cofre)
+            // ultra-rare prize: a pack from the locked sets (0.001% per chest by default)
             LootPool.Builder rare = LootPool.builder().rolls(ConstantLootNumberProvider.create(1)).conditionally(PackLock.RareRoll::new);
             for (Item it : packs) {
                 String set = CardInfo.setId(Registries.ITEM.getId(it));

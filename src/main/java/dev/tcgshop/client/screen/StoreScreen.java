@@ -11,17 +11,17 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
-/** Puesto del Mayorista misterioso: cajas de sobres a precio de mayorista, bloques de tienda, muebles y herramientas. */
+/** Mysterious Wholesaler's stall: pack boxes at wholesale price, shop blocks, furniture and tools. */
 public class StoreScreen extends Screen {
     private final CatalogPanel panel;
     private final int source;
     private TextFieldWidget search;
-    /** Pestaña: false = comprar, true = venderle cartas (40%) y esmeraldas. */
+    /** Tab: false = buy, true = sell him cards (40%) and emeralds. */
     private boolean selling;
     private final CardPickGrid sellGrid = new CardPickGrid();
     private final java.util.List<int[]> tabs = new java.util.ArrayList<>();
     private final java.util.List<Runnable> tabActions = new java.util.ArrayList<>();
-    /** Pestaña Muebles (CobbleFurnies / peluches): se crea al abrirla por primera vez. */
+    /** Furniture tab (CobbleFurnies / plushies): created the first time it is opened. */
     private boolean furnitureTab;
     private FurnitureApp furniture;
 
@@ -32,7 +32,7 @@ public class StoreScreen extends Screen {
         sellGrid.price = st -> dev.tcgshop.shop.CardSales.offer(st, dev.tcgshop.shop.CardSales.WHOLESALER_RATE);
         sellGrid.accept = st -> dev.masterball.api.card.CardInfo.isCard(st) || dev.tcgshop.shop.VanillaPrices.sellable(st);
         sellGrid.extra = dev.tcgshop.shop.VanillaPrices::price;
-        sellGrid.includeBinder = true; // también las cartas del Binder
+        sellGrid.includeBinder = true; // Binder cards too
     }
 
     private int emeralds() {
@@ -54,7 +54,7 @@ public class StoreScreen extends Screen {
     }
 
     private void renderSell(DrawContext ctx, int x, int y, int w, int h, int mouseX, int mouseY) {
-        // esmeraldas -> CobbleDollars (consejo del Mayorista)
+        // emeralds -> CobbleDollars (Wholesaler's tip)
         int em = emeralds();
         long ep = dev.tcgshop.shop.CardSales.emeraldPrice();
         Ui.roundGradient(ctx, x, y, w, 30, 0xFF1E4D33, 0xFF12301F);
@@ -68,7 +68,7 @@ public class StoreScreen extends Screen {
             tabActions.add(() -> net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
                     new dev.tcgshop.network.MarketPayloads.Sell(source, dev.tcgshop.network.MarketPayloads.SELL_EMERALDS, java.util.List.of())));
         }
-        // cartas al 40%
+        // cards at 40%
         int gy = y + 36, gh = h - 36 - 30;
         ctx.drawText(textRenderer, Text.translatable("tcgshop.sell.wholesaler_hint"), x + 2, gy, 0xFFE0C8A8, false);
         if (sellGrid.isEmpty()) Ui.text(ctx, Text.translatable("tcgshop.sell.no_cards"), x, gy + gh / 2, w, 10, Ui.MUTED, false);
@@ -115,7 +115,7 @@ public class StoreScreen extends Screen {
         ctx.drawText(textRenderer, Text.translatable("tcgshop.wholesaler.subtitle"), x + 10, y + 19, 0xFFE0C8A8, false);
         tabs.clear();
         tabActions.clear();
-        // el Mayorista no vende estatuas de lujo: sin CobbleFurnies/Pokéblocks no hay pestaña Muebles (como antes de 0.9)
+        // the Wholesaler doesn't sell luxury statues: without CobbleFurnies/Pokéblocks there is no Furniture tab (as before 0.9)
         boolean furn = dev.tcgshop.compat.CobbleFurniesCompat.available();
         int tw0 = furn ? 60 : 70, tx0 = furn ? x + w / 2 - (tw0 * 3 + 8) / 2 : x + w / 2 - tw0 - 2;
         tab(ctx, tx0, y + 9, tw0, Text.translatable("tcgshop.sell.tab_buy"), !selling && !furnitureTab, mouseX, mouseY, () -> { selling = false; furnitureTab = false; });
@@ -140,11 +140,11 @@ public class StoreScreen extends Screen {
         panel.render(ctx, x + 10, y + 42 + fh, w - 20, h - 52 - fh, mouseX, mouseY, System.nanoTime() / 1e9);
     }
 
-    /** Pestaña Muebles: pide al servidor el catálogo con los precios del Mayorista. */
+    /** Furniture tab: requests the catalog with the Wholesaler's prices from the server. */
     private void openFurniture() {
         if (furniture == null) furniture = new FurnitureApp(source, this);
         furnitureTab = true;
-        selling = false; // que el arrastre de la venta de cartas no actúe en esta pestaña
+        selling = false; // so the card-selling drag doesn't act on this tab
         search.setFocused(false);
         furniture.request();
     }

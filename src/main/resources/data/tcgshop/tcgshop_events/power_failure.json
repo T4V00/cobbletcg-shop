@@ -1,5 +1,5 @@
 {
-  "_comment": "#11 fallo eléctrico (+#3 Pichu como variante): chispas en el 'cuadro eléctrico' junto al núcleo, apagón y caja sin cobrar. Arreglo: kit de reparación.",
+  "_comment": "#11 power failure (+#3 Pichu as a variant): sparks at the 'fuse box' next to the core, blackout and the register cannot take payments. Fix: repair kit.",
   "category": "negative",
   "tier": "uncommon",
   "template": "power",

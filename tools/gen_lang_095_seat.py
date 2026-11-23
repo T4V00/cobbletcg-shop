@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""0.9.5 · Asientos: los clientes se sientan un rato en sillas/sofás/bancos (CobbleFurnies, Cozyhome...) y se paran a
-mirar muebles y peluches (ShopSeats / CustomerEntity). Fusiona las claves en es_es / en_us (idempotente).
-Uso: python -I -X utf8 tools/gen_lang_095_seat.py"""
+"""0.9.5 · Seats: customers sit for a while on chairs/sofas/benches (CobbleFurnies, Cozyhome...) and stop to
+look at furniture and plushies (ShopSeats / CustomerEntity). Merges the keys into es_es / en_us (idempotent).
+Usage: python -I -X utf8 tools/gen_lang_095_seat.py"""
 import json
 from pathlib import Path
 
 LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
 
-# categoría -> [(español, inglés), ...]  ->  tcgshop.seat.<cat>.<n>
-# (los recuentos deben coincidir con ShopSeats.*_LINES)
+# category -> [(Spanish, English), ...]  ->  tcgshop.seat.<cat>.<n>
+# (counts must match ShopSeats.*_LINES)
 LINES = {
-    "sit": [  # se sienta sin haber comprado (sólo mira)
+    "sit": [  # sits down without having bought anything (just looking)
         ("Qué buena tienda para descansar un rato...", "What a nice shop to rest in for a bit..."),
         ("Uf, mis pies lo agradecen.", "Phew, my feet are grateful."),
         ("Me siento un momento y luego sigo.", "I'll sit for a moment and then carry on."),
@@ -20,7 +20,7 @@ LINES = {
         ("Desde aquí se ven muy bien las vitrinas.", "You can see the display cases really well from here."),
         ("Hoy sólo vengo a mirar... y a sentarme.", "Today I'm just looking... and sitting."),
     ],
-    "sit_buyer": [  # se sienta después de pagar
+    "sit_buyer": [  # sits down after paying
         ("Déjame admirar mi compra un momento.", "Let me admire my purchase for a moment."),
         ("¡Por fin es mío! Voy a mirarlo con calma.", "Finally mine! Let me take a good look."),
         ("Un descanso antes de volver a casa.", "A short rest before heading home."),
@@ -28,7 +28,7 @@ LINES = {
         ("¿Lo abro aquí? No, mejor en casa.", "Should I open it here? No, better at home."),
         ("Buena compra. Me lo he ganado.", "Good buy. I've earned it."),
     ],
-    "stand": [  # se levanta para irse
+    "stand": [  # stands up to leave
         ("Bueno, ya va siendo hora.", "Well, it's about time."),
         ("¡Gracias por la silla!", "Thanks for the seat!"),
         ("Volveré a descansar otro día.", "I'll come back to rest another day."),
@@ -36,20 +36,20 @@ LINES = {
         ("Venga, que se hace tarde.", "Come on, it's getting late."),
         ("Como nuevo. ¡Adiós!", "Good as new. Bye!"),
     ],
-    "talk": [  # le hablas mientras está sentado
+    "talk": [  # you talk to them while they're seated
         ("Estoy descansando un poco, ¿te importa?", "I'm resting a little, do you mind?"),
         ("Esta tienda es muy acogedora.", "This shop is really cozy."),
         ("Sólo estoy mirando, de verdad.", "I'm just looking, really."),
         ("Qué tranquilidad se respira aquí.", "It's so peaceful in here."),
         ("¿Estas sillas también se venden?", "Are these chairs for sale too?"),
     ],
-    "startled": [  # se levanta de golpe (alarma, ladrón, monstruo...)
+    "startled": [  # jumps up suddenly (alarm, thief, monster...)
         ("¡¿Qué ha sido eso?!", "What was that?!"),
         ("¡Me voy de aquí!", "I'm out of here!"),
         ("Vaya, se acabó el descanso.", "Well, so much for my break."),
         ("¡Socorro! ¡Que alguien haga algo!", "Help! Somebody do something!"),
     ],
-    "furniture": [  # se para a mirar un mueble
+    "furniture": [  # stops to look at a piece of furniture
         ("Qué mueble más bonito.", "What a lovely piece of furniture."),
         ("Me encantaría tener uno así en casa.", "I'd love to have one like this at home."),
         ("Esto le da un toque muy acogedor.", "This gives the place a really cozy touch."),
@@ -58,7 +58,7 @@ LINES = {
         ("Mira qué detalle.", "Look at the detail on this."),
         ("Esta tienda está decorada con mucho cariño.", "This shop is decorated with a lot of love."),
     ],
-    "plush": [  # se para a mirar un peluche
+    "plush": [  # stops to look at a plush
         ("¡Qué peluche más mono!", "What a cute plush!"),
         ("¡Quiero uno igual!", "I want one just like it!"),
         ("Aww, mira qué carita.", "Aww, look at that little face."),
@@ -86,4 +86,4 @@ def merge(file_name: str, idx: int) -> None:
 if __name__ == "__main__":
     merge("es_es.json", 0)
     merge("en_us.json", 1)
-    print(f"{len(KEYS)} claves fusionadas en es_es.json y en_us.json")
+    print(f"{len(KEYS)} keys merged into es_es.json and en_us.json")

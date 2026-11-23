@@ -13,9 +13,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * config/tcgshop-actors.json — números de los Pokémon de los eventos (actores). Mismo patrón que EventsConfig:
- * campos públicos, textos de ayuda (_help) y topes en sanitize(). Se lee al arrancar el mod y cada vez que arranca un
- * mundo/servidor (ActorModule). Las probabilidades y el interruptor general de los eventos están en tcgshop-events.json.
+ * config/tcgshop-actors.json — numbers for the event Pokémon (actors). Same pattern as EventsConfig:
+ * public fields, help texts (_help) and caps in sanitize(). Read when the mod starts and every time a
+ * world/server starts (ActorModule). The event chances and master switch are in tcgshop-events.json.
  */
 public class ActorConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
@@ -25,23 +25,23 @@ public class ActorConfig {
 
     public Map<String, String> _help = new LinkedHashMap<>();
 
-    /** Interruptor de los actores. Apagado: los eventos con Pokémon no salen (los que ya estaban terminan solos). */
+    /** Actor switch. Off: events with Pokémon do not happen (those already running end on their own). */
     public boolean enabled = true;
-    /** Topes de Pokémon de eventos a la vez: por tienda y en todo el servidor. */
+    /** Caps on event Pokémon at once: per shop and across the whole server. */
     public int maxPerShop = 3, maxGlobal = 12;
-    /** Cada cuánto (ticks, al azar entre los dos) hace su grito un actor. */
+    /** How often (ticks, random between the two) an actor cries. */
     public int cryMinTicks = 200, cryMaxTicks = 400;
-    /** Partículas de ambiente (salpicaduras, chispas, notas...). */
+    /** Ambient particles (splashes, sparks, notes...). */
     public boolean particles = true;
-    /** Se permite resolver con un combate (sólo el dueño, nivel limitado a la media de su equipo). */
+    /** Resolving with a battle is allowed (owner only, level capped at their team's average). */
     public boolean allowBattles = true;
-    /** Nivel máximo de un actor aunque el equipo del dueño sea más fuerte. */
+    /** Maximum level of an actor even if the owner's team is stronger. */
     public int maxLevel = 50;
-    /** Ticks que tarda un actor en irse andando antes de desaparecer (con una nube). */
+    /** Ticks an actor takes to walk away before vanishing (with a cloud). */
     public int leaveTicks = 80;
-    /** Un actor que se aleja más de esto (bloques) de la tienda se da por ido. */
+    /** An actor that wanders farther than this (blocks) from the shop is considered gone. */
     public int leashBlocks = 16;
-    /** Valor máximo que puede "llevarse" un Pokémon ladrón (dinero virtual; ningún objeto se mueve). */
+    /** Maximum value a thief Pokémon can "take" (virtual money; no item is moved). */
     public long theftMaxValue = 800;
 
     public static void load() {
@@ -49,7 +49,7 @@ public class ActorConfig {
         try {
             if (Files.exists(FILE)) try (Reader r = Files.newBufferedReader(FILE)) { c = GSON.fromJson(r, ActorConfig.class); }
         } catch (Exception e) {
-            TcgShop.LOGGER.warn("[eventos] config/tcgshop-actors.json no se pudo leer ({}); se usan los valores por defecto", e.toString());
+            TcgShop.LOGGER.warn("[events] config/tcgshop-actors.json could not be read ({}); using default values", e.toString());
         }
         INSTANCE = c == null ? new ActorConfig() : c;
         INSTANCE.sanitize();
@@ -61,7 +61,7 @@ public class ActorConfig {
             Files.createDirectories(FILE.getParent());
             try (Writer w = Files.newBufferedWriter(FILE)) { GSON.toJson(INSTANCE, w); }
         } catch (Exception e) {
-            TcgShop.LOGGER.warn("[eventos] no se pudo guardar config/tcgshop-actors.json: {}", e.toString());
+            TcgShop.LOGGER.warn("[events] could not save config/tcgshop-actors.json: {}", e.toString());
         }
     }
 
@@ -75,16 +75,16 @@ public class ActorConfig {
         leashBlocks = Math.max(4, Math.min(64, leashBlocks));
         theftMaxValue = Math.max(0, Math.min(100_000, theftMaxValue));
         _help = new LinkedHashMap<>();
-        _help.put("enabled", "Interruptor de los Pokémon de eventos (actores). false = los eventos con Pokémon no salen. / Master switch for event Pokémon.");
-        _help.put("maxPerShop", "Pokémon de eventos a la vez por tienda (0-6). / Event Pokémon at once per shop.");
-        _help.put("maxGlobal", "Pokémon de eventos a la vez en todo el servidor (0-48). / Event Pokémon at once on the whole server.");
-        _help.put("cryMinTicks", "Cada cuánto gritan (ticks, entre cryMinTicks y cryMaxTicks; 20 ticks = 1 s). / How often they cry.");
-        _help.put("particles", "Partículas de ambiente alrededor de los actores. / Ambient particles around actors.");
-        _help.put("allowBattles", "Permite resolver algunos eventos combatiendo (sólo el dueño, agachado + clic derecho; nivel limitado a la media de su equipo y a maxLevel). / Allow owner battles.");
-        _help.put("maxLevel", "Nivel máximo de un Pokémon de evento (1-100). / Max level of an event Pokémon.");
-        _help.put("leaveTicks", "Ticks que tarda en irse andando antes de desaparecer (20-400). / Ticks it walks away before vanishing.");
-        _help.put("leashBlocks", "Si se aleja más de estos bloques de la tienda, se da por ido (4-64). / Leash distance.");
-        _help.put("theftMaxValue", "Valor máximo que 'roba' un Pokémon ladrón si no lo recuperas (sólo dinero de la caja; ningún objeto se mueve). / Max virtual theft value.");
-        _help.put("notas", "Los Pokémon de eventos nunca se pueden capturar, no reciben daño, no sueltan objetos, no se guardan en el mundo (desaparecen al descargar la zona) y nunca reaparecen. Las probabilidades de los eventos están en tcgshop-events.json.");
+        _help.put("enabled", "Master switch for event Pokémon (actors). false = events with Pokémon do not happen.");
+        _help.put("maxPerShop", "Event Pokémon at once per shop (0-6).");
+        _help.put("maxGlobal", "Event Pokémon at once on the whole server (0-48).");
+        _help.put("cryMinTicks", "How often they cry (ticks, between cryMinTicks and cryMaxTicks; 20 ticks = 1 s).");
+        _help.put("particles", "Ambient particles around actors.");
+        _help.put("allowBattles", "Allows solving some events by battling (owner only, sneak + right-click; level capped at their team average and maxLevel).");
+        _help.put("maxLevel", "Max level of an event Pokémon (1-100).");
+        _help.put("leaveTicks", "Ticks it walks away before vanishing (20-400).");
+        _help.put("leashBlocks", "If it wanders more than this many blocks from the shop, it counts as gone (4-64).");
+        _help.put("theftMaxValue", "Maximum value a thief Pokémon 'steals' if you don't get it back (register money only; no items are moved).");
+        _help.put("notas", "Event Pokémon can never be caught, take no damage, drop no items, are not saved in the world (they vanish when the area unloads) and never respawn. Event chances are in tcgshop-events.json.");
     }
 }

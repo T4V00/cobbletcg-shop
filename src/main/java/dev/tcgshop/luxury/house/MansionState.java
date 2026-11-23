@@ -15,12 +15,12 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Mansiones construidas (o en obras) de un mundo: dueño, origen, orientación y Pokémon residentes. Sirve para no
- * construir una encima de otra, para reanudar una obra interrumpida por un cierre del servidor y para vigilar a los
- * residentes. Se guarda en data/tcgshop_mansions.dat del mundo.
+ * Mansions built (or under construction) in a world: owner, origin, orientation and resident Pokémon. Used to avoid
+ * building one on top of another, to resume construction interrupted by a server shutdown and to watch over the
+ * residents. Saved in the world's data/tcgshop_mansions.dat.
  */
 public class MansionState extends PersistentState {
-    /** Un Pokémon residente: uuid de la entidad, casa (posición del mundo) y radio que puede alejarse. */
+    /** A resident Pokémon: entity uuid, home (world position) and the radius it may wander. */
     public record Resident(UUID uuid, String species, double x, double y, double z, int radius) {
         NbtCompound write() {
             NbtCompound c = new NbtCompound();
@@ -42,15 +42,15 @@ public class MansionState extends PersistentState {
         public final UUID id;
         public final UUID owner;
         public String ownerName;
-        /** Posición del mundo de la esquina local (0, 0, 0) de la finca (a ras de suelo). */
+        /** World position of the estate's local corner (0, 0, 0) (at ground level). */
         public final BlockPos origin;
-        /** Hacia dónde mira el jugador que la construyó: el fondo de la finca va en esa dirección (la puerta mira hacia él). */
+        /** Direction the builder was facing: the back of the estate goes that way (the door faces them). */
         public final Direction facing;
         public final long seed;
         public long createdDay;
         public boolean done;
         public boolean residentsSpawned;
-        /** Intentos de construcción (para no reanudar para siempre una obra que falla). */
+        /** Construction attempts (so a failing job is not resumed forever). */
         public int attempts;
         public final List<Resident> residents = new ArrayList<>();
 
@@ -133,7 +133,7 @@ public class MansionState extends PersistentState {
         markDirty();
     }
 
-    /** Borra el registro (comando de op). Los bloques y los residentes se quedan en el mundo. */
+    /** Deletes the record (op command). The blocks and residents stay in the world. */
     public boolean remove(Record r) {
         boolean ok = records.remove(r);
         if (ok) markDirty();

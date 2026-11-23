@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** Liga TCG: puntuación ELO (empieza en 1000), victorias / derrotas, victorias contra la casa y el mazo guardado de cada jugador. */
+/** TCG League: ELO rating (starts at 1000), wins / losses, wins against the house and each player's saved deck. */
 public final class League extends PersistentState {
     private static final Type<League> TYPE = new Type<>(League::new, League::fromNbt, null);
     public static final int[] RANK_AT = {0, 1100, 1250, 1400, 1550, 1700};
@@ -23,17 +23,17 @@ public final class League extends PersistentState {
     public static final class Entry {
         public String name = "";
         public int rating = 1000, wins, losses, aiWins;
-        /** Mejor puntuación alcanzada, racha actual / mejor racha de victorias y partidas terminadas (cualquier modo). */
+        /** Best rating reached, current / best win streak and finished matches (any mode). */
         public int peak = 1000, streak, bestStreak, played;
         public final List<String> deck = new ArrayList<>();
-        /** Cosméticos desbloqueados ("coin:id" / "board:id") y equipados. */
+        /** Unlocked ("coin:id" / "board:id") and equipped cosmetics. */
         public final java.util.Set<String> unlocked = new java.util.LinkedHashSet<>();
         public String coin = "gold", board = "classic";
 
-        /** Fin de una partida de este jugador (cualquier modo): racha y contador. */
+        /** End of a match for this player (any mode): streak and counter. */
         public void finished(boolean won, boolean ranked) {
             played++;
-            if (ranked) { // las rachas sólo cuentan en partidas de liga
+            if (ranked) { // streaks only count in league matches
                 if (won) { streak++; bestStreak = Math.max(bestStreak, streak); }
                 else streak = 0;
             }
@@ -59,7 +59,7 @@ public final class League extends PersistentState {
         return r;
     }
 
-    /** Resultado de una partida de liga. Devuelve el cambio de puntuación del ganador. */
+    /** Result of a league match. Returns the winner's rating change. */
     public int record(UUID winner, String wName, UUID loser, String lName) {
         Entry w = entry(winner, wName), l = entry(loser, lName);
         double expected = 1 / (1 + Math.pow(10, (l.rating - w.rating) / 400.0));
@@ -73,20 +73,20 @@ public final class League extends PersistentState {
     }
 
     /**
-     * Puntos de liga contra la IA: tabla fija por nivel (ganar al Campeón vale mucho más que varias fáciles, y perder
-     * contra la fácil duele más que perder contra el Campeón).
+     * League points against the AI: fixed table per level (beating the Champion is worth much more than several easy ones, and losing
+     * to the easy one hurts more than losing to the Champion).
      */
     public static final int[] AI_WIN = {4, 9, 16, 28};
     public static final int[] AI_LOSS = {16, 12, 10, 10};
-    /** Rango mínimo (índice de RANK_AT) a partir del cual ya no se permite cada nivel en partidas de liga. */
-    public static final int[] AI_BLOCKED_FROM = {2, 3, 4, 99}; // Oro+ sin fácil, Platino+ sin normal, Diamante+ sólo Campeón
+    /** Minimum rank (index into RANK_AT) from which each level is no longer allowed in league matches. */
+    public static final int[] AI_BLOCKED_FROM = {2, 3, 4, 99}; // Gold+ no easy, Platinum+ no normal, Diamond+ Champion only
 
     public static boolean aiLevelAllowed(int rating, int level) {
         level = Math.max(0, Math.min(AI_WIN.length - 1, level));
         return rank(rating) < AI_BLOCKED_FROM[level];
     }
 
-    /** Partida de liga contra la IA. Devuelve el cambio (positivo o negativo) del jugador. */
+    /** League match against the AI. Returns the player's change (positive or negative). */
     public int recordVsAi(UUID player, String name, int level, boolean won) {
         Entry e = entry(player, name);
         level = Math.max(0, Math.min(AI_WIN.length - 1, level));

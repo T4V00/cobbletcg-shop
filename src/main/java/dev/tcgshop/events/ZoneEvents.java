@@ -9,12 +9,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Estado de eventos de UNA tienda (sub-compuesto ext.events de la zona). Mundos antiguos: todo vacío / -1.
- *  · active   eventos en marcha
- *  · log      memoria para reseñas (2 días)
- *  · hist     resumen de los últimos 7 días para el teléfono
- *  · created  día en que se vio la tienda por primera vez (periodo de gracia)
- *  · rev      ingresos por día (anillo de 8 días, rev[0] = hoy) para los topes de dinero de los premios
+ * Event state of ONE shop (the zone's ext.events sub-compound). Old worlds: all empty / -1.
+ *  · active   running events
+ *  · log      memory for reviews (2 days)
+ *  · hist     summary of the last 7 days for the phone
+ *  · created  day the shop was first seen (grace period)
+ *  · rev      revenue per day (8-day ring, rev[0] = today) for the reward money caps
  */
 public final class ZoneEvents {
     public final List<EventInstance> active = new ArrayList<>();
@@ -24,10 +24,10 @@ public final class ZoneEvents {
     public final long[] rev = new long[8];
     public long revDay = -1;
 
-    /** Día del historial: id, categoría y resultado ("resolved", "expired", "done", "ended"). */
+    /** History day: id, category and outcome ("resolved", "expired", "done", "ended"). */
     public record Hist(long day, String id, String category, String outcome) {}
 
-    // ---- no se guarda: lo rellena ShopLife.recompute (EventManager.onRecompute)
+    // ---- not saved: filled by ShopLife.recompute (EventManager.onRecompute)
     public transient boolean hasRegister;
     public transient List<BlockPos> doors = List.of();
     public transient int priceFactor;
@@ -45,7 +45,7 @@ public final class ZoneEvents {
         return null;
     }
 
-    /** Suma ingresos del día (anillo de 8 días). */
+    /** Adds the day's revenue (8-day ring). */
     public void addRevenue(long day, long amount) {
         roll(day);
         rev[0] += Math.max(0, amount);
@@ -59,7 +59,7 @@ public final class ZoneEvents {
         revDay = day;
     }
 
-    /** Media de ingresos de los últimos n días COMPLETOS (sin hoy). */
+    /** Average revenue of the last n COMPLETE days (excluding today). */
     public double avgDaily(long today, int n) {
         roll(today);
         long s = 0;
@@ -74,7 +74,7 @@ public final class ZoneEvents {
         while (hist.size() > 24) hist.remove(hist.size() - 1);
     }
 
-    /** Quita del log lo que terminó hace más de 2 días. */
+    /** Removes from the log whatever ended more than 2 days ago. */
     public void trimLog(long now) {
         log.removeIf(r -> r.end >= 0 && now - r.end > 48_000 || now < r.start - 24_000);
         while (log.size() > 32) log.remove(0);

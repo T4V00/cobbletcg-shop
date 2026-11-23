@@ -21,10 +21,10 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Base de una estatua de lujo. Mira hacia el jugador al colocarla. Las de más de un bloque de alto necesitan el hueco
- * libre encima: colocan ahí piezas invisibles ({@link StatuePartBlock}) que ocupan el espacio y se quitan con la base.
- * La colisión se queda dentro de cada bloque (robusto con el movimiento del jugador y los mobs); el modelo puede ser
- * más ancho (los niveles 6 y 7 sobresalen un poco por los lados).
+ * Base of a luxury statue. Faces the player when placed. Statues taller than one block need the space above to be
+ * free: they place invisible parts there ({@link StatuePartBlock}) that fill the space and are removed with the base.
+ * Collision stays within each block (robust against player and mob movement); the model can be
+ * wider (tiers 6 and 7 stick out a bit on the sides).
  */
 public class StatueBlock extends Block {
     public static final DirectionProperty FACING = Properties.HORIZONTAL_FACING;
@@ -41,7 +41,7 @@ public class StatueBlock extends Block {
         builder.add(FACING);
     }
 
-    /** ¿Hay hueco (altura del mundo y bloques reemplazables) para las piezas de encima? */
+    /** Is there room (world height and replaceable blocks) for the parts above? */
     static boolean fitsAbove(ItemPlacementContext ctx, int parts) {
         World world = ctx.getWorld();
         BlockPos pos = ctx.getBlockPos();
@@ -52,7 +52,7 @@ public class StatueBlock extends Block {
         return true;
     }
 
-    /** Pieza de encima de la estatua de ese nivel, mirando hacia facing. */
+    /** Upper part of the statue of that tier, facing facing. */
     static BlockState partState(StatueTier tier, Direction facing, int level) {
         return LuxuryBlocks.STATUE_PART.getDefaultState()
                 .with(StatuePartBlock.FACING, facing)
@@ -67,10 +67,10 @@ public class StatueBlock extends Block {
         BlockPos pos = ctx.getBlockPos();
         PlayerEntity player = ctx.getPlayer();
         Direction facing = ctx.getHorizontalPlayerFacing().getOpposite();
-        if (!fitsAbove(ctx, tier.parts)) return null; // no cabe
-        // ninguna pieza puede caer en una zona de tienda ajena (ShopProtection sólo mira la base)
+        if (!fitsAbove(ctx, tier.parts)) return null; // doesn't fit
+        // no part may land in someone else's shop zone (ShopProtection only checks the base)
         if (StatueProtection.blockingStatue(world, player, pos, tier) != null) return null;
-        // ni dentro de un jugador o un mob (BlockItem sólo comprueba las entidades contra la base)
+        // nor inside a player or a mob (BlockItem only checks entities against the base)
         ShapeContext sc = player == null ? ShapeContext.absent() : ShapeContext.of(player);
         for (int i = 1; i <= tier.parts; i++)
             if (!world.canPlace(partState(tier, facing, i), pos.up(i), sc)) return null;
@@ -88,7 +88,7 @@ public class StatueBlock extends Block {
     @Override
     protected void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean moved) {
         if (!state.isOf(newState.getBlock()) && !world.isClient) {
-            // se quitan las piezas de encima (no sueltan nada: la base ya suelta la estatua)
+            // remove the parts above (they drop nothing: the base already drops the statue)
             for (int i = 1; i <= tier.parts; i++) {
                 BlockPos p = pos.up(i);
                 BlockState s = world.getBlockState(p);

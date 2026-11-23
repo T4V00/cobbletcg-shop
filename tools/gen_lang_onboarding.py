@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Textos del stream "onboarding": sobres de bienvenida y nombre del Meowth del Team Rocket.
+"""Texts for the "onboarding" stream: welcome packs and the name of Team Rocket's Meowth.
 
-Los bocadillos del tutorial (0.9) están en tools/gen_lang_09_meowth.py.
+The tutorial speech bubbles (0.9) are in tools/gen_lang_09_meowth.py.
 
-Carga es_es.json y en_us.json de tcgshop, inserta/actualiza estas claves y los vuelve a escribir.
-Uso: python tools/gen_lang_onboarding.py  (desde la carpeta del proyecto tcgshop)
+Loads tcgshop's es_es.json and en_us.json, inserts/updates these keys and writes them back.
+Usage: python tools/gen_lang_onboarding.py  (from the tcgshop project folder)
 """
 import json
 import os
@@ -13,7 +13,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LANG = os.path.join(ROOT, "src", "main", "resources", "assets", "tcgshop", "lang")
 
 KEYS = {
-    # --- sobres de bienvenida
+    # --- welcome packs
     "tcgshop.onboarding.starter": (
         "¡Bienvenido a MasterBall Traders Co.! Recibes %s sobres sellados al azar para empezar tu colección.",
         "Welcome to MasterBall Traders Co.! You get %s random sealed packs to start your collection."),
@@ -21,7 +21,7 @@ KEYS = {
         "Usa un sobre (clic derecho) para abrirlo. Cuando tengas tu primera tienda, alguien vendrá a explicártelo todo...",
         "Use a pack (right-click) to open it. Once you own your first shop, someone will come to explain everything..."),
 
-    # --- tutorial (desde la 0.9 el resto de textos del Meowth están en gen_lang_09_meowth.py)
+    # --- tutorial (since 0.9 the rest of the Meowth texts are in gen_lang_09_meowth.py)
     "tcgshop.tutorial.speaker": ("Meowth del Team Rocket", "Team Rocket's Meowth"),
 }
 
@@ -38,4 +38,4 @@ def update(path, idx):
 if __name__ == "__main__":
     update(os.path.join(LANG, "es_es.json"), 0)
     update(os.path.join(LANG, "en_us.json"), 1)
-    print("onboarding: %d claves escritas" % len(KEYS))
+    print("onboarding: %d keys written" % len(KEYS))

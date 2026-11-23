@@ -33,17 +33,17 @@ import java.util.List;
 import static dev.tcgshop.client.screen.Draw.*;
 
 /**
- * Sesión de apertura de sobres estilo TCG Pocket, por grupos (1, 5, 10, 15 o 20 sobres por rasgada).
+ * TCG Pocket-style pack opening session, in groups (1, 5, 10, 15 or 20 packs per tear).
  *
- * Por grupo:
- *  PREPARING  el servidor prepara los sobres del grupo (cobbletcg sortea normal / semi-dios / dios y su contenido).
- *  PACKS      los sobres aparecen en rejilla. Cada trazo que cruza un sobre de lado a lado lo corta:
- *             · por la franja sellada de arriba (sobre la línea punteada) => apertura limpia;
- *             · si el trazo baja hasta las cartas => esas cartas quedan dañadas.
- *             Los sobres con una carta de alta rareza brillan y suenan distinto al rasgarse.
- *  REVEAL     las cartas se revelan una a una, del primer sobre al último (la más rara de cada sobre al final).
- *  SUMMARY    resumen del grupo. Los sobres mal cortados: sus cartas se parten por donde pasó el corte y valen 0.
- * Al final: SESSION, resumen de toda la sesión.
+ * Per group:
+ *  PREPARING  the server prepares the group's packs (cobbletcg rolls normal / demi-god / god and their contents).
+ *  PACKS      the packs appear in a grid. Each stroke that crosses a pack from side to side cuts it:
+ *             · through the sealed strip at the top (above the dotted line) => clean opening;
+ *             · if the stroke goes down into the cards => those cards get damaged.
+ *             Packs with a high-rarity card glow and sound different when torn.
+ *  REVEAL     the cards are revealed one by one, from the first pack to the last (the rarest of each pack last).
+ *  SUMMARY    group summary. Badly cut packs: their cards split where the cut went through and are worth 0.
+ * At the end: SESSION, summary of the whole session.
  */
 public class PackOpeningScreen extends Screen {
     private static final float TEAR_Y = 0.07f, CARD_TOP = 0.15f, CARD_BOTTOM = 0.97f, CARD_X0 = 0.06f, CARD_X1 = 0.94f;
@@ -65,7 +65,7 @@ public class PackOpeningScreen extends Screen {
         final List<CardView> cards = new ArrayList<>();
         long value;
         ItemStack stack = ItemStack.EMPTY;
-        float x, y, w, h; // geometría
+        float x, y, w, h; // geometry
 
         PackState(Identifier requested) {
             this.requested = requested;
@@ -91,13 +91,13 @@ public class PackOpeningScreen extends Screen {
     private double phaseStart, lastFrame, allCutTime = -1;
     private boolean revealReceived, toBinder;
 
-    // trazo
+    // stroke
     private boolean stroking;
     private double lastMx = Double.NaN, lastMy;
     private double strokeFailTime = -10;
     private double glovesHintTime = -10;
 
-    // revelado
+    // reveal
     private int revPack, revCard;
     private double dragX;
     private boolean draggingCard;
@@ -105,11 +105,11 @@ public class PackOpeningScreen extends Screen {
     private double dismissStart = -1;
     private int dismissDir = 1;
 
-    // efectos
+    // effects
     private double shake, flash;
     private int flashColor = 0xFFFFFFFF;
 
-    // resumen
+    // summary
     private double summaryScroll, destroyStart = -1, lastTearSound = -1;
     private int destroySounds;
     private CardView hoveredSummary;
@@ -121,10 +121,10 @@ public class PackOpeningScreen extends Screen {
         for (int i = 0; i < queue.size(); i += g) groups.add(new ArrayList<>(queue.subList(i, Math.min(queue.size(), i + g))));
     }
 
-    /** Límite compartido con el servidor. */
+    /** Limit shared with the server. */
     private static final class PackOpenerLimits { static final int MAX = 100; }
 
-    // ------------------------------------------------------------------ ciclo de vida
+    // ------------------------------------------------------------------ lifecycle
 
     @Override
     protected void init() {
@@ -222,7 +222,7 @@ public class PackOpeningScreen extends Screen {
             s.damaged = p.damaged().get(i);
         }
         toBinder = p.toBinder();
-        variantsToInventory = false; // las variantes (reverse, 1ª edición...) no van al Binder sino al inventario
+        variantsToInventory = false; // variants (reverse, 1st edition...) go to the inventory, not the Binder
         for (int i = 0; i < p.cards().size(); i++)
             if (!(i < p.damaged().size() && p.damaged().get(i)))
                 for (ItemStack c : p.cards().get(i)) variantsToInventory |= dev.masterball.api.card.PrintVariant.isSpecial(c);
@@ -248,17 +248,17 @@ public class PackOpeningScreen extends Screen {
 
     @Override
     public void close() {
-        // cerrar a medias: el servidor entrega el grupo pendiente como limpio
+        // closing midway: the server delivers the pending group as clean
         if (phase == Phase.PACKS || phase == Phase.PREPARING) ClientPlayNetworking.send(new GroupCutPayload(List.of()));
         super.close();
     }
 
-    // ------------------------------------------------------------------ geometría
+    // ------------------------------------------------------------------ geometry
 
     private void layoutPacks() {
         int n = packs.size();
         if (n == 0) return;
-        // hasta 20: filas de 5; grupos grandes (50/100): rejilla más ancha para que quepan todos y se corten fila a fila
+        // up to 20: rows of 5; large groups (50/100): wider grid so they all fit and are cut row by row
         int cols = n <= 20 ? Math.min(n, 5) : Math.min(20, (int) Math.ceil(Math.sqrt(n * 2.4))), rows = (n + cols - 1) / cols;
         float ph;
         if (n == 1) ph = Math.min(height * 0.72f, 300f);
@@ -349,12 +349,12 @@ public class PackOpeningScreen extends Screen {
                 if (s.tier >= 2) rays(ctx, s.x + s.w / 2, s.y + s.h / 2, s.h * 0.8f, t * 15 + i * 20, aura, 0.07f + pulse * 0.05f, 12);
                 glow(ctx, s.x + s.w / 2, s.y + s.h / 2, s.w, s.h, aura, s.tier >= 2 ? 0.28f + 0.2f * pulse : 0.08f);
                 pack(ctx, s.sealedTex(), s.stack, s.x, s.y, s.w, s.h, 1f);
-                // línea guía
+                // guide line
                 int ly = Math.round(s.y + s.h * TEAR_Y);
                 int off = (int) (t * 20) % 8;
                 for (float x = s.x - 4 + off; x < s.x + s.w + 4; x += 8)
                     ctx.fill(Math.round(x), ly, Math.round(x) + 4, ly + 1, withAlpha(0xFFFFFFFF, 0.5f + 0.35f * pulse));
-                // trazo
+                // stroke
                 float sa = failing ? (float) (1 - (t - strokeFailTime) / 0.5) : 1f;
                 for (int b = 0; b < BINS; b++) {
                     if (Float.isNaN(s.stroke[b])) continue;
@@ -384,7 +384,7 @@ public class PackOpeningScreen extends Screen {
         }
     }
 
-    /** Sobre cortado: la tira de arriba sale volando, el resto baja; brillo extra si trae una carta de alta rareza. */
+    /** Cut pack: the top strip flies off, the rest drops down; extra glow if it holds a high-rarity card. */
     private void renderTornPack(DrawContext ctx, PackState s, double t) {
         double p = MathHelper.clamp((t - s.cutTime) / TEAR_TIME, 0, 1);
         Identifier tex = s.sealedTex();
@@ -473,11 +473,11 @@ public class PackOpeningScreen extends Screen {
             float v = s.packCut[MathHelper.clamp((int) (u * BINS), 0, BINS - 1)];
             s.cardCut[j] = MathHelper.clamp(Math.max((v - CARD_TOP) / (CARD_BOTTOM - CARD_TOP), 0.035f), 0f, 0.99f);
         }
-        if (s.cutTime - lastTearSound > 0.045) { // muchos sobres en un trazo: sin saturar el audio
+        if (s.cutTime - lastTearSound > 0.045) { // many packs in one stroke: don't saturate the audio
             lastTearSound = s.cutTime;
             play(TcgSounds.PACK_TEAR, s.damaged ? 0.7f : 0.9f + rng.nextFloat() * 0.15f, 0.9f);
         }
-        // sobre con carta de alta rareza: sonido especial y ráfaga
+        // pack with a high-rarity card: special sound and burst
         if (s.best >= 3) {
             play(TcgSounds.CARD_LEGENDARY, 1.2f, 0.8f);
             burstAt(s.x + s.w / 2, s.y + s.h * TEAR_Y, s.w, 0xFFFFD34D, 50);
@@ -679,7 +679,7 @@ public class PackOpeningScreen extends Screen {
         if (toBinder) ctx.drawCenteredTextWithShadow(textRenderer, Text.translatable(variantsToInventory ? "tcgshop.open.to_binder_variants" : "tcgshop.open.to_binder"),
                 width / 2, 46, 0xFF8BE08B);
 
-        // filas: una por sobre
+        // rows: one per pack
         List<PackState> shown = new ArrayList<>();
         for (PackState s : packs) if (!s.failed && !s.cards.isEmpty()) shown.add(s);
         int top = 58, bottom = height - 36;
@@ -802,7 +802,7 @@ public class PackOpeningScreen extends Screen {
         }
     }
 
-    // ------------------------------------------------------------------ efectos
+    // ------------------------------------------------------------------ effects
 
     private void burst(float x, float y, float w, float h, int color, int n) {
         for (int i = 0; i < n; i++) {
@@ -841,7 +841,7 @@ public class PackOpeningScreen extends Screen {
         }
     }
 
-    // ------------------------------------------------------------------ entrada
+    // ------------------------------------------------------------------ input
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
@@ -894,7 +894,7 @@ public class PackOpeningScreen extends Screen {
         if (keyCode == GLFW.GLFW_KEY_SPACE || keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_RIGHT) {
             switch (phase) {
                 case PACKS -> {
-                    // Espacio = corte perfecto de todos los sobres, SOLO con los Guantes de friki puestos
+                    // Space = perfect cut of all packs, ONLY while wearing the Nerd Gloves
                     if (keyCode == GLFW.GLFW_KEY_SPACE && client != null && client.player != null
                             && dev.tcgshop.item.NerdGlovesItem.isWearing(client.player)) {
                         for (PackState s : packs) if (!s.cut && !s.failed) { Arrays.fill(s.stroke, TEAR_Y); finishCut(s); }
@@ -915,7 +915,7 @@ public class PackOpeningScreen extends Screen {
 
     private void play(SoundEvent sound, float pitch, float volume) {
         if (client == null) return;
-        // los avisos de carta rara (ding, nivel, logro, monedas) se oían casi nada: siempre a tope y por partida doble
+        // rare-card cues (ding, level, achievement, coins) were barely audible: always at full volume and played twice
         boolean cue = sound == TcgSounds.CARD_RARE || sound == TcgSounds.CARD_EPIC || sound == TcgSounds.CARD_LEGENDARY
                 || sound == TcgSounds.CARD_ANTICIPATE || sound == TcgSounds.UI_COINS;
         float v = cue ? 1f : Math.min(1f, volume * 1.3f);
@@ -963,7 +963,7 @@ public class PackOpeningScreen extends Screen {
         }
     }
 
-    /** Pequeño helper de hit-test (evita depender del paquete binder). */
+    /** Small hit-test helper (avoids depending on the binder package). */
     private static final class Ui {
         static boolean in(double mx, double my, float x, float y, float w, float h) {
             return mx >= x && my >= y && mx < x + w && my < y + h;

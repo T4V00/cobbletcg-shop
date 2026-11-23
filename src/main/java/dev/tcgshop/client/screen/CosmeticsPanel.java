@@ -21,8 +21,8 @@ import java.util.Set;
 import static dev.tcgshop.client.screen.Draw.withAlpha;
 
 /**
- * Pestañas de cosméticos de la Liga en el teléfono: Monedas (vitrina de monedas 3D que giran), Fondos (miniaturas de
- * los tableros en HD) y Logros (qué falta para cada desbloqueo, con su barra). Clic en algo tuyo = equiparlo.
+ * League cosmetics tabs on the phone: Coins (showcase of spinning 3D coins), Backgrounds (HD thumbnails of
+ * the boards) and Achievements (what is left for each unlock, with its bar). Click something you own = equip it.
  */
 public final class CosmeticsPanel {
     public interface AreaSink { void add(int x, int y, int w, int h, Runnable r); }
@@ -33,7 +33,7 @@ public final class CosmeticsPanel {
 
     private static TextRenderer tr() { return MinecraftClient.getInstance().textRenderer; }
 
-    // ------------------------------------------------------------------ datos
+    // ------------------------------------------------------------------ data
 
     private static JsonObject cos(JsonObject L) {
         return L != null && L.has("cos") ? L.getAsJsonObject("cos") : new JsonObject();
@@ -49,7 +49,7 @@ public final class CosmeticsPanel {
         return c.has("progress") && c.getAsJsonObject("progress").has(r.name()) ? c.getAsJsonObject("progress").get(r.name()).getAsInt() : 0;
     }
 
-    /** Texto de cómo se consigue (con el rango traducido si toca). */
+    /** Text describing how it is obtained (with the rank translated where applicable). */
     public static Text ruleText(Cosmetics.Rule r, int arg) {
         Object a = r == Cosmetics.Rule.RANK ? Text.translatable("tcgshop.league.rank." + Math.min(arg, League.RANK_AT.length - 1)) : arg;
         return Text.translatable("tcgshop.cos.rule." + r.name().toLowerCase(), a);
@@ -74,7 +74,7 @@ public final class CosmeticsPanel {
         if (mc.player != null) mc.player.playSound(ok ? SoundEvents.UI_BUTTON_CLICK.value() : SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), 0.6f, ok ? 1.3f : 0.6f);
     }
 
-    // ------------------------------------------------------------------ monedas
+    // ------------------------------------------------------------------ coins
 
     public double coins(DrawContext ctx, JsonObject L, int px, int py, int pw, int ph, int mx, int my, double t, double scroll, AreaSink areas) {
         JsonObject c = cos(L);
@@ -83,7 +83,7 @@ public final class CosmeticsPanel {
         List<Cosmetics.Coin> list = Cosmetics.COINS;
         int have = 0;
         for (Cosmetics.Coin k : list) if (un.contains("coin:" + k.id())) have++;
-        // vitrina grande a la izquierda: la apuntada (o la equipada)
+        // large showcase on the left: the hovered one (or the equipped one)
         int lw = Math.min(118, pw / 3);
         Cosmetics.Coin show = Cosmetics.coin(hoverKey.startsWith("coin:") ? hoverKey.substring(5) : eq);
         if (show == null) show = list.get(0);
@@ -116,7 +116,7 @@ public final class CosmeticsPanel {
             boolean on = show.id().equals(eq);
             Ui.text(ctx, Text.translatable(on ? "tcgshop.cos.equipped" : "tcgshop.cos.click_equip"), px, ty + 3, lw, 10, on ? 0xFF6BE07B : 0xFFDDE3F0, false);
         }
-        // rejilla
+        // grid
         int gx = px + lw + 8, gw = pw - lw - 8;
         ctx.drawText(tr(), Text.translatable("tcgshop.cos.coins_title", have, list.size()).formatted(Formatting.BOLD), gx, py + 2, 0xFFFFFFFF, false);
         int cell = 50, cellH = 62, cols = Math.max(1, gw / cell), rows = (list.size() + cols - 1) / cols;
@@ -163,7 +163,7 @@ public final class CosmeticsPanel {
         return scroll;
     }
 
-    // ------------------------------------------------------------------ fondos
+    // ------------------------------------------------------------------ backgrounds
 
     public double boards(DrawContext ctx, JsonObject L, int px, int py, int pw, int ph, int mx, int my, double t, double scroll, AreaSink areas) {
         JsonObject c = cos(L);
@@ -172,7 +172,7 @@ public final class CosmeticsPanel {
         List<Cosmetics.Board> list = Cosmetics.BOARDS;
         int have = 0;
         for (Cosmetics.Board b : list) if (un.contains("board:" + b.id())) have++;
-        // vista previa grande: un mini tablero con el fondo apuntado (o el equipado)
+        // large preview: a mini board with the hovered background (or the equipped one)
         int lw = Math.min(130, pw / 3);
         Cosmetics.Board show = Cosmetics.board(hoverKey.startsWith("board:") ? hoverKey.substring(6) : eq);
         if (show == null) show = list.get(0);
@@ -181,7 +181,7 @@ public final class CosmeticsPanel {
         Ui.outline(ctx, px, py, lw, ph, LINE);
         int vx = px + 6, vy = py + 6, vw = lw - 12, vh = Math.min(ph - 70, Math.round(vw * 1.15f));
         swatch(ctx, show.id(), vx, vy, vw, vh, t, 72);
-        // mini tablero encima
+        // mini board on top
         int cw = vw / 6, chh = Math.round(cw / Draw.CARD_RATIO);
         for (int side = 0; side < 2; side++) {
             int ay = side == 0 ? vy + 8 : vy + vh - chh - 8;
@@ -202,7 +202,7 @@ public final class CosmeticsPanel {
         if (!showOwned) Ui.progress(ctx, px + 10, ty + 2, lw - 20, 5, frac(c, show.rule(), show.arg()), show.accent() | 0xFF000000);
         else Ui.text(ctx, Text.translatable(show.id().equals(eq) ? "tcgshop.cos.equipped" : "tcgshop.cos.click_equip"), px, ty + 1, lw, 10,
                 show.id().equals(eq) ? 0xFF6BE07B : 0xFFDDE3F0, false);
-        // rejilla de miniaturas
+        // thumbnail grid
         int gx = px + lw + 8, gw = pw - lw - 8;
         ctx.drawText(tr(), Text.translatable("tcgshop.cos.boards_title", have, list.size()).formatted(Formatting.BOLD), gx, py + 2, 0xFFFFFFFF, false);
         int cols = Math.max(1, gw / 84), cell = gw / cols, cellH = Math.round(cell * 0.62f) + 14;
@@ -242,19 +242,19 @@ public final class CosmeticsPanel {
         return scroll;
     }
 
-    /** Miniatura de un fondo (el clásico es su degradado de siempre). */
+    /** Thumbnail of a background (the classic one is its usual gradient). */
     private static void swatch(DrawContext ctx, String id, int x, int y, int w, int h, double t, int tile) {
         ctx.fillGradient(x, y, x + w, y + h, 0xFFE9F2FB, 0xFFD3E4F4);
         ctx.enableScissor(x, y, x + w, y + h);
         if (!DuelBackgrounds.draw(ctx, id, x, y, w, h, tile, t, 1f) && !id.equals("classic")) {
             Cosmetics.Board b = Cosmetics.board(id);
             int a = b == null ? 0xFF555555 : b.accent() | 0xFF000000;
-            ctx.fillGradient(x, y, x + w, y + h, a, Ui.darken(a, 50)); // mientras se genera
+            ctx.fillGradient(x, y, x + w, y + h, a, Ui.darken(a, 50)); // while it is being generated
         }
         ctx.disableScissor();
     }
 
-    // ------------------------------------------------------------------ logros
+    // ------------------------------------------------------------------ achievements
 
     private record Goal(String key, Cosmetics.Rule rule, int arg, int accent, boolean coin, int index) {}
 
@@ -270,7 +270,7 @@ public final class CosmeticsPanel {
             Cosmetics.Board b = Cosmetics.BOARDS.get(i);
             if (b.rule() != Cosmetics.Rule.FREE) gs.add(new Goal("board:" + b.id(), b.rule(), b.arg(), b.accent(), false, i));
         }
-        // primero lo que te falta (lo más cerca, arriba); lo conseguido al final
+        // first what you are missing (closest first, at the top); completed ones at the end
         gs.sort((a, b) -> {
             boolean da = un.contains(a.key), db = un.contains(b.key);
             if (da != db) return da ? 1 : -1;
@@ -317,9 +317,9 @@ public final class CosmeticsPanel {
         return scroll;
     }
 
-    // ------------------------------------------------------------------ piezas
+    // ------------------------------------------------------------------ pieces
 
-    /** Añade la zona de clic sólo por la parte que se ve dentro de la lista con scroll. */
+    /** Adds the click area only for the part visible inside the scrolling list. */
     private static void clip(AreaSink areas, int x, int y, int w, int h, int top, int viewH, Runnable r) {
         int y0 = Math.max(y, top), y1 = Math.min(y + h, top + viewH);
         if (y1 > y0) areas.add(x, y0, w, y1 - y0, r);
@@ -327,7 +327,7 @@ public final class CosmeticsPanel {
 
     private static int gi(JsonObject o, String k) { return o.has(k) ? o.get(k).getAsInt() : 0; }
 
-    /** Candado pequeño centrado en (cx, cy). */
+    /** Small padlock centered on (cx, cy). */
     static void lock(DrawContext ctx, int cx, int cy) {
         Ui.round(ctx, cx - 6, cy - 2, 12, 9, 0xFF3A3F55);
         Ui.outline(ctx, cx - 6, cy - 2, 12, 9, 0xFFCFD5E6);

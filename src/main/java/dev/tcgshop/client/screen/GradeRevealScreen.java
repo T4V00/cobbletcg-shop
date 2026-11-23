@@ -17,8 +17,8 @@ import net.minecraft.util.math.MathHelper;
 import java.util.List;
 
 /**
- * Revelado de CobbleGrade: cada carta llega en su funda, la etiqueta baja y la nota cuenta hasta su valor final con
- * el color del grado (las 10 lanzan rayos dorados). Clic para la siguiente; al final, resumen con el valor ganado.
+ * CobbleGrade reveal: each card arrives in its slab, the label drops in and the score counts up to its final value in
+ * the grade's color (10s shoot golden rays). Click for the next one; at the end, a summary with the value gained.
  */
 public class GradeRevealScreen extends Screen {
     private final List<ItemStack> cards;
@@ -54,10 +54,10 @@ public class GradeRevealScreen extends Screen {
         int sx = width / 2 - sw / 2, sy = (int) (height / 2 - sh / 2 + 8 + (1 - in) * height * 0.6f);
         if (g >= 100 && e > 1.0) Draw.rays(ctx, width / 2f, sy + sh / 2f, Math.max(width, height), t * 0.5, col, 0.18f, 16);
         Draw.glow(ctx, width / 2f, sy + sh / 2f, sw, sh, col, e > 1.0 ? 0.45f : 0.15f);
-        // funda
+        // slab
         Ui.roundGradient(ctx, sx, sy, sw, sh, 0x88DDE6F5, 0x66B8C4D8);
         Ui.outline(ctx, sx, sy, sw, sh, 0xCCFFFFFF);
-        // etiqueta (baja desde arriba)
+        // label (drops in from above)
         float drop = (float) Draw.easeOutCubic(MathHelper.clamp((e - 0.45) / 0.35, 0, 1));
         int ly = sy + 5 - Math.round((1 - drop) * 30), lh = 36;
         if (drop > 0) {
@@ -66,7 +66,7 @@ public class GradeRevealScreen extends Screen {
             ctx.drawText(textRenderer, Text.literal("COBBLEGRADE").formatted(Formatting.BOLD), sx + 13, ly + 4, 0xFF1E2A44, false);
             ctx.drawText(textRenderer, Text.literal(Ui.ellipsis(Text.translatable(st.getItem().getTranslationKey()).getString(), sw - 70)), sx + 13, ly + 14, 0xFF444A5A, false);
             ctx.drawText(textRenderer, Text.translatable("tcgshop.grade.cert", String.format("%06d", Grading.cert(st))), sx + 13, ly + 24, 0xFF8A8FA0, false);
-            // la nota cuenta hacia arriba
+            // the score counts up
             double c = MathHelper.clamp((e - 0.8) / 0.9, 0, 1);
             int showing = (int) Math.round(10 + (g - 10) * Draw.easeOutCubic(c));
             Draw.scaledCentered(ctx, Text.literal(Grading.format(showing)).formatted(Formatting.BOLD), sx + sw - 24, ly + 6, 2.0f, c >= 1 ? col : 0xFF333844);
@@ -77,13 +77,13 @@ public class GradeRevealScreen extends Screen {
                         : g >= 80 ? SoundEvents.ENTITY_PLAYER_LEVELUP : SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), g >= 95 ? 1f : 1.2f));
             }
         }
-        // carta
+        // card
         int cx = sx + 9, cy = sy + 46;
         Rarity r = Rarity.of(st);
         Draw.cardFace(ctx, CardInfo.texture(CardInfo.id(st)), st, cx, cy, cw, ch, 1f);
         if (r.tier > 0) Draw.holo(ctx, cx, cy, cw, ch, r.tier, r.color, t, mouseX);
-        ctx.fill(sx + 3, sy + 3, sx + 3 + sw / 5, sy + sh - 3, 0x14FFFFFF); // brillo del plástico
-        // valor
+        ctx.fill(sx + 3, sy + 3, sx + 3 + sw / 5, sy + sh - 3, 0x14FFFFFF); // plastic sheen
+        // value
         if (e > 1.7) {
             long v = PriceService.priceCd(st);
             Draw.scaledCentered(ctx, Text.translatable("tcgshop.grade.value_now", PriceService.format(v), String.format("x%.1f", PriceService.gradedMultiplier(CardInfo.id(st), r, g))),
@@ -109,7 +109,7 @@ public class GradeRevealScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (now() - shown < 0.5) return true;
         if (index >= cards.size()) { close(); return true; }
-        if (now() - shown < 1.7) { shown = now() - 1.8; return true; } // saltar animación
+        if (now() - shown < 1.7) { shown = now() - 1.8; return true; } // skip animation
         index++;
         shown = now();
         sounded = false;

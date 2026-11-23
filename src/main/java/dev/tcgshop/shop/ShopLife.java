@@ -19,14 +19,14 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Vida de las tiendas: reputación, aparición de clientes y sueldos.
+ * Shop life: reputation, customer spawning and wages.
  *
- * Reputación (0-100) = base 30 + precios + variedad + expositores + decoración (pósteres, mesas, pedestales y
- * peluches de Pokeblocks) + seguridad (guardia, detectores) + servicio (cajero) + satisfacción (ventas vs quejas)
- * - robos + "rumor del día" (evento aleatorio diario). Más reputación = más clientes y más coleccionistas.
+ * Reputation (0-100) = base 30 + prices + variety + displays + decoration (posters, tables, pedestals and
+ * Pokeblocks plushies) + security (guard, detectors) + service (cashier) + satisfaction (sales vs complaints)
+ * - thefts + "rumor of the day" (daily random event). More reputation = more customers and more collectors.
  */
 public final class ShopLife {
-    /** Multiplicador de llegada de clientes (EconomyConfig.customerDemand). */
+    /** Customer arrival multiplier (EconomyConfig.customerDemand). */
     public static double DEMAND = 1.0;
     private ShopLife() {}
 
@@ -36,8 +36,8 @@ public final class ShopLife {
     }
 
     /**
-     * Matar a un NPC de la tienda (clientes, Mayorista, comerciante, empleados) cuesta reputación en todas tus tiendas.
-     * Sólo cuenta si la muerte es tuya (golpe, flecha, etc.); ladrones y revendedores no cuentan.
+     * Killing a shop NPC (customers, Wholesaler, trader, employees) costs reputation in all your shops.
+     * Only counts if you caused the death (hit, arrow, etc.); thieves and scalpers don't count.
      */
     private static void onNpcDeath(net.minecraft.entity.LivingEntity entity, net.minecraft.entity.damage.DamageSource source) {
         if (!(entity instanceof dev.tcgshop.entity.TcgNpc) || !(entity.getWorld() instanceof ServerWorld w)) return;
@@ -71,13 +71,13 @@ public final class ShopLife {
         ShopZones zones = ShopZones.get(world);
         if (zones.all().isEmpty()) return;
         for (ShopZones.Zone z : zones.all()) {
-            // repartir el trabajo entre ticks
+            // spread the work across ticks
             int phase = Math.floorMod(z.id.hashCode(), 100);
             if (t % 1200 == phase) recompute(world, z);
             if (t % 100 == phase % 100) spawnCustomers(world, z);
             if (t % 600 == phase && z.smell > 0) { z.smell--; zones.markDirty(); }
             if (t % 40 == phase % 40 && z.smell >= 45) {
-                // nubecillas verdes por la tienda cuando apesta
+                // little green clouds around the shop when it stinks
                 int half = z.tierInfo().size / 2;
                 double x = z.core.getX() + world.random.nextInt(half * 2 + 1) - half + 0.5, zz = z.core.getZ() + world.random.nextInt(half * 2 + 1) - half + 0.5;
                 world.spawnParticles(new net.minecraft.particle.DustParticleEffect(new org.joml.Vector3f(0.45f, 0.62f, 0.2f), 1.6f),
@@ -86,11 +86,11 @@ public final class ShopLife {
         }
     }
 
-    // ------------------------------------------------------------------ reputación
+    // ------------------------------------------------------------------ reputation
 
     /**
-     * ¿Están cargados todos los chunks de la zona? Si falta alguno no se ven los expositores ni la decoración y la
-     * reputación saldría falsamente baja (y como baja deprisa y sube despacio, se hundiría mientras el dueño está lejos).
+     * Are all of the zone's chunks loaded? If any is missing, displays and decoration aren't seen and the
+     * reputation would come out falsely low (and since it falls fast and rises slowly, it would sink while the owner is away).
      */
     public static boolean zoneLoaded(ServerWorld world, ShopZones.Zone z) {
         int half = z.tierInfo().size / 2;
@@ -101,23 +101,23 @@ public final class ShopLife {
         return true;
     }
 
-    /** Recálculo periódico completo (cada 1200 ticks): mueve la reputación y avanza los eventos. */
+    /** Full periodic recompute (every 1200 ticks): moves the reputation and advances the events. */
     public static void recompute(ServerWorld world, ShopZones.Zone z) {
         recompute(world, z, true);
     }
 
     /**
-     * Vista previa para la ventana de estado del dueño: rehace factores, notas y misiones, pero NO mueve la reputación
-     * (settleReputation), no olvida mala fama del día ni avanza los eventos (EventManager.onRecompute), que están
-     * pensados para una llamada por minuto. Abrir la ventana muchas veces no acelera nada.
+     * Preview for the owner's status window: redoes factors, scores and missions, but does NOT move the reputation
+     * (settleReputation), doesn't forget the day's infamy and doesn't advance the events (EventManager.onRecompute), which are
+     * meant for one call per minute. Opening the window many times doesn't speed anything up.
      */
     public static void preview(ServerWorld world, ShopZones.Zone z) {
         recompute(world, z, false);
     }
 
     /**
-     * Reputación "efectiva" para los clientes: la de EventManager.effectiveRep (con Mods.repDelta) + lo que cambian
-     * temporalmente los eventos de luz / decoración ({@link ShopZones.Zone#eventEnvRep}). Ninguno de los dos entra en
+     * "Effective" reputation for customers: EventManager.effectiveRep's (with Mods.repDelta) + what the lighting /
+     * decoration events temporarily change ({@link ShopZones.Zone#eventEnvRep}). Neither of the two goes into
      * settleReputation.
      */
     public static int effectiveRep(ShopZones.Zone z) {
@@ -131,7 +131,7 @@ public final class ShopLife {
     }
 
     private static void recompute(ServerWorld world, ShopZones.Zone z, boolean full) {
-        // tienda sin cargar: no se sabe cómo está, así que no se toca la reputación (se recalcula al volver)
+        // shop not loaded: its state is unknown, so the reputation isn't touched (recomputed on return)
         if (!zoneLoaded(world, z)) return;
         int displays = 0, decor = 0, detectors = 0, stocked = 0, stockedDisplays = 0, playTables = 0;
         boolean boosterBox = false, register = false;
@@ -164,13 +164,13 @@ public final class ShopLife {
                         BlockState s = be.getCachedState();
                         if (s.isOf(TcgBlocks.THEFT_DETECTOR)) detectors++;
                         else if (s.isOf(TcgBlocks.CASH_REGISTER)) register = true;
-                        if (s.isOf(TcgBlocks.PLAY_TABLE)) { playTables++; decor++; } // la mesa de juego también decora (como antes de 0.9)
+                        if (s.isOf(TcgBlocks.PLAY_TABLE)) { playTables++; decor++; } // the play table also counts as decoration (as before 0.9)
                         else if (s.isOf(TcgBlocks.POSTER)) decor++;
                     }
                 }
             }
-        // peluches de Pokeblocks colocados (franja a la altura del suelo de la tienda)
-        // (en la misma pasada: asientos de muebles -sillas, bancos, sofás- para la zona de juego y el aforo)
+        // placed Pokeblocks plushies (band at the shop's floor height)
+        // (in the same pass: furniture seats -chairs, benches, sofas- for the play area and the capacity)
         int dolls = 0, seats = 0;
         for (BlockPos p : BlockPos.iterate(z.core.getX() - half, z.core.getY() - 1, z.core.getZ() - half, z.core.getX() + half, z.core.getY() + 3, z.core.getZ() + half)) {
             BlockState bs = world.getBlockState(p);
@@ -178,14 +178,14 @@ public final class ShopLife {
             Identifier id = Registries.BLOCK.getId(bs.getBlock());
             if (id.getNamespace().equals("minecraft")) continue;
             if (id.getNamespace().equals("pokeblocks") && id.getPath().contains("pokedoll")) dolls++;
-            else if (ShopSeats.seatWord(id.getPath())) seats++; // 0.9.5: una sola lista de asientos (ShopSeats.SEAT_WORDS)
+            else if (ShopSeats.seatWord(id.getPath())) seats++; // 0.9.5: a single list of seats (ShopSeats.SEAT_WORDS)
         }
         decor += dolls;
 
         long day = world.getTimeOfDay() / 24000;
         java.util.Random daily = new java.util.Random(z.id.getMostSignificantBits() ^ day * 31);
         int buzz = daily.nextInt(11) - 5;
-        // cada día se olvida parte de lo malo: mala fama por muertes y clientes sin atender
+        // each day part of the bad stuff is forgotten: infamy from kills and unattended customers
         if (full && z.infamyDay != day) {
             if (z.infamyDay >= 0 && day > z.infamyDay) {
                 long steps = Math.min(30, day - z.infamyDay);
@@ -196,15 +196,15 @@ public final class ShopLife {
             z.infamyDay = day;
         }
         Env env = scanEnvironment(world, z, half);
-        // 0.9 eventos: apagón / luz extra y decoración dañada o mejorada (lo que "ven" los clientes). Cuenta para lo
-        // que se enseña (factores, flags, misiones) y para la reputación efectiva (eventEnvRep), pero la reputación
-        // real se asienta con la tienda tal cual, sin el evento: un apagón de 5 minutos no deja secuelas.
+        // 0.9 events: blackout / extra light and damaged or improved decoration (what customers "see"). Counts for what
+        // is shown (factors, flags, missions) and for the effective reputation (eventEnvRep), but the real reputation
+        // settles with the shop as it is, without the event: a 5-minute blackout leaves no lasting effects.
         double rawLight = env.light;
         dev.tcgshop.events.Mods em = dev.tcgshop.events.EventManager.mods(z);
         if (env.known && (em.lightingOverride >= 0 || em.lightDelta != 0))
             env.light = Math.max(0, Math.min(15, (em.lightingOverride >= 0 ? Math.min(env.light, em.lightingOverride) : env.light) + em.lightDelta));
 
-        // vista previa: conserva lo que sólo pone el recálculo completo (objetivo / techo de reputación, evento)
+        // preview: keeps what only the full recompute sets (reputation target / ceiling, event)
         java.util.Map<String, Integer> keep = new java.util.HashMap<>();
         if (!full) for (String k : new String[]{"m_target", "m_ceiling", "event"}) if (z.factors.containsKey(k)) keep.put(k, z.factors.get(k));
         z.factors.clear();
@@ -215,7 +215,7 @@ public final class ShopLife {
         int var = Math.min(15, variety.size());
         int disp = Math.min(10, displays * 2);
         int dec = Math.max(-10, Math.min(15, decor * 2 + em.decorDelta));
-        int decBase = Math.max(-10, Math.min(15, decor * 2)); // sin eventos (para la reputación real)
+        int decBase = Math.max(-10, Math.min(15, decor * 2)); // without events (for the real reputation)
         int sec = (z.guard ? 8 : 0) + Math.min(6, detectors * 2);
         int serv = (z.cashier ? 8 : 0) + (z.cashier2 ? 4 : 0);
         int sat = z.reviews.size() >= 3 ? (int) Math.round(Math.max(-15, Math.min(15, (z.avgStars() - 3) * 7)))
@@ -233,7 +233,7 @@ public final class ShopLife {
         int smell = z.smell > 0 ? -Math.min(15, Math.round(z.smell / 6.5f)) : 0;
         if (smell != 0) z.factors.put("smell", smell);
 
-        // ---- tres notas: Estética, Calidad/precio y Seguridad (0-100) -> reputación total con pesos configurables
+        // ---- three scores: Aesthetics, Value for money and Safety (0-100) -> total reputation with configurable weights
         int roof = 0, walls = 0, light = 0, lightBase = 0, doors = 0, hostiles = 0, animals = 0, enclosure = 0;
         if (env.known) {
             roof = (int) Math.round((env.roof - 0.5) * 16);
@@ -285,10 +285,10 @@ public final class ShopLife {
         double rest = sat + buzz + serv * 0.6 + unatt + charity;
         int rep = (int) Math.round(base + rest);
         int repNoEvent = (int) Math.round(baseNoEvent + rest);
-        // la reputación real sólo con la tienda sin eventos; lo que suman / restan la luz y la decoración del evento
-        // va aparte, a la reputación efectiva (effectiveRep), como Mods.repDelta
+        // the real reputation only with the shop without events; what the event's lighting and decoration add / subtract
+        // goes separately, to the effective reputation (effectiveRep), like Mods.repDelta
         z.eventEnvRep = rep - repNoEvent;
-        if (full) z.settleReputation(repNoEvent); // rendimientos decrecientes, techo por ventas/estrellas y subida lenta (ShopZones)
+        if (full) z.settleReputation(repNoEvent); // diminishing returns, ceiling from sales/stars and slow rise (ShopZones)
         z.factors.put("m_aesthetics", aest);
         z.factors.put("m_value", value);
         z.factors.put("m_safety", safety);
@@ -296,7 +296,7 @@ public final class ShopLife {
         z.decor = decor;
         z.detectors = detectors;
         z.buzz = buzz;
-        // ---- misiones (flujo de clientes) y aforo
+        // ---- missions (customer flow) and capacity
         ShopMissions.Snapshot snap = new ShopMissions.Snapshot();
         snap.stockedDisplays = stockedDisplays;
         snap.stocked = stocked;
@@ -317,14 +317,14 @@ public final class ShopLife {
         z.playTables = playTables;
         int before = z.missions;
         z.missions = ShopMissions.evaluate(z, snap);
-        if (before < 0) z.missionsEver |= z.missions; // primer cálculo: lo que ya cumplía no se anuncia
+        if (before < 0) z.missionsEver |= z.missions; // first computation: what was already met isn't announced
         if (!full) {
-            // vista previa (ventana de estado): las misiones nuevas se anuncian en el próximo recálculo completo
+            // preview (status window): new missions are announced on the next full recompute
             z.lastCalc = world.getTime();
             return;
         }
-        dev.tcgshop.events.EventManager.onRecompute(world, z, register, shopDoors(world, z)); // 0.9 eventos: condiciones y objetivos
-        dev.tcgshop.events.incident.IncidentModule.cleanupZone(world, z); // 0.9: barrido de incidentes huérfanos
+        dev.tcgshop.events.EventManager.onRecompute(world, z, register, shopDoors(world, z)); // 0.9 events: conditions and goals
+        dev.tcgshop.events.incident.IncidentModule.cleanupZone(world, z); // 0.9: sweep of orphaned incidents
         z.lastCalc = world.getTime();
         ShopZones.get(world).markDirty();
         ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
@@ -337,7 +337,7 @@ public final class ShopLife {
         }
     }
 
-    // ------------------------------------------------------------------ clientes
+    // ------------------------------------------------------------------ customers
 
     private static void spawnCustomers(ServerWorld world, ShopZones.Zone z) {
         ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
@@ -345,18 +345,18 @@ public final class ShopLife {
         if (z.displays == 0) return;
         int present = nearCount(world, z);
         dev.tcgshop.events.Mods em = dev.tcgshop.events.EventManager.mods(z);
-        int cap = ShopMissions.effectiveCapacity(z), full = Math.max(1, cap + ShopMissions.queueMax(z)); // 0.9: maxCustAdd ya va en el aforo
-        // los clientes contentos lo recomiendan: cada 5 estrellas reciente trae algo más de gente
+        int cap = ShopMissions.effectiveCapacity(z), full = Math.max(1, cap + ShopMissions.queueMax(z)); // 0.9: maxCustAdd is already included in the capacity
+        // happy customers recommend it: each recent 5-star review brings a few more people
         long today = world.getTimeOfDay() / 24000;
         int recs = 0;
         for (ShopZones.Review r : z.reviews) if (r.stars() >= 5 && today - r.day() <= 2) recs++;
-        // flujo: cuantas más misiones cumplidas, más gente llega (ShopMissions.flow)
-        // 0.9 eventos: reputación efectiva (con el modificador temporal) y multiplicador de llegada
+        // flow: the more missions completed, the more people arrive (ShopMissions.flow)
+        // 0.9 events: effective reputation (with the temporary modifier) and arrival multiplier
         double chance = (0.2 + effectiveRep(z) / 180.0 + Math.min(0.15, recs * 0.03)) * DEMAND * ShopMissions.flow(z.missions)
                 * em.spawnMult;
         if (world.random.nextDouble() > chance) return;
         if (present >= full) {
-            // venía alguien, pero la tienda y la cola están llenas: se da la vuelta (cuenta para sugerir mejorar)
+            // someone was coming, but the shop and the queue are full: they turn around (counts toward suggesting an upgrade)
             ShopMissions.addOverflow(z, today);
             ShopZones.get(world).markDirty();
             return;
@@ -365,9 +365,9 @@ public final class ShopLife {
     }
 
     /**
-     * API para otros sistemas (p. ej. "llamar a un coleccionista" del teléfono): hace venir a un cliente del tipo
-     * dado (nombre de CustomerEntity.Type, p. ej. "WHALE") sin tirar probabilidad, pero respetando el aforo y la cola:
-     * si la tienda está llena, hará cola fuera; si la cola también lo está (o la tienda no está cargada), devuelve false.
+     * API for other systems (e.g. the phone's "call a collector"): brings a customer of the given type
+     * (CustomerEntity.Type name, e.g. "WHALE") without rolling the chance, but respecting the capacity and the queue:
+     * if the shop is full, they'll queue outside; if the queue is full too (or the shop isn't loaded), returns false.
      */
     public static boolean forceSpawnCustomer(ServerWorld world, ShopZones.Zone z, String typeName) {
         if (world == null || z == null) return false;
@@ -383,8 +383,8 @@ public final class ShopLife {
     }
 
     /**
-     * 0.9 eventos: cliente especial de un evento (VisitorSpec), por el mismo camino que los demás (llega andando,
-     * respeta el aforo y la cola). null si la tienda no está cargada, está llena con cola llena o no hay sitio.
+     * 0.9 events: special customer from an event (VisitorSpec), via the same path as the others (arrives walking,
+     * respects the capacity and the queue). null if the shop isn't loaded, is full with a full queue, or there's no spot.
      */
     @org.jetbrains.annotations.Nullable
     public static CustomerEntity forceSpawnVisitor(ServerWorld world, ShopZones.Zone z, dev.tcgshop.events.VisitorSpec spec) {
@@ -401,11 +401,11 @@ public final class ShopLife {
 
     @org.jetbrains.annotations.Nullable
     private static CustomerEntity spawnAt(ServerWorld world, ShopZones.Zone z, CustomerEntity.Type type, @org.jetbrains.annotations.Nullable dev.tcgshop.events.VisitorSpec spec) {
-        // llegan andando desde lejos (no aparecen pegados a la tienda), entran por una puerta y se van por donde vinieron
+        // they arrive walking from far away (they don't spawn right next to the shop), enter through a door and leave the way they came
         BlockPos door = null;
         Vec3d doorOutside = null, pos = null;
         java.util.List<BlockPos> doors = new java.util.ArrayList<>(shopDoors(world, z));
-        // 0.9 eventos: puertas bloqueadas; si lo están todas, hoy no entra nadie por ahí
+        // 0.9 events: blocked doors; if all of them are, nobody comes in that way today
         dev.tcgshop.events.Mods em = dev.tcgshop.events.EventManager.mods(z);
         if (!doors.isEmpty() && em.hasClosedDoors()) {
             doors.removeIf(em::isDoorClosed);
@@ -428,35 +428,35 @@ public final class ShopLife {
         return CustomerEntity.spawn(world, z, type, pos, exit, regular, door, doorOutside, spec);
     }
 
-    // ------------------------------------------------------------------ aforo y cola
+    // ------------------------------------------------------------------ capacity and queue
 
-    /** Respuestas de {@link #queueGate}. */
+    /** Responses of {@link #queueGate}. */
     public static final int GATE_GO = 0, GATE_WAIT = 1, GATE_GIVE_UP = 2;
     /**
-     * Se cansa de esperar porque un evento le bloquea la puerta (no porque la tienda esté llena): sin reseña
-     * "shop_full", sin bajar el ánimo por aforo y sin contar como desborde.
+     * Gets tired of waiting because an event blocks the door (not because the shop is full): no
+     * "shop_full" review, no mood drop for capacity and not counted as overflow.
      */
     public static final int GATE_BLOCKED_GIVE_UP = 3;
-    /** Ánimo que pierde quien se cansa de esperar fuera (empieza en 3: se queda en 2 estrellas). */
+    /** Mood lost by whoever gets tired of waiting outside (starts at 3: ends at 2 stars). */
     public static final int FULL_MOOD_PENALTY = 1;
-    /** Lo que se espera fuera como mucho (ticks) antes de irse. */
+    /** Maximum time waited outside (ticks) before leaving. */
     public static final int QUEUE_TICKS = 20 * 25;
 
     private record Wait(java.util.UUID zone, long since) {}
 
-    /** Clientes esperando fuera (uuid de la entidad -> zona y desde cuándo). */
+    /** Customers waiting outside (entity uuid -> zone and since when). */
     private static final java.util.Map<java.util.UUID, Wait> QUEUE = new java.util.HashMap<>();
-    /** Clientes a los que se acaba de dejar pasar y aún no han cruzado la puerta (reservan su sitio un rato). */
+    /** Customers just let through who haven't crossed the door yet (they hold their spot for a while). */
     private static final java.util.Map<java.util.UUID, Wait> PASS = new java.util.HashMap<>();
-    /** Recuento de clientes dentro por zona, cacheado unos ticks (zona -> {tick, n}). */
+    /** Count of customers inside per zone, cached for a few ticks (zone -> {tick, n}). */
     private static final java.util.Map<java.util.UUID, long[]> INSIDE = new java.util.HashMap<>();
 
-    /** Clientes en la tienda o llegando (zona + 24 bloques alrededor), como antes de 0.9. */
+    /** Customers in the shop or arriving (zone + 24 blocks around), as before 0.9. */
     private static int nearCount(ServerWorld world, ShopZones.Zone z) {
         return world.getEntitiesByClass(CustomerEntity.class, z.box().expand(24), c -> c.isAlive()).size();
     }
 
-    /** Clientes dentro de la tienda ahora mismo (cacheado 10 ticks). */
+    /** Customers inside the shop right now (cached for 10 ticks). */
     public static int insideCount(ServerWorld world, ShopZones.Zone z) {
         long now = world.getTime();
         long[] c = INSIDE.get(z.id);
@@ -466,28 +466,28 @@ public final class ShopLife {
         return n;
     }
 
-    /** Cuántos esperan fuera en la cola de esta tienda. */
+    /** How many are waiting outside in this shop's queue. */
     public static int queuedCount(ShopZones.Zone z) {
         int n = 0;
         for (Wait w : QUEUE.values()) if (w.zone().equals(z.id) && queueFresh(w, lastTick)) n++;
         return n;
     }
 
-    /** Última hora de mundo vista en el tick (para descartar entradas viejas de la cola sin tener el mundo a mano). */
+    /** Last world time seen in the tick (to discard old queue entries without having the world at hand). */
     private static long lastTick;
 
-    /** Una entrada de la cola sigue viva si no lleva más de {@link #QUEUE_TICKS} (después el cliente ya se habría ido). */
+    /** A queue entry is still alive if it hasn't been there more than {@link #QUEUE_TICKS} (after that the customer would have left). */
     private static boolean queueFresh(Wait w, long now) {
         return now - w.since() >= 0 && now - w.since() <= QUEUE_TICKS;
     }
 
-    /** El cliente acaba de cruzar a la tienda (CustomerEntity): suelta su sitio en la cola y su reserva de paso. */
+    /** The customer has just crossed into the shop (CustomerEntity): releases their queue spot and their pass reservation. */
     public static void onEntered(java.util.UUID id) {
         QUEUE.remove(id);
         PASS.remove(id);
     }
 
-    /** El cliente se va, desaparece o muere (CustomerEntity.leave / remove / recarga): fuera de la cola y del paso. */
+    /** The customer leaves, despawns or dies (CustomerEntity.leave / remove / reload): out of the queue and the pass. */
     public static void forget(java.util.UUID id) {
         QUEUE.remove(id);
         PASS.remove(id);
@@ -500,10 +500,10 @@ public final class ShopLife {
     }
 
     /**
-     * Puerta de la tienda para un cliente que aún no ha entrado (lo llama CustomerEntity en su estado ENTER).
-     * Si hay sitio, entra (GATE_GO). Si está llena, se pone en la cola fuera, junto a la puerta, mirando hacia ella
-     * (GATE_WAIT). Si espera más de {@link #QUEUE_TICKS}, se va (GATE_GIVE_UP: el cliente baja el ánimo y deja la
-     * reseña "shop_full"); cuenta como desborde del día para sugerir mejorar la tienda.
+     * Shop door for a customer who hasn't entered yet (called by CustomerEntity in its ENTER state).
+     * If there's room, they enter (GATE_GO). If it's full, they join the queue outside, next to the door, facing it
+     * (GATE_WAIT). If they wait more than {@link #QUEUE_TICKS}, they leave (GATE_GIVE_UP: the customer's mood drops and they leave the
+     * "shop_full" review); counts as the day's overflow to suggest upgrading the shop.
      */
     public static int queueGate(CustomerEntity c, ServerWorld world, ShopZones.Zone z,
                                 @org.jetbrains.annotations.Nullable BlockPos door, @org.jetbrains.annotations.Nullable Vec3d doorOutside) {
@@ -511,16 +511,16 @@ public final class ShopLife {
         long now = world.getTime();
         if (z.contains(c.getBlockPos())) { QUEUE.remove(id); PASS.remove(id); return GATE_GO; }
         boolean queued = QUEUE.containsKey(id);
-        // todavía viene andando desde lejos: que siga (la cola empieza en la puerta)
+        // still walking in from far away: let them continue (the queue starts at the door)
         if (!queued && doorOutside != null && c.squaredDistanceTo(doorOutside) > 4 * 4) return GATE_GO;
         Wait pass = PASS.get(id);
         if (pass != null && now - pass.since() >= 0 && now - pass.since() < 200) {
-            // sin puerta (pasa desde donde aparece, a 16-26 bloques): renueva la reserva mientras viene andando
+            // no door (passes from where it spawns, 16-26 blocks away): renews the reservation while walking in
             if (doorOutside == null) PASS.put(id, new Wait(z.id, now));
             return GATE_GO;
         }
-        int cap = ShopMissions.effectiveCapacity(z); // 0.9: con el modificador de aforo de los eventos
-        // 0.9 eventos: si su puerta está bloqueada, prueba otra puerta abierta; si no hay, espera fuera aunque haya sitio
+        int cap = ShopMissions.effectiveCapacity(z); // 0.9: with the events' capacity modifier
+        // 0.9 events: if their door is blocked, try another open door; if there's none, wait outside even if there's room
         dev.tcgshop.events.Mods em = dev.tcgshop.events.EventManager.mods(z);
         boolean blocked = door != null && em.isDoorClosed(door);
         if (blocked) {
@@ -528,7 +528,7 @@ public final class ShopLife {
                 if (alt.equals(door) || em.isDoorClosed(alt) || !world.getBlockState(alt).isIn(net.minecraft.registry.tag.BlockTags.WOODEN_DOORS)) continue;
                 QUEUE.remove(id);
                 c.redirectDoor(alt, Vec3d.ofBottomCenter(alt.offset(outward(world, z, alt), 2)));
-                return GATE_WAIT; // el próximo paso ya va hacia la puerta nueva
+                return GATE_WAIT; // the next step already heads to the new door
             }
         }
         if (!blocked && insideCount(world, z) + passCount(z, now) < cap) {
@@ -548,7 +548,7 @@ public final class ShopLife {
         if (waited > QUEUE_TICKS || waited < 0) {
             QUEUE.remove(id);
             if (blocked) {
-                // 0.9 eventos: se va porque la puerta está bloqueada, no por aforo (ni desborde ni reseña de "llena")
+                // 0.9 events: leaves because the door is blocked, not because of capacity (no overflow and no "full" review)
                 ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
                 if (owner != null && owner.squaredDistanceTo(c) < 96 * 96)
                     owner.sendMessage(net.minecraft.text.Text.translatable("tcgshop.event.door_blocked_left", c.getDisplayName()).formatted(net.minecraft.util.Formatting.GOLD), true);
@@ -562,7 +562,7 @@ public final class ShopLife {
                 owner.sendMessage(net.minecraft.text.Text.translatable("tcgshop.shop.full_left", c.getDisplayName(), cap).formatted(net.minecraft.util.Formatting.GOLD), true);
             return GATE_GIVE_UP;
         }
-        // sitio en la fila: en línea recta hacia fuera desde la puerta, por orden de llegada
+        // spot in the line: in a straight line outward from the door, in order of arrival
         Vec3d spot = c.getPos();
         if (doorOutside != null) {
             int index = 0;
@@ -593,12 +593,12 @@ public final class ShopLife {
         INSIDE.values().removeIf(c -> now - c[0] > 400 || now < c[0]);
     }
 
-    /** Palabras (trozos del nombre separados por "_") que hacen de un bloque un asiento. */
+    /** Words (name pieces separated by "_") that make a block a seat. */
     private static final Set<String> SEAT_WORDS = Set.of("chair", "armchair", "stool", "sofa", "couch", "bench", "seat", "loveseat");
 
     /**
-     * Asientos de muebles (CobbleFurnies y similares): por el nombre del bloque, palabra a palabra (así
-     * "botanist_workbench" o "toadstool" no cuentan; "oak_bench" o "red_sofa_left" sí).
+     * Furniture seats (CobbleFurnies and similar): by block name, word by word (so
+     * "botanist_workbench" or "toadstool" don't count; "oak_bench" or "red_sofa_left" do).
      */
     private static boolean isSeat(String path) {
         int slash = path.lastIndexOf('/');
@@ -609,11 +609,11 @@ public final class ShopLife {
         return false;
     }
 
-    /** Avisa al dueño cuando completa una misión nueva. */
+    /** Notifies the owner when they complete a new mission. */
     private static void announceMissions(ServerPlayerEntity owner, ShopZones.Zone z, int before) {
         int gained = z.missions & ~z.missionsEver;
         z.missionsEver |= z.missions;
-        if (before < 0 || gained == 0) return; // primer cálculo (mundos antiguos / tienda nueva): sin avisos en bloque
+        if (before < 0 || gained == 0) return; // first computation (old worlds / new shop): no bulk notifications
         for (ShopMissions.Mission m : ShopMissions.Mission.values()) {
             if ((gained & (1 << m.ordinal())) == 0) continue;
             owner.sendMessage(net.minecraft.text.Text.translatable("tcgshop.mission.completed",
@@ -626,8 +626,8 @@ public final class ShopLife {
     }
 
     /**
-     * Tipo del cliente que llega: tabla de pesos (0.9: ya no tiene el desfase de la versión anterior, en la que el
-     * quisquilloso salía un 16% en vez de un 15%). Los eventos multiplican cada peso (Mods.typeWeight).
+     * Type of the arriving customer: weight table (0.9: no longer has the previous version's offset, in which the
+     * picky one came out 16% instead of 15%). Events multiply each weight (Mods.typeWeight).
      */
     private static CustomerEntity.Type rollType(ServerWorld world, ShopZones.Zone z) {
         dev.tcgshop.events.Mods em = dev.tcgshop.events.EventManager.mods(z);
@@ -647,8 +647,8 @@ public final class ShopLife {
         return CustomerEntity.Type.REGULAR;
     }
 
-    /** Un punto caminable en el borde de la zona, a la altura del suelo de la tienda. */
-    /** Puertas de madera de la tienda (la mitad de abajo), dentro de la zona y a la altura del suelo. */
+    /** A walkable point on the zone's edge, at the shop's floor height. */
+    /** The shop's wooden doors (lower half), inside the zone and at floor height. */
     public static java.util.List<BlockPos> shopDoors(ServerWorld world, ShopZones.Zone z) {
         java.util.List<BlockPos> out = new java.util.ArrayList<>();
         int half = z.tierInfo().size / 2;
@@ -661,7 +661,7 @@ public final class ShopLife {
         return out;
     }
 
-    /** Lado de fuera de una puerta: el que da al cielo (o, si no se sabe, el más alejado del centro de la tienda). */
+    /** Outside side of a door: the one facing the sky (or, if unknown, the one farthest from the shop's center). */
     static net.minecraft.util.math.Direction outward(ServerWorld world, ShopZones.Zone z, BlockPos door) {
         net.minecraft.util.math.Direction f = world.getBlockState(door).get(net.minecraft.block.DoorBlock.FACING);
         boolean a = world.isSkyVisible(door.offset(f).up()), b = world.isSkyVisible(door.offset(f.getOpposite()).up());
@@ -670,7 +670,7 @@ public final class ShopLife {
         return da >= db ? f : f.getOpposite();
     }
 
-    /** Sitio lejano (18-28 bloques) por el lado de fuera de la puerta, en suelo firme. */
+    /** Faraway spot (18-28 blocks) on the outside of the door, on solid ground. */
     @org.jetbrains.annotations.Nullable
     private static Vec3d farSpot(ServerWorld world, ShopZones.Zone z, BlockPos door, net.minecraft.util.math.Direction out) {
         net.minecraft.util.math.Direction side = out.rotateYClockwise();
@@ -707,7 +707,7 @@ public final class ShopLife {
 
     private static int clamp(int v) { return Math.max(0, Math.min(100, v)); }
 
-    /** Lo que ve un cliente de la tienda y alrededores. */
+    /** What a customer sees of the shop and its surroundings. */
     static final class Env {
         boolean known;
         double roof, walls, light;
@@ -715,9 +715,9 @@ public final class ShopLife {
     }
 
     /**
-     * Mira la tienda como la vería un cliente: sólo la zona donde hay muebles (no se castiga una parcela grande con la
-     * tienda en una esquina). Techo y paredes por "rayos" desde el suelo, luz de bloques, puertas, monstruos cerca,
-     * animales de granja, mascotas y Pokémon dentro.
+     * Looks at the shop as a customer would: only the area with furniture (a large plot with the shop in a corner
+     * isn't penalized). Roof and walls via "rays" from the floor, block light, doors, nearby monsters,
+     * farm animals, pets and Pokémon inside.
      */
     private static Env scanEnvironment(ServerWorld world, ShopZones.Zone z, int half) {
         Env e = new Env();
@@ -749,7 +749,7 @@ public final class ShopLife {
                 }
             }
         e.kinds = (cards ? 1 : 0) + (packs ? 1 : 0) + (boxes ? 1 : 0) + (dolls ? 1 : 0);
-        // monstruos y animales (aunque no haya muebles todavía)
+        // monsters and animals (even if there's no furniture yet)
         net.minecraft.util.math.Box zone = z.box();
         for (net.minecraft.entity.Entity ent : world.getOtherEntities(null, zone.expand(16))) {
             boolean inside = zone.contains(ent.getPos());
@@ -759,9 +759,9 @@ public final class ShopLife {
             else if (ent instanceof net.minecraft.entity.passive.TameableEntity t && t.isTamed()) e.pets++;
             else if (ent instanceof net.minecraft.entity.passive.AnimalEntity) e.farm++;
             else if (Registries.ENTITY_TYPE.getId(ent.getType()).getNamespace().equals("cobblemon")
-                    && !ent.getCommandTags().contains(dev.tcgshop.events.EventManager.EVENT_TAG)) e.pokemon++; // 0.9: los Pokémon de eventos no cuentan
+                    && !ent.getCommandTags().contains(dev.tcgshop.events.EventManager.EVENT_TAG)) e.pokemon++; // 0.9: event Pokémon don't count
         }
-        if (minX == Integer.MAX_VALUE) return e; // sin muebles: no se juzga el edificio
+        if (minX == Integer.MAX_VALUE) return e; // no furniture: the building isn't judged
         e.known = true;
         minX -= 2; minZ -= 2; maxX += 2; maxZ += 2;
         int fy = z.core.getY();
@@ -772,7 +772,7 @@ public final class ShopLife {
         for (int x = minX; x <= maxX; x += step)
             for (int zz = minZ; zz <= maxZ; zz += step) {
                 BlockPos foot = new BlockPos(x, fy, zz);
-                if (!world.getBlockState(foot).isAir() && world.getBlockState(foot).isOpaqueFullCube(world, foot)) continue; // dentro de una pared
+                if (!world.getBlockState(foot).isAir() && world.getBlockState(foot).isOpaqueFullCube(world, foot)) continue; // inside a wall
                 n++;
                 boolean roofed = !world.isSkyVisible(foot.up());
                 if (roofed) covered++;

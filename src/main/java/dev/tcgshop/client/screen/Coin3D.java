@@ -13,17 +13,17 @@ import org.joml.Matrix4f;
 import java.util.Arrays;
 
 /**
- * Moneda con volumen real (canto estriado, caras con relieve, luz y brillo metálico) dibujada en una pantalla 2D con
- * perspectiva. Cara = emblema de Poké Ball, cruz = estrella. Se dibuja centrada en el origen actual.
- * Los estilos están pensados para ampliarse con monedas coleccionables.
+ * Coin with real volume (reeded edge, embossed faces, lighting and metallic shine) drawn on a 2D screen with
+ * perspective. Heads = Poké Ball emblem, tails = star. Drawn centered on the current origin.
+ * The styles are designed to be extended with collectible coins.
  */
 public final class Coin3D {
     private Coin3D() {}
 
-    /** Numero de monedas distintas (ver Cosmetics.COINS). */
+    /** Number of distinct coins (see Cosmetics.COINS). */
     public static int count() { return dev.tcgshop.duel.Cosmetics.COINS.size(); }
 
-    private static final float LX = -0.35f, LY = -0.55f, LZ = 0.76f; // luz (y hacia abajo, z hacia la cámara)
+    private static final float LX = -0.35f, LY = -0.55f, LZ = 0.76f; // light (y down, z toward the camera)
 
     private static final class Proj {
         final float cyA, syA, cxA, sxA, d;
@@ -47,7 +47,7 @@ public final class Coin3D {
             z = z2;
         }
 
-        /** Rota un vector (sin perspectiva). */
+        /** Rotates a vector (no perspective). */
         float[] rot(float vx, float vy, float vz) {
             float x1 = vx * cyA + vz * syA, z1 = -vx * syA + vz * cyA;
             return new float[]{x1, vy * cxA - z1 * sxA, vy * sxA + z1 * cxA};
@@ -55,9 +55,9 @@ public final class Coin3D {
     }
 
     /**
-     * @param r     radio en píxeles
-     * @param flip  giro alrededor del eje horizontal (grados; 0 = cara, 180 = cruz)
-     * @param tilt  inclinación lateral (grados)
+     * @param r     radius in pixels
+     * @param flip  rotation around the horizontal axis (degrees; 0 = heads, 180 = tails)
+     * @param tilt  sideways tilt (degrees)
      */
     public static void draw(DrawContext ctx, float r, float flip, float tilt, int style, float alpha) {
         if (alpha <= 0.01f) return;
@@ -73,7 +73,7 @@ public final class Coin3D {
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
         BufferBuilder bb = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
 
-        // canto: segmentos ordenados de atrás hacia delante
+        // edge: segments sorted back to front
         final int seg = 48;
         Integer[] order = new Integer[seg];
         float[] depth = new float[seg];
@@ -96,20 +96,20 @@ public final class Coin3D {
             quad(bb, mat, pr, c0, s0, th / 2, c1, s1, th / 2, c1, s1, -th / 2, c0, s0, -th / 2, c);
         }
 
-        // cara visible
+        // visible face
         float[] fn = pr.rot(0, 0, 1);
         boolean front = fn[2] >= 0;
         float z = front ? th / 2 : -th / 2;
         float[] nn = front ? fn : new float[]{-fn[0], -fn[1], -fn[2]};
         float lit = 0.62f + 0.38f * Math.max(0, nn[0] * LX + nn[1] * LY + nn[2] * LZ);
-        float mir = front ? 1 : -1; // vista por detrás: refleja el dibujo para que se lea bien
+        float mir = front ? 1 : -1; // seen from behind: mirror the drawing so it reads correctly
         float gloss = (float) Math.sin(Math.toRadians(flip) * 1.0 + Math.toRadians(tilt) * 2) * 1.1f;
         Face f = new Face(bb, mat, pr, z, mir, lit, gloss, alpha, r);
         f.disk(0, 0, r, st.faceDark(), st.faceDark(), 0, 360);
         f.disk(0, 0, r * 0.93f, st.face(), dev.tcgshop.client.binder.Ui.brighten(st.face(), 22), 0, 360);
         f.ring(0, 0, r * 0.84f, r * 0.80f, st.faceDark());
         if (front) emblem(f, st, r);
-        else { // estrella
+        else { // star
             f.star(0, r * 0.03f, r * 0.6f, r * 0.26f, shadeRgb(st.faceDark(), 0.8f));
             f.star(0, 0, r * 0.56f, r * 0.24f, dev.tcgshop.client.binder.Ui.brighten(st.face(), 35));
             f.star(0, 0, r * 0.36f, r * 0.15f, st.faceDark());
@@ -118,7 +118,7 @@ public final class Coin3D {
                 f.disk((float) Math.cos(a) * r * 0.72f, (float) Math.sin(a) * r * 0.72f, r * 0.035f, st.faceDark(), st.faceDark(), 0, 360);
             }
         }
-        if (st.fx() != dev.tcgshop.duel.Cosmetics.FX_NONE) { // destellos que aparecen y se apagan
+        if (st.fx() != dev.tcgshop.duel.Cosmetics.FX_NONE) { // sparkles that appear and fade out
             for (int k = 0; k < 3; k++) {
                 double cyc = now * 0.8 + k * 0.37, ph = cyc % 1.0, gen = Math.floor(cyc);
                 float g = (float) Math.sin(ph * Math.PI);
@@ -132,7 +132,7 @@ public final class Coin3D {
         RenderSystem.enableCull();
     }
 
-    /** Emblema de la cara (con su sombra de relieve). */
+    /** Heads emblem (with its embossed shadow). */
     private static void emblem(Face f, dev.tcgshop.duel.Cosmetics.Coin st, float r) {
         float er = r * 0.56f;
         int A = st.emA(), B = st.emB(), sh = shadeRgb(st.faceDark(), 0.8f), ink = 0xFF1C1C22;
@@ -247,7 +247,7 @@ public final class Coin3D {
                     f.disk((float) Math.cos(th) * rr, (float) Math.sin(th) * rr, er * (0.05f + 0.06f * k / 70f), B, B, 0, 360);
                 }
             }
-            default -> { // escudo
+            default -> { // shield
                 float[] out = {-0.68f, -0.78f, 0.68f, -0.78f, 0.68f, 0.02f, 0f, 0.9f, -0.68f, 0.02f};
                 f.poly(out, er * 1.06f, 0, r * 0.04f, sh);
                 f.poly(out, er, 0, 0, A);
@@ -287,7 +287,7 @@ public final class Coin3D {
         f.tri(cx - s * 0.76f, cy - s * 0.08f, cx + s * 0.76f, cy - s * 0.08f, cx, cy + s * 0.88f, c);
     }
 
-    /** Sombra suave en el suelo (elipse), centrada en el origen actual. */
+    /** Soft shadow on the ground (ellipse), centered on the current origin. */
     public static void shadow(DrawContext ctx, float r, float alpha) {
         if (alpha <= 0.01f) return;
         for (int k = 4; k >= 1; k--) {
@@ -301,7 +301,7 @@ public final class Coin3D {
         }
     }
 
-    // ------------------------------------------------------------------ cara
+    // ------------------------------------------------------------------ heads
 
     private static final class Face {
         final BufferBuilder bb;
@@ -334,7 +334,7 @@ public final class Coin3D {
             bb.vertex(mat, pr.x, pr.y, 0).color(cr, cg, cb, Math.round(((color >>> 24) & 0xFF) * alpha));
         }
 
-        /** Sector de disco de a0 a a1 grados (0 = derecha, 90 = abajo), con degradado del borde (c0) al centro (c1). */
+        /** Disc sector from a0 to a1 degrees (0 = right, 90 = down), with a gradient from the edge (c0) to the center (c1). */
         void disk(float cx, float cy, float rad, int c0, int c1, float a0, float a1) {
             int n = Math.max(6, Math.round((a1 - a0) / 7.5f));
             for (int k = 0; k < n; k++) {
@@ -365,7 +365,7 @@ public final class Coin3D {
             v(x0, y0, c); v(x1, y1, c); v(x2, y2, c);
         }
 
-        /** Poligono convexo (puntos en unidades, escalados por s y desplazados a cx, cy). */
+        /** Convex polygon (points in units, scaled by s and offset to cx, cy). */
         void poly(float[] pts, float s, float cx, float cy, int c) {
             float mx = 0, my = 0;
             int n = pts.length / 2;
@@ -378,7 +378,7 @@ public final class Coin3D {
             }
         }
 
-        /** Barra girada (deg) centrada en (cx, cy). */
+        /** Rotated bar (deg) centered on (cx, cy). */
         void bar(float cx, float cy, float len, float wid, float deg, int c) {
             double a = Math.toRadians(deg);
             float ux = (float) Math.cos(a) * len / 2, uy = (float) Math.sin(a) * len / 2, vx = (float) -Math.sin(a) * wid / 2, vy = (float) Math.cos(a) * wid / 2;
@@ -386,7 +386,7 @@ public final class Coin3D {
             tri(cx - ux - vx, cy - uy - vy, cx + ux + vx, cy + uy + vy, cx - ux + vx, cy - uy + vy, c);
         }
 
-        /** Destello de 4 puntas. */
+        /** 4-pointed sparkle. */
         void star4(float cx, float cy, float ro, float ri, int c) {
             for (int k = 0; k < 8; k++) {
                 double p = k * Math.PI / 4, q = (k + 1) * Math.PI / 4;

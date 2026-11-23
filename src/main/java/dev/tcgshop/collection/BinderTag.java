@@ -9,7 +9,7 @@ import net.minecraft.util.Uuids;
 
 import java.util.UUID;
 
-/** Componente de ítem: vincula un binder a su id único y a su dueño (se asigna al abrirlo por primera vez). */
+/** Item component: binds a binder to its unique id and its owner (assigned when first opened). */
 public record BinderTag(UUID id, UUID owner, String ownerName) {
     public static final Codec<BinderTag> CODEC = RecordCodecBuilder.create(i -> i.group(
             Uuids.CODEC.fieldOf("id").forGetter(BinderTag::id),

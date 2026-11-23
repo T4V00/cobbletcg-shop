@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""0.9 - stream "meowth": bocadillos cortos del Meowth del Team Rocket (sustituyen a la pantalla TutorialScreen).
+"""0.9 - "meowth" stream: short speech bubbles from Team Rocket's Meowth (they replace the TutorialScreen).
 
-Carga es_es.json y en_us.json de tcgshop, pone/actualiza estas claves, borra las del tutorial antiguo (que ya no usa
-nadie) y los vuelve a escribir. Idempotente.
-Uso: python tools/gen_lang_09_meowth.py  (desde cualquier carpeta)
+Loads tcgshop's es_es.json and en_us.json, sets/updates these keys, deletes the old tutorial ones (which nobody
+uses anymore) and writes them back. Idempotent.
+Usage: python tools/gen_lang_09_meowth.py  (from any folder)
 """
 import json
 import os
@@ -11,14 +11,14 @@ import os
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LANG = os.path.join(ROOT, "src", "main", "resources", "assets", "tcgshop", "lang")
 
-# Cada bocadillo <= ~90 letras (se escriben a 1.6 letras/tick y duran 4,5-6 s).
+# Each bubble <= ~90 letters (typed at 1.6 letters/tick and lasting 4.5-6 s).
 KEYS = {
     "tcgshop.tutorial.speaker": ("Meowth del Team Rocket", "Team Rocket's Meowth"),
-    # barra de acción (no chat) al aparecer / repetir
+    # action bar (not chat) on appearing / replaying
     "tcgshop.tutorial.appears": (
         "¡%s quiere hablarte! Clic derecho en él para pasar.",
         "%s wants a word! Right-click him to skip ahead."),
-    # sin Cobblemon (o el Meowth no pudo aparecer): única línea de chat
+    # without Cobblemon (or the Meowth couldn't spawn): single chat line
     "tcgshop.tutorial.no_meowth": (
         "¡Tienda lista! Usa /tcgshop tutorial para ver unos consejos rápidos.",
         "Shop ready! Use /tcgshop tutorial for some quick tips."),
@@ -49,7 +49,7 @@ KEYS = {
         "That's all, partner! If you forget: /tcgshop tutorial. Good luck with the shop!"),
 }
 
-# Tutorial antiguo (pantalla TutorialScreen, eliminada en la 0.9): ya no los referencia ningún código.
+# Old tutorial (TutorialScreen, removed in 0.9): no code references these anymore.
 OBSOLETE_PREFIXES = ("tcgshop.tutorial.topic.", "tcgshop.tutorial.line.")
 OBSOLETE_KEYS = {
     "tcgshop.tutorial.title", "tcgshop.tutorial.chat_fallback", "tcgshop.tutorial.skip", "tcgshop.tutorial.close",
@@ -61,7 +61,7 @@ OBSOLETE_KEYS = {
 def update(path, idx):
     with open(path, encoding="utf-8", newline="") as f:
         raw = f.read()
-    nl = "\r\n" if "\r\n" in raw else "\n"  # se respeta el fin de linea que tenga el fichero
+    nl = "\r\n" if "\r\n" in raw else "\n"  # keep whatever line ending the file has
     data = json.loads(raw)
     removed = [k for k in data if k in OBSOLETE_KEYS or k.startswith(OBSOLETE_PREFIXES)]
     for k in removed:
@@ -78,4 +78,4 @@ if __name__ == "__main__":
         assert len(es) <= 95 and len(en) <= 95, k
     r1 = update(os.path.join(LANG, "es_es.json"), 0)
     r2 = update(os.path.join(LANG, "en_us.json"), 1)
-    print("meowth: %d claves escritas, %d/%d obsoletas borradas" % (len(KEYS), r1, r2))
+    print("meowth: %d keys written, %d/%d obsolete deleted" % (len(KEYS), r1, r2))

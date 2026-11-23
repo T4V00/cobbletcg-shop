@@ -10,7 +10,7 @@ import net.minecraft.util.Uuids;
 
 import java.util.UUID;
 
-/** Cliente -> servidor (teléfono): contratar o despedir un empleado ("cashier" / "guard") en una tienda. */
+/** Client -> server (phone): hire or fire an employee ("cashier" / "guard") at a shop. */
 public record StaffPayload(UUID zone, String role, boolean hire) implements CustomPayload {
     public static final Id<StaffPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "staff"));
     public static final PacketCodec<RegistryByteBuf, StaffPayload> CODEC = PacketCodec.tuple(

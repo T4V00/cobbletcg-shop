@@ -7,7 +7,7 @@ import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
-/** Servidor -> cliente: número que salió, si ganaste, lo cobrado y tu nuevo saldo. */
+/** Server -> client: the number that came up, whether you won, the payout and your new balance. */
 public record RouletteResultPayload(int number, boolean win, long payout, long balance) implements CustomPayload {
     public static final Id<RouletteResultPayload> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "roulette_result"));
     public static final PacketCodec<RegistryByteBuf, RouletteResultPayload> CODEC = PacketCodec.tuple(

@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/** Todos los Binders Generales del mundo (id -> contenido). Se guarda en data/tcgshop_binders.dat del Overworld. */
+/** All General Binders in the world (id -> contents). Saved in the Overworld's data/tcgshop_binders.dat. */
 public class BinderRegistry extends PersistentState {
     private static final Codec<Map<UUID, BinderData>> CODEC = Codec.unboundedMap(Uuids.STRING_CODEC, BinderData.CODEC);
     private static final Type<BinderRegistry> TYPE = new Type<>(BinderRegistry::new, BinderRegistry::fromNbt, null);
@@ -41,7 +41,7 @@ public class BinderRegistry extends PersistentState {
         BinderRegistry r = new BinderRegistry();
         if (nbt.contains("binders")) {
             CODEC.parse(NbtOps.INSTANCE, nbt.get("binders"))
-                    .resultOrPartial(e -> TcgShop.LOGGER.error("Binders corruptos: {}", e))
+                    .resultOrPartial(e -> TcgShop.LOGGER.error("Corrupted binders: {}", e))
                     .ifPresent(r.binders::putAll);
         }
         return r;

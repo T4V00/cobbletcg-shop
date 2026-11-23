@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Textos de la mega actualización: tienda, teléfono, gafas, binders únicos, títulos, guantes. Español e inglés."""
+"""Texts for the mega update: shop, phone, goggles, unique binders, titles, gloves. Spanish and English."""
 import json
 from pathlib import Path
 
 LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
 
 T = {
-    # ítems y bloques
+    # items and blocks
     "item.tcgshop.nerd_gloves": ("Guantes de friki", "Nerd Gloves"),
     "item.tcgshop.nerd_gloves.tip1": ("Con ellos puestos, Espacio abre los sobres con un corte perfecto", "While worn, Space opens packs with a perfect cut"),
     "item.tcgshop.nerd_gloves.tip2": ("Póntelos en el slot de mano de Accessories o en la mano secundaria", "Wear them in the Accessories hand slot or your off hand"),
@@ -37,7 +37,7 @@ T = {
     "tcgshop.shop.tier.gold": ("Oro", "Gold"), "tcgshop.shop.tier.diamond": ("Diamante", "Diamond"),
     "tcgshop.shop.tier.emerald": ("Esmeralda", "Emerald"), "tcgshop.shop.tier.netherite": ("Netherita", "Netherite"),
 
-    # binders únicos / binder general
+    # unique binders / general binder
     "tcgshop.binder.bound": ("Binder registrado a tu nombre", "Binder registered to your name"),
     "tcgshop.binder.foreign": ("Este binder pertenece a %s", "This binder belongs to %s"),
     "tcgshop.binder.owner": ("Registrado a: %s", "Registered to: %s"),
@@ -71,13 +71,13 @@ T = {
                                     "Add cards to your wishlist from the General Binder (♡ button) to reserve a pocket here."),
     "tcgshop.personal.full": ("No quedan bolsillos libres: añade páginas con +", "No free pockets left: add pages with +"),
 
-    # apertura / guantes
+    # opening / gloves
     "tcgshop.open.need_gloves": ("Necesitas los Guantes de friki para abrir con Espacio", "You need Nerd Gloves to open with Space"),
 
     # Scalper
     "tcgshop.scalper.fight_back": ("¿Quieres pelea? ¡Pues la tendrás!", "Want a fight? You got one!"),
 
-    # tienda
+    # shop
     "tcgshop.shop.created": ("¡Tienda de %s creada! Zona protegida de %s×%s bloques", "%s shop created! Protected area of %s×%s blocks"),
     "tcgshop.shop.overlap": ("Aquí no: se solaparía con otra tienda", "Not here: it would overlap another shop"),
     "tcgshop.shop.protected": ("Esta zona es la tienda de %s", "This area is %s's shop"),
@@ -111,7 +111,7 @@ T = {
     "tcgshop.wholesaler.arrived": ("Un Mayorista misterioso ha llegado cerca... vende cajas de sobres al por mayor", "A Mysterious Wholesaler has arrived nearby... selling booster boxes wholesale"),
     "tcgshop.wholesaler.subtitle": ("Cajas al por mayor y todo para montar tu tienda", "Wholesale boxes and everything to start your shop"),
 
-    # gafas
+    # goggles
     "tcgshop.goggles.outside": ("Fuera de cualquier tienda", "Outside any shop"),
     "tcgshop.goggles.shop_of": ("Tienda de %s", "%s's shop"),
     "tcgshop.goggles.tier": ("%s · %s×%s", "%s · %s×%s"),
@@ -121,7 +121,7 @@ T = {
     "tcgshop.goggles.loss": ("Pérdida: %s", "Loss: %s"),
     "tcgshop.goggles.balance": ("En caja: %s · %s ventas", "In register: %s · %s sales"),
 
-    # teléfono
+    # phone
     "tcgshop.phone.welcome": ("¡Hola, coleccionista!", "Hi, collector!"),
     "tcgshop.phone.market": ("Mercado", "Market"),
     "tcgshop.phone.prices": ("Precios", "Prices"),
@@ -144,7 +144,7 @@ def main():
         for k, v in T.items():
             d[k] = v[i]
         p.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(len(T), "textos")
+    print(len(T), "texts")
 
 
 if __name__ == "__main__":

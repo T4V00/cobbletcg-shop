@@ -21,7 +21,7 @@ import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Ruleta Poké: elige rojo o negro, la cantidad que quieras, y gira. La cinta de números frena en el resultado. */
+/** Poké Roulette: pick red or black, any amount you want, and spin. The number strip slows down on the result. */
 public class RouletteScreen extends Screen {
     private record Area(int x, int y, int w, int h, Runnable action) {}
 
@@ -80,7 +80,7 @@ public class RouletteScreen extends Screen {
         Draw.scaledCentered(ctx, title.copy().formatted(Formatting.BOLD), width / 2f, y + 8, 1.4f, Ui.GOLD);
         ctx.drawCenteredTextWithShadow(textRenderer, Text.translatable("tcgshop.roulette.balance", PriceService.format(balance)), width / 2, y + 24, 0xFFFFFFFF);
 
-        // cinta de números
+        // number strip
         int sx = x + 12, sw = w - 24, sy = y + 40, sh = 44, cell = 34;
         ctx.fill(sx, sy, sx + sw, sy + sh, 0xFF0A0A0A);
         double p = MathHelper.clamp((t - spinStart) / 4.0, 0, 1);
@@ -100,7 +100,7 @@ public class RouletteScreen extends Screen {
             Ui.text(ctx, Text.literal(String.valueOf(n)).formatted(Formatting.BOLD), cx, sy + 3, cell, sh - 6, 0xFFFFFFFF, true);
         }
         ctx.disableScissor();
-        // tic-tac al pasar cada casilla
+        // tick-tock as each cell passes
         int cellNow = (int) (offset / cell);
         if (spinning() && cellNow != lastCell && client != null) {
             lastCell = cellNow;
@@ -109,7 +109,7 @@ public class RouletteScreen extends Screen {
         ctx.fill(centerX - 1, sy - 4, centerX + 1, sy + sh + 4, 0xFFF2C230);
         Ui.outline(ctx, sx, sy, sw, sh, 0xFF000000);
 
-        // resultado
+        // result
         if (result >= 0 && !spinning()) {
             Text res = win ? Text.translatable("tcgshop.roulette.win", PriceService.format(payout)).formatted(Formatting.GREEN, Formatting.BOLD)
                     : Text.translatable("tcgshop.roulette.lose").formatted(Formatting.RED, Formatting.BOLD);
@@ -121,7 +121,7 @@ public class RouletteScreen extends Screen {
                 if (client != null) client.getSoundManager().play(PositionedSoundInstance.master(win ? TcgSounds.CARD_LEGENDARY : SoundEvents.ENTITY_VILLAGER_NO, 1f, 1f));
             }
         }
-        // historial
+        // history
         int hx = x + 12;
         for (int n : history) {
             int col = n == 0 ? 0xFF1E8C3A : Roulette.RED.contains(n) ? 0xFFC62828 : 0xFF1B1B1F;
@@ -140,7 +140,7 @@ public class RouletteScreen extends Screen {
         if (red) Ui.outline(ctx, width / 2 - bw - 7, by - 1, bw + 2, 22, 0xFFFFFFFF);
         else Ui.outline(ctx, width / 2 + 5, by - 1, bw + 2, 22, 0xFFFFFFFF);
 
-        // cantidad
+        // amount
         amount.setY(by + 26);
         amount.render(ctx, mouseX, mouseY, delta);
         String[] quick = {"+1k", "+10k", "+100k", "×2", "½", "Max"};

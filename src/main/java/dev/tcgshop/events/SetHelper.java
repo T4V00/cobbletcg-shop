@@ -8,15 +8,15 @@ import net.minecraft.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Set y año de un producto (carta, sobre o caja) con la MasterBall Traders API: para los visitantes que buscan un set
- * concreto (coleccionista, nostálgico) y los eventos de "set nuevo".
+ * Set and year of a product (card, pack or box) via the MasterBall Traders API: for visitors looking for a specific
+ * set (collector, nostalgic) and the "new set" events.
  */
 public final class SetHelper {
     private static int newestYear = -1;
 
     private SetHelper() {}
 
-    /** Id del set ("mew151") o null si no es un producto TCG. */
+    /** Set id ("mew151") or null if it is not a TCG product. */
     @Nullable
     public static String setOf(ItemStack st) {
         if (st == null || st.isEmpty()) return null;
@@ -25,7 +25,7 @@ public final class SetHelper {
         return null;
     }
 
-    /** Año del set (0 si no se sabe). */
+    /** Year of the set (0 if unknown). */
     public static int year(@Nullable String set) {
         if (set == null) return 0;
         RarityData.SetData d = RarityData.set(set);
@@ -46,7 +46,7 @@ public final class SetHelper {
         return y > 0 && y >= newestYear();
     }
 
-    /** "Antiguo": 12 años o más por detrás del set más nuevo (Base Set, Neo, EX...). */
+    /** "Old": 12 or more years behind the newest set (Base Set, Neo, EX...). */
     public static boolean isOldSet(ItemStack st) {
         int y = year(setOf(st)), n = newestYear();
         return y > 0 && n > 0 && y <= n - 12;

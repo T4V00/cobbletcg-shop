@@ -35,30 +35,30 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * La charla del "Meowth del Team Rocket": una serie CORTA de bocadillos sobre su cabeza (los mismos bocadillos que los
- * NPC de la tienda, ClientSpeech) que sólo ve el dueño de la tienda. Mientras habla el Meowth se queda quieto (IA
- * apagada, sin navegar) y mirando al jugador; clic derecho sobre él pasa al siguiente bocadillo. Al terminar vuelve a
- * ser un Meowth salvaje normal y capturable.
+ * The "Team Rocket Meowth" talk: a SHORT series of speech bubbles over its head (the same bubbles as the shop
+ * NPCs, ClientSpeech) that only the shop owner sees. While talking, the Meowth stays still (AI
+ * disabled, not navigating) and looks at the player; right-clicking it advances to the next bubble. When done it goes back to
+ * being a normal, catchable wild Meowth.
  * <p>
- * Si el jugador se aleja más de {@link #PAUSE_DIST} bloques la charla se pausa (y se reanuda al volver); si tarda
- * demasiado, se desconecta, el Meowth desaparece/es capturado o entra en combate, se termina limpiamente. La IA
- * apagada se guarda en el NBT del Meowth: por eso lleva la etiqueta {@link #FROZEN_TAG} mientras está congelado y, si
- * el servidor se cerró a mitad (o se cayó), se le devuelve la IA al cargarlo.
+ * If the player moves more than {@link #PAUSE_DIST} blocks away the talk pauses (and resumes on return); if it takes
+ * too long, the player disconnects, the Meowth despawns/is caught or enters battle, it ends cleanly. The disabled
+ * AI is saved in the Meowth's NBT: that is why it carries the {@link #FROZEN_TAG} tag while frozen and, if
+ * the server shut down midway (or crashed), its AI is restored when it loads.
  */
 public final class MeowthTalk {
-    /** Etiqueta de entidad del Meowth del tutorial (para encontrarlo con /tcgshop tutorial y no sacar otro). */
+    /** Entity tag of the tutorial Meowth (to find it with /tcgshop tutorial and not spawn another). */
     public static final String MEOWTH_TAG = "tcgshop_tutorial_meowth";
-    /** Prefijo de la etiqueta con el dueño: tcgshop_meowth_owner_<uuid>. */
+    /** Prefix of the owner tag: tcgshop_meowth_owner_<uuid>. */
     public static final String OWNER_PREFIX = "tcgshop_meowth_owner_";
-    /** Puesta mientras está congelado por la charla. */
+    /** Set while frozen by the talk. */
     public static final String FROZEN_TAG = "tcgshop_meowth_frozen";
 
-    /** Bocadillos de la charla (tcgshop.tutorial.bubble.1 .. N). */
+    /** Talk bubbles (tcgshop.tutorial.bubble.1 .. N). */
     public static final int LINES = 8;
     public static final double PAUSE_DIST = 24, RESUME_DIST = 16, FIND_DIST = 24;
-    /** Pausada más de 1 minuto: se termina. */
+    /** Paused for more than 1 minute: it ends. */
     public static final int MAX_PAUSE = 20 * 60;
-    /** Ticks antes del primer bocadillo (para ver al Meowth aparecer). */
+    /** Ticks before the first bubble (to see the Meowth appear). */
     public static final int FIRST_DELAY = 20;
 
     private static final class Session {
@@ -78,7 +78,7 @@ public final class MeowthTalk {
 
     private static final Map<UUID, Session> SESSIONS = new HashMap<>();
     private static final Map<Class<?>, Method> BATTLING = new HashMap<>();
-    /** Pokemon.isWild() / Pokemon.getOwnerUUID() por clase (null guardado = no existe). */
+    /** Pokemon.isWild() / Pokemon.getOwnerUUID() per class (stored null = does not exist). */
     private static final Map<Class<?>, Method> IS_WILD = new HashMap<>(), OWNER_UUID = new HashMap<>();
     private static boolean registered;
 
@@ -96,14 +96,14 @@ public final class MeowthTalk {
             for (Session s : SESSIONS.values()) release(server, s, false);
             SESSIONS.clear();
         });
-        // Meowth que se quedó congelado (servidor cerrado o caído a mitad de la charla): se le devuelve la IA
+        // Meowth left frozen (server shut down or crashed in the middle of the talk): restore its AI
         ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
             if (!entity.getCommandTags().contains(FROZEN_TAG)) return;
             for (Session s : SESSIONS.values()) if (s.meowth.equals(entity.getUuid())) return;
             entity.removeCommandTag(FROZEN_TAG);
             if (entity instanceof MobEntity mob) mob.setAiDisabled(false);
         });
-        // clic derecho del dueño sobre el Meowth: siguiente bocadillo (y no hace nada más mientras habla)
+        // owner right-clicks the Meowth: next bubble (and does nothing else while it talks)
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
             if (world.isClient || !(player instanceof ServerPlayerEntity sp)) return ActionResult.PASS;
             Session s = SESSIONS.get(sp.getUuid());
@@ -111,7 +111,7 @@ public final class MeowthTalk {
             long now = world.getTime();
             if (hand == Hand.MAIN_HAND && now - s.lastClick >= 8 && s.index >= 0 && s.paused == 0) {
                 s.lastClick = now;
-                s.left = 0; // el tick siguiente pasa al próximo bocadillo
+                s.left = 0; // the next tick moves on to the next bubble
             }
             return ActionResult.SUCCESS;
         });
@@ -121,19 +121,19 @@ public final class MeowthTalk {
         return SESSIONS.containsKey(player.getUuid());
     }
 
-    /** Termina (si la hay) la charla de este jugador y devuelve la IA a su Meowth. */
+    /** Ends this player's talk (if any) and restores its Meowth's AI. */
     public static void stop(ServerPlayerEntity player) {
         Session s = SESSIONS.remove(player.getUuid());
         if (s != null && player.getServer() != null) release(player.getServer(), s, false);
     }
 
-    /** Marca la entidad como el Meowth del tutorial de este jugador. */
+    /** Marks the entity as this player's tutorial Meowth. */
     public static void tag(Entity meowth, ServerPlayerEntity owner) {
         meowth.addCommandTag(MEOWTH_TAG);
         meowth.addCommandTag(OWNER_PREFIX + owner.getUuid());
     }
 
-    /** Empieza (o reinicia) la charla de {@code meowth} para {@code player}. */
+    /** Starts (or restarts) {@code meowth}'s talk for {@code player}. */
     public static boolean start(ServerPlayerEntity player, Entity meowth) {
         if (!(meowth instanceof LivingEntity) || meowth.isRemoved()) return false;
         MinecraftServer server = player.getServer();
@@ -143,7 +143,7 @@ public final class MeowthTalk {
             if (old.meowth.equals(meowth.getUuid())) wasDisabled = old.wasAiDisabled;
             else if (server != null) release(server, old, false);
         }
-        // otro jugador ya está escuchando a este mismo Meowth: no se pisan
+        // another player is already listening to this same Meowth: don't overlap
         for (Session s : SESSIONS.values()) if (s.meowth.equals(meowth.getUuid())) return false;
         Session s = new Session(player.getUuid(), meowth.getUuid(), meowth.getWorld().getRegistryKey(), wasDisabled);
         SESSIONS.put(player.getUuid(), s);
@@ -153,8 +153,8 @@ public final class MeowthTalk {
     }
 
     /**
-     * El Meowth del tutorial de este jugador cerca de él (o, para mundos de antes de la 0.9, cualquier Pokémon con el
-     * mote "Meowth del Team Rocket"), o null.
+     * This player's tutorial Meowth near them (or, for pre-0.9 worlds, any Pokémon with the
+     * nickname "Meowth del Team Rocket"), or null.
      */
     public static Entity findNear(ServerPlayerEntity player) {
         String owner = OWNER_PREFIX + player.getUuid();
@@ -164,32 +164,32 @@ public final class MeowthTalk {
         double bd = Double.MAX_VALUE;
         for (LivingEntity e : list) {
             double d = e.squaredDistanceTo(player);
-            if (e.getCommandTags().contains(owner)) d -= 10_000; // el suyo primero
+            if (e.getCommandTags().contains(owner)) d -= 10_000; // their own first
             if (d < bd) { bd = d; best = e; }
         }
-        if (best != null && !best.getCommandTags().contains(MEOWTH_TAG)) tag(best, player); // Meowth de antes de la 0.9
+        if (best != null && !best.getCommandTags().contains(MEOWTH_TAG)) tag(best, player); // pre-0.9 Meowth
         return best;
     }
 
     private static boolean isTutorialMeowth(LivingEntity e, String ownerTag) {
         if (!(e instanceof MobEntity)) return false;
         if (e instanceof TameableEntity t && (t.isTamed() || t.getOwnerUuid() != null)) return false;
-        // ya capturado (sacado de la Poké Ball / en un pasto): es la mascota de alguien, nunca el del tutorial
+        // already caught (sent out of the Poké Ball / in a pasture): it is someone's pet, never the tutorial one
         Boolean wild = wildState(e);
         if (Boolean.FALSE.equals(wild)) return false;
         var tags = e.getCommandTags();
         if (tags.contains(MEOWTH_TAG)) {
-            for (String t : tags) if (t.startsWith(OWNER_PREFIX) && !t.equals(ownerTag)) return false; // el de otro jugador
+            for (String t : tags) if (t.startsWith(OWNER_PREFIX) && !t.equals(ownerTag)) return false; // another player's
             return true;
         }
-        // Meowth de antes de la 0.9 (sin etiqueta): sólo si se ha podido confirmar que es salvaje
+        // pre-0.9 Meowth (no tag): only if it could be confirmed to be wild
         if (!Boolean.TRUE.equals(wild)) return false;
         return hasSpeakerName(e.getDisplayName()) || e.getCustomName() != null && hasSpeakerName(e.getCustomName());
     }
 
     /**
-     * TRUE si es un Pokémon salvaje (sin entrenador), FALSE si tiene dueño, null si no se puede saber (no es un
-     * Pokémon de Cobblemon o falla la reflexión).
+     * TRUE if it is a wild Pokémon (no trainer), FALSE if it has an owner, null if it cannot be told (not a
+     * Cobblemon Pokémon or reflection fails).
      */
     private static Boolean wildState(Entity e) {
         Object pk = CobblemonActors.pokemonOf(e);
@@ -199,7 +199,7 @@ public final class MeowthTalk {
             try {
                 return (boolean) isWild.invoke(pk);
             } catch (Throwable ignored) {
-                // se prueba con el dueño
+                // try the owner instead
             }
         }
         Method owner = cachedMethod(OWNER_UUID, pk.getClass(), "getOwnerUUID");
@@ -207,7 +207,7 @@ public final class MeowthTalk {
             try {
                 return owner.invoke(pk) == null;
             } catch (Throwable ignored) {
-                // desconocido
+                // unknown
             }
         }
         return null;
@@ -221,7 +221,7 @@ public final class MeowthTalk {
         } catch (Throwable t) {
             m = null;
         }
-        cache.put(c, m); // también se guarda el null: no se vuelve a buscar
+        cache.put(c, m); // null is stored too: not looked up again
         return m;
     }
 
@@ -251,7 +251,7 @@ public final class MeowthTalk {
             if (s.paused > 0) {
                 if (!far && player.squaredDistanceTo(meowth) <= RESUME_DIST * RESUME_DIST) {
                     s.paused = 0;
-                    if (s.index >= 0) s.left = say(player, meowth, s.index); // repite el bocadillo en el que iba
+                    if (s.index >= 0) s.left = say(player, meowth, s.index); // repeat the bubble it was on
                 } else if (++s.paused > MAX_PAUSE) {
                     it.remove();
                     release(server, s, false);
@@ -277,11 +277,11 @@ public final class MeowthTalk {
         }
     }
 
-    /** Manda el bocadillo {@code i} sólo al dueño; devuelve los ticks que dura. */
+    /** Sends bubble {@code i} only to the owner; returns how many ticks it lasts. */
     private static int say(ServerPlayerEntity player, Entity meowth, int i) {
         Text line = line(i);
         int len = line.getString().length();
-        // ~1.6 letras por tick al escribirse + tiempo de lectura: 4,5-6 s
+        // ~1.6 letters per tick while typing + reading time: 4.5-6 s
         int ticks = MathHelper.clamp(60 + Math.round(len * 0.6f), 90, 120);
         if (ServerPlayNetworking.canSend(player, TutorialPayload.ID)) {
             ServerPlayNetworking.send(player, new TutorialPayload(meowth.getId(), line, ticks + 10));
@@ -297,13 +297,13 @@ public final class MeowthTalk {
         return Text.translatable("tcgshop.tutorial.bubble." + (i + 1));
     }
 
-    /** "<Meowth del Team Rocket> texto" para el chat (repetición sin Meowth cerca). */
+    /** "<Meowth del Team Rocket> text" for chat (fallback when no Meowth is nearby). */
     public static Text chatLine(Text line) {
         return Text.literal("<").append(Onboarding.meowthName().copy().formatted(Formatting.GOLD)).append("> ")
                 .append(line.copy().formatted(Formatting.WHITE));
     }
 
-    // ------------------------------------------------------------------ congelar / mirar
+    // ------------------------------------------------------------------ freeze / look
 
     private static void freeze(Entity e) {
         e.addCommandTag(FROZEN_TAG);
@@ -319,14 +319,14 @@ public final class MeowthTalk {
             mob.getNavigation().stop();
             if (!mob.isAiDisabled()) mob.setAiDisabled(true);
         }
-        e.setVelocity(0, Math.min(0, e.getVelocity().y), 0); // sin deslizarse, pero cae si está en el aire
+        e.setVelocity(0, Math.min(0, e.getVelocity().y), 0); // no sliding, but falls if in the air
     }
 
-    /** Termina la charla: devuelve la IA (vuelve a ser un Meowth salvaje normal). */
+    /** Ends the talk: restores the AI (it becomes a normal wild Meowth again). */
     private static void release(MinecraftServer server, Session s, boolean finished) {
         ServerWorld world = server.getWorld(s.world);
         Entity e = world == null ? null : world.getEntity(s.meowth);
-        if (e == null) return; // descargado: ENTITY_LOAD le devuelve la IA al volver a cargarse
+        if (e == null) return; // unloaded: ENTITY_LOAD restores its AI when it loads again
         e.removeCommandTag(FROZEN_TAG);
         if (e instanceof MobEntity mob) mob.setAiDisabled(s.wasAiDisabled);
         if (finished && world != null && e.isAlive()) {
@@ -335,7 +335,7 @@ public final class MeowthTalk {
         }
     }
 
-    /** Gira cuerpo, cabeza y mirada hacia los ojos del jugador (como mucho {@code maxStep} grados por tick). */
+    /** Turns body, head and gaze toward the player's eyes (at most {@code maxStep} degrees per tick). */
     private static void face(Entity e, ServerPlayerEntity p, float maxStep) {
         double dx = p.getX() - e.getX(), dz = p.getZ() - e.getZ();
         double dy = p.getEyeY() - e.getEyeY();
@@ -358,7 +358,7 @@ public final class MeowthTalk {
         }
     }
 
-    /** PokemonEntity.isBattling() por reflexión (false si no existe). */
+    /** PokemonEntity.isBattling() via reflection (false if it does not exist). */
     private static boolean battling(Entity e) {
         Method m;
         if (BATTLING.containsKey(e.getClass())) m = BATTLING.get(e.getClass());
@@ -369,7 +369,7 @@ public final class MeowthTalk {
             } catch (Throwable t) {
                 m = null;
             }
-            BATTLING.put(e.getClass(), m); // también se guarda el null: no se vuelve a buscar
+            BATTLING.put(e.getClass(), m); // null is stored too: not looked up again
         }
         if (m == null) return false;
         try {

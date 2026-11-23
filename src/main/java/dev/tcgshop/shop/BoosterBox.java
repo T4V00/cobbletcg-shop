@@ -41,19 +41,19 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
- * Caja de sobres (booster box) de un set: se ve como una caja de verdad con el arte del sobre.
- * Clic derecho en el aire con ella: se abre y da 36 sobres sellados. Colocada: producto para tu tienda.
+ * A set's booster box: looks like a real box with the pack art.
+ * Right-click in the air with it: it opens and gives 36 sealed packs. Placed: a product for your shop.
  */
 public final class BoosterBox {
     public static final int PACKS = 36;
-    /** Tamaño de la caja colocada (bloques). */
+    /** Size of the placed box (blocks). */
     public static final float W = 0.94f, H = 0.6f, D = 0.64f;
-    /** Ticks que dura la animación de apertura de una caja colocada. */
+    /** Duration in ticks of a placed box's opening animation. */
     public static final int OPEN_TICKS = 72;
 
     private BoosterBox() {}
 
-    /** set -> sobre sellado (Optional.empty si el set no tiene). El registro de ítems ya no cambia en partida. */
+    /** set -> sealed pack (Optional.empty if the set has none). The item registry no longer changes in-game. */
     private static final java.util.Map<String, java.util.Optional<Item>> SEALED = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Nullable
@@ -67,12 +67,12 @@ public final class BoosterBox {
         }).orElse(null);
     }
 
-    /** ¿Set quitado (TCG Pocket, desde la 0.9) o sin sobres? Una caja así no se puede abrir ni vender. */
+    /** Removed set (TCG Pocket, since 0.9) or one without packs? Such a box can't be opened or sold. */
     public static boolean isDeadSet(@Nullable String set) {
         return set == null || dev.masterball.api.migrate.RemovedItems.isRemovedSet(set) || sealedFor(set) == null;
     }
 
-    /** Caja de sobres de un set quitado o sin sobres: ShopServer no la acepta como producto ni le pone precio. */
+    /** Booster box of a removed set or one without packs: ShopServer doesn't accept it as a product or price it. */
     public static boolean isRemovedBox(ItemStack st) {
         return st.isOf(TcgBlocks.BOOSTER_BOX_ITEM) && isDeadSet(st.getOrDefault(TcgBlocks.BOX_SET, "mew151"));
     }
@@ -83,7 +83,7 @@ public final class BoosterBox {
         return st;
     }
 
-    // ------------------------------------------------------------------ bloque
+    // ------------------------------------------------------------------ block
 
     public static class BoxBlock extends BlockWithEntity {
         public static final DirectionProperty FACING = Properties.HORIZONTAL_FACING;
@@ -124,7 +124,7 @@ public final class BoosterBox {
             return world.isClient ? null : validateTicker(type, TcgBlocks.BOX_BE, (w, p, s, be) -> be.serverTick((net.minecraft.server.world.ServerWorld) w));
         }
 
-        /** Clic derecho a una caja colocada: se abre con su animación y, al terminar, te da los 36 sobres. */
+        /** Right-clicking a placed box: it opens with its animation and, when done, gives you the 36 packs. */
         @Override
         protected net.minecraft.util.ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, net.minecraft.util.hit.BlockHitResult hit) {
             if (world instanceof net.minecraft.server.world.ServerWorld sw && world.getBlockEntity(pos) instanceof BoxEntity be && be.openStart < 0) {
@@ -173,7 +173,7 @@ public final class BoosterBox {
 
         void serverTick(net.minecraft.server.world.ServerWorld world) {
             if (dev.masterball.api.migrate.RemovedItems.isRemovedSet(set)) {
-                // caja de TCG Pocket colocada antes de la 0.9: el set ya no existe (como sus cartas y sobres guardados)
+                // TCG Pocket box placed before 0.9: the set no longer exists (same as its saved cards and packs)
                 dev.masterball.api.migrate.RemovedItems.noteDropped();
                 world.removeBlock(pos, false);
                 return;
@@ -194,7 +194,7 @@ public final class BoosterBox {
                 if (p != null) p.sendMessage(Text.translatable("tcgshop.box.opened", PACKS, sealed.getName()).formatted(Formatting.GOLD), true);
             }
             if (sealed == null) {
-                // set sin sobres: la caja no se gasta, se queda cerrada
+                // set without packs: the box isn't consumed, it stays closed
                 openStart = -1;
                 markDirty();
                 world.updateListeners(pos, getCachedState(), getCachedState(), 3);
@@ -232,11 +232,11 @@ public final class BoosterBox {
         public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup lookup) { return createNbt(lookup); }
     }
 
-    // ------------------------------------------------------------------ ítem
+    // ------------------------------------------------------------------ item
 
     public static class BoxItem extends BlockItem {
         static {
-            // cajas guardadas de un set de TCG Pocket: se descartan al cargar, como sus cartas y sobres (masterball-api)
+            // saved boxes of a TCG Pocket set: discarded on load, like its cards and packs (masterball-api)
             dev.masterball.api.migrate.RemovedItems.registerSetComponent("tcgshop:booster_box", "tcgshop:box_set");
         }
 

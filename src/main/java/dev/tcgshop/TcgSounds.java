@@ -6,8 +6,8 @@ import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.Identifier;
 
 /**
- * Sonidos propios. En assets/tcgshop/sounds.json apuntan por ahora a eventos vanilla;
- * se pueden reemplazar por .ogg propios sin tocar el código.
+ * Custom sounds. In assets/tcgshop/sounds.json they currently point to vanilla events;
+ * they can be replaced with custom .ogg files without touching the code.
  */
 public final class TcgSounds {
     public static final SoundEvent PACK_SHAKE = register("pack.shake");
