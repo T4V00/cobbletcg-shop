@@ -72,7 +72,7 @@ Customer lines are `tcgshop.evline.<lines>.<0..count-1>`.
 | `weather` | Any of `clear`, `rain`, `thunder`, `wet` (= rain or thunder). Thunder also matches `rain`. A biome with no precipitation counts as `clear`. | |
 | `time` | Time-of-day window `[from, to]` in ticks 0..24000; may wrap around | |
 | `rep` | Reputation range `[min, max]` | |
-| `minTier` / `maxTier` | Shop tier key | `"wood"` .. `"netherite"` |
+| `minTier` / `maxTier` | Shop tier key (`paper`, `wood`, `brick`, `stone`, `copper`, `iron`, `gold`, `lapis`, `diamond`, `amethyst`, `emerald`, `netherite`). An event's `minTier` defaults to `wood`, so the Paper stall gets no random events unless the event sets `"minTier": "paper"`; a variant's conditions add no tier floor. | `"wood"` .. `"netherite"` |
 | `minDisplays`, `minSales`, `minRegulars`, `minStars`, `minDecor` | Minimum values | |
 | `flags` / `notFlags` | Zone flags from the last recompute | `no_roof`, `no_walls`, `dark`, `bright`, `hostile`, `pets`, `pokemon`, `farm_animals`, `cozy`, `cheap`, `pricey`, `empty`, `infamy` |
 | `requires` | Facilities the shop must have (next table) | |

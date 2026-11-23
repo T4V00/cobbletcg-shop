@@ -51,7 +51,11 @@ public record EventConditions(List<String> biomes, List<String> notBiomes, Set<S
 
     public static void setNearbyPokemon(NearbyPokemonPredicate p) { nearby = p == null ? EventConditions::defaultNearby : p; }
 
-    public static final EventConditions ALWAYS = parse(new JsonObject());
+    /** Default minimum tier of an event: Wood, so the Paper stall gets no random events unless an event sets "minTier": "paper". */
+    public static final String DEFAULT_MIN_TIER = "wood";
+
+    /** No conditions at all (variants without their own "conditions": they only narrow the event's, so no tier floor). */
+    public static final EventConditions ALWAYS = parseVariant(new JsonObject());
 
     private static boolean defaultNearby(ServerWorld world, ShopZones.Zone z, List<String> species, int radius, int min) {
         if (!species.isEmpty()) return false;
@@ -65,7 +69,20 @@ public record EventConditions(List<String> biomes, List<String> notBiomes, Set<S
 
     // ------------------------------------------------------------------ parsing
 
+    /** An event's own conditions: without "minTier" the event needs a Wood shop or higher (the Paper stall gets none). */
     public static EventConditions parse(JsonObject o) {
+        return parse(o, DEFAULT_MIN_TIER);
+    }
+
+    /**
+     * A variant's conditions: they are tested on top of the event's, so without "minTier" they add no tier floor
+     * (an event that opts into the Paper stall keeps all its variants there).
+     */
+    public static EventConditions parseVariant(JsonObject o) {
+        return parse(o, ShopTier.PAPER.key);
+    }
+
+    private static EventConditions parse(JsonObject o, String defaultMinTier) {
         int[] time = null;
         if (o.has("time")) {
             JsonArray a = o.getAsJsonArray("time");
@@ -80,15 +97,15 @@ public record EventConditions(List<String> biomes, List<String> notBiomes, Set<S
         }
         double minTemp = EventDef.dbl(o, "minTemp", -10), maxTemp = EventDef.dbl(o, "maxTemp", 10);
         return new EventConditions(strings(o, "biomes"), strings(o, "notBiomes"), lower(strings(o, "weather")), time, repMin, repMax,
-                tier(EventDef.str(o, "minTier", "wood")), tier(EventDef.str(o, "maxTier", "netherite")), lower(strings(o, "requires")),
+                tier(EventDef.str(o, "minTier", defaultMinTier)), tier(EventDef.str(o, "maxTier", "netherite")), lower(strings(o, "requires")),
                 EventDef.integer(o, "minDisplays", 0), EventDef.integer(o, "minSales", 0), EventDef.integer(o, "minRegulars", 0),
                 EventDef.dbl(o, "minStars", 0), EventDef.integer(o, "minDecor", 0), lower(strings(o, "flags")), lower(strings(o, "notFlags")),
                 minTemp, maxTemp, np, EventDef.str(o, "exclusiveGroup", ""), EventDef.integer(o, "cooldownDays", -1), EventDef.integer(o, "maxPerWeek", 0));
     }
 
     private static int tier(String key) {
-        for (ShopTier t : ShopTier.values()) if (t.key.equalsIgnoreCase(key)) return t.ordinal();
-        return 0;
+        ShopTier t = ShopTier.byKey(key); // 1.0: ranks (Paper = 0 ... Netherite = 11), compared with Zone.tier
+        return t != null ? t.rank() : 0;
     }
 
     private static List<String> strings(JsonObject o, String k) {

@@ -48,6 +48,7 @@ public class TcgShop implements ModInitializer {
         dev.tcgshop.shop.VanillaPrices.load();
         EconomyConfig.load();
         dev.tcgshop.shop.ShopProtection.register();
+        dev.tcgshop.shop.RgbLighting.register(); // 1.0 RGB displays: sneak + dye / glowstone dust sets the LEDs
         CollectionService.init();
 
         // network: server -> client
@@ -71,6 +72,7 @@ public class TcgShop implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(NpcSpeechPayload.ID, NpcSpeechPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(dev.tcgshop.network.TutorialPayload.ID, dev.tcgshop.network.TutorialPayload.CODEC);
         dev.tcgshop.onboarding.MeowthTalk.register();
+        dev.tcgshop.onboarding.Onboarding.register(); // 1.0: starter config migration, one-time visitors, first-pack money fallback
         // CobbleGrade
         dev.tcgshop.grading.Grading.init();
         dev.masterball.api.card.PrintVariant.init();
@@ -111,6 +113,9 @@ public class TcgShop implements ModInitializer {
                 case "beggar" -> {
                     if (pl.getWorld().getEntityById(p.data().getInt("id")) instanceof dev.tcgshop.entity.BeggarEntity b) b.answer(pl, p.data().getString("action"));
                 }
+                case "unique_collector" -> {
+                    if (pl.getWorld().getEntityById(p.data().getInt("id")) instanceof dev.tcgshop.entity.UniqueCollectorEntity u) u.answer(pl, p.data().getString("action"));
+                }
                 case "black_market" -> {
                     if (pl.getWorld().getEntityById(p.data().getInt("id")) instanceof dev.tcgshop.entity.BlackMarketEntity m && p.data().containsUuid("mon"))
                         m.trade(pl, p.data().getUuid("mon"));
@@ -133,6 +138,9 @@ public class TcgShop implements ModInitializer {
         dev.tcgshop.compat.NpcPokemonDuel.register();
         // TCG competitive mode
         dev.tcgshop.ptcg.PtcgDuels.register();
+        dev.tcgshop.ptcg.PlayTables.register(); // 1.0: chairs requirement, customer challenges and exhibitions
+        dev.tcgshop.luxury.StatuePacks.register(); // 1.0: customers drop packs near tier 3+ statues
+        dev.tcgshop.shop.Discounts.register(); // 1.0: store sale event (+ its sync payload)
         PayloadTypeRegistry.playS2C().register(PtcgPayloads.View.ID, PtcgPayloads.View.CODEC);
         PayloadTypeRegistry.playC2S().register(PtcgPayloads.Action.ID, PtcgPayloads.Action.CODEC);
         PayloadTypeRegistry.playS2C().register(PtcgPayloads.League.ID, PtcgPayloads.League.CODEC);
@@ -171,6 +179,7 @@ public class TcgShop implements ModInitializer {
         }));
         ServerPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.FurniturePayloads.Trade.ID, (p, ctx) -> ctx.server().execute(() -> {
             if (p.source() == -1 && !dev.tcgshop.phone.PhoneUpgrades.requireApp(ctx.player(), "furniture")) return;
+            if (p.source() == -1 && !p.sell() && dev.tcgshop.phone.Loans.blocksPhonePurchase(ctx.player())) return; // 1.0: active loan
             dev.tcgshop.shop.FurnitureShop.handleTrade(ctx.player(), p);
         }));
         // quick-sell of cards / emeralds and wandering Collector

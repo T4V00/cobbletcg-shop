@@ -74,7 +74,7 @@ final class IncidentPlacer {
     /** Block entities inside the zone, only from already-loaded chunks (never loads chunks). */
     static List<BlockEntity> zoneBlockEntities(ServerWorld w, ShopZones.Zone z) {
         List<BlockEntity> out = new ArrayList<>();
-        int half = z.tierInfo().size / 2;
+        int half = z.size() / 2;
         int cx0 = (z.core.getX() - half) >> 4, cx1 = (z.core.getX() + half) >> 4, cz0 = (z.core.getZ() - half) >> 4, cz1 = (z.core.getZ() + half) >> 4;
         for (int cx = cx0; cx <= cx1; cx++)
             for (int cz = cz0; cz <= cz1; cz++) {
@@ -122,7 +122,7 @@ final class IncidentPlacer {
                 if (found.size() >= want * 6) break;
             }
         } else {
-            int half = z.tierInfo().size / 2, size = half * 2 + 1;
+            int half = z.size() / 2, size = half * 2 + 1;
             for (int i = 0; i < 160 && found.size() < want * 6; i++) {
                 int x = z.core.getX() - half + rng.nextInt(size), zz = z.core.getZ() - half + rng.nextInt(size);
                 for (int y = z.core.getY() + 2; y >= z.core.getY() - ShopZones.BELOW + 1; y--) {

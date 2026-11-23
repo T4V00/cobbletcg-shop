@@ -169,6 +169,7 @@ public class CatalogPanel {
             if (lock) Ui.text(ctx, dev.tcgshop.client.phone.PhoneClient.tierName(req[i]), tx + 2, ty + tileH - 12, tileW - 4, 10,
                     dev.tcgshop.phone.PhoneTier.of(req[i]).color, true);
             else Ui.text(ctx, Text.literal(PriceService.format(prices.get(i))), tx + 2, ty + tileH - 12, tileW - 4, 10, Ui.GOLD, true);
+            if (!lock) dev.tcgshop.client.phone.DiscountTag.tile(ctx, st, tx, ty, tileW, tileH, prices.get(i)); // 1.0: «-30%» tag + old price
             if (hover) {
                 List<Text> tip = new ArrayList<>(List.of(st.getName(), Text.literal(PriceService.format(prices.get(i))).formatted(Formatting.GOLD)));
                 if (lock) tip.add(requires(req[i]).formatted(Formatting.RED));

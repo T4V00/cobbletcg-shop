@@ -22,6 +22,7 @@ public final class PhoneStore {
 
     /** Same arguments as ShopServer.buy (goods = the catalog BEFORE storeView, factor = the base factor). */
     public static void buy(StoreBuyPayload p, ServerPlayerEntity player, List<ItemStack> goods, double factor) {
+        if (p.source() == -1 && Loans.blocksPhonePurchase(player)) return; // 1.0: no phone purchases while a loan is active
         List<ItemStack> view = PhoneUpgrades.storeView(player, p.source(), goods);
         if (p.index() < 0 || p.index() >= view.size()) {
             ShopServer.buy(p, player, goods, factor); // ignores it too (stale catalog)
@@ -34,7 +35,7 @@ public final class PhoneStore {
         // expected total, computed like ShopServer.buy does (without consuming the event discount)
         double f = PhoneUpgrades.priceFactor(player, p.source(), factor)
                 * dev.tcgshop.events.EventManager.purchaseFactor(player, p.source(), false);
-        long expected = ShopServer.priceOf(item, f) * qty;
+        long expected = ShopServer.storePrice(item, f) * qty; // 1.0: with the store sale event, like ShopServer.buy
         boolean bank = CobbleDollarsBridge.isAvailable();
         long before = CobbleDollarsBridge.getBalance(player);
         ShopServer.buy(p, player, goods, factor);

@@ -266,6 +266,7 @@ public class DealScreen extends Screen {
         String titleKey = switch (deal.mode()) { case DealOpenPayload.SELL -> "tcgshop.deal.sell_title"; case DealOpenPayload.TRADE -> "tcgshop.deal.trade_title";
             default -> "tcgshop.deal.buy_title"; };
         Draw.scaledCentered(ctx, Text.translatable(titleKey).formatted(Formatting.BOLD), x + w / 2f, y + 8, 1.1f, 0xFFFFFFFF);
+        if (haggle() && closing == null) charismaChip(ctx, x + 8, y + 6, mouseX, mouseY);
 
         if (haggle()) renderHaggle(ctx, x, y, w, h, mouseX, mouseY, t, in);
         else {
@@ -344,6 +345,31 @@ public class DealScreen extends Screen {
             String dots = ".".repeat(1 + (int) (t * 3) % 3);
             Ui.text(ctx, Text.translatable("tcgshop.deal.thinking").append(dots), x + w - 90, y + 26 - 12, 84, 10, 0xFFE8E8F0, true);
         }
+    }
+
+    /**
+     * 1.0 charisma: your level and haggling bonus (from your shop's zone sync, ShopMissions.writeSync) as a chip in the
+     * header; hovering it explains it in the footer. Nothing is drawn without a synced shop.
+     */
+    private void charismaChip(DrawContext ctx, int x, int y, int mx, int my) {
+        net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+        if (mc.player == null) return;
+        java.util.UUID me = mc.player.getUuid();
+        int lvl = 0, bonus = 0;
+        for (ShopClient.ZoneInfo z : ShopClient.zones) {
+            if (!z.owner().equals(me) || z.ext() == null || !z.ext().contains("charisma")) continue;
+            lvl = z.ext().getInt("charisma");
+            bonus = z.ext().getInt("charisma_bonus");
+            break;
+        }
+        if (lvl <= 0) return;
+        Text label = Text.translatable("tcgshop.charisma.chip", lvl, String.format(Locale.ROOT, "+%.1f%%", bonus / 10.0));
+        int cw = textRenderer.getWidth(label) + 10;
+        boolean hover = Ui.in(mx, my, x, y, cw, 12);
+        Ui.round(ctx, x, y, cw, 12, hover ? 0xAA7B3FA8 : 0x775A2C80);
+        Ui.outline(ctx, x, y, cw, 12, 0x99E0B0FF);
+        ctx.drawText(textRenderer, label, x + 5, y + 2, 0xFFF0DDFF, false);
+        if (hover) tip = "tcgshop.charisma.deal_tip";
     }
 
     private int moodColor() {

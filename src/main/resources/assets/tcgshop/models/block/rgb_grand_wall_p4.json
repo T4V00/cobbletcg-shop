@@ -1,0 +1,145 @@
+{
+ "parent": "minecraft:block/block",
+ "textures": {
+  "velvet": "tcgshop:block/rgb_velvet",
+  "carbon": "tcgshop:block/rgb_carbon",
+  "led": "tcgshop:block/rgb_led",
+  "particle": "tcgshop:block/rgb_panel",
+  "chrome": "tcgshop:block/rgb_chrome"
+ },
+ "elements": [
+  {
+   "from": [
+    0,
+    0,
+    12
+   ],
+   "to": [
+    16,
+    16,
+    16
+   ],
+   "faces": {
+    "north": {
+     "texture": "#velvet",
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ]
+    },
+    "south": {
+     "texture": "#velvet",
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    4.2,
+    0,
+    11.6
+   ],
+   "to": [
+    4.8,
+    16,
+    12
+   ],
+   "faces": {
+    "north": {
+     "texture": "#chrome",
+     "uv": [
+      11.2,
+      0,
+      11.8,
+      16
+     ]
+    },
+    "south": {
+     "texture": "#chrome",
+     "uv": [
+      4.2,
+      0,
+      4.8,
+      16
+     ]
+    },
+    "east": {
+     "texture": "#chrome",
+     "uv": [
+      4,
+      0,
+      4.4,
+      16
+     ]
+    },
+    "west": {
+     "texture": "#chrome",
+     "uv": [
+      11.6,
+      0,
+      12,
+      16
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    11.2,
+    0,
+    11.6
+   ],
+   "to": [
+    11.8,
+    16,
+    12
+   ],
+   "faces": {
+    "north": {
+     "texture": "#chrome",
+     "uv": [
+      4.2,
+      0,
+      4.8,
+      16
+     ]
+    },
+    "south": {
+     "texture": "#chrome",
+     "uv": [
+      11.2,
+      0,
+      11.8,
+      16
+     ]
+    },
+    "east": {
+     "texture": "#chrome",
+     "uv": [
+      4,
+      0,
+      4.4,
+      16
+     ]
+    },
+    "west": {
+     "texture": "#chrome",
+     "uv": [
+      11.6,
+      0,
+      12,
+      16
+     ]
+    }
+   }
+  }
+ ],
+ "ambientocclusion": false
+}

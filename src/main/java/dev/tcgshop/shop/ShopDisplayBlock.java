@@ -53,23 +53,33 @@ public class ShopDisplayBlock extends BlockWithEntity implements ShopFurniture {
     public final DisplayKind kind;
     /** "Home" display: can be placed anywhere, only its owner adds and removes cards, and nothing is sold. */
     public final boolean home;
+    /** 1.0 RGB displays: default LED animation ({@link RgbLighting} mode), or -1 for a display without LEDs. */
+    public final int rgbDefault;
 
     public ShopDisplayBlock(DisplayKind kind, Settings settings) {
         this(kind, false, settings);
     }
 
     public ShopDisplayBlock(DisplayKind kind, boolean home, Settings settings) {
+        this(kind, home, -1, settings);
+    }
+
+    public ShopDisplayBlock(DisplayKind kind, boolean home, int rgbDefault, Settings settings) {
         super(settings);
         this.kind = kind;
         this.home = home;
+        this.rgbDefault = rgbDefault;
         setDefaultState(getDefaultState().with(FACING, Direction.NORTH).with(PART, 0));
     }
 
     public int slots() { return kind.slots.length; }
 
+    /** Has animated RGB lighting (drawn by client.render.RgbLights). */
+    public boolean isRgb() { return rgbDefault >= 0; }
+
     @Override
     protected MapCodec<? extends BlockWithEntity> getCodec() {
-        return createCodec(s -> new ShopDisplayBlock(kind, home, s));
+        return createCodec(s -> new ShopDisplayBlock(kind, home, rgbDefault, s));
     }
 
     @Override
@@ -254,6 +264,25 @@ public class ShopDisplayBlock extends BlockWithEntity implements ShopFurniture {
         return Put.DONE;
     }
 
+    /**
+     * 1.0 RGB displays: sneak + right-click with a dye (LED color) or glowstone dust (next animation), on any part.
+     * Called from RgbLighting's UseBlockCallback: vanilla skips the block's own use handlers while sneaking with an
+     * item in hand, so onUseWithItem never sees it.
+     */
+    public void configureLights(ServerWorld world, ServerPlayerEntity player, BlockState state, BlockPos pos, ItemStack stack) {
+        if (!isRgb()) return;
+        ShopDisplayBlockEntity be = entity(world, state, pos, player);
+        if (be != null) RgbLighting.configure(world, player, be, stack, mayConfigureLights(world, player, be));
+    }
+
+    /** Who may change the LEDs: home displays their owner; shop displays the shop's owner (or whoever placed it); ops in creative. */
+    private boolean mayConfigureLights(ServerWorld world, ServerPlayerEntity player, ShopDisplayBlockEntity be) {
+        if (player.isCreative() && player.hasPermissionLevel(2)) return true;
+        if (home) return be.mayEdit(player);
+        ShopZones.Zone z = ShopZones.get(world).at(be.getPos());
+        return z != null ? z.owner.equals(player.getUuid()) : player.getUuid().equals(be.owner);
+    }
+
     /** Shop display whose master is in no zone: message for its owner, or null for anyone else. */
     @Nullable
     private Text outsideReason(ServerWorld world, BlockState state, BlockPos master, ServerPlayerEntity player, ShopDisplayBlockEntity be) {
@@ -352,14 +381,18 @@ public class ShopDisplayBlock extends BlockWithEntity implements ShopFurniture {
      * /tcgshop debug selftest "display_slots" (1.0): builds every display block in the four facings and, for each
      * slot, aims at the product from in front (two distances, eye level and one block higher), raycasts the real
      * outline shapes of the parts and checks that the hit lands on that very slot. Returns the number of checks.
+     * It walks the block registry, so every display (home, classic and the 1.0 RGB ones) and every DisplayKind in use is
+     * covered automatically; it also fails if a DisplayKind has no block at all (an untested kind).
      */
     public static int selfTest(ServerWorld world, BlockPos base) {
         List<String> bad = new ArrayList<>();
         int checks = 0, n = 0;
         Direction[] facings = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST};
+        java.util.EnumSet<DisplayKind> tested = java.util.EnumSet.noneOf(DisplayKind.class);
         for (Block blk : Registries.BLOCK) {
             if (!(blk instanceof ShopDisplayBlock b)) continue;
             String name = Registries.BLOCK.getId(b).getPath();
+            tested.add(b.kind);
             for (Direction f : facings) {
                 BlockPos master = base.add((n % 9) * 5, 0, (n / 9) * 5); // compact grid: stays within a few chunks
                 n++;
@@ -407,6 +440,7 @@ public class ShopDisplayBlock extends BlockWithEntity implements ShopFurniture {
                 world.removeBlock(master, false);
             }
         }
+        for (DisplayKind k : DisplayKind.values()) if (!tested.contains(k)) bad.add(k + ": no display block uses it (untested)");
         if (!bad.isEmpty())
             throw new IllegalStateException(bad.size() + "/" + checks + " display slot checks failed, e.g. " + bad.subList(0, Math.min(8, bad.size())));
         return checks;

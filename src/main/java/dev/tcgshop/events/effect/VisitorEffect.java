@@ -200,7 +200,7 @@ public final class VisitorEffect implements EventEffect {
     private static String mostStockedSet(EventContext ctx) {
         ShopZones.Zone z = ctx.zone;
         Map<String, Integer> n = new HashMap<>();
-        int half = z.tierInfo().size / 2;
+        int half = z.size() / 2;
         for (int cx = (z.core.getX() - half) >> 4; cx <= (z.core.getX() + half) >> 4; cx++)
             for (int cz = (z.core.getZ() - half) >> 4; cz <= (z.core.getZ() + half) >> 4; cz++) {
                 WorldChunk ch = ctx.world.getChunkManager().getWorldChunk(cx, cz);

@@ -49,7 +49,7 @@ public final class NotifyEffect implements EventEffect {
     public void tick(EventContext ctx) {
         if (particles.isEmpty() || (whileUnresolved && ctx.instance.resolved()) || ctx.now() % 40 >= 20) return;
         ParticleEffect p = particle(particles);
-        int half = ctx.zone.tierInfo().size / 2;
+        int half = ctx.zone.size() / 2;
         for (int i = 0; i < 2; i++) {
             double x = ctx.zone.core.getX() + ctx.rng.nextInt(half * 2 + 1) - half + 0.5, z = ctx.zone.core.getZ() + ctx.rng.nextInt(half * 2 + 1) - half + 0.5;
             ctx.world.spawnParticles(p, x, ctx.zone.core.getY() + 1.5, z, 3, 0.4, 0.4, 0.4, 0);

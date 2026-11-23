@@ -53,7 +53,29 @@ public enum DisplayKind {
             s(0.5, 0.08, 0.5, 0.9, 1, 0, false), s(1.5, 0.08, 0.5, 0.9, 1, 0, false), s(2.5, 0.08, 0.5, 0.9, 1, 0, false),
             s(0.5, 1.06, 0.5, 0.9, 1, 0, false), s(1.5, 1.06, 0.5, 0.9, 1, 0, false), s(2.5, 1.06, 0.5, 0.9, 1, 0, false)),
     /** Wall frame for a single card (1 x 1). */
-    FRAME(1, 1, 1, Layout.UPRIGHT, s(0.5, 0.5, 0.84, 0.82, 1, 0, false));
+    FRAME(1, 1, 1, Layout.UPRIGHT, s(0.5, 0.5, 0.84, 0.82, 1, 0, false)),
+
+    // ---- 1.0 RGB displays (shop.RgbDisplays): new shapes, same slot and hit-test system as above
+    /** Tower of graded slabs: 2 columns x 3 shelves (2 x 3). */
+    SLAB_TOWER(2, 3, 1, Layout.UPRIGHT, grid(new double[]{0.5, 1.5}, new double[]{2.30, 1.40, 0.50}, 0.5, 0.60, 1, 0)),
+    /** Low turntable: one product spinning on a lit platter (1 x 1). */
+    TURNTABLE(1, 1, 1, Layout.SPIN, s(0.5, 0.64, 0.5, 0.56, 1, 0, true)),
+    /** Booster box stand: 2 columns x 3 boxes (2 x 3). */
+    BOX_STAND(2, 3, 1, Layout.BOXES,
+            s(0.5, 0.08, 0.5, 0.9, 1, 0, false), s(1.5, 0.08, 0.5, 0.9, 1, 0, false),
+            s(0.5, 1.06, 0.5, 0.9, 1, 0, false), s(1.5, 1.06, 0.5, 0.9, 1, 0, false),
+            s(0.5, 2.04, 0.5, 0.9, 1, 0, false), s(1.5, 2.04, 0.5, 0.9, 1, 0, false)),
+    /** Giant neon wall frame: one huge card (2 x 2). */
+    BIG_FRAME(2, 2, 1, Layout.UPRIGHT, s(1.0, 0.92, 0.84, 1.3, 1, 0, false)),
+    /** Small glass cube counter: 3 cards lying under the glass (2 x 1). */
+    GLASS_CUBE(2, 1, 1, Layout.LYING,
+            s(0.36, 0.63, 0.50, 0.80, 1, 68, false), s(1.0, 0.63, 0.50, 0.80, 1, 68, false), s(1.64, 0.63, 0.50, 0.80, 1, 68, false)),
+    /** Collector shelf: 2 shelves x 5 cards (3 x 2). */
+    MULTI_SHELF(3, 2, 1, Layout.UPRIGHT, grid(new double[]{0.35, 0.925, 1.5, 2.075, 2.65}, new double[]{1.47, 0.53}, 0.5, 0.62, 1, 8)),
+    /** Grand gallery wall: 5 x 3 cards hung on the wall (3 x 3). */
+    GRAND_WALL(3, 3, 1, Layout.UPRIGHT, grid(new double[]{0.32, 0.91, 1.5, 2.09, 2.68}, new double[]{2.36, 1.42, 0.48}, 0.66, 0.66, 1, 0)),
+    /** Three card frames in a row on the wall (3 x 1). */
+    WALL_TRIO(3, 1, 1, Layout.UPRIGHT, grid(new double[]{0.5, 1.5, 2.5}, new double[]{0.5}, 0.84, 0.82, 1, 0));
 
     public enum Layout { UPRIGHT, LYING, DOUBLE, BOXES, SPIN }
 
@@ -87,6 +109,14 @@ public enum DisplayKind {
         System.arraycopy(a, 0, out, 0, a.length);
         System.arraycopy(b, 0, out, a.length, b.length);
         return out;
+    }
+
+    /** Hung on a wall (frames, card walls): products are drawn straight, without the acrylic foot or the "messy" jitter. */
+    public boolean wallHung() {
+        return switch (this) {
+            case FRAME, CARD_WALL, BIG_FRAME, GRAND_WALL, WALL_TRIO -> true;
+            default -> false;
+        };
     }
 
     // ------------------------------------------------------------------ structure parts
@@ -140,6 +170,12 @@ public enum DisplayKind {
             case FRAME -> new double[]{0.5, 0.5, 13, 15.5, 15.5, 16};
             case COUNTER -> new double[]{0, 0, 1, 16, 15, 16};
             case PACK_SHELF -> new double[]{0, 0, 1, 16, 16, 16};
+            case SLAB_TOWER -> new double[]{0, 0, 0.5, 16, 16, 15.5};
+            case TURNTABLE -> new double[]{1, 0, 1, 15, 15, 15};
+            case BIG_FRAME -> new double[]{0, 0, 13, 16, 16, 16};
+            case MULTI_SHELF -> new double[]{0, 0, 1, 16, 16, 16};
+            case GRAND_WALL -> new double[]{0, 0, 9, 16, 16, 16};
+            case WALL_TRIO -> new double[]{0, 0.5, 13, 16, 15.5, 16};
             default -> null;
         };
         if (b == null) return VoxelShapes.fullCube();

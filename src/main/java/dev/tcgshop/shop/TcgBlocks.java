@@ -29,13 +29,25 @@ public final class TcgBlocks {
     public static final Map<ShopTier, Item> CORE_ITEMS = new EnumMap<>(ShopTier.class);
 
     static {
+        // 1.0: 12 tiers (Paper ... Netherite); ids are "shop_core_<key>", so the pre-1.0 blocks keep theirs
         for (ShopTier t : ShopTier.values()) {
             ShopCoreBlock b = register("shop_core_" + t.key, new ShopCoreBlock(t, AbstractBlock.Settings.create()
-                    .mapColor(MapColor.OAK_TAN).strength(2.5f, 1200f).sounds(t == ShopTier.WOOD ? BlockSoundGroup.WOOD : BlockSoundGroup.METAL)));
+                    .mapColor(MapColor.OAK_TAN).strength(2.5f, 1200f).sounds(coreSound(t))));
             CORES.put(t, b);
             CORE_ITEMS.put(t, item("shop_core_" + t.key, new BlockItem(b, new Item.Settings().maxCount(1)
-                    .rarity(t.ordinal() >= 5 ? Rarity.EPIC : t.ordinal() >= 3 ? Rarity.RARE : Rarity.COMMON))));
+                    .rarity(t.atLeast(ShopTier.EMERALD) ? Rarity.EPIC : t.atLeast(ShopTier.GOLD) ? Rarity.RARE
+                            : t.atLeast(ShopTier.COPPER) ? Rarity.UNCOMMON : Rarity.COMMON))));
         }
+    }
+
+    private static BlockSoundGroup coreSound(ShopTier t) {
+        return switch (t) {
+            case PAPER, WOOD -> BlockSoundGroup.WOOD;
+            case BRICK, STONE -> BlockSoundGroup.STONE;
+            case AMETHYST -> BlockSoundGroup.AMETHYST_BLOCK;
+            case COPPER -> BlockSoundGroup.COPPER;
+            default -> BlockSoundGroup.METAL;
+        };
     }
 
     private static AbstractBlock.Settings furniture(BlockSoundGroup sound) {
@@ -113,8 +125,8 @@ public final class TcgBlocks {
 
     public static final BlockEntityType<ShopDisplayBlockEntity> DISPLAY_BE = Registry.register(Registries.BLOCK_ENTITY_TYPE,
             Identifier.of(TcgShop.MOD_ID, "shop_display"),
-            BlockEntityType.Builder.create(ShopDisplayBlockEntity::new, CARD_STAND, DISPLAY_CASE, PACK_SHELF, GONDOLA, BOX_PALLET, PEDESTAL, CARD_WALL,
-                    COUNTER_DISPLAY, SHOWCASE, CARD_LEDGE, BOX_SHELF, CARD_FRAME, HOME_FRAME, HOME_LEDGE, HOME_SHOWCASE, HOME_CARD_WALL, HOME_PEDESTAL).build(null));
+            BlockEntityType.Builder.create(ShopDisplayBlockEntity::new, RgbDisplays.with(CARD_STAND, DISPLAY_CASE, PACK_SHELF, GONDOLA, BOX_PALLET, PEDESTAL, CARD_WALL,
+                    COUNTER_DISPLAY, SHOWCASE, CARD_LEDGE, BOX_SHELF, CARD_FRAME, HOME_FRAME, HOME_LEDGE, HOME_SHOWCASE, HOME_CARD_WALL, HOME_PEDESTAL)).build(null)); // 1.0: + RGB displays
     public static final BlockEntityType<BoosterBox.BoxEntity> BOX_BE = Registry.register(Registries.BLOCK_ENTITY_TYPE,
             Identifier.of(TcgShop.MOD_ID, "booster_box"),
             BlockEntityType.Builder.create(BoosterBox.BoxEntity::new, BOOSTER_BOX).build(null));

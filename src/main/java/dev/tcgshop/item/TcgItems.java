@@ -72,6 +72,7 @@ public final class TcgItems {
                         e.add(dev.tcgshop.shop.TcgBlocks.CARD_WALL_ITEM);
                         for (Item it : dev.tcgshop.shop.TcgBlocks.NEW_SHOP_DISPLAYS) e.add(it);
                         for (Item it : dev.tcgshop.shop.TcgBlocks.HOME_DISPLAYS) e.add(it);
+                        for (Item it : dev.tcgshop.shop.RgbDisplays.ITEMS) e.add(it); // 1.0 RGB displays
                         e.add(dev.tcgshop.shop.TcgBlocks.POSTER_ITEM);
                         e.add(dev.tcgshop.shop.TcgBlocks.PLAY_TABLE_ITEM);
                         e.add(dev.tcgshop.shop.TcgBlocks.THEFT_DETECTOR_ITEM);

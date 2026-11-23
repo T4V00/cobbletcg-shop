@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.ToDoubleBiFunction;
+import java.util.function.ToDoubleFunction;
 
 /**
  * 1.0 tips: whatever a customer pays above the owner's asking price. This world state keeps, per shop owner,
@@ -27,10 +28,21 @@ public final class TipLedger extends PersistentState {
     }
 
     /**
-     * Extra chance (0-1) that a happy customer leaves a tip at checkout, per owner. 0 by default; other systems
-     * (e.g. shop missions: "more missions = more luck with deals and tips") may replace it.
+     * Extra chance (0-1) that a happy customer leaves a tip at checkout, per owner. 0 by default; ShopMissions.init
+     * replaces it with the missions' luck (ShopMissions.ownerTipBonus: up to +8 points with every mission done).
      */
     public static ToDoubleBiFunction<MinecraftServer, UUID> chanceBonus = (server, owner) -> 0.0;
+
+    /**
+     * Zone-aware version of {@link #chanceBonus}: the extra tip chance of the shop where the sale happens. 0 by default;
+     * ShopMissions.init replaces it with ShopMissions.tipBonus (that shop's missions, not the owner's best shop).
+     */
+    public static ToDoubleFunction<ShopZones.Zone> zoneChanceBonus = z -> 0.0;
+
+    /** Extra checkout tip chance (0-1) in that shop (0 for a null zone). */
+    public static double chanceBonusAt(ShopZones.Zone z) {
+        return z == null ? 0 : Math.max(0, zoneChanceBonus.applyAsDouble(z));
+    }
 
     private final Map<UUID, Entry> owners = new HashMap<>();
 
@@ -49,6 +61,7 @@ public final class TipLedger extends PersistentState {
         if (e.day != day) { e.day = day; e.today = 0; }
         e.today += tip;
         l.markDirty();
+        Charisma.onTip(server, owner); // 1.0: tips make the owner more charismatic
     }
 
     /** That owner's tip record (an empty one if they never got a tip; do not modify). */

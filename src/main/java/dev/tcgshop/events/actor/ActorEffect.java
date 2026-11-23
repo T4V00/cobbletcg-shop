@@ -859,7 +859,7 @@ public final class ActorEffect implements EventEffect {
 
     /** Candidate floors inside the zone (random column sampling, not a full scan). */
     private static List<BlockPos> sampleFloor(ServerWorld w, ShopZones.Zone z, Random r) {
-        int half = z.tierInfo().size / 2;
+        int half = z.size() / 2;
         List<BlockPos> roofed = new ArrayList<>(), open = new ArrayList<>();
         int y0 = z.core.getY();
         for (int k = 0; k < 220 && roofed.size() < 40; k++) {
@@ -1023,7 +1023,7 @@ public final class ActorEffect implements EventEffect {
 
     private static List<BlockEntity> zoneBlockEntities(ServerWorld w, ShopZones.Zone z) {
         List<BlockEntity> out = new ArrayList<>();
-        int half = z.tierInfo().size / 2;
+        int half = z.size() / 2;
         int cx0 = (z.core.getX() - half) >> 4, cx1 = (z.core.getX() + half) >> 4, cz0 = (z.core.getZ() - half) >> 4, cz1 = (z.core.getZ() + half) >> 4;
         for (int cx = cx0; cx <= cx1; cx++)
             for (int cz = cz0; cz <= cz1; cz++) {

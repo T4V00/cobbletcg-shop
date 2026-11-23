@@ -165,6 +165,8 @@ public final class PtcgDuels {
         final BlockPos table = tablePos.toImmutable();
         Match mine = BY_PLAYER.get(p.getUuid());
         if (mine != null) { sendViews(mine, true); return; }
+        // 1.0: chairs requirement, customer exhibitions holding the table and pending customer challenges (PlayTables)
+        if (PlayTables.intercept(p, table)) return;
         if (!engineReady(p)) return;
         if (tableMatch(table) != null) {
             p.sendMessage(Text.translatable("tcgshop.duel.table_busy").formatted(Formatting.RED), true);
@@ -195,13 +197,61 @@ public final class PtcgDuels {
         startPvp(other, p, table, Mode.TABLE_PVP);
     }
 
+    // ------------------------------------------------------------------ 1.0: helpers for PlayTables (customer challenges)
+
+    /** Is that table taken: a match on it (running or just finished) or a player waiting there for an opponent? */
+    public static boolean tableInUse(BlockPos table) {
+        return tableMatch(table) != null || WAITING.containsKey(table);
+    }
+
+    /** Is a match running (not yet over) on that table? */
+    public static boolean tableMatchRunning(BlockPos table) {
+        Match m = tableMatch(table);
+        return m != null && !m.over;
+    }
+
+    /** Is that player in a match (any mode) or in the league queue? */
+    public static boolean busy(UUID player) {
+        return BY_PLAYER.containsKey(player) || QUEUE.contains(player);
+    }
+
+    /** Starts loading the engine in the background (so an accepted challenge can begin right away). */
+    public static void warmUp() {
+        if (!PtcgEngine.ready() && !PtcgEngine.failed()) PtcgEngine.preload().thenRun(PtcgCards::loadBrief);
+    }
+
+    /**
+     * 1.0: a shop customer challenged the player at a play table and they accepted: a friendly match against the AI at
+     * that level, shown with the customer's name (same rewards as a friendly match against the house, no penalty).
+     * false = it could not start now (busy, table taken or the engine still loading: the player was told why).
+     */
+    public static boolean startNpcMatch(ServerPlayerEntity p, BlockPos table, String npcName, int level) {
+        BlockPos t = table.toImmutable();
+        if (BY_PLAYER.containsKey(p.getUuid())) return false;
+        if (tableMatch(t) != null) {
+            p.sendMessage(Text.translatable("tcgshop.duel.table_busy").formatted(Formatting.RED), true);
+            return false;
+        }
+        if (!engineReady(p)) return false;
+        WAITING.values().removeIf(x -> x.equals(p.getUuid()));
+        QUEUE.remove(p.getUuid());
+        startAi(p, t, Mode.CASUAL_AI, level, npcName);
+        return true;
+    }
+
     private static void startAi(ServerPlayerEntity p, @Nullable BlockPos table, Mode mode, int level) {
+        startAi(p, table, mode, level, null);
+    }
+
+    /** opponentName: shown instead of the AI level name (1.0: a shop customer who challenged you at a table). */
+    private static void startAi(ServerPlayerEntity p, @Nullable BlockPos table, Mode mode, int level, @Nullable String opponentName) {
         deckFor(p, deck -> {
             if (deck == null || BY_PLAYER.containsKey(p.getUuid())) return;
+            if (opponentName != null && table != null && tableMatch(table) != null) return; // someone took the table meanwhile
             Match m = new Match("m" + (++counter), p.getServerWorld(), table, mode, Math.max(0, Math.min(3, level)));
             m.players[0] = p.getUuid();
             m.names[0] = p.getName().getString();
-            m.names[1] = Text.translatable("tcgshop.ptcg.ai_name." + LEVELS[m.level]).getString();
+            m.names[1] = opponentName != null ? opponentName : Text.translatable("tcgshop.ptcg.ai_name." + LEVELS[m.level]).getString();
             // Champion AI always and Veteran AI half the time: a top metagame deck
             List<MetaDeck> metas = metaDecks();
             java.util.Random r = new java.util.Random();

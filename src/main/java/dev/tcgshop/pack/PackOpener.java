@@ -163,6 +163,7 @@ public final class PackOpener {
         if (col.packsOpened >= 50) CardAdvancements.grant(player, "packs_50");
         if (col.packsOpened >= 250) CardAdvancements.grant(player, "packs_250");
         if (col.packsOpened >= 1000) CardAdvancements.grant(player, "packs_1000");
+        if (opened > 0) dev.tcgshop.onboarding.Onboarding.onPackOpened(player); // 1.0: one-time starting money on the first pack
         reply(player, new GroupRevealPayload(cards, prices, ruined, toBinder));
     }
 

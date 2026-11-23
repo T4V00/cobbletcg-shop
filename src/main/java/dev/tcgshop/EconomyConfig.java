@@ -47,6 +47,15 @@ public class EconomyConfig {
     public int traderPricesVersion = 0;
     /** 1.0 migration marker for the Manager Goggles price (2,000). Absent in old files = 0. */
     public int gogglesPriceVersion = 0;
+    // ---- 1.0 shop tiers (shop/ShopTier, ShopCoreBlock)
+    /** One shop per player until one of their shops is Amethyst or higher (players who already own several keep them). */
+    public boolean oneShopPerPlayer = true;
+    /** Most shops a player may own in total, even from Amethyst on (players already above it keep theirs but can't add more). 0 = no cap. */
+    public int maxShopsPerPlayer = 5;
+    /** Small tiers with a display limit (the Paper stall): most slots its selling display may have (RGB displays are never allowed there). */
+    public int stallMaxDisplaySlots = 4;
+    /** 1.0 migration marker for the shop core prices (the Wood shop is now 10×10 and costs 10,000). Absent in old files = 0. */
+    public int shopTiersVersion = 0;
     // ---- 0.3: furniture (CobbleFurnies / plushies) and reputation
     public double furniturePriceMultiplier = 1.0, furnitureSellerFactor = 0.9, furnitureWholesalerFactor = 1.0, furniturePhoneFactor = 1.15;
     public double furnitureSellerBuyback = 0.5, furnitureOtherBuyback = 0.35;
@@ -106,6 +115,8 @@ public class EconomyConfig {
     public int maxRejectPenaltiesPerDay = 2;
     /** Merchants' patience when haggling (multiplier; 1 = normal). */
     public double merchantPatience = 1.0;
+    /** 1.0: lowest price (fraction of market) a customer who SELLS you something ever accepts, after charisma, missions luck and arguments. */
+    public double customerSellFloor = 0.45;
 
     // --- Reputation ---
     /** Weight of each score in the total reputation (normalized). */
@@ -119,14 +130,69 @@ public class EconomyConfig {
     /** Chance that the black-market dealer offers a pack from the locked sets. */
     public double blackMarketLockedChance = 0.12;
 
+    // --- 1.0 onboarding (onboarding/*) ---
+    /** Money given once, when a new player (one who got the 1.0 starter kit) opens their first pack. 0 = off. */
+    public long startingMoney = 5_000;
+    /** One-time unique collector: on/off, play time (ticks of the PLAY_TIME stat) before he visits, and his offer for the card he likes. */
+    public boolean uniqueCollectorEnabled = true;
+    public int uniqueCollectorPlayTicks = 60_000;
+    public long uniqueCollectorOffer = 5_000;
+    /** One-time taunting rival: on/off, play time without owning a shop before he shows up (96,000 = 4 Minecraft days), value of the card he throws. */
+    public boolean taunterEnabled = true;
+    public int taunterNoShopPlayTicks = 96_000;
+    public long taunterCardValue = 15_000;
+    /** Extra Wholesaler visits for players without a shop: chance of each of the two extra rolls every half day. 0 = off. */
+    public double wholesalerNoShopChance = 0.35;
+    /** 1.0 migration marker: starterPackCount in tcgshop.json moved from the old default 3 to 5. Absent in old files = 0. */
+    public int starterPacksVersion = 0;
+
     // --- Notifications ---
     /** Announce all of the mod's advancements in chat (not just challenges). */
     public boolean announceAllAdvancements = true;
+
+    // --- 1.0 play table (ptcg/PlayTables; values are clamped where they are read) ---
+    /** Chairs (CobbleFurnies or any modded seat) the play table needs nearby before anyone can play at it. 0 = no requirement. */
+    public int tableChairsRequired = 2;
+    /** How far (blocks, horizontally; one block up or down) a chair may be from the table. */
+    public int tableChairRadius = 2;
+    /** Without CobbleFurnies or Cozyhome installed, bottom-half stairs count as chairs (so the table stays usable). */
+    public boolean tableStairsWithoutFurnitureMods = true;
+    /** Chance, every 5 s while you stand near a ready table in a shop, that a customer challenges you to a match. */
+    public double tableChallengeChance = 0.02;
+    /** Minimum seconds between two customer challenges to the same player. */
+    public int tableChallengeCooldownSeconds = 600;
+    /** Chance, every 5 s per free ready table in a visited shop, that two customers sit down to play a match. */
+    public double tableExhibitionChance = 0.025;
+    /** How long (seconds) two customers play at the table: random between min and max. */
+    public int tableExhibitionMinSeconds = 60, tableExhibitionMaxSeconds = 150;
+
+    // --- 1.0 store discount event (shop/Discounts; values are clamped where they are read) ---
+    /** Chance, once per Minecraft day (24,000 ticks), that one store item goes on sale. 0 = off. */
+    public double discountDailyChance = 0.04;
+    /** Relative odds of a 10 %, 30 % and 50 % discount (packs, boxes and the Mystery Box only roll 10 or 30 %). */
+    public int[] discountWeights = {80, 17, 3};
+    /** How expensive items are avoided: weight = (cheapest price / price) ^ exponent. Higher = cheap items even more likely. */
+    public double discountPriceExponent = 1.5;
+    /** Duration in Minecraft days: random between min and max. */
+    public int discountMinDays = 1, discountMaxDays = 3;
+
+    // --- 1.0 shop missions luck and charisma (shop/ShopMissions, shop/Charisma; values are clamped where they are read) ---
+    /** Extra deal acceptance with ALL missions completed (0.15 = +15 %), smoothly less with fewer. */
+    public double missionMaxAcceptBonus = 0.15;
+    /** Extra checkout tip chance with ALL missions completed (0.08 = +8 points). */
+    public double missionMaxTipBonus = 0.08;
+    /** Haggling bonus at charisma level 20 (0.25 = customers concede up to 25 % more). */
+    public double charismaMaxHaggleBonus = 0.25;
+    /** Charisma XP for a closed deal, extra XP when you haggled a better price than the opening one, and per tip received. */
+    public int charismaXpDeal = 4, charismaXpHaggle = 6, charismaXpTip = 3;
 
     private void fillHelp() {
         _help.clear();
         _help.put("aplicar", "Edit this file and run /tcgshop reload (operator) or restart. Card/pack prices are tuned with cobbleDollarsPerUsd in tcgshop.json or with a datapack.");
         _help.put("itemPrices", "Fixed price of each furniture piece/tool/shop core (shop_core_*) in CobbleDollars.");
+        _help.put("oneShopPerPlayer", "1.0: a player can own only one shop until one of their shops is Amethyst or higher. Players who already own several keep them. false = no limit.");
+        _help.put("maxShopsPerPlayer", "1.0: most shops a player may own in total, even from Amethyst on. Players who already own more keep them but cannot open another. 0 = no cap.");
+        _help.put("stallMaxDisplaySlots", "1.0: the Paper stall only accepts one small selling display: at most this many slots, and never an RGB display.");
         _help.put("wholesalerBuyFactor/phoneBuyFactor", "What packs, boxes and cards cost when bought from the Wholesaler / on the phone, relative to market price (0.6 = 60%).");
         _help.put("phoneSellRate/wholesalerSellRate", "What they pay for your cards in quick-sell (0.5 = 50% of the value).");
         _help.put("pokeBallSellPrice/megaStoneSellPrice", "What the Wholesaler pays per Cobblemon Poke Ball, and what any trader (Wholesaler, Wandering Collector, Furniture Vendor) pays per Mega Stone. 0 = not bought. Vanilla items are priced in tcgshop-vanilla-prices.json.");
@@ -137,9 +203,14 @@ public class EconomyConfig {
         _help.put("lockedPackChestChance", "Chance per chest to find a pack from the locked sets (0.00001 = 0.001%).");
         _help.put("customerWaitSeconds", "Maximum time a customer who wants a deal waits (shown as a bar above their head).");
         _help.put("rejectNegativeChancePolite/Rude", "Chance of a negative review when you reject a deal politely / rudely. Otherwise the review is neutral.");
+        _help.put("customerSellFloor", "1.0: the lowest price, as a fraction of market (0.45 = 45%), a customer who sells you a card/pack/box ever asks or accepts, whatever your charisma, mission luck or haggling arguments. Keep it close to phoneSellRate so buying from customers and quick-selling is not free money.");
         _help.put("repWeightAesthetics/Value/Safety", "Weight of Aesthetics, Value and Safety in the total reputation.");
         _help.put("infamyPerKill/infamyDecayPerDay", "Reputation you lose for killing a shop NPC and how much you recover each day.");
         _help.put("beggarChance/blackMarketChance", "Chance every half Minecraft day that the card beggar / the black marketeer (very rare) appears.");
+        _help.put("startingMoney", "1.0: money a new player receives once, when they open their first pack (only players who got the 1.0 starter kit). 0 = off.");
+        _help.put("uniqueCollector*", "1.0: one-time unique collector. After uniqueCollectorPlayTicks of play time (60,000 = 2.5 Minecraft days) he visits once and offers uniqueCollectorOffer for one card you own.");
+        _help.put("taunter*", "1.0: one-time taunting rival. After taunterNoShopPlayTicks of play time without a shop (96,000 = 4 Minecraft days) he throws you a card worth about taunterCardValue and teases you into opening a shop.");
+        _help.put("wholesalerNoShopChance", "1.0: players without a shop get two extra Wholesaler rolls every half Minecraft day with this chance each. 0 = off.");
         _help.put("gradingBaseFees/gradingValuePct", "Grading cost per card: fixed + % of the value (economy, standard, express).");
         _help.put("repSoftCap/repTopExponent", "Above repSoftCap reputation has diminishing returns (higher exponent = harder to reach 100).");
         _help.put("repRiseRate/repMaxRisePerUpdate/repFallRate", "How fast reputation moves toward its target each minute: fraction of the gap when rising (with a points cap) and when falling.");
@@ -148,6 +219,10 @@ public class EconomyConfig {
         _help.put("repPremiumSealedBonus", "Multiplier on the accepted markup for packs, boxes and the Mystery Box.");
         _help.put("repPenaltyBelow/repPenaltyMax", "Below that reputation customers want below-market prices (down to -repPenaltyMax at reputation 0).");
         _help.put("fiveStarMood", "Mood a customer needs to leave 5 stars (starts at 3; a good purchase adds 2-3).");
+        _help.put("table*", "1.0: the play table needs tableChairsRequired chairs (CobbleFurnies or any modded seat) within tableChairRadius blocks. With chairs, customers may challenge you (tableChallengeChance every 5 s, tableChallengeCooldownSeconds between challenges) or two of them sit and play a match for a while (tableExhibitionChance every 5 s).");
+        _help.put("missionMax*", "1.0: luck from shop missions. With every mission done, customers accept deals up to missionMaxAcceptBonus more often and tip up to missionMaxTipBonus more often (scaled smoothly by missions completed).");
+        _help.put("charisma*", "1.0: per-player charisma level (1-20). XP: charismaXpDeal per closed deal, +charismaXpHaggle if you haggled a better price, charismaXpTip per tip. At level 20 haggling is charismaMaxHaggleBonus more effective.");
+        _help.put("discount*","1.0: very rare sale. Once per Minecraft day, with discountDailyChance, one phone store / Wholesaler item gets 10, 30 or 50% off (discountWeights; packs, boxes and the Mystery Box never get 50%) for discountMinDays-discountMaxDays days. Cheap items are much more likely (discountPriceExponent).");
     }
 
     // ------------------------------------------------------------------ loading
@@ -170,6 +245,10 @@ public class EconomyConfig {
         if (c.gogglesPriceVersion < 1) { // the Manager Goggles cost 2,000 wherever they are sold; old default 15,000
             if (c.itemPrices.getOrDefault("tcgshop:manager_goggles", 15_000L) == 15_000L) c.itemPrices.put("tcgshop:manager_goggles", 2_000L);
             c.gogglesPriceVersion = 1;
+        }
+        if (c.shopTiersVersion < 1) { // the Wood shop is now 10×10 and costs 10,000; old default 15,000
+            if (c.itemPrices.getOrDefault("tcgshop:shop_core_wood", 15_000L) == 15_000L) c.itemPrices.put("tcgshop:shop_core_wood", 10_000L);
+            c.shopTiersVersion = 1;
         }
         INSTANCE = c;
         c.fillHelp();
@@ -204,6 +283,7 @@ public class EconomyConfig {
         rejectNegativeChanceRude = clamp(rejectNegativeChanceRude, 0, 1);
         maxRejectPenaltiesPerDay = Math.max(0, maxRejectPenaltiesPerDay);
         merchantPatience = clamp(merchantPatience, 0.2, 5);
+        customerSellFloor = clamp(customerSellFloor, 0, 2);
         repWeightAesthetics = clamp(repWeightAesthetics, 0, 10);
         repWeightValue = clamp(repWeightValue, 0, 10);
         repWeightSafety = clamp(repWeightSafety, 0, 10);
@@ -213,6 +293,12 @@ public class EconomyConfig {
         beggarChance = clamp(beggarChance, 0, 1);
         blackMarketChance = clamp(blackMarketChance, 0, 1);
         blackMarketLockedChance = clamp(blackMarketLockedChance, 0, 1);
+        startingMoney = Math.max(0, startingMoney);
+        uniqueCollectorPlayTicks = Math.max(0, uniqueCollectorPlayTicks);
+        uniqueCollectorOffer = Math.max(0, uniqueCollectorOffer);
+        taunterNoShopPlayTicks = Math.max(0, taunterNoShopPlayTicks);
+        taunterCardValue = Math.max(0, taunterCardValue);
+        wholesalerNoShopChance = clamp(wholesalerNoShopChance, 0, 1);
         repSoftCap = Math.max(0, Math.min(100, repSoftCap));
         repTopExponent = clamp(repTopExponent, 1, 5);
         repRiseRate = clamp(repRiseRate, 0.001, 1);
@@ -226,6 +312,8 @@ public class EconomyConfig {
         repPenaltyBelow = Math.max(0, Math.min(100, repPenaltyBelow));
         repPenaltyMax = clamp(repPenaltyMax, 0, 0.9);
         fiveStarMood = Math.max(5, Math.min(12, fiveStarMood));
+        maxShopsPerPlayer = Math.max(0, Math.min(1000, maxShopsPerPlayer));
+        stallMaxDisplaySlots = Math.max(1, Math.min(64, stallMaxDisplaySlots));
         if (_help == null) _help = new LinkedHashMap<>();
     }
 

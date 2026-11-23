@@ -2,6 +2,7 @@ package dev.tcgshop.shop;
 
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.Inventory;
@@ -14,11 +15,15 @@ import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.MathHelper;
 
 /**
  * Shop zone protection (in X, Y and Z):
  *  · Only the owner can break or place blocks inside their zone (and opening other people's chests is not allowed).
  *  · Shop furniture can only be placed inside a shop zone of YOURS.
+ *  · 1.0: small tiers (ShopTier.maxDisplays, the Paper stall) only hold that many selling displays, and only small
+ *    ones (at most EconomyConfig.stallMaxDisplaySlots slots, never RGB).
  */
 public final class ShopProtection {
     private ShopProtection() {}
@@ -64,7 +69,44 @@ public final class ShopProtection {
                 player.sendMessage(Text.translatable("tcgshop.shop.furniture_outside").formatted(Formatting.RED), true);
                 return ActionResult.FAIL;
             }
+            // 1.0: the Paper stall has room for a single selling display (home displays don't count)
+            if (bi.getBlock() instanceof ShopDisplayBlock db && !db.home && z != null) {
+                int max = z.tierInfo().maxDisplays;
+                if (max > 0 && sellingDisplays(sw, z) >= max) {
+                    player.sendMessage(Text.translatable("tcgshop.shop.stall_display_limit",
+                            Text.translatable("tcgshop.shop.tier." + z.tierInfo().key), max).formatted(Formatting.RED), true);
+                    return ActionResult.FAIL;
+                }
+                // ...and it must be a small one: few slots (EconomyConfig.stallMaxDisplaySlots) and no RGB display
+                if (max > 0 && !isSmallDisplay(db)) {
+                    player.sendMessage(Text.translatable("tcgshop.shop.stall_display_too_big",
+                            Text.translatable("tcgshop.shop.tier." + z.tierInfo().key), stallMaxSlots()).formatted(Formatting.RED), true);
+                    return ActionResult.FAIL;
+                }
+            }
             return ActionResult.PASS;
         });
+    }
+
+    /** Most slots the selling display of a small tier (ShopTier.maxDisplays > 0, the Paper stall) may have. */
+    public static int stallMaxSlots() {
+        return Math.max(1, dev.tcgshop.EconomyConfig.INSTANCE.stallMaxDisplaySlots);
+    }
+
+    /** Is this display small enough for the Paper stall? At most stallMaxSlots() slots and not an RGB display. */
+    public static boolean isSmallDisplay(ShopDisplayBlock db) {
+        return !db.isRgb() && db.slots() <= stallMaxSlots();
+    }
+
+    /** Selling displays (master blocks of non-home displays) inside the zone. Only used for the small tiers, so the scan is tiny. */
+    public static int sellingDisplays(ServerWorld world, ShopZones.Zone z) {
+        Box b = z.box();
+        int n = 0;
+        for (BlockPos p : BlockPos.iterate(MathHelper.floor(b.minX), MathHelper.floor(b.minY), MathHelper.floor(b.minZ),
+                MathHelper.floor(b.maxX) - 1, MathHelper.floor(b.maxY) - 1, MathHelper.floor(b.maxZ) - 1)) {
+            BlockState s = world.getBlockState(p);
+            if (s.getBlock() instanceof ShopDisplayBlock d && !d.home && s.get(ShopDisplayBlock.PART) == 0) n++;
+        }
+        return n;
     }
 }

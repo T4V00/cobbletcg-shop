@@ -29,17 +29,27 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Mod welcome: N random sealed packs (TcgShopConfig.starterPackCount, 3 by default) from the cheapest sets the first time you join the world, and the
- * "Team Rocket Meowth" tutorial the first time you create a shop (a normal, catchable wild Meowth appears
- * next to you, stands still looking at you and gives you a few short tips in speech bubbles: see MeowthTalk). The flags are stored as player tags
- * (saved with the player's data, so they last forever in that world).
+ * Mod welcome. The first time you join the world (1.0): N random sealed packs (TcgShopConfig.starterPackCount, 5 by
+ * default) from the cheapest sets, plus the personal starter binder (25 pockets, with your name) already equipped in the
+ * Accessories slot (or in the inventory without Accessories). The starting money ({@link dev.tcgshop.EconomyConfig#startingMoney})
+ * is paid once, when that new player opens their first pack. Then the "Team Rocket Meowth" tutorial the first time you
+ * create a shop (a normal, catchable wild Meowth appears next to you, stands still looking at you and gives you a few
+ * short tips in speech bubbles: see MeowthTalk), and the one-time visitors of {@link OnboardingVisits}. The flags are
+ * stored as player tags (saved with the player's data, so they last forever in that world).
  */
 public final class Onboarding {
     /** Same tag as the old starter kit (CardSales): anyone who already got it does not get packs again. */
     public static final String STARTER_TAG = CardSales.STARTER_TAG;
     public static final String TUTORIAL_TAG = "tcgshop_tutorial";
+    /**
+     * 1.0: set together with the starter kit; while present, opening a pack pays the starting money once (then removed).
+     * Players from before 1.0 never get it, so they are not paid again.
+     */
+    public static final String START_MONEY_TAG = "tcgshop_start_money_pending";
     /** Packs given at the start unless the config says otherwise (TcgShopConfig.starterPackCount). */
-    public static final int STARTER_COUNT = 3;
+    public static final int STARTER_COUNT = 5;
+    /** Default of starterPackCount before 1.0 (migrated to {@link #STARTER_COUNT} once, see {@link #migrateConfig}). */
+    private static final int OLD_STARTER_COUNT = 3;
     /** Picked from the N cheapest sets (by pack price). */
     public static final int CHEAPEST_SETS = 8;
     /** Cobblemon properties of the tutorial Meowth. */
@@ -49,23 +59,76 @@ public final class Onboarding {
 
     // ------------------------------------------------------------------ starter packs
 
-    /** On joining the world (ServerPlayConnectionEvents.JOIN): welcome packs only the first time. */
+    /** Server hooks of the onboarding (called once from TcgShop.onInitialize). */
+    public static void register() {
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STARTED.register(server -> migrateConfig());
+        OnboardingVisits.register();
+    }
+
+    /**
+     * 1.0: 5 starter packs instead of 3. Only the old default is replaced (a value an admin customized is kept), once,
+     * with a marker in tcgshop-economy.json.
+     */
+    public static void migrateConfig() {
+        dev.tcgshop.EconomyConfig eco = dev.tcgshop.EconomyConfig.INSTANCE;
+        if (eco.starterPacksVersion >= 1) return;
+        if (TcgShopConfig.INSTANCE.starterPackCount == OLD_STARTER_COUNT) {
+            TcgShopConfig.INSTANCE.starterPackCount = STARTER_COUNT;
+            TcgShopConfig.save();
+        }
+        eco.starterPacksVersion = 1;
+        dev.tcgshop.EconomyConfig.save();
+    }
+
+    /**
+     * On joining the world (ServerPlayConnectionEvents.JOIN): welcome packs and the starter binder only the first time.
+     * Anyone who already has {@link #STARTER_TAG} (players from before 1.0 included) gets nothing new.
+     */
     public static void onJoin(ServerPlayerEntity player) {
         // players who already own a shop (worlds from before the tutorial) don't need the Meowth: mark it as seen
         if (!player.getCommandTags().contains(TUTORIAL_TAG) && ownedShops(player) > 0) player.addCommandTag(TUTORIAL_TAG);
         if (!TcgShopConfig.INSTANCE.starterPacks || player.getCommandTags().contains(STARTER_TAG)) return;
         int count = Math.max(0, TcgShopConfig.INSTANCE.starterPackCount);
-        if (count == 0) { // config set to 0: no packs, just flag it so it isn't checked again
-            player.addCommandTag(STARTER_TAG);
+        List<Item> picks = count == 0 ? List.of() : pickStarterPacks(player.getRandom(), count);
+        if (count > 0 && picks.isEmpty()) return; // no packs registered yet: retried on the next join
+        player.addCommandTag(STARTER_TAG);
+        player.addCommandTag(START_MONEY_TAG);
+        for (Item it : picks) player.getInventory().offerOrDrop(new ItemStack(it));
+        boolean equipped = StarterBinder.give(player);
+        if (!picks.isEmpty()) {
+            player.sendMessage(Text.translatable("tcgshop.onboarding.starter", picks.size()).formatted(Formatting.GOLD), false);
+            player.sendMessage(Text.translatable("tcgshop.onboarding.starter_hint").formatted(Formatting.GRAY), false);
+        }
+        player.sendMessage(Text.translatable(equipped ? "tcgshop.onboarding.binder_equipped" : "tcgshop.onboarding.binder_inventory")
+                .formatted(Formatting.YELLOW), false);
+        long money = dev.tcgshop.EconomyConfig.INSTANCE.startingMoney;
+        if (money > 0 && dev.tcgshop.economy.CobbleDollarsBridge.isAvailable())
+            player.sendMessage(Text.translatable("tcgshop.onboarding.money_hint", PriceService.format(money)).formatted(Formatting.GRAY), false);
+        player.getWorld().playSound(null, player.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.6f, 1.4f);
+    }
+
+    /**
+     * After a pack opening delivered at least one pack (PackOpener.finish): the first time, a new player gets the
+     * starting money. One-time: the pending tag is removed only once the money was actually added (without
+     * CobbleDollars it stays pending, so installing it later still pays it).
+     */
+    public static void onPackOpened(ServerPlayerEntity player) {
+        if (!player.getCommandTags().contains(START_MONEY_TAG)) return;
+        long money = dev.tcgshop.EconomyConfig.INSTANCE.startingMoney;
+        if (money <= 0) {
+            player.removeCommandTag(START_MONEY_TAG);
             return;
         }
-        List<Item> picks = pickStarterPacks(player.getRandom(), count);
-        if (picks.isEmpty()) return; // no packs registered yet: retried on the next join
-        player.addCommandTag(STARTER_TAG);
-        for (Item it : picks) player.getInventory().offerOrDrop(new ItemStack(it));
-        player.sendMessage(Text.translatable("tcgshop.onboarding.starter", picks.size()).formatted(Formatting.GOLD), false);
-        player.sendMessage(Text.translatable("tcgshop.onboarding.starter_hint").formatted(Formatting.GRAY), false);
-        player.getWorld().playSound(null, player.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.6f, 1.4f);
+        if (!dev.tcgshop.economy.CobbleDollarsBridge.isAvailable()) return;
+        player.removeCommandTag(START_MONEY_TAG); // first: a failure below can never pay twice
+        if (!dev.tcgshop.economy.CobbleDollarsBridge.add(player, money)) {
+            player.addCommandTag(START_MONEY_TAG);
+            return;
+        }
+        player.sendMessage(Text.translatable("tcgshop.onboarding.start_money", Text.literal(PriceService.format(money)).formatted(Formatting.GOLD))
+                .formatted(Formatting.YELLOW), false);
+        player.sendMessage(Text.translatable("tcgshop.onboarding.start_money_hint").formatted(Formatting.GRAY), false);
+        player.playSoundToPlayer(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 0.8f, 1.2f);
     }
 
     /**

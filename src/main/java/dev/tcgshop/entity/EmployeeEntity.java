@@ -108,7 +108,7 @@ public class EmployeeEntity extends PathAwareEntity implements TcgNpc {
         BlockPos home = z.core.up();
         if (cashier) { // behind the cash register closest to the shop block
             int seen = 0;
-            for (BlockPos p : BlockPos.iterateOutwards(z.core, z.tierInfo().size / 2, 4, z.tierInfo().size / 2)) {
+            for (BlockPos p : BlockPos.iterateOutwards(z.core, z.size() / 2, 4, z.size() / 2)) {
                 if (world.getBlockState(p).isOf(TcgBlocks.CASH_REGISTER) && seen++ == slot) {
                     var facing = world.getBlockState(p).get(net.minecraft.state.property.Properties.HORIZONTAL_FACING);
                     BlockPos behind = p.offset(facing.getOpposite());
@@ -180,7 +180,7 @@ public class EmployeeEntity extends PathAwareEntity implements TcgNpc {
         setEmote(EMOTE_NONE);
         // patrol inside the zone
         if (getNavigation().isIdle() && random.nextInt(6) == 0) {
-            int half = z.tierInfo().size / 2 - 1;
+            int half = z.size() / 2 - 1;
             int x = z.core.getX() + random.nextInt(half * 2 + 1) - half, zz = z.core.getZ() + random.nextInt(half * 2 + 1) - half;
             int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, zz);
             if (Math.abs(y - z.core.getY()) <= 4) getNavigation().startMovingTo(x + 0.5, y, zz + 0.5, 0.8);

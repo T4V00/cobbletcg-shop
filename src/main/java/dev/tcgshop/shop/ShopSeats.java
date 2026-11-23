@@ -51,6 +51,10 @@ public final class ShopSeats {
         long at;
         List<Seat> seats = List.of();
         List<BlockPos> decor = List.of();
+        /** 1.0: statue bases (any tier) in the shop, never capped (StatuePacks). */
+        List<BlockPos> statues = List.of();
+        /** 1.0: play tables in the shop (ptcg/PlayTables: exhibitions and customer challenges). */
+        List<BlockPos> tables = List.of();
     }
 
     private record Key(RegistryKey<World> dim, long pos) {}
@@ -180,12 +184,16 @@ public final class ShopSeats {
         int minY = Math.max(w.getBottomY(), (int) Math.floor(box.minY)), maxY = Math.min(w.getTopY() - 1, (int) Math.ceil(box.maxY) - 1);
         List<Seat> furn = new ArrayList<>(), stairs = new ArrayList<>();
         List<BlockPos> decor = new ArrayList<>();
+        List<BlockPos> statues = new ArrayList<>();
+        List<BlockPos> tables = new ArrayList<>();
         for (BlockPos p : BlockPos.iterate((int) Math.floor(box.minX), minY, (int) Math.floor(box.minZ), (int) Math.ceil(box.maxX) - 1, maxY, (int) Math.ceil(box.maxZ) - 1)) {
             if (!z.contains(p) || !w.isChunkLoaded(p)) continue;
             BlockState s = w.getBlockState(p);
             if (s.isAir()) continue;
             Identifier id = Registries.BLOCK.getId(s.getBlock());
             boolean vanilla = "minecraft".equals(id.getNamespace());
+            if (s.getBlock() instanceof dev.tcgshop.luxury.StatueBlock) statues.add(p.toImmutable());
+            if (s.isOf(TcgBlocks.PLAY_TABLE)) tables.add(p.toImmutable());
             if (!vanilla && seatWord(id.getPath())) {
                 BlockPos ip = p.toImmutable();
                 furn.add(new Seat(ip, ip.getY() + surface(w, ip, s) - THIGH, yawOf(s, ip, z), true));
@@ -203,6 +211,8 @@ public final class ShopSeats {
         c.seats = List.copyOf(furn.isEmpty() ? stairs : furn);
         if (decor.size() > 96) { java.util.Collections.shuffle(decor, new java.util.Random(z.id.hashCode())); decor = decor.subList(0, 96); }
         c.decor = List.copyOf(decor);
+        c.statues = List.copyOf(statues);
+        c.tables = List.copyOf(tables);
         return c;
     }
 
@@ -214,6 +224,22 @@ public final class ShopSeats {
     public static List<Seat> seats(ServerWorld w, ShopZones.Zone z) { return cache(w, z).seats; }
 
     public static List<BlockPos> decor(ServerWorld w, ShopZones.Zone z) { return cache(w, z).decor; }
+
+    /** 1.0: statue bases in the shop (refreshed with the rest of the cache, at most every 30 s). */
+    public static List<BlockPos> statues(ServerWorld w, ShopZones.Zone z) { return cache(w, z).statues; }
+
+    /** 1.0: play tables in the shop (same cache and refresh as the seats). */
+    public static List<BlockPos> tables(ServerWorld w, ShopZones.Zone z) { return cache(w, z).tables; }
+
+    /**
+     * 1.0 (PlayTables): a seat on that chair block facing yaw (for example toward a play table), with the seat height
+     * worked out like the shop scan does. Works for furniture seats and stair benches.
+     */
+    public static Seat seatFacing(ServerWorld w, BlockPos p, float yaw) {
+        BlockState s = w.getBlockState(p);
+        BlockPos ip = p.toImmutable();
+        return new Seat(ip, ip.getY() + surface(w, ip, s) - THIGH, yaw, !(s.getBlock() instanceof StairsBlock));
+    }
 
     // ------------------------------------------------------------------ reservations
 
@@ -237,6 +263,11 @@ public final class ShopSeats {
         release(who);
         RESERVED.put(key(w, p), who);
         return true;
+    }
+
+    /** 1.0: has that NPC reserved a seat (on its way to sit or already seated)? */
+    public static boolean hasReservation(UUID who) {
+        return RESERVED.containsValue(who);
     }
 
     /** Releases whatever that customer had reserved. */

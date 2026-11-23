@@ -121,6 +121,41 @@ public class WholesalerEntity extends PathAwareEntity implements TcgNpc {
         return false;
     }
 
+    /**
+     * 1.0 onboarding: extra visits for players who don't own a shop yet (registered by OnboardingVisits). On top of the
+     * normal visit (TcgEntities.wholesalerSpawner, one random player every half day), every half Minecraft day each
+     * shopless player in the Overworld gets two extra rolls (phases 1500 and 7500, away from the other merchants'
+     * phases) with EconomyConfig.wholesalerNoShopChance each, so they can buy their first shop block sooner.
+     */
+    public static void newcomerSpawner(net.minecraft.server.world.ServerWorld world) {
+        if (world.getRegistryKey() != World.OVERWORLD) return;
+        long phase = world.getTime() % 12000;
+        if (phase != 1500 && phase != 7500) return;
+        double chance = dev.tcgshop.EconomyConfig.INSTANCE.wholesalerNoShopChance;
+        if (chance <= 0) return;
+        for (ServerPlayerEntity p : List.copyOf(world.getPlayers())) {
+            if (p.isSpectator() || world.random.nextDouble() >= chance) continue;
+            if (dev.tcgshop.onboarding.Onboarding.ownedShops(p) > 0) continue;
+            if (!world.getEntitiesByClass(WholesalerEntity.class, p.getBoundingBox().expand(96), e -> true).isEmpty()) continue;
+            for (int attempt = 0; attempt < 10; attempt++) {
+                double ang = world.random.nextDouble() * Math.PI * 2;
+                int dist = 12 + world.random.nextInt(14);
+                int x = (int) Math.floor(p.getX() + Math.cos(ang) * dist), z = (int) Math.floor(p.getZ() + Math.sin(ang) * dist);
+                int y = world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+                var pos = new net.minecraft.util.math.BlockPos(x, y, z);
+                if (Math.abs(y - p.getBlockY()) > 16) continue;
+                if (!world.getBlockState(pos.down()).isSolidBlock(world, pos.down()) || !world.isAir(pos) || !world.isAir(pos.up())) continue;
+                WholesalerEntity w = TcgEntities.WHOLESALER.create(world);
+                if (w == null) break;
+                w.refreshPositionAndAngles(x + 0.5, y, z + 0.5, world.random.nextFloat() * 360f, 0f);
+                world.spawnEntity(w);
+                p.sendMessage(net.minecraft.text.Text.translatable("tcgshop.wholesaler.arrived").formatted(net.minecraft.util.Formatting.GOLD), false);
+                p.sendMessage(net.minecraft.text.Text.translatable("tcgshop.onb.wholesaler_newcomer").formatted(net.minecraft.util.Formatting.GRAY), false);
+                break;
+            }
+        }
+    }
+
     @Override
     public void writeCustomDataToNbt(NbtCompound nbt) {
         super.writeCustomDataToNbt(nbt);

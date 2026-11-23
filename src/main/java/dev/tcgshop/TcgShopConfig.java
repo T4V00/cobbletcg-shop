@@ -47,7 +47,7 @@ public class TcgShopConfig {
     /** When joining a world for the first time you receive random sealed packs. */
     public boolean starterPacks = true;
     /** How many welcome packs (random from the cheapest sets; 0 = none). */
-    public int starterPackCount = 3;
+    public int starterPackCount = 5; // 1.0: five starter packs
     /** 0.9.5: customers sit for a while on the shop's chairs/sofas/benches (CobbleFurnies, Cozyhome...). */
     public boolean customerSeats = true;
     /** Chance of sitting down for customers who only browse (don't buy). */

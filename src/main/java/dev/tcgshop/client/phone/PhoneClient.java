@@ -23,6 +23,8 @@ public final class PhoneClient {
         ClientPlayNetworking.registerGlobalReceiver(PhonePayloads.Sync.ID, (p, ctx) -> ctx.client().execute(() -> apply(p.data())));
         ClientPlayNetworking.registerGlobalReceiver(PhonePayloads.Result.ID, (p, ctx) -> ctx.client().execute(() -> onResult(p.data())));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(PhoneClient::reset));
+        PhoneAppsClient.register(); // 1.0: Messages, Loans and Stats apps
+        PhoneWallpaper.load(); // 1.0: wallpaper (config/tcgshop-phone-client.json)
     }
 
     /** 1.0: purchase result (phone Market, Wholesaler, Upgrades) -> notice inside the open phone / stall. */
@@ -65,6 +67,7 @@ public final class PhoneClient {
         locksSource = Integer.MIN_VALUE;
         locks = new int[0];
         PhoneNotices.clear();
+        PhoneAppsClient.reset();
     }
 
     private static void apply(NbtCompound d) {

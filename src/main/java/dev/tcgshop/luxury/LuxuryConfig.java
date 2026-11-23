@@ -39,6 +39,19 @@ public class LuxuryConfig {
     public int mansionBlocksPerTick = 3000;
     /** Spawn resident Pokémon (Cobblemon) on the estate once it is finished. */
     public boolean mansionPokemon = true;
+    /** 1.0: customers walking past a statue (from statuePackMinTier up) sometimes drop a sealed pack next to it. */
+    public boolean statuePacksEnabled = true;
+    /** First statue tier (1-7) where customers can drop packs. Default 3 = gold. */
+    public int statuePackMinTier = 3;
+    /**
+     * Chance per customer walking past one statue (each customer rolls once per statue). Per the 1.0 plan the chance grows
+     * with the tier but is "almost never" at gold, the first eligible tier.
+     */
+    public Map<String, Double> statuePackChance = new LinkedHashMap<>();
+    /** How close (blocks) a customer must walk to the statue. */
+    public double statuePackRadius = 4.0;
+    /** Minimum seconds between two drops at the same statue. */
+    public int statuePackCooldownSeconds = 600;
 
     private void sanitize() {
         if (prices == null) prices = new LinkedHashMap<>();
@@ -49,6 +62,16 @@ public class LuxuryConfig {
         }
         prices = merged;
         announceFromTier = Math.max(0, Math.min(StatueTier.values().length, announceFromTier));
+        if (statuePackChance == null) statuePackChance = new LinkedHashMap<>();
+        Map<String, Double> chances = new LinkedHashMap<>();
+        for (StatueTier t : StatueTier.values()) {
+            Double v = statuePackChance.get(t.key);
+            chances.put(t.key, v == null || v.isNaN() ? defaultPackChance(t) : Math.max(0, Math.min(1, v)));
+        }
+        statuePackChance = chances;
+        statuePackMinTier = Math.max(1, Math.min(StatueTier.values().length, statuePackMinTier));
+        statuePackRadius = Double.isNaN(statuePackRadius) ? 4.0 : Math.max(1.0, Math.min(16.0, statuePackRadius));
+        statuePackCooldownSeconds = Math.max(0, Math.min(86_400, statuePackCooldownSeconds));
         mansionPrice = Math.max(1L, Math.min(MAX_PRICE, mansionPrice));
         mansionBlocksPerTick = Math.max(200, Math.min(50_000, mansionBlocksPerTick));
         _help = new LinkedHashMap<>();
@@ -60,7 +83,28 @@ public class LuxuryConfig {
         _help.put("mansionEnabled", "false = the MasterBall Mansion Key is not sold (keys already purchased keep working).");
         _help.put("mansionPrice", "Price of the Mansion Key in CobbleDollars (default 1000000000). Maximum 10^15.");
         _help.put("mansionBlocksPerTick", "Blocks per tick while building the mansion (200-50000). Lower it if the server lags.");
+        _help.put("statuePacks*", "1.0: customers who walk within statuePackRadius blocks of a statue of tier statuePackMinTier (3 = gold) or higher may drop a random sealed pack next to it (never one of the locked top sets). "
+                + "statuePackChance = chance per customer and statue, per tier; gold is almost never, then it grows with the tier. statuePackCooldownSeconds between drops at the same statue.");
         _help.put("mansionPokemon", "true = the estate comes with resident Pokémon (Cobblemon only): they cannot be caught, do not battle and do not despawn.");
+    }
+
+    /** Default drop chance per tier: nothing below gold, almost never at gold, then growing with the tier. */
+    static double defaultPackChance(StatueTier t) {
+        return switch (t) {
+            case GOLD -> 0.002;
+            case EMERALD -> 0.010;
+            case DIAMOND -> 0.018;
+            case NETHERITE -> 0.028;
+            case MASTERBALL -> 0.040;
+            default -> 0.0;
+        };
+    }
+
+    /** Drop chance for a statue of that tier (0 below statuePackMinTier or when disabled). */
+    public double packChance(StatueTier t) {
+        if (!statuePacksEnabled || t.index() < statuePackMinTier) return 0;
+        Double v = statuePackChance == null ? null : statuePackChance.get(t.key);
+        return v == null ? defaultPackChance(t) : Math.max(0, Math.min(1, v));
     }
 
     public long price(StatueTier t) {

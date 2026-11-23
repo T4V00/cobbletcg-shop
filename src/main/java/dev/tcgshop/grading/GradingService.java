@@ -65,7 +65,7 @@ public final class GradingService extends PersistentState {
         switch (a.action()) {
             case GradePayloads.SUBMIT -> {
                 // 0.9: CobbleGrade is a phone app with a minimum level; collecting existing orders stays free
-                if (dev.tcgshop.phone.PhoneUpgrades.requireApp(p, "grade")) submit(p, Grading.Service.of(a.service()), a);
+                if (dev.tcgshop.phone.PhoneUpgrades.requireApp(p, "grade") && !dev.tcgshop.phone.Loans.blocksPhonePurchase(p)) submit(p, Grading.Service.of(a.service()), a);
             }
             case GradePayloads.COLLECT -> collect(p, a.order());
             default -> {}

@@ -112,6 +112,7 @@ public final class ShopServer {
         FIXED.put(TcgItems.GENERAL_BINDER, 6_000L);
         FIXED.put(TcgItems.PERSONAL_BINDER, 5_000L);
         for (ShopTier t : ShopTier.values()) FIXED.put(TcgBlocks.CORE_ITEMS.get(t), t.price);
+        FIXED.putAll(RgbDisplays.PRICES); // 1.0 RGB displays (25,000 - 500,000; itemPrices in tcgshop-economy.json override them)
     }
 
     // ------------------------------------------------------------------ products and prices
@@ -130,6 +131,15 @@ public final class ShopServer {
     /** Packs, boxes and mystery boxes are only sold with a hired cashier. */
     public static boolean needsCashier(ItemStack st) {
         return CardInfo.isPack(st) || st.isOf(TcgBlocks.BOOSTER_BOX_ITEM) || st.isOf(TcgBlocks.MYSTERY_BOX);
+    }
+
+    /**
+     * 1.0: price in the store (phone Market / Wholesaler catalog) = priceOf with the store sale event applied
+     * ({@link Discounts}). Booster boxes never take a per-item discount (one item covers every set).
+     */
+    public static long storePrice(ItemStack st, double factor) {
+        long base = priceOf(st, factor);
+        return st.isOf(TcgBlocks.BOOSTER_BOX_ITEM) ? base : Discounts.apply(st.getItem(), base);
     }
 
     /** Price. factor: WHOLESALE_FACTOR, PHONE_FACTOR or 1.0 (market). Furniture and tools: fixed price. */
@@ -156,6 +166,7 @@ public final class ShopServer {
         for (ShopTier t : ShopTier.values()) g.add(new ItemStack(TcgBlocks.CORE_ITEMS.get(t)));
         for (Item it : TcgBlocks.NEW_SHOP_DISPLAYS) g.add(new ItemStack(it));
         for (Item it : TcgBlocks.HOME_DISPLAYS) g.add(new ItemStack(it));
+        for (Item it : RgbDisplays.ITEMS) g.add(new ItemStack(it)); // 1.0 RGB displays
         for (Item it : new Item[]{TcgBlocks.CARD_STAND_ITEM, TcgBlocks.DISPLAY_CASE_ITEM, TcgBlocks.PACK_SHELF_ITEM, TcgBlocks.GONDOLA_ITEM,
                 TcgBlocks.BOX_PALLET_ITEM, TcgBlocks.PEDESTAL_ITEM, TcgBlocks.CARD_WALL_ITEM, TcgBlocks.CASH_REGISTER_ITEM, TcgBlocks.POSTER_ITEM, TcgBlocks.PLAY_TABLE_ITEM,
                 TcgBlocks.THEFT_DETECTOR_ITEM, TcgItems.MANAGER_GOGGLES, TcgItems.TCG_PHONE, TcgItems.DEODORANT_SPRAY, TcgItems.NERD_GLOVES, TcgItems.GENERAL_BINDER, TcgItems.PERSONAL_BINDER, TcgItems.MOP, TcgItems.REPAIR_KIT})
@@ -404,6 +415,8 @@ public final class ShopServer {
         boolean second = role.equals("cashier2");
         if (hire) {
             if (second ? z.cashier2 : cashier ? z.cashier : z.guard) return;
+            // 1.0: no hiring from the phone while a Wholesaler loan is active (firing is still allowed: it costs nothing)
+            if (dev.tcgshop.phone.Loans.blocksPurchase(player, "tcgshop.loan.notice.blocked_staff")) return;
             double hf = dev.tcgshop.events.EventManager.hireFactor(player, false); // 0.9 events: "someone is looking for work"
             long cost = Math.round((cashier ? CASHIER_HIRE : GUARD_HIRE) * hf);
             if (!CobbleDollarsBridge.tryCharge(player, cost)) {
@@ -503,7 +516,7 @@ public final class ShopServer {
     public static void describe(ServerPlayerEntity player, ShopZones.Zone z) {
         ShopZones zones = ShopZones.get(player.getServerWorld());
         player.sendMessage(Text.translatable("tcgshop.shop.describe", z.ownerName, Text.translatable("tcgshop.shop.tier." + z.tierInfo().key),
-                z.tierInfo().size, z.tierInfo().size).formatted(Formatting.GOLD), false);
+                z.size(), z.size()).formatted(Formatting.GOLD), false);
         if (z.owner.equals(player.getUuid())) {
             long profit = zones.revenue(player.getUuid()) - zones.costs(player.getUuid());
             player.sendMessage(Text.translatable("tcgshop.shop.stats", PriceService.format(z.revenue), z.sales, PriceService.format(z.balance),
@@ -570,7 +583,7 @@ public final class ShopServer {
         double f = dev.tcgshop.phone.PhoneUpgrades.priceFactor(player, source, factor)
                 * dev.tcgshop.events.EventManager.purchaseFactor(player, source, false); // 0.9 events: supplier discount / delay
         List<Long> prices = new ArrayList<>();
-        for (ItemStack st : goods) prices.add(priceOf(st, f));
+        for (ItemStack st : goods) prices.add(storePrice(st, f)); // 1.0: with the store sale event (Discounts)
         dev.tcgshop.phone.PhoneUpgrades.sync(player, source, dev.tcgshop.phone.PhoneUpgrades.locks(goods, source), refreshOnly);
         send(player, new StoreOpenPayload(source, goods, prices));
     }
@@ -589,7 +602,7 @@ public final class ShopServer {
         factor = dev.tcgshop.phone.PhoneUpgrades.priceFactor(player, p.source(), factor);
         double evf = dev.tcgshop.events.EventManager.purchaseFactor(player, p.source(), false);
         factor *= evf;
-        long total = priceOf(item, factor) * qty;
+        long total = storePrice(item, factor) * qty; // 1.0: with the store sale event (Discounts)
         if (!CobbleDollarsBridge.tryCharge(player, total)) {
             player.sendMessage(Text.translatable("tcgshop.shop.no_money", PriceService.format(total)).formatted(Formatting.RED), true);
             return;
@@ -621,6 +634,7 @@ public final class ShopServer {
             c.putString("name", z.ownerName);
             c.putLong("core", z.core.asLong());
             c.putInt("tier", z.tier);
+            c.putInt("size", z.size()); // 1.0: real zone side (pre-1.0 shops keep their old size)
             c.putLong("revenue", z.revenue);
             c.putLong("balance", z.balance);
             c.putInt("sales", z.sales);

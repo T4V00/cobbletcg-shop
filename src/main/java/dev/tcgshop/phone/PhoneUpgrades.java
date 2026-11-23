@@ -53,6 +53,7 @@ public final class PhoneUpgrades {
         PayloadTypeRegistry.playC2S().register(PhonePayloads.Act.ID, PhonePayloads.Act.CODEC);
         PayloadTypeRegistry.playS2C().register(PhonePayloads.Result.ID, PhonePayloads.Result.CODEC); // 1.0: purchase notices
         ServerPlayNetworking.registerGlobalReceiver(PhonePayloads.Act.ID, (p, ctx) -> ctx.server().execute(() -> handle(ctx.player(), p.data())));
+        PhoneApps.register(); // 1.0: Messages, Loans and Stats apps (payload, tick, join sync)
         // runs before the Onboarding starter kit (deferred with server.execute): a new player doesn't have the tag yet
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayerEntity sp = handler.getPlayer();
@@ -308,17 +309,19 @@ public final class PhoneUpgrades {
             case "buy" -> buy(p, d.getInt("tier"));
             case "call" -> call(p, d.getString("kind"));
             case "sync" -> sync(p, null, null);
-            default -> {}
+            default -> PhoneApps.handle(p, d); // 1.0: Messages, Loans and Stats apps
         }
     }
 
-    private static boolean hasPhone(ServerPlayerEntity p) {
+    /** Does the player carry a phone? (package-private since 1.0: the Messages / Loans apps use it too). */
+    static boolean hasPhone(ServerPlayerEntity p) {
         return p.getInventory().contains(st -> st.isOf(TcgItems.TCG_PHONE));
     }
 
     static void buy(ServerPlayerEntity p, int target) {
         PhoneConfig c = PhoneConfig.INSTANCE;
         if (!c.enabled || !hasPhone(p)) return;
+        if (Loans.blocksPhonePurchase(p)) return; // 1.0: no phone purchases while a loan is active
         PhoneState.Entry e = entry(p);
         if (target != e.tier + 1 || target > PhoneTier.MAX_LEVEL) { sync(p, null, null); return; }
         if (!CobbleDollarsBridge.isAvailable()) {

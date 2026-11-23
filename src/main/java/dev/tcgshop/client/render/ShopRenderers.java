@@ -468,6 +468,7 @@ public final class ShopRenderers {
             m.push();
             rotateToFacing(m, facing);
             facingDeg = switch (facing) { case SOUTH -> 180; case WEST -> 90; case EAST -> -90; default -> 0; };
+            if (block.isRgb()) RgbLights.render(be, block, m, vcp, time, overlay); // 1.0 RGB displays: animated LEDs
             for (int i = 0; i < kind.slots.length && i < be.size(); i++) {
                 ItemStack st = be.getStack(i);
                 DisplayKind.Slot s = kind.slots[i];
@@ -528,7 +529,7 @@ public final class ShopRenderers {
                     m.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(be.lookRot(i, 2)));
                 }
                 // a touch of natural messiness: each product slightly rotated (fixed per slot)
-                if (!s.spin() && kind != DisplayKind.FRAME && kind != DisplayKind.CARD_WALL) {
+                if (!s.spin() && !kind.wallHung()) {
                     float j = jitter(master, i);
                     m.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(j * (CardInfo.isPack(st) ? 2.6f : 0.9f)));
                 }
@@ -536,8 +537,8 @@ public final class ShopRenderers {
                 if (CardInfo.isCard(st) && grade == 0) {
                     // ungraded: clear case (graded ones bring their slab from ItemRendererMixin)
                     slab(m, vcp, st, size, sl, overlay, 0);
-                    if (kind != DisplayKind.CARD_WALL && kind != DisplayKind.FRAME && !s.spin()) standFoot(m, vcp, size, sl, overlay);
-                } else if (CardInfo.isCard(st) && kind != DisplayKind.FRAME && !s.spin() && kind != DisplayKind.CARD_WALL) standFoot(m, vcp, size * 1.05f, sl, overlay);
+                    if (!kind.wallHung() && !s.spin()) standFoot(m, vcp, size, sl, overlay);
+                } else if (CardInfo.isCard(st) && !kind.wallHung() && !s.spin()) standFoot(m, vcp, size * 1.05f, sl, overlay);
                 if (hover) {
                     m.push();
                     m.translate(0, 0, -0.01);

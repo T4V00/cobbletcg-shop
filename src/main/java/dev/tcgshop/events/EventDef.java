@@ -119,7 +119,7 @@ public record EventDef(String id, Category category, Tier tier, String template,
                 int w = v.has("weight") ? Math.max(0, v.get("weight").getAsInt()) : 1;
                 boolean replace = v.has("replace") && v.get("replace").getAsBoolean();
                 List<EventEffect> ve2 = parseEffects(id + "#" + key, v.has("effects") ? v.getAsJsonArray("effects") : new JsonArray());
-                EventConditions vc = v.has("conditions") ? EventConditions.parse(v.getAsJsonObject("conditions")) : EventConditions.ALWAYS;
+                EventConditions vc = v.has("conditions") ? EventConditions.parseVariant(v.getAsJsonObject("conditions")) : EventConditions.ALWAYS;
                 variants.add(new Variant(key, w, replace, Collections.unmodifiableList(ve2), vc));
             }
         }

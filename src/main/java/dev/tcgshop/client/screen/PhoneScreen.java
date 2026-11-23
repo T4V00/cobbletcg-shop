@@ -45,7 +45,7 @@ import static dev.tcgshop.client.screen.Draw.withAlpha;
  *  · Collection (General Binder) · Titles · Advancements.
  */
 public class PhoneScreen extends Screen {
-    private enum App { HOME, MARKET, PRICES, SHOP, TITLES, GRADE, LEAGUE, SELL, FRIENDS, DISPLAYS, SETTINGS, FURNITURE, UPGRADES }
+    private enum App { HOME, MARKET, PRICES, SHOP, TITLES, GRADE, LEAGUE, SELL, FRIENDS, DISPLAYS, SETTINGS, FURNITURE, UPGRADES, MESSAGES, STATS, LOANS }
 
     private record Area(int x, int y, int w, int h, Runnable action) {}
 
@@ -56,6 +56,15 @@ public class PhoneScreen extends Screen {
     private CatalogPanel market;
     /** Upgrades app (0.9): phone tiers, buying upgrades and the daily call. */
     private final dev.tcgshop.client.phone.UpgradesPanel upgrades = new dev.tcgshop.client.phone.UpgradesPanel();
+    /** 1.0 apps: Messages (inbox, compose, loan offers), Stats (money, tips, pros and cons) and Loans (Wholesaler credit). */
+    private final dev.tcgshop.client.phone.MessagesApp messagesApp = new dev.tcgshop.client.phone.MessagesApp();
+    private final dev.tcgshop.client.phone.StatsApp statsApp = new dev.tcgshop.client.phone.StatsApp();
+    private final dev.tcgshop.client.phone.LoansApp loansApp = new dev.tcgshop.client.phone.LoansApp();
+    /** Settings section: "general" or "wallpaper" (1.0). */
+    private String settingsTab = "general";
+    /** The Market's catalog as the server sent it (for the 1.0 «On sale» strip). */
+    private List<ItemStack> marketGoods;
+    private List<Long> marketPrices;
     /** Locked app the player tried to open (shows the «Requires phone X» prompt), or null. */
     private String lockedPrompt;
     private final List<Area> areas = new ArrayList<>();
@@ -108,6 +117,8 @@ public class PhoneScreen extends Screen {
     public PhoneScreen(List<ItemStack> goods, List<Long> prices) {
         super(Text.translatable("item.tcgshop.tcg_phone"));
         this.market = new CatalogPanel(-1, goods, prices);
+        this.marketGoods = goods;
+        this.marketPrices = prices;
         apps.add(new AppDef("market", 0xFFD39B1A, () -> {
             List<Catalog.CardSet> s = Catalog.sets();
             return BoosterBox.of(s.isEmpty() ? "mew151" : s.get(0).id());
@@ -115,6 +126,10 @@ public class PhoneScreen extends Screen {
         apps.add(new AppDef("prices", 0xFF2E9C5A, () -> ItemStack.EMPTY));
         apps.add(new AppDef("shop", 0xFF2F6FB0, () -> new ItemStack(TcgBlocks.CASH_REGISTER_ITEM)));
         apps.add(new AppDef("collection", 0xFFB3262E, () -> new ItemStack(TcgItems.GENERAL_BINDER)));
+        // 1.0 apps (after the first four: the dock uses indices 0-3)
+        apps.add(new AppDef("messages", 0xFF2E8BE8, () -> ItemStack.EMPTY));
+        apps.add(new AppDef("stats", 0xFF7C4DFF, () -> ItemStack.EMPTY));
+        apps.add(new AppDef("loans", 0xFFB8860B, () -> ItemStack.EMPTY));
         apps.add(new AppDef("titles", 0xFF8E44AD, () -> new ItemStack(Items.NAME_TAG)));
         apps.add(new AppDef("grade", 0xFF1E8FA8, () -> ItemStack.EMPTY));
         apps.add(new AppDef("league", 0xFFC62828, () -> new ItemStack(TcgBlocks.PLAY_TABLE_ITEM)));
@@ -151,6 +166,8 @@ public class PhoneScreen extends Screen {
         fresh.copyStateFrom(market);
         fresh.lockFilter = market.lockFilter; // 1.0: keep the locked/unlocked filter after an upgrade
         market = fresh;
+        marketGoods = goods;
+        marketPrices = prices;
     }
 
     private long cachedPrice(Catalog.Card c) {
@@ -279,6 +296,19 @@ public class PhoneScreen extends Screen {
             case SETTINGS -> settingsApp(ctx, mouseX, mouseY);
             case FURNITURE -> furnitureApp(ctx, mouseX, mouseY, delta);
             case UPGRADES -> upgradesApp(ctx, mouseX, mouseY, t);
+            case MESSAGES -> {
+                topBar(ctx, def("messages"), mouseX, mouseY);
+                messagesApp.render(ctx, sx + 8, sy + 41, sw - 16, sh - 52, mouseX, mouseY, delta, (x, y, w, h, r) -> areas.add(new Area(x, y, w, h, r)));
+            }
+            case STATS -> {
+                topBar(ctx, def("stats"), mouseX, mouseY);
+                statsApp.render(ctx, sx + 8, sy + 41, sw - 16, sh - 52, mouseX, mouseY);
+            }
+            case LOANS -> {
+                topBar(ctx, def("loans"), mouseX, mouseY);
+                loansApp.render(ctx, sx + 8, sy + 41, sw - 16, sh - 52, mouseX, mouseY, (x, y, w, h, r) -> areas.add(new Area(x, y, w, h, r)),
+                        this::openMessage);
+            }
         }
         // 1.0: notices (purchase done, not enough money...) on their own opaque layer above the app
         int nw = Math.min(sw - 16, 260);
@@ -291,25 +321,8 @@ public class PhoneScreen extends Screen {
     private void wallpaper(DrawContext ctx, double t) {
         boolean home = app == App.HOME || morphing();
         if (home) {
-            ctx.fillGradient(sx, sy, sx + sw, sy + sh, 0xFF2B2A8A, 0xFF0B0A26);
-            // aurora: slowly moving color blobs
-            int[] cols = {0xFF7A4FE8, 0xFF2EA8E8, 0xFFE84FA8, 0xFF4FE8B0};
-            for (int i = 0; i < 4; i++) {
-                int gx = sx + (int) (sw * (0.15 + i * 0.25) + Math.sin(t * 0.27 + i * 2.1) * sw * 0.12);
-                int gy = sy + (int) (sh * (0.22 + 0.18 * i) + Math.cos(t * 0.21 + i * 1.3) * sh * 0.06);
-                for (int r = Math.min(sw, sh) / 3; r > 0; r -= 7) StylePainter.circle(ctx, gx, gy, r, withAlpha(cols[i], 0.03f));
-            }
-            // twinkling little stars
-            for (int k = 0; k < 26; k++) {
-                int px = sx + 6 + (int) ((k * 97L) % Math.max(1, sw - 12)), py = sy + 16 + (int) ((k * 61L) % Math.max(1, sh - 30));
-                float tw = 0.3f + 0.7f * (float) Math.max(0, Math.sin(t * 1.7 + k * 1.9));
-                ctx.fill(px, py, px + 1, py + 1, withAlpha(0xFFFFFFFF, 0.25f + 0.55f * tw));
-            }
-            // Poké Ball watermark
-            int cx = sx + sw / 2, cy = sy + sh - 70, r = Math.min(sw, sh) / 4;
-            StylePainter.circle(ctx, cx, cy, r, 0x0CFFFFFF);
-            ctx.fill(cx - r, cy - 1, cx + r, cy + 2, 0x10000000);
-            StylePainter.circle(ctx, cx, cy, r / 4, 0x14FFFFFF);
+            // 1.0: the player's wallpaper (Settings → Wallpaper; the default one is the original aurora)
+            dev.tcgshop.client.phone.PhoneWallpaper.draw(ctx, sx, sy, sw, sh, t);
         } else {
             int accent = def(app.name().toLowerCase(Locale.ROOT)).color;
             ctx.fillGradient(sx, sy, sx + sw, sy + sh, 0xFF161A2A, 0xFF0A0C14);
@@ -344,6 +357,12 @@ public class PhoneScreen extends Screen {
 
     private void appIcon(DrawContext ctx, AppDef a, int x, int y, int s, boolean hover) {
         appIconBase(ctx, a, x, y, s, hover);
+        // 1.0: unread messages / pending loan offer or loan due
+        int badgeY = y - 2 - (hover ? 2 : 0);
+        if (a.key.equals("messages")) {
+            int n = dev.tcgshop.client.phone.PhoneAppsClient.unread();
+            if (n > 0) Ui.badge(ctx, x + s - 3, badgeY, n);
+        } else if (a.key.equals("loans") && (dev.tcgshop.client.phone.PhoneAppsClient.pendingOffer() || loanDue())) Ui.badge(ctx, x + s - 3, badgeY, 1);
         if (!dev.tcgshop.client.phone.PhoneClient.appUnlocked(a.key)) { // app from a higher phone tier: greyed out with a padlock
             int lift = hover ? 2 : 0, r = Math.max(3, s / 4);
             Ui.rounded(ctx, x, y - lift, s, s, r, 0xB0141620);
@@ -379,6 +398,34 @@ public class PhoneScreen extends Screen {
             ctx.fill(gx + 4, gy + h / 4 + 4, gx + w - 4, gy + h - 4, 0xFF6BC5FF);
             int ready = dev.tcgshop.client.ClientGrading.readyCount();
             if (ready > 0) Ui.badge(ctx, x + s - 3, y - 2 - lift, ready);
+        } else if (a.key.equals("messages")) { // drawn envelope
+            int w = s * 13 / 20, h = s * 9 / 20, ex = x + (s - w) / 2, ey = y + (s - h) / 2 - lift;
+            ctx.fill(ex - 1, ey - 1, ex + w + 1, ey + h + 1, 0x66000000);
+            ctx.fill(ex, ey, ex + w, ey + h, 0xFFF4F6FB);
+            for (int i = 0; i <= w / 2; i++) { // flap
+                int fy = ey + i * h / Math.max(1, w);
+                ctx.fill(ex + i, fy, ex + i + 1, fy + 1, 0xFF8FA6C8);
+                ctx.fill(ex + w - 1 - i, fy, ex + w - i, fy + 1, 0xFF8FA6C8);
+            }
+        } else if (a.key.equals("stats")) { // drawn pie + bars
+            int pr = s / 4, pcx = x + s / 3 + 1, pcy = y + s / 2 - lift;
+            StylePainter.circle(ctx, pcx, pcy, pr, 0xFFFFFFFF);
+            for (int dy = -pr; dy <= 0; dy++) for (int dx = 0; dx <= pr; dx++) // a quarter in gold
+                if (dx * dx + dy * dy <= pr * pr) ctx.fill(pcx + dx, pcy + dy, pcx + dx + 1, pcy + dy + 1, 0xFFFFD34D);
+            int bw = Math.max(2, s / 10), bx = x + s * 3 / 5, by = y + s - s / 4 - lift;
+            int[] hs = {5, 9, 13};
+            for (int i = 0; i < hs.length; i++) {
+                int bh = hs[i] * s / 24;
+                ctx.fill(bx + i * (bw + 1), by - bh, bx + i * (bw + 1) + bw, by, 0xFFFFFFFF);
+            }
+        } else if (a.key.equals("loans")) { // drawn coin stack
+            int cw = s / 2, cx0 = x + (s - cw) / 2, base = y + s - s / 4 - lift, ch = Math.max(2, s / 10);
+            for (int i = 0; i < 4; i++) {
+                int cy0 = base - i * (ch + 1);
+                ctx.fill(cx0 + (i % 2), cy0 - ch, cx0 + cw + (i % 2), cy0, 0xFFFFD34D);
+                ctx.fill(cx0 + (i % 2), cy0 - 1, cx0 + cw + (i % 2), cy0, 0xFFB8860B);
+            }
+            ctx.drawText(textRenderer, Text.literal("₽").formatted(Formatting.BOLD), x + s - 10, y + 3 - lift, 0xFFFFFFFF, true);
         } else { // drawn price chart
             int bx = x + s / 5, by = y + s - s / 4 - lift, bw = Math.max(2, s / 9);
             int[] hs = {4, 7, 5, 10, 13};
@@ -534,9 +581,9 @@ public class PhoneScreen extends Screen {
         ctx.drawText(textRenderer, pct, sx + sw - 14 - textRenderer.getWidth(pct), cy + 4, Ui.GOLD, false);
         Ui.progress(ctx, sx + 14, cy + 15, sw - 28, 5, have / (float) total, 0xFFB3262E);
         // apps
-        int cols = 4, rowsN = (apps.size() + cols - 1) / cols;
+        int cols = apps.size() > 16 ? 5 : 4, rowsN = (apps.size() + cols - 1) / cols; // 1.0: 5 columns with the new apps
         int gy = cy + 34, availH = (sy + sh - Math.min(28, (sw - 60) / 4) - 26) - gy;
-        int is = Math.max(14, Math.min(Math.min(40, (sw - 50) / 4), availH / rowsN - 20)), gap = (sw - cols * is) / (cols + 1);
+        int is = Math.max(14, Math.min(Math.min(40, (sw - 10 * (cols + 1)) / cols), availH / rowsN - 20)), gap = (sw - cols * is) / (cols + 1);
         for (int i = 0; i < apps.size(); i++) {
             AppDef a = apps.get(i);
             int ix = sx + gap + (i % cols) * (is + gap), iy = gy + (i / cols) * (is + 20);
@@ -575,7 +622,8 @@ public class PhoneScreen extends Screen {
 
     private void openApp(String key) {
         lockedPrompt = null;
-        if (!dev.tcgshop.client.phone.PhoneClient.appUnlocked(key)) { // instead of the app, the prompt to unlock it
+        boolean owes = key.equals("loans") && dev.tcgshop.client.phone.PhoneAppsClient.hasLoan(); // a loan can always be repaid
+        if (!owes && !dev.tcgshop.client.phone.PhoneClient.appUnlocked(key)) { // instead of the app, the prompt to unlock it
             lockedPrompt = key;
             return;
         }
@@ -607,6 +655,18 @@ public class PhoneScreen extends Screen {
                 dev.tcgshop.client.ClientSocial.act("binder_open", "open");
             }
             case "settings" -> open(App.SETTINGS);
+            case "messages" -> {
+                messagesApp.onEnter();
+                open(App.MESSAGES);
+            }
+            case "stats" -> {
+                statsApp.onEnter();
+                open(App.STATS);
+            }
+            case "loans" -> {
+                loansApp.onEnter();
+                open(App.LOANS);
+            }
             case "upgrades" -> {
                 listScroll = 0;
                 open(App.UPGRADES);
@@ -630,6 +690,19 @@ public class PhoneScreen extends Screen {
             }
             default -> {}
         }
+    }
+
+    /** 1.0: opens a message in the Messages app (from a notice or the Loans app). */
+    private void openMessage(long id) {
+        lockedPrompt = null;
+        messagesApp.open(id);
+        open(App.MESSAGES);
+    }
+
+    /** 1.0: is the active loan due today or late? (badge on the Loans app). */
+    private static boolean loanDue() {
+        if (!dev.tcgshop.client.phone.PhoneAppsClient.hasLoan()) return false;
+        return dev.tcgshop.client.phone.PhoneAppsClient.loan().getLong("due") <= dev.tcgshop.client.phone.PhoneAppsClient.loans.getLong("day");
     }
 
     // ------------------------------------------------------------------ phone upgrades (0.9)
@@ -734,7 +807,7 @@ public class PhoneScreen extends Screen {
         for (int i = 0; i < shops.size() && sy2 < py + ph - 12; i++) {
             var z = shops.getCompound(i);
             Ui.roundGradient(ctx, dx, sy2, dw, 20, SURF2, SURF);
-            String tier = Text.translatable("tcgshop.shop.tier." + dev.tcgshop.shop.ShopTier.values()[Math.max(0, Math.min(6, z.getInt("tier")))].key).getString();
+            String tier = Text.translatable("tcgshop.shop.tier." + dev.tcgshop.shop.ShopTier.byRank(z.getInt("tier")).key).getString();
             ctx.drawText(textRenderer, Text.translatable("tcgshop.friends.shop_line", tier, z.getInt("rep"), String.format(Locale.ROOT, "%.1f", z.getInt("stars") / 10.0), z.getInt("sales")),
                     dx + 4, sy2 + 2, 0xFFDDE3F0, false);
             ctx.drawText(textRenderer, Text.translatable("tcgshop.friends.shop_pos", z.getInt("x"), z.getInt("y"), z.getInt("z"), z.getString("dim")), dx + 4, sy2 + 11, 0xFF8A90A8, false);
@@ -841,7 +914,16 @@ public class PhoneScreen extends Screen {
         topBar(ctx, a, mouseX, mouseY);
         var cs = dev.tcgshop.client.ClientSettings.INSTANCE;
         var gc = dev.tcgshop.TcgShopConfig.INSTANCE;
-        int px = sx + 8, py = sy + 41, pw = sw - 16, ph = sh - 52;
+        // 1.0: sections (general settings / wallpaper)
+        String[] stabs = {"general", "wallpaper"};
+        String[] slabels = {Text.translatable("tcgshop.settings.tab.general").getString(), Text.translatable("tcgshop.settings.tab.wallpaper").getString()};
+        int srw = rail(ctx, stabs, slabels, null, settingsTab, a.color, mouseX, mouseY, k -> settingsTab = k);
+        if (settingsTab.equals("wallpaper")) {
+            dev.tcgshop.client.phone.PhoneWallpaper.renderPicker(ctx, sx + srw, sy + 41, sw - srw - 8, sh - 52, mouseX, mouseY, now(),
+                    (x, y, w, h, r) -> areas.add(new Area(x, y, w, h, r)));
+            return;
+        }
+        int px = sx + srw, py = sy + 41, pw = sw - srw - 8, ph = sh - 52;
         int lw = Math.min(pw - 120, Math.max(150, pw / 2)), rowH = 20, y = py;
         String[] onoff = {"tcgshop.settings.off", "tcgshop.settings.on"};
         y = settingRow(ctx, px, y, lw, "tcgshop.settings.bubbles", onoff[cs.bubbles ? 1 : 0], mouseX, mouseY, () -> cs.bubbles = !cs.bubbles);
@@ -945,7 +1027,17 @@ public class PhoneScreen extends Screen {
             counts[i] = market.count(keys[i]);
         }
         int rw = rail(ctx, keys, labels, counts, market.category, a.color, mouseX, mouseY, k -> { market.category = k; market.resetScroll(); });
-        market.render(ctx, sx + rw, sy + 40, sw - rw - 8, sh - 50, mouseX, mouseY, t);
+        // 1.0: with an active loan nothing can be bought from the phone (the server refuses it too); «On sale» strip
+        int top = sy + 40;
+        if (dev.tcgshop.client.phone.PhoneAppsClient.hasLoan()) {
+            int bw = sw - rw - 8;
+            Ui.rounded(ctx, sx + rw, top, bw, 14, 4, 0xCC6A1A1A);
+            Ui.text(ctx, Text.translatable("tcgshop.loan.market_banner"), sx + rw, top + 2, bw, 10, 0xFFFFD0D0, false);
+            areas.add(new Area(sx + rw, top, bw, 14, () -> openApp("loans")));
+            top += 17;
+        }
+        top += dev.tcgshop.client.phone.DiscountTag.strip(ctx, sx + rw, top, sw - rw - 8, marketGoods, marketPrices, mouseX, mouseY);
+        market.render(ctx, sx + rw, top, sw - rw - 8, sh - 50 - (top - sy - 40), mouseX, mouseY, t);
     }
 
     // ------------------------------------------------------------------ prices
@@ -1193,6 +1285,9 @@ public class PhoneScreen extends Screen {
         if (app == App.LEAGUE && leagueHelp.mouseScrolled(mouseX, mouseY, v)) return true;
         if (app == App.LEAGUE && leagueTab.equals("deck") && deckPanel.mouseScrolled(mouseX, mouseY, v)) return true;
         if (app == App.FURNITURE) { furniture.mouseScrolled(mouseX, mouseY, v); return true; }
+        if (app == App.MESSAGES) { messagesApp.scroll(v); return true; }
+        if (app == App.STATS) { statsApp.scroll(v); return true; }
+        if (app == App.LOANS) { loansApp.scroll(v); return true; }
         if (app == App.SELL) { quickSell.scroll(v); return true; }
         if (app == App.GRADE && gradeTab.equals("send")) { gradePanel.scroll(mouseX, mouseY, v); return true; }
         if (app == App.MARKET) market.scroll(v);
@@ -2115,7 +2210,12 @@ public class PhoneScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (morphing()) return true;
-        if (dev.tcgshop.client.phone.PhoneNotices.click(mouseX, mouseY)) return true; // 1.0: the notice is on top and swallows the click
+        if (dev.tcgshop.client.phone.PhoneNotices.click(mouseX, mouseY)) { // 1.0: the notice is on top and swallows the click
+            long link = dev.tcgshop.client.phone.PhoneNotices.consumeClickedLink();
+            if (link >= 0) openMessage(link); // a notice of a new message opens it
+            return true;
+        }
+        if (app == App.MESSAGES && messagesApp.mouseClicked(mouseX, mouseY, button)) return true;
         if (app == App.LEAGUE && leagueHelp.mouseClicked(mouseX, mouseY, button)) return true;
         if (app == App.LEAGUE && leagueTab.equals("deck") && deckPanel.mouseClicked(mouseX, mouseY, button)) return true;
         if (app == App.GRADE && gradeTab.equals("send") && gradePanel.mouseClicked(mouseX, mouseY, button)) return true;
@@ -2140,6 +2240,7 @@ public class PhoneScreen extends Screen {
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
+        if (app == App.MESSAGES && messagesApp.charTyped(chr, modifiers)) return true;
         if (app == App.LEAGUE && leagueHelp.isOpen()) return true; // with the help open, typing does not go into the search box underneath
         if (app == App.LEAGUE && leagueTab.equals("deck") && deckPanel.charTyped(chr)) return true;
         if (app == App.FURNITURE && furniture.charTyped(chr, modifiers)) return true;
@@ -2149,6 +2250,7 @@ public class PhoneScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (app == App.MESSAGES && messagesApp.keyPressed(keyCode, scanCode, modifiers)) return true;
         if (app == App.LEAGUE && leagueHelp.keyPressed(keyCode)) return true;
         if (app == App.LEAGUE && leagueTab.equals("deck") && deckPanel.keyPressed(keyCode, scanCode, modifiers)) return true;
         if (app == App.FURNITURE && furniture.keyPressed(keyCode, scanCode, modifiers)) return true;

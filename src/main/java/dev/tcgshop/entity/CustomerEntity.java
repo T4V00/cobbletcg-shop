@@ -129,6 +129,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
      * above it is a tip. 0 = unknown (no tip is counted).
      */
     private long askPrice;
+    /** 1.0 charisma: the customer's opening price of the current deal (to know if you haggled a better one). Not saved. */
+    private long openPrice;
     /** 1.0: the biggest tip a customer leaves voluntarily at checkout (on top of the price). */
     private static final long CHECKOUT_TIP_CAP = 25_000;
     /** Haggling customer's lines when YOU sell to them (tcgshop.haggle.buy.<cat>.<n>, tools/gen_lang_haggle_rep.py). */
@@ -335,10 +337,11 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         double a = ask[persona * 2] + random.nextDouble() * (ask[persona * 2 + 1] - ask[persona * 2]);
         if (cat == 0) a -= 0.08; // needs the money now
         else if (cat == 1) a += 0.08; // wants to make money, doesn't care whether it works out for you
-        dealPrice = Math.max(10, Math.round(market * a));
+        // 1.0: never opens below the sell floor either (a desperate seller in a hurry could otherwise ask ~42 % of market)
+        dealPrice = Math.max(10, Math.max(sellFloor(market), Math.round(market * a)));
         double[] fl = {0.85, 0.97, 0.7, 0.85, 0.85, 0.95, 0.72, 0.85, 0.6, 0.75, 0.75, 0.9};
         double f = fl[persona * 2] + random.nextDouble() * (fl[persona * 2 + 1] - fl[persona * 2]);
-        floorPrice = Math.min(dealPrice, Math.max(Math.round(market * 0.45), Math.round(dealPrice * f)));
+        floorPrice = Math.min(dealPrice, Math.max(sellFloor(market), Math.round(dealPrice * f)));
         if (visitor != null && visitor.fairSeller) { // 0.9 events: collector who sells: never below market
             dealPrice = Math.max(dealPrice, market);
             floorPrice = Math.max(floorPrice, market);
@@ -347,6 +350,15 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         maxPatience = patience = Math.max(1, (int) Math.round((pat[persona] + random.nextInt(2)) * EconomyConfig.INSTANCE.merchantPatience * eventPatience(world)));
         dealMode = DealOpenPayload.SELL;
         reasonKey = 0;
+    }
+
+    /**
+     * 1.0: the lowest price a customer who SELLS to you ever asks or accepts (EconomyConfig.customerSellFloor of market,
+     * 45 % by default). Charisma, missions luck and haggling arguments are applied first and then clamped here, so
+     * buying from customers can never undercut the phone / Wholesaler quick-sell.
+     */
+    private static long sellFloor(long market) {
+        return Math.max(1, Math.round(Math.max(1, market) * EconomyConfig.INSTANCE.customerSellFloor));
     }
 
     private int weighted(int[] w) {
@@ -510,7 +522,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
                 }
                 if (getNavigation().isIdle()) getNavigation().startMovingTo(exit.x, exit.y, exit.z, 0.9);
                 // only despawns far from the shop and where no player can see it (or, if stuck, after 2 minutes)
-                double half = z.tierInfo().size / 2.0 + 14;
+                double half = z.size() / 2.0 + 14;
                 net.minecraft.entity.player.PlayerEntity near = world.getClosestPlayer(this, 48);
                 boolean unseen = near == null || squaredDistanceTo(near) > 40 * 40 || (squaredDistanceTo(near) > 20 * 20 && !near.canSee(this));
                 boolean far = !z.contains(getBlockPos()) && squaredDistanceTo(z.core.toCenterPos()) > half * half;
@@ -542,7 +554,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
 
     private static void forDisplays(ServerWorld world, ShopZones.Zone z, SlotVisitor v) {
         dev.tcgshop.events.Mods mods = dev.tcgshop.events.EventManager.mods(z);
-        int half = z.tierInfo().size / 2;
+        int half = z.size() / 2;
         int cx0 = (z.core.getX() - half) >> 4, cx1 = (z.core.getX() + half) >> 4, cz0 = (z.core.getZ() - half) >> 4, cz1 = (z.core.getZ() + half) >> 4;
         for (int cx = cx0; cx <= cx1; cx++)
             for (int cz = cz0; cz <= cz1; cz++) {
@@ -626,6 +638,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             default -> 0;
         };
         if (returning) p = Math.min(0.95, p + 0.15);
+        // 1.0: luck from completed shop missions (up to +15 % with all of them)
+        if (p > 0 && p < 0.95) p = Math.min(0.95, p * (1 + dev.tcgshop.shop.ShopMissions.acceptBonus(z)));
         // 0.9 events: desire to buy (modifiers) and visitors: price cap over market and "just looking"
         p *= mods.buyMultFor(st, ratio);
         if (visitor != null) {
@@ -839,7 +853,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
 
     @Nullable
     private BlockPos nearestRegister(ServerWorld world, ShopZones.Zone z) {
-        int half = z.tierInfo().size / 2;
+        int half = z.size() / 2;
         for (BlockPos p : BlockPos.iterateOutwards(getBlockPos(), half + 2, 4, half + 2)) {
             if (z.contains(p) && world.getBlockState(p).isOf(TcgBlocks.CASH_REGISTER)) return p.toImmutable();
         }
@@ -893,7 +907,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         if (!bargain && !"fair".equals(reviewKey)) return 0;
         int rep = Math.max(0, Math.min(100, dev.tcgshop.shop.ShopLife.effectiveRep(z)));
         double chance = 0.04 + 0.06 * rep / 100.0 + (bargain ? 0.04 : 0) + (returning ? 0.04 : 0) + (type() == Type.WHALE ? 0.05 : 0)
-                + dev.tcgshop.shop.TipLedger.chanceBonus.applyAsDouble(world.getServer(), z.owner);
+                + dev.tcgshop.shop.TipLedger.chanceBonusAt(z); // 1.0: luck of THIS shop, not the owner's best one
         if (random.nextDouble() >= chance) return 0;
         double pct = type() == Type.WHALE ? 0.10 + random.nextDouble() * 0.15 : 0.05 + random.nextDouble() * 0.10;
         return Math.max(1, Math.min(CHECKOUT_TIP_CAP, Math.round(payPrice * pct)));
@@ -953,7 +967,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
     private void fleeTick(ServerWorld world, ShopZones.Zone z) {
         EmployeeEntity guard = guardOf(world, z);
         ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(z.owner);
-        double escape = Math.pow(z.tierInfo().size / 2.0 + 8, 2);
+        double escape = Math.pow(z.size() / 2.0 + 8, 2);
         if (guard != null) {
             if (getNavigation().isIdle() || age % 20 == 0) {
                 Vec3d away = getPos().subtract(z.core.toCenterPos()).normalize().multiply(14);
@@ -1025,6 +1039,7 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         if (dealItem.isEmpty()) { leave(world, z, null); return; }
         state = State.WAIT_DEAL;
         dealNotified = false;
+        openPrice = dealPrice; // 1.0 charisma: haggling below / above this counts as a haggle won
         timer = waitMax = (int) Math.max(200, 20 * EconomyConfig.INSTANCE.customerWaitSeconds * eventPatience(world));
         dataTracker.set(WAIT, 1000);
         emote(EMOTE_NONE);
@@ -1240,8 +1255,16 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             }
             default -> {}
         }
-        long eff = Math.round(floorPrice * mod);
-        if (counter < floorPrice * 0.6) { // ridiculous offer: takes offense
+        // 1.0 charisma: a charismatic owner gets a lower minimum, more concessions and fewer offended sellers
+        double hb = dev.tcgshop.shop.Charisma.haggleBonus(world.getServer(), owner.getUuid());
+        long base = Math.round(floorPrice * mod);
+        long eff = Math.round(base * (1 - 0.4 * hb));
+        boolean fairSeller = visitor != null && visitor.fairSeller;
+        if (fairSeller) eff = Math.max(eff, Math.min(base, market)); // 0.9 events: charisma never pushes a fair seller below market
+        // 1.0: charisma and the "elsewhere"/"broke" arguments never take the minimum below the sell floor (45 % of market)
+        long minSell = sellFloor(market);
+        eff = Math.max(eff, minSell);
+        if (counter < floorPrice * 0.6 * (1 - 0.5 * hb)) { // ridiculous offer: takes offense
             patience -= 2;
             mood -= 1;
             say.append(NpcLines.random(random, "neg_insulted_" + pk()));
@@ -1250,7 +1273,10 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             return;
         }
         boolean last = action == DealAnswerPayload.ARG_MAX;
-        if (counter >= eff || (last && persona == P_DESPERATE && counter >= floorPrice * 0.92 && random.nextBoolean())) {
+        // 1.0 missions luck: an offer just short of the seller's limit (within 8 %) is sometimes accepted anyway
+        // (never below the sell floor, nor is the desperate seller's last-chance yes)
+        boolean lucky = counter >= eff * 0.92 && counter >= minSell && !(fairSeller && counter < market) && random.nextDouble() < dev.tcgshop.shop.ShopMissions.acceptBonus(z);
+        if (counter >= eff || lucky || (last && persona == P_DESPERATE && counter >= Math.max(minSell, floorPrice * 0.92) && random.nextBoolean())) {
             dealPrice = counter;
             acceptDeal(owner);
             return;
@@ -1259,7 +1285,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         patience--;
         if (patience <= 0) { walkAway(owner, world, z, say.append(NpcLines.random(random, "neg_walkaway_" + pk()))); return; }
         double[] conc = {0.3, 0.5, 0.25, 0.35, 0.6, 0.45};
-        long next = Math.max(eff, Math.round(dealPrice - (dealPrice - counter) * conc[pi]));
+        double cc = Math.min(0.85, conc[pi] * (1 + 1.6 * hb));
+        long next = Math.max(eff, Math.round(dealPrice - (dealPrice - counter) * cc));
         if (next >= dealPrice) say.append(NpcLines.random(random, "neg_hold_" + pk(), PriceService.format(dealPrice)));
         else {
             dealPrice = next;
@@ -1304,8 +1331,13 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             }
             default -> {}
         }
-        long eff = Math.round(ceilPrice * mod);
-        if (counter > ceilPrice * 1.6 + 5) { // you ask for an outrageous amount: takes offense
+        // 1.0 charisma: a charismatic owner gets a higher maximum, more concessions and fewer offended buyers
+        double hb = dev.tcgshop.shop.Charisma.haggleBonus(world.getServer(), owner.getUuid());
+        long base = Math.round(ceilPrice * mod);
+        long eff = Math.round(base * (1 + 0.4 * hb));
+        if (visitor != null && visitor.priceCap > 0) // 0.9 events: charisma never pushes a capped visitor past its cap
+            eff = Math.max(base, Math.min(eff, Math.round(market * Math.max(visitor.priceCap, 1.0))));
+        if (counter > ceilPrice * 1.6 * (1 + 0.5 * hb) + 5) { // you ask for an outrageous amount: takes offense
             patience -= 2;
             mood -= 1;
             say.append(buyLine("insulted"));
@@ -1314,7 +1346,9 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             return;
         }
         boolean last = action == DealAnswerPayload.ARG_MAX;
-        if (counter <= eff || (last && counter <= eff * 1.05 && random.nextBoolean())) {
+        // 1.0 missions luck: a price just above the buyer's limit (within 8 %) is sometimes accepted anyway
+        boolean lucky = counter <= eff * 1.08 && !(visitor != null && visitor.priceCap > 0) && random.nextDouble() < dev.tcgshop.shop.ShopMissions.acceptBonus(z);
+        if (counter <= eff || lucky || (last && counter <= eff * 1.05 && random.nextBoolean())) {
             dealPrice = counter;
             acceptDeal(owner);
             return;
@@ -1323,7 +1357,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         patience--;
         if (patience <= 0) { walkAway(owner, world, z, say.append(buyLine("walkaway"))); return; }
         double[] conc = {0.45, 0.5, 0.3, 0.25, 0.6, 0.45};
-        long next = Math.min(eff, Math.round(dealPrice + (counter - dealPrice) * conc[pi]));
+        double cc = Math.min(0.85, conc[pi] * (1 + 1.6 * hb));
+        long next = Math.min(eff, Math.round(dealPrice + (counter - dealPrice) * cc));
         if (next <= dealPrice) say.append(buyLine("hold", PriceService.format(dealPrice)));
         else {
             dealPrice = next;
@@ -1338,7 +1373,8 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         if (thinks > 2) patience--;
         if (patience <= 0) { walkAway(owner, world, z, buyLine("walkaway")); return; }
         double[] raise = {0.35, 0.45, 0.2, 0.25, 0.6, 0.4};
-        if (random.nextDouble() < raise[Math.max(0, Math.min(5, persona))] && dealPrice < ceilPrice) {
+        double hb = dev.tcgshop.shop.Charisma.haggleBonus(world.getServer(), owner.getUuid()); // 1.0: charisma, more likely to go up
+        if (random.nextDouble() < Math.min(0.9, raise[Math.max(0, Math.min(5, persona))] * (1 + hb)) && dealPrice < ceilPrice) {
             dealPrice = Math.min(ceilPrice, Math.round(dealPrice * (1.03 + random.nextDouble() * 0.05)));
             long tip = currentTip(); // 1.0: now above your asking price: it says the extra is a tip
             updateDeal(owner, tip > 0 ? NpcLines.random(random, "tip_offer", PriceService.format(tip)) : buyLine("think_raise", PriceService.format(dealPrice)));
@@ -1351,8 +1387,10 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         if (thinks > 2) patience--;
         if (patience <= 0) { walkAway(owner, world, z, NpcLines.random(random, "neg_walkaway_" + pk()).copy()); return; }
         double[] lower = {0.25, 0.5, 0.2, 0.35, 0.7, 0.45};
-        if (random.nextDouble() < lower[Math.max(0, persona)] && dealPrice > floorPrice) {
-            dealPrice = Math.max(floorPrice, Math.round(dealPrice * (0.92 + random.nextDouble() * 0.05)));
+        double hb = dev.tcgshop.shop.Charisma.haggleBonus(world.getServer(), owner.getUuid()); // 1.0: charisma, more likely to go down
+        long low = Math.max(floorPrice, sellFloor(ShopServer.priceOf(dealItem, 1.0))); // 1.0: never below the sell floor
+        if (random.nextDouble() < Math.min(0.9, lower[Math.max(0, persona)] * (1 + hb)) && dealPrice > low) {
+            dealPrice = Math.max(low, Math.round(dealPrice * (0.92 + random.nextDouble() * 0.05)));
             updateDeal(owner, NpcLines.random(random, "neg_think_lower", PriceService.format(dealPrice)));
         } else updateDeal(owner, NpcLines.random(random, "neg_think_same").copy());
     }
@@ -1396,6 +1434,15 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
         long tip = currentTip(); // 1.0: BUY deal above your asking price
         switch (dealMode) {
             case DealOpenPayload.SELL -> { // you buy from it
+                // 1.0: the market went up during the deal and the agreed price fell under the sell floor: the seller
+                // raises it to the floor and asks again instead of selling below it (no path beats the quick-sell)
+                long minSell = sellFloor(market);
+                if (dealPrice < minSell) {
+                    dealPrice = minSell;
+                    floorPrice = Math.max(floorPrice, minSell);
+                    updateDeal(owner, NpcLines.random(random, "neg_hold_" + pk(), PriceService.format(dealPrice)));
+                    return;
+                }
                 if (!CobbleDollarsBridge.tryCharge(owner, dealPrice)) {
                     owner.sendMessage(Text.translatable("tcgshop.shop.no_money", PriceService.format(dealPrice)).formatted(Formatting.RED), true);
                     updateDeal(owner, NpcLines.random(random, "neg_no_money"));
@@ -1441,6 +1488,9 @@ public class CustomerEntity extends PathAwareEntity implements TcgNpc, Cobblemon
             }
         }
         z.dealsAccepted++;
+        // 1.0 charisma: every closed deal gives XP, more if you haggled a better price than the customer's opening one
+        boolean won = openPrice > 0 && (dealMode == DealOpenPayload.SELL ? dealPrice < openPrice : dealMode == DealOpenPayload.BUY && dealPrice > openPrice);
+        dev.tcgshop.shop.Charisma.onDeal(world.getServer(), owner.getUuid(), won);
         mood += 2;
         reviewKey = "deal_yes";
         ShopZones.get(world).markDirty();

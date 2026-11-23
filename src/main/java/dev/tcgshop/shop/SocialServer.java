@@ -276,6 +276,8 @@ public final class SocialServer {
             buyer.sendMessage(Text.translatable("tcgshop.bm2.expired").formatted(Formatting.GRAY), false);
             return;
         }
+        // 1.0: no buying from other players while a Wholesaler loan is active (the offer stays open until it expires)
+        if (accept && dev.tcgshop.phone.Loans.blocksPurchase(buyer, "tcgshop.loan.notice.blocked_offer")) return;
         OFFERS.remove(id);
         ServerPlayerEntity seller = buyer.getServer().getPlayerManager().getPlayer(o.seller);
         if (!accept) {
@@ -449,7 +451,7 @@ public final class SocialServer {
             zc.putInt("tier", z.tier);
             zc.putLong("core", z.core.asLong());
             NbtList dl = new NbtList();
-            int half = z.tierInfo().size / 2;
+            int half = z.size() / 2;
             int cx0 = (z.core.getX() - half) >> 4, cx1 = (z.core.getX() + half) >> 4, cz0 = (z.core.getZ() - half) >> 4, cz1 = (z.core.getZ() + half) >> 4;
             for (int cx = cx0; cx <= cx1; cx++)
                 for (int cz = cz0; cz <= cz1; cz++) {
@@ -499,7 +501,7 @@ public final class SocialServer {
                 double f = Math.max(0.1, Math.min(10, a.getDouble("f")));
                 for (ShopZones.Zone z : zones.all()) {
                     if (!z.owner.equals(p.getUuid())) continue;
-                    int half = z.tierInfo().size / 2;
+                    int half = z.size() / 2;
                     for (int cx = (z.core.getX() - half) >> 4; cx <= (z.core.getX() + half) >> 4; cx++)
                         for (int cz = (z.core.getZ() - half) >> 4; cz <= (z.core.getZ() + half) >> 4; cz++) {
                             WorldChunk ch = world.getChunkManager().getWorldChunk(cx, cz);

@@ -74,16 +74,16 @@ public final class PackLock {
     /** Configured minimum shop tier (Diamond by default). */
     public static ShopTier minTier() {
         String k = EconomyConfig.INSTANCE.lockedPacksMinShopTier;
-        for (ShopTier t : ShopTier.values()) if (t.key.equalsIgnoreCase(k) || t.name().equalsIgnoreCase(k)) return t;
-        return ShopTier.DIAMOND;
+        ShopTier t = ShopTier.byKey(k);
+        return t != null ? t : ShopTier.DIAMOND;
     }
 
     /** Does this player own a shop of the minimum tier or higher (in any dimension)? */
     public static boolean canBuyLocked(net.minecraft.server.network.ServerPlayerEntity p) {
-        int need = minTier().ordinal();
+        ShopTier need = minTier();
         for (net.minecraft.server.world.ServerWorld w : p.getServer().getWorlds())
             for (ShopZones.Zone z : ShopZones.get(w).all())
-                if (z.owner.equals(p.getUuid()) && z.tier >= need) return true;
+                if (z.owner.equals(p.getUuid()) && z.tierInfo().atLeast(need)) return true;
         return false;
     }
 

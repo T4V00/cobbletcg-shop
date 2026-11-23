@@ -33,6 +33,7 @@ public final class ShopLife {
     public static void register() {
         ServerTickEvents.END_WORLD_TICK.register(ShopLife::tick);
         net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register(ShopLife::onNpcDeath);
+        ShopMissions.init(); // 1.0: mission ledger / charisma lifecycle and the missions' tip luck
     }
 
     /**
@@ -78,7 +79,7 @@ public final class ShopLife {
             if (t % 600 == phase && z.smell > 0) { z.smell--; zones.markDirty(); }
             if (t % 40 == phase % 40 && z.smell >= 45) {
                 // little green clouds around the shop when it stinks
-                int half = z.tierInfo().size / 2;
+                int half = z.size() / 2;
                 double x = z.core.getX() + world.random.nextInt(half * 2 + 1) - half + 0.5, zz = z.core.getZ() + world.random.nextInt(half * 2 + 1) - half + 0.5;
                 world.spawnParticles(new net.minecraft.particle.DustParticleEffect(new org.joml.Vector3f(0.45f, 0.62f, 0.2f), 1.6f),
                         x, z.core.getY() + 1.2, zz, 4, 0.4, 0.4, 0.4, 0);
@@ -93,7 +94,7 @@ public final class ShopLife {
      * reputation would come out falsely low (and since it falls fast and rises slowly, it would sink while the owner is away).
      */
     public static boolean zoneLoaded(ServerWorld world, ShopZones.Zone z) {
-        int half = z.tierInfo().size / 2;
+        int half = z.size() / 2;
         int cx0 = (z.core.getX() - half) >> 4, cx1 = (z.core.getX() + half) >> 4, cz0 = (z.core.getZ() - half) >> 4, cz1 = (z.core.getZ() + half) >> 4;
         for (int cx = cx0; cx <= cx1; cx++)
             for (int cz = cz0; cz <= cz1; cz++)
@@ -135,9 +136,13 @@ public final class ShopLife {
         if (!zoneLoaded(world, z)) return;
         int displays = 0, decor = 0, detectors = 0, stocked = 0, stockedDisplays = 0, playTables = 0;
         boolean boosterBox = false, register = false;
+        // 1.0 missions: what else is on display and placed (counted in the same pass)
+        int packSlots = 0, boxSlots = 0, posters = 0, pedestals = 0, registers = 0, showcases = 0, rgbDisplays = 0, premiumDisplays = 0,
+                graded = 0, gemGraded = 0;
+        long stockValue = 0, topCard = 0;
         double ratioSum = 0;
         Set<String> variety = new HashSet<>();
-        int half = z.tierInfo().size / 2;
+        int half = z.size() / 2;
         int cx0 = (z.core.getX() - half) >> 4, cx1 = (z.core.getX() + half) >> 4, cz0 = (z.core.getZ() - half) >> 4, cz1 = (z.core.getZ() + half) >> 4;
         for (int cx = cx0; cx <= cx1; cx++)
             for (int cz = cz0; cz <= cz1; cz++) {
@@ -148,6 +153,12 @@ public final class ShopLife {
                     if (be instanceof ShopDisplayBlockEntity d && !d.isHome()) {
                         displays++;
                         if (be.getCachedState().isOf(TcgBlocks.PEDESTAL)) decor++;
+                        BlockState ds = be.getCachedState();
+                        boolean rgb = Registries.BLOCK.getId(ds.getBlock()).getPath().contains("rgb"); // 1.0 RGB displays, by id
+                        if (ds.isOf(TcgBlocks.PEDESTAL)) pedestals++;
+                        if (ds.isOf(TcgBlocks.SHOWCASE)) showcases++;
+                        if (rgb) rgbDisplays++;
+                        if (rgb || ds.isOf(TcgBlocks.SHOWCASE) || ds.isOf(TcgBlocks.CARD_WALL) || ds.isOf(TcgBlocks.PEDESTAL)) premiumDisplays++;
                         boolean any = false;
                         for (int i = 0; i < d.size(); i++) {
                             ItemStack st = d.getStack(i);
@@ -158,26 +169,33 @@ public final class ShopLife {
                             variety.add(Registries.ITEM.getId(st.getItem()).toString());
                             long market = ShopServer.priceOf(st, 1.0);
                             ratioSum += market <= 0 ? 1 : d.price(i) / (double) market;
+                            stockValue += Math.max(0, market) * Math.max(1, st.getCount());
+                            if (dev.masterball.api.card.CardInfo.isCard(st)) topCard = Math.max(topCard, market);
+                            else if (dev.masterball.api.card.CardInfo.isPack(st)) packSlots++;
+                            if (st.isOf(TcgBlocks.BOOSTER_BOX_ITEM)) boxSlots++;
+                            int gr = dev.tcgshop.grading.Grading.grade(st);
+                            if (gr > 0) { graded++; if (gr >= 100) gemGraded++; }
                         }
                         if (any) stockedDisplays++;
                     } else if (be instanceof DecorBlocks.DecorEntity) {
                         BlockState s = be.getCachedState();
                         if (s.isOf(TcgBlocks.THEFT_DETECTOR)) detectors++;
-                        else if (s.isOf(TcgBlocks.CASH_REGISTER)) register = true;
+                        else if (s.isOf(TcgBlocks.CASH_REGISTER)) { register = true; registers++; }
                         if (s.isOf(TcgBlocks.PLAY_TABLE)) { playTables++; decor++; } // the play table also counts as decoration (as before 0.9)
-                        else if (s.isOf(TcgBlocks.POSTER)) decor++;
+                        else if (s.isOf(TcgBlocks.POSTER)) { decor++; posters++; }
                     }
                 }
             }
         // placed Pokeblocks plushies (band at the shop's floor height)
         // (in the same pass: furniture seats -chairs, benches, sofas- for the play area and the capacity)
-        int dolls = 0, seats = 0;
+        int dolls = 0, seats = 0, statues = 0;
         for (BlockPos p : BlockPos.iterate(z.core.getX() - half, z.core.getY() - 1, z.core.getZ() - half, z.core.getX() + half, z.core.getY() + 3, z.core.getZ() + half)) {
             BlockState bs = world.getBlockState(p);
             if (bs.isAir()) continue;
             Identifier id = Registries.BLOCK.getId(bs.getBlock());
             if (id.getNamespace().equals("minecraft")) continue;
-            if (id.getNamespace().equals("pokeblocks") && id.getPath().contains("pokedoll")) dolls++;
+            if (bs.getBlock() instanceof dev.tcgshop.luxury.StatueBlock) statues++; // 1.0 missions: luxury statues in the shop
+            else if (id.getNamespace().equals("pokeblocks") && id.getPath().contains("pokedoll")) dolls++;
             else if (ShopSeats.seatWord(id.getPath())) seats++; // 0.9.5: a single list of seats (ShopSeats.SEAT_WORDS)
         }
         decor += dolls;
@@ -313,17 +331,45 @@ public final class ShopLife {
         snap.roof = env.roof;
         snap.walls = env.walls;
         snap.light = env.light;
+        // 1.0 missions
+        java.util.List<BlockPos> doorList = shopDoors(world, z);
+        snap.packs = packSlots;
+        snap.boxes = boxSlots;
+        snap.slots = env.slots;
+        snap.kinds = env.kinds;
+        snap.posters = posters;
+        snap.dolls = dolls;
+        snap.pedestals = pedestals;
+        snap.statues = statues;
+        snap.showcases = showcases;
+        snap.rgbDisplays = rgbDisplays;
+        snap.premiumDisplays = premiumDisplays;
+        snap.graded = graded;
+        snap.gemGraded = gemGraded;
+        snap.registers = registers;
+        snap.doors = env.doors;
+        snap.woodenDoors = doorList.size();
+        snap.hostilesNear = env.hostilesNear;
+        snap.pets = env.pets;
+        snap.pokemon = env.pokemon;
+        snap.inside = insideCount(world, z);
+        snap.aesthetics = aest;
+        snap.value = value;
+        snap.safety = safety;
+        snap.stockValue = stockValue;
+        snap.topCard = topCard;
+        snap.day = day;
         z.seats = seats;
         z.playTables = playTables;
         int before = z.missions;
-        z.missions = ShopMissions.evaluate(z, snap);
+        z.missions = ShopMissions.evaluate(world.getServer(), z, snap);
         if (before < 0) z.missionsEver |= z.missions; // first computation: what was already met isn't announced
         if (!full) {
             // preview (status window): new missions are announced on the next full recompute
             z.lastCalc = world.getTime();
             return;
         }
-        dev.tcgshop.events.EventManager.onRecompute(world, z, register, shopDoors(world, z)); // 0.9 events: conditions and goals
+        dev.tcgshop.events.EventManager.onRecompute(world, z, register, doorList); // 0.9 events: conditions and goals
         dev.tcgshop.events.incident.IncidentModule.cleanupZone(world, z); // 0.9: sweep of orphaned incidents
         z.lastCalc = world.getTime();
         ShopZones.get(world).markDirty();
@@ -352,8 +398,9 @@ public final class ShopLife {
         for (ShopZones.Review r : z.reviews) if (r.stars() >= 5 && today - r.day() <= 2) recs++;
         // flow: the more missions completed, the more people arrive (ShopMissions.flow)
         // 0.9 events: effective reputation (with the temporary modifier) and arrival multiplier
-        double chance = (0.2 + effectiveRep(z) / 180.0 + Math.min(0.15, recs * 0.03)) * DEMAND * ShopMissions.flow(z.missions)
-                * em.spawnMult;
+        // 1.0: the tier's arrival multiplier (the Paper stall gets very few people, ShopTier.spawnMult)
+        double chance = (0.2 + effectiveRep(z) / 180.0 + Math.min(0.15, recs * 0.03)) * DEMAND * ShopMissions.flow(z)
+                * em.spawnMult * z.tierInfo().spawnMult;
         if (world.random.nextDouble() > chance) return;
         if (present >= full) {
             // someone was coming, but the shop and the queue are full: they turn around (counts toward suggesting an upgrade)
@@ -611,16 +658,36 @@ public final class ShopLife {
 
     /** Notifies the owner when they complete a new mission. */
     private static void announceMissions(ServerPlayerEntity owner, ShopZones.Zone z, int before) {
-        int gained = z.missions & ~z.missionsEver;
-        z.missionsEver |= z.missions;
-        if (before < 0 || gained == 0) return; // first computation (old worlds / new shop): no bulk notifications
-        for (ShopMissions.Mission m : ShopMissions.Mission.values()) {
-            if ((gained & (1 << m.ordinal())) == 0) continue;
+        z.missionsEver |= z.missions; // 0.9 mask (kept for older builds)
+        // 1.0: the full set lives in the MissionLedger (only the first time each mission is completed is announced)
+        net.minecraft.server.MinecraftServer server = owner.getServer();
+        if (server == null) return;
+        MissionLedger.Data d = MissionLedger.of(server, z);
+        java.util.BitSet gained = (java.util.BitSet) d.done.clone();
+        gained.andNot(d.ever);
+        int everBefore = d.ever.cardinality();
+        d.ever.or(d.done);
+        MissionLedger.dirty();
+        if (before < 0 || gained.isEmpty()) return; // first computation (old worlds / new shop): no bulk notifications
+        int completed = ShopMissions.completedCount(z), n = 0, shown = 0;
+        String flow = (int) Math.round(ShopMissions.flow(z) * 100) + "%";
+        for (int i = gained.nextSetBit(0); i >= 0 && i < ShopMissions.COUNT; i = gained.nextSetBit(i + 1)) {
+            n++;
+            if (shown >= 3) continue; // several at once: the rest go in one summary line
+            shown++;
+            ShopMissions.Mission m = ShopMissions.Mission.values()[i];
             owner.sendMessage(net.minecraft.text.Text.translatable("tcgshop.mission.completed",
                     net.minecraft.text.Text.translatable("tcgshop.mission." + m.key),
-                    ShopMissions.count(z.missions), ShopMissions.COUNT,
-                    (int) Math.round(ShopMissions.flow(z.missions) * 100) + "%").formatted(net.minecraft.util.Formatting.GREEN), false);
+                    completed, ShopMissions.COUNT, flow).formatted(net.minecraft.util.Formatting.GREEN), false);
         }
+        if (n > shown)
+            owner.sendMessage(net.minecraft.text.Text.translatable("tcgshop.mission.completed_more", n - shown).formatted(net.minecraft.util.Formatting.GREEN), false);
+        // every 10 missions ever completed: a phone message with the luck they give
+        int everAfter = d.ever.cardinality();
+        if (everAfter / 10 > everBefore / 10)
+            dev.tcgshop.phone.PhoneMessages.send(server, z.owner, "tcgshop.msg.sender.shop",
+                    net.minecraft.text.Text.translatable("tcgshop.mission.milestone_msg", completed, ShopMissions.COUNT,
+                            Math.round(ShopMissions.acceptBonus(z) * 1000) / 10.0 + "%", Math.round(ShopMissions.tipBonus(z) * 1000) / 10.0 + "%"), false);
         owner.getServerWorld().playSound(null, owner.getBlockPos(), net.minecraft.sound.SoundEvents.ENTITY_PLAYER_LEVELUP,
                 net.minecraft.sound.SoundCategory.PLAYERS, 0.5f, 1.4f);
     }
@@ -651,7 +718,7 @@ public final class ShopLife {
     /** The shop's wooden doors (lower half), inside the zone and at floor height. */
     public static java.util.List<BlockPos> shopDoors(ServerWorld world, ShopZones.Zone z) {
         java.util.List<BlockPos> out = new java.util.ArrayList<>();
-        int half = z.tierInfo().size / 2;
+        int half = z.size() / 2;
         for (BlockPos p : BlockPos.iterate(z.core.getX() - half, z.core.getY() - 2, z.core.getZ() - half, z.core.getX() + half, z.core.getY() + 3, z.core.getZ() + half)) {
             BlockState s = world.getBlockState(p);
             if (s.isIn(net.minecraft.registry.tag.BlockTags.WOODEN_DOORS) && s.get(net.minecraft.block.DoorBlock.HALF) == net.minecraft.block.enums.DoubleBlockHalf.LOWER)
@@ -689,7 +756,7 @@ public final class ShopLife {
     }
 
     private static Vec3d edgeSpot(ServerWorld world, ShopZones.Zone z, int outside) {
-        int half = z.tierInfo().size / 2 - 1 + outside;
+        int half = z.size() / 2 - 1 + outside;
         for (int i = 0; i < 12; i++) {
             int side = world.random.nextInt(4), off = world.random.nextInt(half * 2 + 1) - half;
             int x = z.core.getX() + (side == 0 ? -half : side == 1 ? half : off);

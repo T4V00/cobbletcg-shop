@@ -42,7 +42,7 @@ public final class EventSelfTest {
         log("registered effect types: {}", EffectTypes.types());
 
         // ---- 2. conditions with a made-up shop
-        ShopZones.Zone z = new ShopZones.Zone(UUID.randomUUID(), UUID.randomUUID(), "eventtest", w.getSpawnPos(), 2);
+        ShopZones.Zone z = new ShopZones.Zone(UUID.randomUUID(), UUID.randomUUID(), "eventtest", w.getSpawnPos(), dev.tcgshop.shop.ShopTier.IRON.rank());
         z.sales = 120; z.displays = 6; z.reputation = 62; z.decor = 8; z.events.createdDay = 0; z.cashier = true;
         z.events.hasRegister = true;
         z.events.doors = java.util.List.of(w.getSpawnPos().east(3));
@@ -55,6 +55,26 @@ public final class EventSelfTest {
             else reasons.merge(why.toString().split(" ")[0], 1, Integer::sum);
         }
         log("conditions in test shop (iron, rep 62, 120 sales, cashier, register, door): {} of {} pass; failures by reason {}", pass, EventRegistry.all().size(), reasons);
+        // 1.0: the Paper stall gets no random events unless an event sets "minTier": "paper" (variants add no tier floor)
+        {
+            ShopZones.Zone pz = new ShopZones.Zone(UUID.randomUUID(), UUID.randomUUID(), "paper", w.getSpawnPos(), dev.tcgshop.shop.ShopTier.PAPER.rank());
+            pz.reputation = 50;
+            com.google.gson.JsonObject optIn = new com.google.gson.JsonObject();
+            optIn.addProperty("minTier", "paper");
+            StringBuilder why = new StringBuilder();
+            boolean defaultBlocked = !EventConditions.parse(new com.google.gson.JsonObject()).test(w, pz, null, why) && why.toString().equals("tier");
+            boolean optInOk = EventConditions.parse(optIn).test(w, pz, null, null);
+            boolean variantOk = EventConditions.ALWAYS.test(w, pz, null, null)
+                    && EventConditions.parseVariant(new com.google.gson.JsonObject()).test(w, pz, null, null);
+            boolean woodOk = EventConditions.parse(new com.google.gson.JsonObject()).test(w,
+                    new ShopZones.Zone(UUID.randomUUID(), UUID.randomUUID(), "wood", w.getSpawnPos(), dev.tcgshop.shop.ShopTier.WOOD.rank()), null, null);
+            int paperDefs = 0;
+            for (EventDef d : EventRegistry.all()) if (d.conditions().minTier() <= dev.tcgshop.shop.ShopTier.PAPER.rank()) paperDefs++;
+            boolean ok = defaultBlocked && optInOk && variantOk && woodOk;
+            log("Paper stall tier floor: default blocked={} opt-in={} variants={} wood={} · events open to Paper: {} {}",
+                    defaultBlocked, optInOk, variantOk, woodOk, paperDefs, ok ? "OK" : "FAIL");
+            if (!ok) fails++;
+        }
 
         // ---- 3. Mods caps
         Mods.Builder b = new Mods.Builder();
@@ -122,7 +142,7 @@ public final class EventSelfTest {
 
         // ---- 5. review memory
         {
-            ShopZones.Zone rz = new ShopZones.Zone(UUID.randomUUID(), UUID.randomUUID(), "rv", BlockPos.ORIGIN, 0);
+            ShopZones.Zone rz = new ShopZones.Zone(UUID.randomUUID(), UUID.randomUUID(), "rv", BlockPos.ORIGIN, dev.tcgshop.shop.ShopTier.WOOD.rank());
             net.minecraft.util.math.random.Random rr = net.minecraft.util.math.random.Random.create(1);
             IncidentRecord over = new IncidentRecord(1, "a", "flood", 100, false, true, -2, 1.0, 1.0);
             rz.events.log.add(over);

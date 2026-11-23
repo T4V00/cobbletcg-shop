@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "side": "tcgshop:block/shop_core_amethyst_side",
+    "top": "tcgshop:block/shop_core_amethyst_top",
+    "bottom": "tcgshop:block/shop_core_amethyst_bottom"
+  }
+}

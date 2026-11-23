@@ -51,6 +51,15 @@ public final class TcgEntities {
             Identifier.of(TcgShop.MOD_ID, "furniture_seller"),
             EntityType.Builder.create(FurnitureSellerEntity::new, SpawnGroup.MISC).dimensions(0.6f, 1.8f).eyeHeight(1.62f).maxTrackingRange(10)
                     .build("furniture_seller"));
+    // 1.0 onboarding one-time visitors (onboarding/OnboardingVisits)
+    public static final EntityType<UniqueCollectorEntity> UNIQUE_COLLECTOR = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(TcgShop.MOD_ID, "unique_collector"),
+            EntityType.Builder.create(UniqueCollectorEntity::new, SpawnGroup.MISC).dimensions(0.6f, 1.8f).eyeHeight(1.62f).maxTrackingRange(10)
+                    .build("unique_collector"));
+    public static final EntityType<RivalTaunterEntity> RIVAL = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(TcgShop.MOD_ID, "rival"),
+            EntityType.Builder.create(RivalTaunterEntity::new, SpawnGroup.MISC).dimensions(0.6f, 1.8f).eyeHeight(1.62f).maxTrackingRange(10)
+                    .build("rival"));
 
     private TcgEntities() {}
 
@@ -66,6 +75,8 @@ public final class TcgEntities {
         FabricDefaultAttributeRegistry.register(BEGGAR, BeggarEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(BLACK_MARKET, BlackMarketEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(FURNITURE_SELLER, FurnitureSellerEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(UNIQUE_COLLECTOR, UniqueCollectorEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(RIVAL, RivalTaunterEntity.createAttributes());
         // Furniture seller: visits players who have a shop (phase 10500 of every half day)
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_WORLD_TICK.register(FurnitureSellerEntity::spawner);
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_WORLD_TICK.register(TcgEntities::wholesalerSpawner);

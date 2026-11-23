@@ -1,0 +1,351 @@
+{
+ "parent": "minecraft:block/block",
+ "textures": {
+  "velvet": "tcgshop:block/rgb_velvet",
+  "carbon": "tcgshop:block/rgb_carbon",
+  "grill": "tcgshop:block/rgb_grill",
+  "led": "tcgshop:block/rgb_led",
+  "panel": "tcgshop:block/rgb_panel",
+  "particle": "tcgshop:block/rgb_panel",
+  "chrome": "tcgshop:block/rgb_chrome"
+ },
+ "elements": [
+  {
+   "from": [
+    0,
+    0,
+    0.5
+   ],
+   "to": [
+    16,
+    2.4,
+    15.5
+   ],
+   "faces": {
+    "north": {
+     "texture": "#grill",
+     "uv": [
+      0,
+      13.6,
+      16,
+      16
+     ]
+    },
+    "south": {
+     "texture": "#carbon",
+     "uv": [
+      0,
+      13.6,
+      16,
+      16
+     ]
+    },
+    "west": {
+     "texture": "#carbon",
+     "uv": [
+      0.5,
+      13.6,
+      15.5,
+      16
+     ]
+    },
+    "up": {
+     "texture": "#carbon",
+     "uv": [
+      0,
+      0.5,
+      16,
+      15.5
+     ]
+    },
+    "down": {
+     "texture": "#carbon",
+     "uv": [
+      0,
+      0.5,
+      16,
+      15.5
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    0.5,
+    2.4,
+    14
+   ],
+   "to": [
+    16,
+    16,
+    15.5
+   ],
+   "faces": {
+    "north": {
+     "texture": "#velvet",
+     "uv": [
+      0,
+      0,
+      15.5,
+      13.6
+     ]
+    },
+    "south": {
+     "texture": "#velvet",
+     "uv": [
+      0.5,
+      0,
+      16,
+      13.6
+     ]
+    },
+    "west": {
+     "texture": "#velvet",
+     "uv": [
+      14,
+      0,
+      15.5,
+      13.6
+     ]
+    },
+    "down": {
+     "texture": "#velvet",
+     "uv": [
+      0.5,
+      0.5,
+      16,
+      2
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    0,
+    2.4,
+    0.5
+   ],
+   "to": [
+    1,
+    16,
+    15.5
+   ],
+   "faces": {
+    "north": {
+     "texture": "#carbon",
+     "uv": [
+      15,
+      0,
+      16,
+      13.6
+     ]
+    },
+    "south": {
+     "texture": "#carbon",
+     "uv": [
+      0,
+      0,
+      1,
+      13.6
+     ]
+    },
+    "east": {
+     "texture": "#carbon",
+     "uv": [
+      0.5,
+      0,
+      15.5,
+      13.6
+     ]
+    },
+    "west": {
+     "texture": "#carbon",
+     "uv": [
+      0.5,
+      0,
+      15.5,
+      13.6
+     ]
+    },
+    "down": {
+     "texture": "#carbon",
+     "uv": [
+      0,
+      0.5,
+      1,
+      15.5
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    15.6,
+    2.4,
+    6
+   ],
+   "to": [
+    16,
+    16,
+    14
+   ],
+   "faces": {
+    "north": {
+     "texture": "#chrome",
+     "uv": [
+      0,
+      0,
+      0.4,
+      13.6
+     ]
+    },
+    "south": {
+     "texture": "#chrome",
+     "uv": [
+      15.6,
+      0,
+      16,
+      13.6
+     ]
+    },
+    "west": {
+     "texture": "#chrome",
+     "uv": [
+      6,
+      0,
+      14,
+      13.6
+     ]
+    },
+    "down": {
+     "texture": "#chrome",
+     "uv": [
+      15.6,
+      2,
+      16,
+      10
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    0,
+    0.95,
+    0.0
+   ],
+   "to": [
+    16,
+    1.45,
+    0.5
+   ],
+   "faces": {
+    "north": {
+     "texture": "#led",
+     "uv": [
+      0,
+      14.55,
+      16,
+      15.05
+     ]
+    },
+    "south": {
+     "texture": "#led",
+     "uv": [
+      0,
+      14.55,
+      16,
+      15.05
+     ]
+    },
+    "west": {
+     "texture": "#led",
+     "uv": [
+      0,
+      14.55,
+      0.5,
+      15.05
+     ]
+    },
+    "up": {
+     "texture": "#led",
+     "uv": [
+      0,
+      0,
+      16,
+      0.5
+     ]
+    },
+    "down": {
+     "texture": "#led",
+     "uv": [
+      0,
+      15.5,
+      16,
+      16
+     ]
+    }
+   }
+  },
+  {
+   "from": [
+    0.25,
+    2.4,
+    0.0
+   ],
+   "to": [
+    0.75,
+    16,
+    0.5
+   ],
+   "faces": {
+    "north": {
+     "texture": "#led",
+     "uv": [
+      15.25,
+      0,
+      15.75,
+      13.6
+     ]
+    },
+    "south": {
+     "texture": "#led",
+     "uv": [
+      0.25,
+      0,
+      0.75,
+      13.6
+     ]
+    },
+    "east": {
+     "texture": "#led",
+     "uv": [
+      15.5,
+      0,
+      16,
+      13.6
+     ]
+    },
+    "west": {
+     "texture": "#led",
+     "uv": [
+      0,
+      0,
+      0.5,
+      13.6
+     ]
+    },
+    "down": {
+     "texture": "#led",
+     "uv": [
+      0.25,
+      15.5,
+      0.75,
+      16
+     ]
+    }
+   }
+  }
+ ],
+ "ambientocclusion": false
+}

@@ -15,6 +15,9 @@ import java.util.List;
 public class StoreScreen extends Screen {
     private final CatalogPanel panel;
     private final int source;
+    /** The catalog as the server sent it (1.0: «On sale» strip with the store discounts). */
+    private final List<ItemStack> goods;
+    private final List<Long> prices;
     private TextFieldWidget search;
     /** Tab: false = buy, true = sell him cards (40%) and emeralds. */
     private boolean selling;
@@ -29,6 +32,8 @@ public class StoreScreen extends Screen {
         super(Text.translatable("entity.tcgshop.wholesaler"));
         this.panel = new CatalogPanel(source, goods, prices);
         this.source = source;
+        this.goods = goods;
+        this.prices = prices;
         sellGrid.price = st -> dev.tcgshop.shop.CardSales.offer(st, dev.tcgshop.shop.CardSales.WHOLESALER_RATE);
         sellGrid.accept = st -> dev.masterball.api.card.CardInfo.isCard(st) || dev.tcgshop.shop.VanillaPrices.sellable(st);
         sellGrid.extra = dev.tcgshop.shop.VanillaPrices::price;
@@ -147,6 +152,8 @@ public class StoreScreen extends Screen {
         search.render(ctx, mouseX, mouseY, delta);
         panel.beginFrame();
         int fh = panel.renderFilters(ctx, x + 10, y + 40, w - 20, mouseX, mouseY);
+        // 1.0: discounted products (store sale event) above the catalog; nothing is reserved when there is no sale
+        fh += dev.tcgshop.client.phone.DiscountTag.strip(ctx, x + 10, y + 42 + fh, w - 20, goods, prices, mouseX, mouseY);
         panel.render(ctx, x + 10, y + 42 + fh, w - 20, h - 52 - fh, mouseX, mouseY, System.nanoTime() / 1e9);
     }
 

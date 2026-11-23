@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Shop zones of a dimension. Each shop block creates a square zone centered on it (16x16 … 100x100)
+ * Shop zones of a dimension. Each shop block creates a square zone centered on it (5x5 … 100x100)
  * that goes from BELOW blocks below to tier.up above. It also stores the shop's metrics: sales,
  * reputation, employees, security and customers.
  */
@@ -55,7 +55,14 @@ public class ShopZones extends PersistentState {
         public final UUID owner;
         public String ownerName;
         public final BlockPos core;
-        public final int tier;
+        /** Tier rank (ShopTier.rank(): Paper = 0 ... Netherite = 11). Changes only with an in-place upgrade (ShopCoreBlock). */
+        public int tier;
+        /**
+         * 1.0: zone side in blocks. Saved in the zone ("size") so a shop never shrinks or moves when the tier table
+         * changes: pre-1.0 zones get their old side on load (wood 16 ... netherite 100), new ones the tier's side,
+         * and an upgrade only ever grows it.
+         */
+        public int size;
         // money
         public long revenue, balance, wagesPaid;
         public int sales;
@@ -119,7 +126,7 @@ public class ShopZones extends PersistentState {
         public int capacity() { return ShopMissions.capacity(this); }
 
         /** Customer arrival multiplier from completed missions. */
-        public double flow() { return ShopMissions.flow(missions); }
+        public double flow() { return ShopMissions.flow(this); } // 1.0: all ~100 missions, not just the 12 core ones
 
         public void addReview(String name, int stars, String key, long day) {
             reviews.add(0, new Review(name, stars, key, day));
@@ -195,14 +202,30 @@ public class ShopZones extends PersistentState {
             this.ownerName = ownerName;
             this.core = core;
             this.tier = tier;
+            this.size = tierInfo().size;
         }
 
         public ShopTier tierInfo() {
-            return ShopTier.values()[Math.max(0, Math.min(ShopTier.values().length - 1, tier))];
+            return ShopTier.byRank(tier);
+        }
+
+        /** Zone side in blocks (may be bigger than the tier's for pre-1.0 shops). */
+        public int size() {
+            return size > 0 ? size : tierInfo().size;
+        }
+
+        /** Protected height above the core. */
+        public int up() {
+            return tierInfo().up;
+        }
+
+        /** Base capacity before missions/seats: the tier's, or more if the zone is bigger than the tier (pre-1.0 wood 16×16). */
+        public int baseCapacity() {
+            return Math.max(tierInfo().maxCustomers, ShopTier.capacityForSize(size()));
         }
 
         public Box box() {
-            return boxFor(core, tierInfo());
+            return boxFor(core, size(), up());
         }
 
         public boolean contains(BlockPos p) {
@@ -216,7 +239,10 @@ public class ShopZones extends PersistentState {
             c.putUuid("owner", owner);
             c.putString("owner_name", ownerName);
             c.putLong("core", core.asLong());
-            c.putInt("tier", tier);
+            // 1.0: "tier" keeps its pre-1.0 meaning (old 7-tier index, for older builds); the real tier is "tier_key"
+            c.putInt("tier", tierInfo().legacyIndex());
+            c.putString("tier_key", tierInfo().key);
+            c.putInt("size", size());
             c.putLong("revenue", revenue);
             c.putLong("balance", balance);
             c.putLong("wages", wagesPaid);
@@ -265,8 +291,21 @@ public class ShopZones extends PersistentState {
             return c;
         }
 
+        /** Tier rank of a saved zone: "tier_key" (1.0+) or, in older saves, the old 7-tier index in "tier". */
+        static int savedTier(NbtCompound c) {
+            ShopTier t = c.contains("tier_key") ? ShopTier.byKey(c.getString("tier_key")) : null;
+            return (t != null ? t : ShopTier.fromLegacy(c.getInt("tier"))).rank();
+        }
+
+        /** Zone side of a saved zone: "size" (1.0+) or, in older saves, the side the old tier had (never shrinks the shop). */
+        static int savedSize(NbtCompound c, ShopTier tier) {
+            if (c.contains("size") && c.getInt("size") > 0) return c.getInt("size");
+            return c.contains("tier_key") ? tier.size : ShopTier.legacySize(c.getInt("tier"));
+        }
+
         public static Zone read(NbtCompound c) {
-            Zone z = new Zone(c.getUuid("id"), c.getUuid("owner"), c.getString("owner_name"), BlockPos.fromLong(c.getLong("core")), c.getInt("tier"));
+            Zone z = new Zone(c.getUuid("id"), c.getUuid("owner"), c.getString("owner_name"), BlockPos.fromLong(c.getLong("core")), savedTier(c));
+            z.size = savedSize(c, z.tierInfo());
             z.revenue = c.getLong("revenue");
             z.balance = c.getLong("balance");
             z.wagesPaid = c.getLong("wages");
@@ -337,9 +376,14 @@ public class ShopZones extends PersistentState {
     }
 
     public static Box boxFor(BlockPos core, ShopTier t) {
-        int half = t.size / 2;
+        return boxFor(core, t.size, t.up);
+    }
+
+    /** Zone box for a side (in blocks) and a protected height above the core. */
+    public static Box boxFor(BlockPos core, int size, int up) {
+        int half = size / 2;
         return new Box(core.getX() - half, core.getY() - BELOW, core.getZ() - half,
-                core.getX() + half + 1, core.getY() + t.up + 1, core.getZ() + half + 1);
+                core.getX() + half + 1, core.getY() + up + 1, core.getZ() + half + 1);
     }
 
     private static final Type<ShopZones> TYPE = new Type<>(ShopZones::new, ShopZones::fromNbt, null);
@@ -347,6 +391,8 @@ public class ShopZones extends PersistentState {
     private final List<Zone> zones = new ArrayList<>();
     /** Each player's spending on merchandise (Wholesaler / phone): for their shops' profit. */
     private final Map<UUID, Long> costs = new HashMap<>();
+    /** 1.0: players already told they may own more shops (only used in the overworld's state). */
+    private final java.util.Set<UUID> multiNotified = new java.util.HashSet<>();
 
     public static ShopZones get(ServerWorld world) {
         return world.getPersistentStateManager().getOrCreate(TYPE, "tcgshop_shops");
@@ -377,6 +423,44 @@ public class ShopZones extends PersistentState {
         return false;
     }
 
+    /** Like {@link #overlaps(Box)} but ignoring one zone (an in-place upgrade grows the zone over itself). */
+    public boolean overlapsOther(Box box, Zone self) {
+        for (Zone z : zones) if (z != self && z.box().intersects(box)) return true;
+        return false;
+    }
+
+    // ------------------------------------------------------------------ 1.0: shops per player
+
+    /** Every shop this player owns, in every dimension. */
+    public static List<Zone> ownedBy(net.minecraft.server.MinecraftServer server, UUID player) {
+        List<Zone> out = new ArrayList<>();
+        for (ServerWorld w : server.getWorlds())
+            for (Zone z : get(w).all()) if (z.owner.equals(player)) out.add(z);
+        return out;
+    }
+
+    /** Best tier among this player's shops (any dimension), or null if they own none. */
+    @Nullable
+    public static ShopTier highestOwned(net.minecraft.server.MinecraftServer server, UUID player) {
+        ShopTier best = null;
+        for (Zone z : ownedBy(server, player)) if (best == null || !best.atLeast(z.tierInfo())) best = z.tierInfo();
+        return best;
+    }
+
+    /**
+     * After a shop is placed or upgraded: the first time one of this player's shops reaches Amethyst (or higher),
+     * the phone tells them they may now own more shops. Remembered in the overworld's state ("multi_notified").
+     */
+    public static void notifyMultiShop(net.minecraft.server.MinecraftServer server, UUID player, ShopTier reached) {
+        if (!ShopTier.canOwnMultipleShops(reached)) return;
+        ShopZones main = get(server.getOverworld());
+        if (!main.multiNotified.add(player)) return;
+        main.markDirty();
+        dev.tcgshop.phone.PhoneMessages.send(server, player, "tcgshop.msg.sender.system",
+                net.minecraft.text.Text.translatable("tcgshop.shop.multi_unlocked",
+                        net.minecraft.text.Text.translatable("tcgshop.shop.tier." + reached.key)), false);
+    }
+
     public void add(Zone z) { zones.add(z); markDirty(); }
 
     public void remove(Zone z) { zones.remove(z); markDirty(); }
@@ -404,7 +488,9 @@ public class ShopZones extends PersistentState {
                 NbtCompound o = old.getCompound(i);
                 int[] p = o.getIntArray("core");
                 if (p.length < 3) continue;
-                Zone z = new Zone(o.getUuid("id"), o.getUuid("owner"), o.getString("owner_name"), new BlockPos(p[0], p[1], p[2]), o.getInt("tier"));
+                Zone z = new Zone(o.getUuid("id"), o.getUuid("owner"), o.getString("owner_name"), new BlockPos(p[0], p[1], p[2]),
+                        ShopTier.fromLegacy(o.getInt("tier")).rank());
+                z.size = ShopTier.legacySize(o.getInt("tier"));
                 z.revenue = o.getLong("revenue");
                 z.balance = o.getLong("balance");
                 z.sales = o.getInt("sales");
@@ -413,6 +499,10 @@ public class ShopZones extends PersistentState {
         }
         NbtCompound c = nbt.getCompound("costs2");
         for (String k : c.getKeys()) s.costs.put(UUID.fromString(k), c.getLong(k));
+        NbtList mn = nbt.getList("multi_notified", 8);
+        for (int i = 0; i < mn.size(); i++) {
+            try { s.multiNotified.add(UUID.fromString(mn.getString(i))); } catch (IllegalArgumentException ignored) {}
+        }
         return s;
     }
 
@@ -424,6 +514,11 @@ public class ShopZones extends PersistentState {
         NbtCompound c = new NbtCompound();
         costs.forEach((k, v) -> c.putLong(k.toString(), v));
         nbt.put("costs2", c);
+        if (!multiNotified.isEmpty()) {
+            NbtList mn = new NbtList();
+            for (UUID u : multiNotified) mn.add(net.minecraft.nbt.NbtString.of(u.toString()));
+            nbt.put("multi_notified", mn);
+        }
         return nbt;
     }
 }

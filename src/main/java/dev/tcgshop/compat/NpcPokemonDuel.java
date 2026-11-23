@@ -59,8 +59,32 @@ public final class NpcPokemonDuel {
     }
 
     public static boolean busy(Entity e) {
+        if (e != null && HELD.contains(e)) return true;
         for (Duel d : DUELS) if (d.npc[0] == e || d.npc[1] == e) return true;
         return false;
+    }
+
+    /**
+     * 1.0: NPCs "held" by another scripted scene (two customers playing at a TCG table, a customer challenging a
+     * player...). A held NPC counts as busy: its own AI (CustomerEntity, ScalperEntity, guards) pauses, it cannot be
+     * pulled into a Pokémon duel, but its navigation keeps working so the scene can walk it around. Weak references:
+     * a removed entity never leaks.
+     */
+    private static final java.util.Set<Entity> HELD = java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
+
+    /** Marks the NPC as busy for a scripted scene (see {@link #HELD}). */
+    public static void hold(Entity e) {
+        if (e != null) HELD.add(e);
+    }
+
+    /** Ends the hold started with {@link #hold}. */
+    public static void unhold(Entity e) {
+        if (e != null) HELD.remove(e);
+    }
+
+    /** Is it held by a scripted scene (not by a Pokémon duel)? */
+    public static boolean held(Entity e) {
+        return e != null && HELD.contains(e);
     }
 
     /**

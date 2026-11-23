@@ -25,6 +25,10 @@ public class ShopDisplayBlockEntity extends BlockEntity implements Inventory {
     private int[] look;
     /** Who placed it (home displays: only they add and remove). */
     public java.util.UUID owner;
+    /** 1.0 RGB displays: LED animation chosen by the owner ({@link RgbLighting}), -1 = the block's default. */
+    private int rgbMode = -1;
+    /** 1.0 RGB displays: color of the {@link RgbLighting#STATIC} mode (0xRRGGBB). */
+    private int rgbColor = 0xFFFFFF;
 
     public ShopDisplayBlockEntity(BlockPos pos, BlockState state) {
         super(TcgBlocks.DISPLAY_BE, pos, state);
@@ -89,6 +93,20 @@ public class ShopDisplayBlockEntity extends BlockEntity implements Inventory {
         changed();
     }
 
+    /** LED animation in use (the block's default when the owner never chose one). */
+    public int rgbMode() {
+        if (rgbMode >= 0) return rgbMode;
+        return getCachedState().getBlock() instanceof ShopDisplayBlock b && b.isRgb() ? b.rgbDefault : RgbLighting.CHASE;
+    }
+
+    public int rgbColor() { return rgbColor; }
+
+    public void setRgb(int mode, int color) {
+        rgbMode = RgbLighting.valid(mode) ? mode : -1;
+        rgbColor = color & 0xFFFFFF;
+        changed();
+    }
+
     public void changed() {
         markDirty();
         if (world != null) world.updateListeners(pos, getCachedState(), getCachedState(), 3);
@@ -101,6 +119,10 @@ public class ShopDisplayBlockEntity extends BlockEntity implements Inventory {
         nbt.putLongArray("Prices", prices);
         nbt.putIntArray("Look", look);
         if (owner != null) nbt.putUuid("Owner", owner);
+        if (rgbMode >= 0) {
+            nbt.putInt("RgbMode", rgbMode);
+            nbt.putInt("RgbColor", rgbColor);
+        }
     }
 
     @Override
@@ -117,6 +139,8 @@ public class ShopDisplayBlockEntity extends BlockEntity implements Inventory {
             System.arraycopy(l, 0, look, 0, Math.min(l.length, look.length));
         }
         owner = nbt.containsUuid("Owner") ? nbt.getUuid("Owner") : null;
+        rgbMode = nbt.contains("RgbMode") && RgbLighting.valid(nbt.getInt("RgbMode")) ? nbt.getInt("RgbMode") : -1;
+        rgbColor = nbt.contains("RgbColor") ? nbt.getInt("RgbColor") & 0xFFFFFF : 0xFFFFFF;
     }
 
     @Override

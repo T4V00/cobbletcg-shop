@@ -39,9 +39,14 @@ public class TcgShopClient implements ClientModInitializer {
     public void onInitializeClient() {
         dev.tcgshop.client.ClientSettings.load();
         EntityRendererRegistry.register(TcgEntities.SCALPER, dev.tcgshop.client.render.TcgNpcRenderer::new);
+        // 1.0 onboarding one-time visitors
+        EntityRendererRegistry.register(TcgEntities.UNIQUE_COLLECTOR, dev.tcgshop.client.render.TcgNpcRenderer::new);
+        EntityRendererRegistry.register(TcgEntities.RIVAL, dev.tcgshop.client.render.TcgNpcRenderer::new);
         dev.tcgshop.client.ShopClient.init();
+        dev.tcgshop.client.render.RgbLights.initClient(); // 1.0 RGB displays (translucent smoked glass)
         dev.tcgshop.events.incident.IncidentModule.initClient(); // 0.9: random events (client side of the incident module)
         dev.tcgshop.client.phone.PhoneClient.register();
+        dev.tcgshop.client.DiscountsClient.register(); // 1.0: store sale event (Discounts.percent on the client)
         ClientPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.TradePayloads.Open.ID, (p, ctx) -> ctx.client().execute(() ->
                 ctx.client().setScreen(new dev.tcgshop.client.screen.TradeScreen(p.partner()))));
         ClientPlayNetworking.registerGlobalReceiver(dev.tcgshop.network.TradePayloads.State.ID, (p, ctx) -> ctx.client().execute(() -> {
@@ -82,6 +87,7 @@ public class TcgShopClient implements ClientModInitializer {
             switch (p.kind()) {
                 case "slot" -> ctx.client().setScreen(new dev.tcgshop.client.screen.SlotEditScreen(p.data()));
                 case "beggar" -> ctx.client().setScreen(new dev.tcgshop.client.screen.BeggarScreen(p.data()));
+                case "unique_collector" -> ctx.client().setScreen(new dev.tcgshop.client.screen.UniqueCollectorScreen(p.data()));
                 case "shop_status" -> ctx.client().setScreen(new dev.tcgshop.client.screen.ShopStatusScreen(p.data()));
                 case "black_market" -> ctx.client().setScreen(new dev.tcgshop.client.screen.BlackMarketScreen(p.data()));
                 case "binder_market" -> ctx.client().setScreen(new dev.tcgshop.client.screen.BinderMarketScreen(p.data()));

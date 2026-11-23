@@ -42,7 +42,7 @@ public final class ShopClient {
     public record ZoneInfo(UUID id, UUID owner, String ownerName, BlockPos core, int tier, long revenue, long balance, int sales,
                            boolean cashier, boolean guard, String cashierName, String guardName, long wages, int[] metrics,
                            java.util.Map<String, Integer> factors, List<ShopZones.Review> reviews, int regulars,
-                           NbtCompound ext) {
+                           NbtCompound ext, int size) {
         public double avgStars() {
             if (reviews.isEmpty()) return 0;
             double s = 0;
@@ -53,10 +53,13 @@ public final class ShopClient {
         public int metric(int i) { return i < metrics.length ? metrics[i] : 0; }
         public int reputation() { return metric(7); }
 
-        public ShopTier tierInfo() { return ShopTier.values()[Math.max(0, Math.min(ShopTier.values().length - 1, tier))]; }
+        public ShopTier tierInfo() { return ShopTier.byRank(tier); }
+
+        /** 1.0: the zone's real side ("size" from the server; pre-1.0 shops keep their old, bigger side). */
+        public int size() { return size > 0 ? size : tierInfo().size; }
 
         public Box box() {
-            return ShopZones.boxFor(core, tierInfo());
+            return ShopZones.boxFor(core, size(), tierInfo().up);
         }
     }
 
@@ -79,7 +82,7 @@ public final class ShopClient {
             list.add(new ZoneInfo(c.getUuid("id"), c.getUuid("owner"), c.getString("name"), BlockPos.fromLong(c.getLong("core")), c.getInt("tier"),
                     c.getLong("revenue"), c.getLong("balance"), c.getInt("sales"), c.getBoolean("cashier"), c.getBoolean("guard"),
                     c.getString("cashier_name"), c.getString("guard_name"), c.getLong("wages"), c.getIntArray("metrics"), f, rv, c.getInt("regulars"),
-                    c.getCompound("ext")));
+                    c.getCompound("ext"), c.getInt("size")));
         }
         zones = list;
         myCosts = root.getLong("myCosts");
@@ -151,7 +154,7 @@ public final class ShopClient {
                 accent = mine ? 0xFF43C463 : 0xFFE05050;
                 lines.add(Text.translatable("tcgshop.goggles.shop_of", z.ownerName()).formatted(Formatting.BOLD));
                 lines.add(Text.translatable("tcgshop.goggles.tier", Text.translatable("tcgshop.shop.tier." + z.tierInfo().key),
-                        z.tierInfo().size, z.tierInfo().size).formatted(Formatting.GRAY));
+                        z.size(), z.size()).formatted(Formatting.GRAY));
                 if (mine) {
                     long profit = myRevenue - myCosts;
                     lines.add(Text.translatable("tcgshop.goggles.revenue", PriceService.format(myRevenue)).formatted(Formatting.GREEN));

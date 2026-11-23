@@ -31,7 +31,8 @@ public final class PhoneNotices {
         Kind(int color) { this.color = color; }
     }
 
-    private record Notice(Kind kind, Text title, Text body, ItemStack icon, double at, double life) {}
+    /** link = message id the notice opens when clicked (1.0 Messages app), or -1. */
+    private record Notice(Kind kind, Text title, Text body, ItemStack icon, double at, double life, long link) {}
 
     /** Depth of the phone's overlay layer (GUI items are drawn at about 150-260, vanilla tooltips at 400). */
     public static final float Z = 300;
@@ -40,11 +41,25 @@ public final class PhoneNotices {
     private static Notice current;
     /** Rectangle drawn in the last frame (x, y, w, h), or null. */
     private static int[] rect;
+    /** Message linked by the last notice the player clicked (-1 = none); read with {@link #consumeClickedLink()}. */
+    private static long clickedLink = -1;
 
     private static double now() { return System.nanoTime() / 1e9; }
 
     public static void push(Kind kind, Text title, Text body, ItemStack icon) {
-        current = new Notice(kind, title, body, icon == null ? ItemStack.EMPTY : icon, now(), kind == Kind.ERROR ? 5.0 : 3.8);
+        push(kind, title, body, icon, -1);
+    }
+
+    /** Same, linked to a phone message: clicking the notice opens it in the Messages app. */
+    public static void push(Kind kind, Text title, Text body, ItemStack icon, long link) {
+        current = new Notice(kind, title, body, icon == null ? ItemStack.EMPTY : icon, now(), kind == Kind.ERROR ? 5.0 : link >= 0 ? 5.0 : 3.8, link);
+    }
+
+    /** The message linked by the notice that was just clicked (-1 = none), and forgets it. */
+    public static long consumeClickedLink() {
+        long l = clickedLink;
+        clickedLink = -1;
+        return l;
     }
 
     public static void clear() {
@@ -64,6 +79,7 @@ public final class PhoneNotices {
     /** A click on the notice closes it and is consumed (never reaches the app underneath). */
     public static boolean click(double mx, double my) {
         if (!contains(mx, my)) return false;
+        if (current != null) clickedLink = current.link;
         clear();
         return true;
     }

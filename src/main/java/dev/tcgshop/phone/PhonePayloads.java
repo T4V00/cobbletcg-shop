@@ -43,4 +43,18 @@ public final class PhonePayloads {
         @Override
         public Id<? extends CustomPayload> getId() { return ID; }
     }
+
+    /**
+     * 1.0 beta 2, server -> client: data of the phone apps added in 1.0 (PhoneApps). "k" says what it carries:
+     * "messages" (the whole inbox, PhoneMessages.sync), "loans" (loan + credit history, Loans.sync), "stats" (Stats app,
+     * PhoneStats.send) or "notice" (a notice shown inside the phone: kind, title, body, args). The client -> server
+     * side of these apps reuses {@link Act} with new "a" values (msg_*, loan_*, stats).
+     */
+    public record Apps(NbtCompound data) implements CustomPayload {
+        public static final Id<Apps> ID = new Id<>(Identifier.of(TcgShop.MOD_ID, "phone_apps"));
+        public static final PacketCodec<RegistryByteBuf, Apps> CODEC = PacketCodec.tuple(PacketCodecs.NBT_COMPOUND, Apps::data, Apps::new);
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
 }

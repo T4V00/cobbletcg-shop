@@ -63,7 +63,8 @@ public enum PhoneTier {
             "displays", 2,
             "furniture", 2,
             "grade", 3,
-            "league", 2);
+            "league", 2,
+            "loans", 2); // 1.0: Wholesaler loans (PhoneConfig.loanMinTier, default Pro)
 
     public static int appTier(String app) {
         return APP_TIER.getOrDefault(app, 0);
