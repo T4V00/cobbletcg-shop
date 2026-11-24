@@ -102,7 +102,7 @@ And many fixes: cards stuck in your hand, displays that refused cards, the manag
 
 | | Mod | Notes |
 |---|---|---|
-| **Required** | MasterBall Traders API 0.2.0+ | Cards, packs, rarities and card art (separate CurseForge project). |
+| **Required** | MasterBall Traders API 0.2.1+ | Cards, packs, rarities and card art (separate CurseForge project). |
 | **Required** | [CobbleDollars](https://www.curseforge.com/minecraft/mc-mods/cobbledollars) | Everything is bought and sold in CobbleDollars. |
 | **Required** | Fabric API | |
 | **Required** | Fabric Loader 0.18.4+ · Minecraft 1.21.1 · Java 21 | |
