@@ -18,7 +18,7 @@ import org.lwjgl.glfw.GLFW;
  */
 public final class ModOptions {
     public static final KeyBinding OPEN_OPTIONS = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-            "key.tcgshop.options", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_O, "key.categories.tcgshop"));
+            "key.tcgshop.options", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_Y, "key.categories.tcgshop"));
 
     /** Ticks left before the art notice is shown (-1 = nothing pending). */
     private static int noticeIn = -1;

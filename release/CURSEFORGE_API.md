@@ -18,7 +18,9 @@ This is a **library mod**. On its own it only adds the card and pack items. Inst
 
 By default every card gets **original, generated art**: a pixel-art silhouette with a border colored by the card's type, keeping the real card name. No official card art is included in this mod.
 
-Prefer your own images? Press **O** in game (MasterBall Traders Co. options) and switch to **Official art**. The API then reads card images from your own `PNGS POKEMOMN` folder in the game directory, or from the folder set as `imageFolder` in `config/masterball-api.json`. A card back image can go in `back of cards/card_back.png` inside that folder.
+**Official art, only if you want it:** the first time you open the game, the API asks whether to download the official card art (about 3 GB, from GitHub). If you say yes, it downloads in the background with a progress bar (title screen, in game and in the options), in resumable, verified parts, and installs it into `resourcepacks/PKMNTCGART` — you don't need to enable that pack. Said no? Press **Y** in game (MasterBall Traders Co. options) and click **Download official art** whenever you like; you can also cancel or delete it there.
+
+Your own images also work: the API reads `PNGS POKEMOMN` in the game directory or the folder set as `imageFolder` in `config/masterball-api.json`.
 
 ## Requirements
 

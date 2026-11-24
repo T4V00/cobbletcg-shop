@@ -45,7 +45,7 @@ Open your own Pokémon card shop in Minecraft. Rip packs, chase hits, price your
 - **The phone in your hand is a real 3D phone** that shows your apps and changes with every upgrade. Tools are 3D models too.
 
 ### Collecting
-- **Original card art by default**, plus an **Official art** option for your own images (press **O** for the mod options).
+- **Original card art by default.** On first launch the API asks whether you want to **download the official card art** (~3 GB, with a progress bar). Said no? Press **Y** (mod options) and click **Download official art** any time.
 - God packs are always full art. The Mystery Box was reworked.
 - Binder multi-select and a price filter per pack.
 
@@ -119,7 +119,7 @@ And many fixes: cards stuck in your hand, displays that refused cards, the manag
 2. Add **Fabric API**, **MasterBall Traders API**, **CobbleDollars** and **MasterBall Traders Co.** to your `mods` folder. Cobblemon is strongly recommended.
 3. Create or open a world. You start with 5 packs and a binder.
 4. Buy a **TCG Phone** from the Mysterious Wholesaler, a travelling merchant who shows up near players every now and then.
-5. Press **O** for the mod options (card art and more).
+5. Press **Y** for the mod options (official art download, card art and more).
 
 **On a server:** install the same mods on the server and on every client.
 

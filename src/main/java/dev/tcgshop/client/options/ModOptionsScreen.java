@@ -58,7 +58,7 @@ public class ModOptionsScreen extends Screen {
         ClientSettings cs = ClientSettings.INSTANCE;
         TcgShopConfig gc = TcgShopConfig.INSTANCE;
         int x0 = width / 2 - FULL_W / 2;
-        top = Math.max(28, height / 2 - 143);
+        top = Math.max(28, height / 2 - 148);
         int y = top;
 
         shownMode = CardArt.mode();
@@ -76,7 +76,7 @@ public class ModOptionsScreen extends Screen {
         // official art download (MasterBall Traders API): header + status line + progress bar, then the buttons
         ImageDownloader.checkManifest();
         officialY = y;
-        y += 25;
+        y += 34; // header, status line and the 10 px progress bar
         artDownload = addDrawableChild(ButtonWidget.builder(downloadLabel(), b -> {
                     ImageDownloader.requestDownload(); // the player clicked it: that is the consent
                     refreshArtButtons();
@@ -229,8 +229,8 @@ public class ModOptionsScreen extends Screen {
         List<OrderedText> status = textRenderer.wrapLines(ImageDownloader.status(), FULL_W);
         if (!status.isEmpty()) ctx.drawTextWithShadow(textRenderer, status.get(0), x0, officialY + 11, color);
         if (s == ImageDownloader.State.DOWNLOADING || s == ImageDownloader.State.EXTRACTING) {
-            ctx.fill(x0, officialY + 21, x0 + FULL_W, officialY + 23, 0x80000000);
-            ctx.fill(x0, officialY + 21, x0 + Math.round(FULL_W * ImageDownloader.progress()), officialY + 23, 0xFFFFC020);
+            // shared framed bar with the percentage (status line already drawn above)
+            dev.masterball.api.client.images.DownloadBar.draw(ctx, textRenderer, null, x0, officialY + 21, FULL_W);
         }
     }
 
