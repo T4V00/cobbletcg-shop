@@ -42,7 +42,7 @@ public class EconomyConfig {
     public double phoneSellRate = 0.5, wholesalerSellRate = 0.4;
     // ---- 1.0 (traders): Cobblemon items the traders buy (see shop.TraderGoods); 0 = not bought
     /** Wholesaler: CobbleDollars per Cobblemon Poké Ball (any kind). Any trader: per Mega Stone. */
-    public long pokeBallSellPrice = 200, megaStoneSellPrice = 50_000;
+    public long pokeBallSellPrice = 50, megaStoneSellPrice = 50_000;
     /** 1.0 migration marker for the traders' fixed prices (cash register = 2,000). Absent in old files = 0. */
     public int traderPricesVersion = 0;
     /** 1.0 migration marker for the Manager Goggles price (2,000). Absent in old files = 0. */
@@ -274,6 +274,10 @@ public class EconomyConfig {
         if (c.traderPricesVersion < 1) { // the cash register costs 2,000 (phone store and Wholesaler); old default 12,000
             if (c.itemPrices.getOrDefault("tcgshop:cash_register", 12_000L) == 12_000L) c.itemPrices.put("tcgshop:cash_register", 2_000L);
             c.traderPricesVersion = 1;
+        }
+        if (c.traderPricesVersion < 2) { // 1.0 release: Poke Balls pay 50 at the Wholesaler; old default 200
+            if (c.pokeBallSellPrice == 200L) c.pokeBallSellPrice = 50L;
+            c.traderPricesVersion = 2;
         }
         if (c.gogglesPriceVersion < 1) { // the Manager Goggles cost 2,000 wherever they are sold; old default 15,000
             if (c.itemPrices.getOrDefault("tcgshop:manager_goggles", 15_000L) == 15_000L) c.itemPrices.put("tcgshop:manager_goggles", 2_000L);

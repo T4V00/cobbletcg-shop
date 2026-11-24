@@ -28,7 +28,7 @@ import java.util.TreeMap;
  * What the Wholesaler pays for vanilla Minecraft items (CobbleDollars per unit, with decimals:
  * everything you sell is summed and rounded down). Full, editable table in
  * config/tcgshop-vanilla-prices.json; generated the first time with reference prices:
- * basic materials ≈ 0.5, iron/copper ≈ 1; since 1.0 emeralds and gold ingots pay 300 and diamonds 500
+ * basic materials ≈ 0.5, iron/copper ≈ 1; since 1.0 gold ingots pay 300, emeralds and diamonds 50
  * (their compact blocks 9×, hence MAX = 5,000). Easy-to-farm items pay very little
  * and compact blocks are worth exactly the same as their pieces (no profit from crafting).
  * 0 = the Wholesaler does not buy it.
@@ -43,8 +43,10 @@ public final class VanillaPrices {
     /**
      * Version of the reference prices, stored in the file as "_version" (files from before 1.0 have none = 1).
      * v2 (1.0): emerald / gold ingot 300, diamond 500 (and their nuggets/blocks, raw gold) are overwritten in old files.
+     * v3 (1.0 release): emerald and diamond drop to 50 (blocks 450), also overwritten in old files.
      */
-    private static final int VERSION = 2;
+    private static final int VERSION = 3;
+    private static final String[] V3_KEYS = {"emerald", "emerald_block", "diamond", "diamond_block"};
     private static final String[] V2_KEYS = {"emerald", "emerald_block", "gold_ingot", "gold_nugget", "gold_block", "raw_gold", "raw_gold_block",
             "diamond", "diamond_block"};
 
@@ -85,8 +87,14 @@ public final class VanillaPrices {
             return;
         }
         Double ver = user.get("_version");
-        if (ver == null || ver < VERSION) { // 1.0 migration: the new reference prices replace the old values of these items
+        if (ver == null || ver < 2) { // 1.0 migration: the new reference prices replace the old values of these items
             for (String k : V2_KEYS) {
+                user.remove(k);
+                user.remove("minecraft:" + k);
+            }
+        }
+        if (ver == null || ver < 3) { // 1.0 release: emerald / diamond lowered to 50
+            for (String k : V3_KEYS) {
                 user.remove(k);
                 user.remove("minecraft:" + k);
             }
@@ -126,13 +134,13 @@ public final class VanillaPrices {
         f(0.5, "coal", "charcoal", "flint");
         f(1, "raw_iron", "iron_ingot", "raw_copper", "copper_ingot");
         f(0.11, "iron_nugget");
-        f(300, "raw_gold", "gold_ingot"); // 1.0: the Wholesaler buys gold, emeralds (300) and diamonds (500) at a premium (raw = ingot, like iron/copper)
+        f(300, "raw_gold", "gold_ingot"); // 1.0: the Wholesaler buys gold at a premium (raw = ingot, like iron/copper); emeralds and diamonds pay 50
         f(33.33, "gold_nugget");
         f(0.3, "redstone");
         f(0.4, "lapis_lazuli", "quartz", "amethyst_shard", "glowstone_dust", "prismarine_shard");
         f(0.6, "prismarine_crystals");
-        f(500, "diamond");
-        f(300, "emerald");
+        f(50, "diamond");
+        f(50, "emerald");
         f(120, "netherite_scrap", "ancient_debris");
         f(500, "netherite_ingot");
         f(4, "echo_shard");
@@ -142,8 +150,8 @@ public final class VanillaPrices {
         f(2700, "gold_block", "raw_gold_block");
         f(2.7, "redstone_block");
         f(3.6, "lapis_block");
-        f(4500, "diamond_block");
-        f(2700, "emerald_block");
+        f(450, "diamond_block");
+        f(450, "emerald_block");
         f(1000, "netherite_block");
         f(1.6, "quartz_block", "glowstone", "amethyst_block");
         // mob loot
