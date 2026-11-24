@@ -18,7 +18,7 @@ EXTRA = {
         ("¡He vuelto! La última vez salí encantado.", "I'm back! I loved it last time."),
         ("Mi tienda favorita del barrio.", "My favourite shop in the neighbourhood."),
         ("¡Hola otra vez! ¿Qué hay de nuevo?", "Hi again! What's new?"),
-        ("Le he hablado a todos mis amigos de esta tienda.", "I told all my friends about this shop."),
+        ("Les he hablado a todos mis amigos de esta tienda.", "I told all my friends about this shop."),
         ("Vuelvo porque aquí los precios son honestos.", "I keep coming back because prices here are honest."),
         ("Ya me conocen, ¿eh? Lo de siempre: mirar y comprar.", "You know me by now. The usual: browse and buy."),
         ("No podía pasar por delante sin entrar.", "Couldn't walk past without coming in."),

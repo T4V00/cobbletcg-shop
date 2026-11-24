@@ -30,7 +30,7 @@ N = {
                    ("No lo olvidaré.", "I won't forget this."),
                    ("Hoy como caliente gracias a ti.", "I'll eat a hot meal today thanks to you."),
                    ("¡Que te salgan holos en todos los sobres!", "May every pack you open have a holo!"),
-                   ("Le diré a todos lo buena que es tu tienda.", "I'll tell everyone how good your shop is."),
+                   ("Les diré a todos lo buena que es tu tienda.", "I'll tell everyone how good your shop is."),
                    ("Gracias, de corazón.", "Thank you, from the heart."),
                    ("Eres de los pocos que ayudan.", "You're one of the few who help."),
                    ("¡Mil gracias!", "Thanks a million!")],

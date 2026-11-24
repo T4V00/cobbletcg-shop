@@ -28,7 +28,7 @@ put("item.tcgshop.repair_kit", "Kit de reparación", "Repair Kit")
 put("item.tcgshop.repair_kit.tip", "Arregla chispas, quemaduras, cajas y vitrinas averiadas.", "Fixes sparks, scorch marks, broken registers and displays.")
 put("item.tcgshop.incident_tool.uses", "Usos: %s/%s", "Uses: %s/%s")
 
-put("tcgshop.incident.not_owner", "Sólo el dueño de la tienda puede encargarse de esto.", "Only the shop owner can deal with this.")
+put("tcgshop.incident.not_owner", "Solo el dueño de la tienda puede encargarse de esto.", "Only the shop owner can deal with this.")
 put("tcgshop.incident.hits_left", "Un poco más... (faltan %s)", "A bit more... (%s left)")
 put("tcgshop.incident.left", "¡Bien! Quedan %s por arreglar.", "Nice! %s left to fix.")
 put("tcgshop.incident.package.opened", "Abres la caja: %s objetos dentro.", "You open the box: %s items inside.")

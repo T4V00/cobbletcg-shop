@@ -290,7 +290,7 @@ EXTRA = {
         ("Volveré cuando haya más cosas en las vitrinas.", "I'll be back when the cases have more stuff."),
         ("¿Dónde están las cartas? Solo veo estanterías.", "Where are the cards? I only see shelves."),
         ("Ni bien ni mal. Simplemente, ahí está.", "Not good, not bad. It just is."),
-        ("Más vacío que un Poké Ball sin Pokémon.", "Emptier than a Poké Ball with no Pokémon."),
+        ("Más vacío que una Poké Ball sin Pokémon.", "Emptier than a Poké Ball with no Pokémon."),
         ("No ha estado mal, pero tampoco para tirar cohetes.", "It wasn't bad, but nothing to write home about."),
         ("He visto tiendas mejores y peores.", "I've seen better shops and worse ones."),
         ("Aquí hay más polvo que cartas.", "There's more dust here than cards."),

@@ -60,7 +60,7 @@ T = {
                                  "CobbleGrade: you can track your orders in the phone's CobbleGrade app."),
     "tcgshop.msg.npc.grader.4": ("CobbleGrade: este es un mensaje automático. Su consulta es importante para nosotros.",
                                  "CobbleGrade: this is an automatic message. Your enquiry is important to us."),
-    "tcgshop.msg.npc.grader.5": ("CobbleGrade: una carta recién abierta suele estar en mejor estado. ¡Fúndala rápido!",
+    "tcgshop.msg.npc.grader.5": ("CobbleGrade: una carta recién abierta suele estar en mejor estado. ¡Enfúndala rápido!",
                                  "CobbleGrade: a freshly pulled card is usually in better shape. Slab it fast!"),
 
     # ------------------------------------------------------------------ Messages app

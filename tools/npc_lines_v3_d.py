@@ -48,7 +48,7 @@ EXTRA = {
         ("Me sale más caro, pero me voy con una sonrisa.", "It costs me more, but I leave with a smile."),
     ],
     "regular_back": [
-        ("Ya tengo mi sitio favorito frente a la vitrina.", "I already have my favorite spot by the display case."),
+        ("Ya tengo mi sitio favorito frente a la vitrina.", "I already have my favourite spot by the display case."),
         ("¡Ya estoy aquí! Mi binder te manda saludos.", "I'm here! My binder says hi."),
         ("Vengo tan seguido que mi Growlithe tira solo hacia aquí.", "I come so often my Growlithe pulls me here on its own."),
         ("Otra semana, otra visita. Ya es tradición.", "Another week, another visit. It's tradition now."),

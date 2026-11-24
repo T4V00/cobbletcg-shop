@@ -320,6 +320,6 @@ EXTRA = {
         ("Caro, pero sé que aquí no hay falsificaciones.", "Pricey, but I know there are no fakes here."),
         ("Lo pagaría aunque costara más. Así de buena es esta tienda.", "I'd pay even if it cost more. That's how good this shop is."),
         ("Un precio premium para una tienda premium. Justo.", "A premium price for a premium shop. Fair."),
-        ("Me cobra de más y aún así salgo ganando. ¡Gracias!", "You charge me extra and I still come out ahead. Thanks!"),
+        ("Me cobra de más y aun así salgo ganando. ¡Gracias!", "You charge me extra and I still come out ahead. Thanks!"),
     ],
 }

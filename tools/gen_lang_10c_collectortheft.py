@@ -105,7 +105,7 @@ T = {
     P + "line.got_back.5": ("Y ahora, si me disculpas, tengo que desinfectarla.", "And now, if you'll excuse me, I need to disinfect it."),
     P + "line.thief_click.0": ("¿¡Encima vienes a saludar!?", "And now you come to say hi?!"),
     P + "line.thief_click.1": ("¡Ni se te ocurra tocar mi puesto otra vez!", "Don't even think about touching my stall again!"),
-    P + "line.thief_click.2": ("¿Vienes a devolvérmela? ¡Pues ESTÁTE QUIETO!", "Here to give it back? Then HOLD STILL!"),
+    P + "line.thief_click.2": ("¿Vienes a devolvérmela? ¡Pues ESTATE QUIETO!", "Here to give it back? Then HOLD STILL!"),
     P + "line.thief_click.3": ("¡Cara dura! ¡Cara muy, muy dura!", "The nerve! The absolute nerve!"),
     P + "line.victim.0": ("¡Hoy no hay tratos! ¡Me han robado!", "No deals today! I've been robbed!"),
     P + "line.victim.1": ("¿Has visto a alguien correr con una carta mía?", "Did you see someone running off with one of my cards?"),
