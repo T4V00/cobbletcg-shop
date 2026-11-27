@@ -5,7 +5,7 @@ import random
 import importlib.util
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent / "src/main/resources"
+ROOT = Path(__file__).resolve().parent.parent / "common/src/main/resources"
 A = ROOT / "assets/tcgshop"
 spec = importlib.util.spec_from_file_location("gt", Path(__file__).resolve().parent / "gen_textures.py")
 gt = importlib.util.module_from_spec(spec)

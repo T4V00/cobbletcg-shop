@@ -1,0 +1,51 @@
+// NeoForge loader project: compiles the shared sources from common/ plus the NeoForge entry points into its own jar.
+plugins { id 'net.neoforged.moddev' }
+
+base { archivesName = "${rootProject.archives_base_name}-neoforge" }
+
+def commonDir = project(':common').file('src/main')
+sourceSets.main {
+    java.srcDir("${commonDir}/java")
+    resources.srcDir("${commonDir}/resources")
+}
+
+neoForge {
+    version = rootProject.neoforge_version
+    parchment {
+        minecraftVersion = rootProject.parchment_minecraft
+        mappingsVersion = rootProject.parchment_version
+    }
+    // members the shared code needs that vanilla keeps private (the same file ships in the jar for production)
+    accessTransformers.from(project(':common').file('src/main/resources/META-INF/accesstransformer.cfg'))
+    runs {
+        server {
+            server()
+            gameDirectory = rootProject.file('run-neoforge')
+        }
+        client {
+            client()
+            gameDirectory = rootProject.file('run-neoforge')
+        }
+    }
+    mods {
+        tcgshop {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+dependencies {
+    // MasterBall Traders API (NeoForge build of ../masterball-api): compile against it and load it as a mod in dev runs
+    implementation files(rootProject.apiNeoForgeJar)
+}
+
+// GraalVM bundled as jar resources (graal/), shared with the Fabric project. Mixin/MixinExtras come with NeoForge.
+apply from: rootProject.file('gradle/graal-bundle.gradle')
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('META-INF/neoforge.mods.toml') { expand 'version': project.version }
+}
+
+// Lets console commands (e.g. "tcgshop debug selftest", "stop") piped into ./gradlew :neoforge:runServer reach the dev server
+tasks.matching { it.name == 'runServer' }.configureEach { standardInput = System.in }

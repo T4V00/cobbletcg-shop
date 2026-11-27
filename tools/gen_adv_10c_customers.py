@@ -9,7 +9,7 @@ Usage: python tools/gen_adv_10c_customers.py
 import json
 from pathlib import Path
 
-ADV = Path(__file__).resolve().parent.parent / "src/main/resources/data/tcgshop/advancement"
+ADV = Path(__file__).resolve().parent.parent / "common/src/main/resources/data/tcgshop/advancement"
 
 # id, parent, icon, frame
 ADVS = [

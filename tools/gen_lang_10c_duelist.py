@@ -8,7 +8,7 @@ The number of NPC lines per category (tcgshop.duelist.line.<cat>.<n>) must match
 import json
 from pathlib import Path
 
-LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
+LANG = Path(__file__).resolve().parent.parent / "common/src/main/resources/assets/tcgshop/lang"
 
 T = {
     "entity.tcgshop.wandering_duelist": ("Duelista errante", "Wandering Duelist"),

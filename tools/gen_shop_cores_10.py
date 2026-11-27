@@ -12,7 +12,7 @@ import importlib.util
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parent / "src/main/resources"
+ROOT = HERE.parent / "common/src/main/resources"
 A = ROOT / "assets/tcgshop"
 _spec = importlib.util.spec_from_file_location("gt", HERE / "gen_textures.py")
 gt = importlib.util.module_from_spec(_spec)

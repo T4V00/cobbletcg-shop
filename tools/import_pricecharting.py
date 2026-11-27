@@ -17,7 +17,7 @@ Columns it uses (this is how PriceCharting defines them for cards):
   manual-only-price  -> PSA 10
 CSV prices come as "$12.34"; API prices in cents (detected automatically).
 
-Output: src/main/resources/data/tcgshop/tcgshop_prices/pricecharting.json with
+Output: common/src/main/resources/data/tcgshop/tcgshop_prices/pricecharting.json with
   { "cards_usd":  { id: raw },
     "graded_usd": { id: {"7": x, "8": y, "9": z, "9.5": w, "10": v} } }
 It is loaded AFTER cards.json (alphabetical order: "p" > "c"), so its prices win where they exist;
@@ -43,7 +43,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fetch_prices import load_cards, norm, clean_name  # noqa: E402
 
-OUT = Path(__file__).resolve().parent.parent / "src/main/resources/data/tcgshop/tcgshop_prices/pricecharting.json"
+OUT = Path(__file__).resolve().parent.parent / "common/src/main/resources/data/tcgshop/tcgshop_prices/pricecharting.json"
 DOWNLOAD = "https://www.pricecharting.com/price-guide/download-custom?t={token}&category=pokemon-cards"
 
 # cobbletcg set code -> "console-name" name(s) in PriceCharting.

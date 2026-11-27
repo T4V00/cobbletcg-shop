@@ -2,7 +2,7 @@
 """
 Base stats and type of each species (for the competitive TCG mode: HP, damage, retreat and type of each card).
 Reads data/cobblemon/species/**.json from the Cobblemon jar and writes
-src/main/resources/data/tcgshop/tcgshop_stats/species.json -> {"pikachu": [hp, atk, def, spa, spd, spe, "electric"], ...}
+common/src/main/resources/data/tcgshop/tcgshop_stats/species.json -> {"pikachu": [hp, atk, def, spa, spd, spe, "electric"], ...}
 The key is the same one gen_card_species.py uses (lowercase name with "_" instead of spaces).
 Usage: python tools/gen_species_stats.py <cobblemon.jar>
 """
@@ -12,7 +12,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-OUT = Path(__file__).resolve().parent.parent / "src/main/resources/data/tcgshop/tcgshop_stats/species.json"
+OUT = Path(__file__).resolve().parent.parent / "common/src/main/resources/data/tcgshop/tcgshop_stats/species.json"
 
 
 def main():

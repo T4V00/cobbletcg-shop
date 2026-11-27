@@ -1,0 +1,60 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "All-Rights-Reserved"
+
+[[mods]]
+modId = "tcgshop"
+version = "${version}"
+displayName = "MasterBall Traders Co."
+authors = "destr"
+description = '''
+PTCG Shop Simulator & PvP. Run your own Pokemon TCG card shop, open packs with animations, trade with NPCs and players, grade cards, play the real TCG and climb the league. Prices in CobbleDollars. Cards come from MasterBall Traders API.
+'''
+
+[[mixins]]
+config = "tcgshop.mixins.json"
+
+[[accessTransformers]]
+file = "META-INF/accesstransformer.cfg"
+
+[[dependencies.tcgshop]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.tcgshop]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1]"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.tcgshop]]
+modId = "masterball"
+type = "required"
+versionRange = "[0.3.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.tcgshop]]
+modId = "cobblemon"
+type = "optional"
+versionRange = "[0,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.tcgshop]]
+modId = "cobbledollars"
+type = "optional"
+versionRange = "[0,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.tcgshop]]
+modId = "pokeblocks"
+type = "optional"
+versionRange = "[0,)"
+ordering = "NONE"
+side = "BOTH"

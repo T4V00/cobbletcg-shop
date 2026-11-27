@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-R = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
+R = Path(__file__).resolve().parent.parent / "common/src/main/resources/assets/tcgshop/lang"
 
 KEYS = {
     # errors

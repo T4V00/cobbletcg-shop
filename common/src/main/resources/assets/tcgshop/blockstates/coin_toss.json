@@ -1,0 +1,19 @@
+{
+ "variants": {
+  "facing=north": {
+   "model": "tcgshop:block/coin_toss"
+  },
+  "facing=east": {
+   "model": "tcgshop:block/coin_toss",
+   "y": 90
+  },
+  "facing=south": {
+   "model": "tcgshop:block/coin_toss",
+   "y": 180
+  },
+  "facing=west": {
+   "model": "tcgshop:block/coin_toss",
+   "y": 270
+  }
+ }
+}

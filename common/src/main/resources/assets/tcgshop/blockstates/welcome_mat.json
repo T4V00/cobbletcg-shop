@@ -1,0 +1,20 @@
+{
+ "variants": {
+  "facing=north": {
+   "model": "tcgshop:block/welcome_mat",
+   "y": 0
+  },
+  "facing=east": {
+   "model": "tcgshop:block/welcome_mat",
+   "y": 90
+  },
+  "facing=south": {
+   "model": "tcgshop:block/welcome_mat",
+   "y": 180
+  },
+  "facing=west": {
+   "model": "tcgshop:block/welcome_mat",
+   "y": 270
+  }
+ }
+}

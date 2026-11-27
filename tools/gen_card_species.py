@@ -7,7 +7,7 @@ lang ("PAL 269  Iono SIR", "MEW 151  Mew ex", "ASC 1  Erika's Oddish", "ROS 61  
 Looks for the longest species name contained in the card name (Trainer / Energy cards
 have no species).
 
-Writes src/main/resources/data/tcgshop/tcgshop_species/cards.json  ->  {"cobbletcg:...": "pikachu", ...}
+Writes common/src/main/resources/data/tcgshop/tcgshop_species/cards.json  ->  {"cobbletcg:...": "pikachu", ...}
 Usage: python tools/gen_card_species.py <cobblemon.jar>   (cards: catalog from ../masterball-api)
 """
 import json
@@ -16,7 +16,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-OUT = Path(__file__).resolve().parent.parent / "src/main/resources/data/tcgshop/tcgshop_species/cards.json"
+OUT = Path(__file__).resolve().parent.parent / "common/src/main/resources/data/tcgshop/tcgshop_species/cards.json"
 
 
 def norm(s):

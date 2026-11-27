@@ -1,0 +1,20 @@
+{
+ "variants": {
+  "facing=north": {
+   "model": "tcgshop:block/gumball_machine",
+   "y": 0
+  },
+  "facing=east": {
+   "model": "tcgshop:block/gumball_machine",
+   "y": 90
+  },
+  "facing=south": {
+   "model": "tcgshop:block/gumball_machine",
+   "y": 180
+  },
+  "facing=west": {
+   "model": "tcgshop:block/gumball_machine",
+   "y": 270
+  }
+ }
+}

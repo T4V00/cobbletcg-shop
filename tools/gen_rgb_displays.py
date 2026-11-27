@@ -10,7 +10,7 @@ the LEDs are described once here and written twice:
 Coordinates are structure pixels: x in [0, 16W], y in [0, 16H], z in [0, 16D], z = 0 is the front (north),
 exactly like gen_furniture_models.py and DisplayKind (x grows towards the customer's left).
 
-Usage: python tools/gen_rgb_displays.py  (only writes new files under src/main/resources)
+Usage: python tools/gen_rgb_displays.py  (only writes new files under common/src/main/resources)
 """
 import colorsys
 import importlib.util

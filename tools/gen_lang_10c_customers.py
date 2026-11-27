@@ -14,7 +14,7 @@ Usage: python tools/gen_lang_10c_customers.py  (updates/inserts the keys in es_e
 import json
 from pathlib import Path
 
-LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
+LANG = Path(__file__).resolve().parent.parent / "common/src/main/resources/assets/tcgshop/lang"
 
 # ---------------------------------------------------------------------------------------------- unique customers
 # id -> category -> [(es, en), ...]. Counts must match entity/FixedCustomers.COMMON (hello 4, back 3, buy 3, nobuy 3,

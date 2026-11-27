@@ -6,7 +6,7 @@ Per-card data for the Grade system (GradeModel). No invented quantities: everyth
     tt 0 Item, 1 Supporter, 2 Stadium, 3 Tool) via data/tcgshop/tcgshop_ptcg/cards.json,
   * real competitive usage (engine/meta_decks.json: copies in meta decks),
   * reprints of the same Trainer/Energy in the engine (versatility).
-Output: src/main/resources/data/tcgshop/tcgshop_grade/cards.json
+Output: common/src/main/resources/data/tcgshop/tcgshop_grade/cards.json
   { id: {"c": category, "r": rank (Pokémon only), "k": usage 0-1, "v": versatility 0-1} }
 and tools/grade_unmatched.txt with the doubtful cases.
 Usage: python tools/gen_grade_data.py <Popularity.txt>   (cards: catalog from ../masterball-api)
@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fetch_prices import load_cards  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "src/main/resources/data/tcgshop/tcgshop_grade/cards.json"
+OUT = ROOT / "common/src/main/resources/data/tcgshop/tcgshop_grade/cards.json"
 LOG = ROOT / "tools/grade_unmatched.txt"
 TT = {0: "item", 1: "supporter", 2: "stadium", 3: "tool"}
 
@@ -67,7 +67,7 @@ def main():
     # single words that are Pokémon but also common words in card names
     risky = {("mew",): False}
     tl = {c["f"]: c for c in json.loads((ROOT / "engine/twinleaf_cards.json").read_text(encoding="utf-8"))}
-    eng_map = json.loads((ROOT / "src/main/resources/data/tcgshop/tcgshop_ptcg/cards.json").read_text(encoding="utf-8"))
+    eng_map = json.loads((ROOT / "common/src/main/resources/data/tcgshop/tcgshop_ptcg/cards.json").read_text(encoding="utf-8"))
     meta = json.loads((ROOT / "engine/meta_decks.json").read_text(encoding="utf-8"))
     use = Counter()
     for d in meta:

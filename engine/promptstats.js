@@ -1,6 +1,6 @@
 const fs=require('fs'),vm=require('vm'),path=require('path');
 const ctx={console};ctx.globalThis=ctx;vm.createContext(ctx);
-vm.runInContext(fs.readFileSync(path.join(__dirname,'..','src/main/resources/assets/tcgshop/ptcg/engine.js'),'utf8'),ctx);
+vm.runInContext(fs.readFileSync(path.join(__dirname,'..','common/src/main/resources/assets/tcgshop/ptcg/engine.js'),'utf8'),ctx);
 const P=ctx.PTCG;P.init();
 const stats={}, kinds={};
 for (let g=0; g<Number(process.argv[2]||6); g++){

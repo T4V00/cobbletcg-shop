@@ -26,7 +26,7 @@ import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-A = ROOT / "src/main/resources/assets/tcgshop"
+A = ROOT / "common/src/main/resources/assets/tcgshop"
 NS = "tcgshop"
 
 # ----------------------------------------------------------------------------------------------------------- png / colour

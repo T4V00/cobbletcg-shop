@@ -5,7 +5,7 @@ item models, blockstates, loot tables and tags. Standard library only (PNG with 
 Abstract, original designs (trophy, obelisk, orb, winged figure, crown, crystals, great orb): no Pokémon art.
 
 Usage:  python -I -X utf8 tools/gen_statue_assets.py
-Writes only inside src/main/resources. Idempotent.
+Writes only inside common/src/main/resources. Idempotent.
 """
 import json
 import random

@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent / "src/main/resources"
+ROOT = Path(__file__).resolve().parent.parent / "common/src/main/resources"
 ADV = ROOT / "data/tcgshop/advancement"
 LANG = ROOT / "assets/tcgshop/lang"
 

@@ -1,0 +1,29 @@
+{
+ "type": "minecraft:block",
+ "pools": [
+  {
+   "rolls": 1,
+   "entries": [
+    {
+     "type": "minecraft:item",
+     "name": "tcgshop:wide_door",
+     "conditions": [
+      {
+       "condition": "minecraft:block_state_property",
+       "block": "tcgshop:wide_door",
+       "properties": {
+        "part": "center",
+        "half": "lower"
+       }
+      }
+     ]
+    }
+   ],
+   "conditions": [
+    {
+     "condition": "minecraft:survives_explosion"
+    }
+   ]
+  }
+ ]
+}

@@ -2,7 +2,7 @@
 """
 Matches each cobbletcg card with the equivalent card in the real engine (twinleaf.gg).
 Input: engine/twinleaf_cards.json (exported by the engine) and the cobbletcg en_us lang.
-Output: src/main/resources/data/tcgshop/tcgshop_ptcg/cards.json -> {"cobbletcg:<set>/cards/<id>": "<engine fullName>"}
+Output: common/src/main/resources/data/tcgshop/tcgshop_ptcg/cards.json -> {"cobbletcg:<set>/cards/<id>": "<engine fullName>"}
 Rules: same set code and number; otherwise (secret rarities with a different number), same name within the set;
 Trainers and Energies also match by name in any set (they are reprints with the same effect).
 Usage: python tools/gen_ptcg_map.py   (cards: catalog from ../masterball-api)
@@ -15,7 +15,7 @@ from collections import defaultdict, Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "src/main/resources/data/tcgshop/tcgshop_ptcg/cards.json"
+OUT = ROOT / "common/src/main/resources/data/tcgshop/tcgshop_ptcg/cards.json"
 RARITY_SUFFIX = re.compile(r"\s+(SIR|IR|FA|HR|UR|SR|AR|TG|GG|SAR|CHR|CSR|ACE|PR|RR|RRR|S|SSR|Full Art|Secret|Gold|Rainbow)$", re.I)
 
 
@@ -70,7 +70,7 @@ def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(out, indent=0, sort_keys=True), encoding="utf-8")
     # identical copy for the client (duel screen)
-    (ROOT / "src/main/resources/assets/tcgshop/ptcg/cards.json").write_text(json.dumps(out, indent=0, sort_keys=True), encoding="utf-8")
+    (ROOT / "common/src/main/resources/assets/tcgshop/ptcg/cards.json").write_text(json.dumps(out, indent=0, sort_keys=True), encoding="utf-8")
     total = sum(v[2] for v in stats.values())
     for k, (code, ok, n) in sorted(stats.items(), key=lambda x: x[1][1] / max(1, x[1][2])):
         print(f"{k:22s} -> {code:4s} {ok:4d}/{n:4d}")

@@ -1,0 +1,266 @@
+package dev.tcgshop.events;
+
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.saveddata.SavedData;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Global event state (overworld, "tcgshop_events"):
+ *  · deck      which events exist in this world (drawn once per event and saved; /tcgshop event deck reroll)
+ *  · owners    per owner: day's roll, cooldowns, history, reward money and pending perks
+ *  · actors    live entities of event actors (uuid -> event uid): API for ActorModule
+ *  · nextUid   instance counter
+ */
+public final class EventState extends SavedData {
+    private static final Factory<EventState> TYPE = new Factory<>(EventState::new, EventState::fromNbt, null);
+
+    long deckSalt = 0;
+    final Map<String, Boolean> deck = new LinkedHashMap<>();
+    long nextUid = 1;
+    final Map<UUID, OwnerData> owners = new HashMap<>();
+    final Map<UUID, Long> actors = new HashMap<>();
+
+    /** An owner's pending perk (discount on the next Wholesaler purchase, hire, grading...). */
+    public static final class Perk {
+        public String kind;
+        public double factor;
+        public long until;
+        public int uses;
+        public long uid;
+
+        CompoundTag toNbt() {
+            CompoundTag c = new CompoundTag();
+            c.putString("k", kind);
+            c.putDouble("f", factor);
+            c.putLong("u", until);
+            c.putInt("n", uses);
+            c.putLong("uid", uid);
+            return c;
+        }
+
+        static Perk fromNbt(CompoundTag c) {
+            Perk p = new Perk();
+            p.kind = c.getString("k");
+            p.factor = c.getDouble("f");
+            p.until = c.getLong("u");
+            p.uses = c.getInt("n");
+            p.uid = c.getLong("uid");
+            return p;
+        }
+    }
+
+    public record Hist(String id, String template, long day) {}
+
+    public static final class OwnerData {
+        /** Day of the last roll, whether an event hit, time of day (tick 0-24000) when it starts and how many so far today. */
+        public long rollDay = -1;
+        public boolean rollHit;
+        public int fireTod = -1;
+        public int firedToday;
+        /** Event already chosen today that waits for its time window (e.g. at night); starts at fireTod. "" = none. */
+        public String pendingDef = "";
+        /** Last day each event was used (cooldown). */
+        public final Map<String, Long> cooldown = new HashMap<>();
+        /** History (most recent last), up to 40. */
+        public final List<Hist> hist = new ArrayList<>();
+        /** Reward money: 7-day ring (money[0] = today). */
+        public final long[] money = new long[7];
+        public long moneyDay = -1;
+        public final List<Perk> perks = new ArrayList<>();
+
+        public String lastTemplate() { return hist.isEmpty() ? "" : hist.get(hist.size() - 1).template(); }
+
+        public void moneyRoll(long day) {
+            if (moneyDay < 0) { moneyDay = day; return; }
+            if (day <= moneyDay) return;
+            int shift = (int) Math.min(money.length, day - moneyDay);
+            for (int i = money.length - 1; i >= 0; i--) money[i] = i - shift >= 0 ? money[i - shift] : 0;
+            moneyDay = day;
+        }
+
+        public long moneyWeek() {
+            long s = 0;
+            for (long m : money) s += m;
+            return s;
+        }
+
+        public void addHist(String id, String template, long day) {
+            hist.add(new Hist(id, template, day));
+            while (hist.size() > 40) hist.remove(0);
+            cooldown.put(id, day);
+        }
+
+        public int countSince(String id, long fromDay) {
+            int n = 0;
+            for (Hist h : hist) if (h.id().equals(id) && h.day() >= fromDay) n++;
+            return n;
+        }
+
+        public boolean inRecent(String id, int last) {
+            for (int i = Math.max(0, hist.size() - last); i < hist.size(); i++) if (hist.get(i).id().equals(id)) return true;
+            return false;
+        }
+
+        public long lastDayOf(String id) {
+            for (int i = hist.size() - 1; i >= 0; i--) if (hist.get(i).id().equals(id)) return hist.get(i).day();
+            return Long.MIN_VALUE;
+        }
+    }
+
+    public static EventState get(MinecraftServer server) {
+        return server.overworld().getDataStorage().computeIfAbsent(TYPE, "tcgshop_events");
+    }
+
+    public OwnerData owner(UUID id) { return owners.computeIfAbsent(id, k -> new OwnerData()); }
+
+    public long nextUid() {
+        setDirty();
+        return nextUid++;
+    }
+
+    // ------------------------------------------------------------------ world deck
+
+    /** Does this event exist in this world? Drawn the first time it is asked (world seed + salt) and saved. */
+    public boolean inDeck(EventDef def, long worldSeed) {
+        Boolean b = deck.get(def.id());
+        if (b == null) {
+            long h = worldSeed ^ deckSalt * 0x9E3779B97F4A7C15L ^ (long) def.id().hashCode() * 0xC2B2AE3D27D4EB4FL;
+            b = new java.util.Random(h).nextDouble() < EventsConfig.INSTANCE.presence(def.tier());
+            deck.put(def.id(), b);
+            setDirty();
+        }
+        return b;
+    }
+
+    public void rerollDeck(long salt) {
+        deckSalt = salt;
+        deck.clear();
+        setDirty();
+    }
+
+    public Map<String, Boolean> deckView() { return java.util.Collections.unmodifiableMap(deck); }
+
+    // ------------------------------------------------------------------ actors (API for ActorModule)
+
+    /** Registers an event entity BEFORE calling world.spawnEntity (ENTITY_LOAD fires on spawn). */
+    public void registerActor(UUID entity, long uid) {
+        actors.put(entity, uid);
+        setDirty();
+    }
+
+    public void unregisterActor(UUID entity) {
+        if (actors.remove(entity) != null) setDirty();
+    }
+
+    public boolean isLiveActor(UUID entity) { return actors.containsKey(entity); }
+
+    /** uid of the event the entity belongs to, or -1. */
+    public long actorEvent(UUID entity) { return actors.getOrDefault(entity, -1L); }
+
+    public List<UUID> actorsOf(long uid) {
+        List<UUID> out = new ArrayList<>();
+        actors.forEach((k, v) -> { if (v == uid) out.add(k); });
+        return out;
+    }
+
+    public void clearActorsOf(long uid) {
+        if (actors.values().removeIf(v -> v == uid)) setDirty();
+    }
+
+    public int actorCount() { return actors.size(); }
+
+    // ------------------------------------------------------------------ NBT
+
+    private static EventState fromNbt(CompoundTag nbt, HolderLookup.Provider lookup) {
+        EventState s = new EventState();
+        s.deckSalt = nbt.getLong("salt");
+        CompoundTag d = nbt.getCompound("deck");
+        for (String k : d.getAllKeys()) s.deck.put(k, d.getBoolean(k));
+        s.nextUid = Math.max(1, nbt.getLong("next_uid"));
+        CompoundTag ow = nbt.getCompound("owners");
+        for (String k : ow.getAllKeys()) {
+            UUID id;
+            try { id = UUID.fromString(k); } catch (IllegalArgumentException e) { continue; }
+            CompoundTag c = ow.getCompound(k);
+            OwnerData o = new OwnerData();
+            o.rollDay = c.contains("roll_day") ? c.getLong("roll_day") : -1;
+            o.rollHit = c.getBoolean("roll_hit");
+            o.fireTod = c.contains("fire_tod") ? c.getInt("fire_tod") : -1;
+            o.firedToday = c.getInt("fired");
+            o.pendingDef = c.getString("pending");
+            CompoundTag cd = c.getCompound("cd");
+            for (String e : cd.getAllKeys()) o.cooldown.put(e, cd.getLong(e));
+            ListTag hl = c.getList("hist", Tag.TAG_COMPOUND);
+            for (int i = 0; i < hl.size(); i++) {
+                CompoundTag h = hl.getCompound(i);
+                o.hist.add(new Hist(h.getString("i"), h.getString("t"), h.getLong("d")));
+            }
+            long[] m = c.getLongArray("money");
+            System.arraycopy(m, 0, o.money, 0, Math.min(m.length, o.money.length));
+            o.moneyDay = c.contains("money_day") ? c.getLong("money_day") : -1;
+            ListTag pl = c.getList("perks", Tag.TAG_COMPOUND);
+            for (int i = 0; i < pl.size(); i++) o.perks.add(Perk.fromNbt(pl.getCompound(i)));
+            s.owners.put(id, o);
+        }
+        CompoundTag ac = nbt.getCompound("actors");
+        for (String k : ac.getAllKeys()) {
+            try { s.actors.put(UUID.fromString(k), ac.getLong(k)); } catch (IllegalArgumentException ignored) {}
+        }
+        return s;
+    }
+
+    @Override
+    public CompoundTag save(CompoundTag nbt, HolderLookup.Provider lookup) {
+        nbt.putLong("salt", deckSalt);
+        CompoundTag d = new CompoundTag();
+        deck.forEach(d::putBoolean);
+        nbt.put("deck", d);
+        nbt.putLong("next_uid", nextUid);
+        CompoundTag ow = new CompoundTag();
+        owners.forEach((id, o) -> {
+            CompoundTag c = new CompoundTag();
+            c.putLong("roll_day", o.rollDay);
+            c.putBoolean("roll_hit", o.rollHit);
+            c.putInt("fire_tod", o.fireTod);
+            c.putInt("fired", o.firedToday);
+            if (!o.pendingDef.isEmpty()) c.putString("pending", o.pendingDef);
+            CompoundTag cd = new CompoundTag();
+            o.cooldown.forEach(cd::putLong);
+            c.put("cd", cd);
+            ListTag hl = new ListTag();
+            for (Hist h : o.hist) {
+                CompoundTag x = new CompoundTag();
+                x.putString("i", h.id());
+                x.putString("t", h.template());
+                x.putLong("d", h.day());
+                hl.add(x);
+            }
+            c.put("hist", hl);
+            c.putLongArray("money", o.money.clone());
+            c.putLong("money_day", o.moneyDay);
+            ListTag pl = new ListTag();
+            for (Perk p : o.perks) pl.add(p.toNbt());
+            c.put("perks", pl);
+            ow.put(id.toString(), c);
+        });
+        nbt.put("owners", ow);
+        CompoundTag ac = new CompoundTag();
+        actors.forEach((k, v) -> ac.putLong(k.toString(), v));
+        nbt.put("actors", ac);
+        return nbt;
+    }
+
+    /** For eventtest: NBT round trip. */
+    EventState roundTrip(HolderLookup.Provider lookup) {
+        return fromNbt(save(new CompoundTag(), lookup), lookup);
+    }
+}

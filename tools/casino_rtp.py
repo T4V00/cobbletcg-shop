@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """1.0 beta 3 casino: return-to-player (RTP) math and a Monte Carlo check of every game.
 
-The tables below MUST mirror the Java sources in src/main/java/dev/tcgshop/casino:
+The tables below MUST mirror the Java sources in common/src/main/java/dev/tcgshop/casino:
   * SlotMath.java     3 reels x 64 virtual stops, single payline (exact enumeration + simulation)
   * RouletteMath.java European single-zero wheel, every standard bet pays 36/k - 1 (exact: 36/37)
   * WheelMath.java    Big Six money wheel, 54 segments (exact)

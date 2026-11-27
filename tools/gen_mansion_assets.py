@@ -5,7 +5,7 @@ Original design: gold key whose bow is a red-and-white ball (black band and butt
 Standard library only (PNG with zlib + struct).
 
 Usage:  python -I -X utf8 tools/gen_mansion_assets.py
-Writes only inside src/main/resources. Idempotent.
+Writes only inside common/src/main/resources. Idempotent.
 """
 import json
 import math

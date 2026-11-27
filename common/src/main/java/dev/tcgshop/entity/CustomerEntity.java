@@ -1,0 +1,2719 @@
+package dev.tcgshop.entity;
+
+import dev.masterball.api.platform.Net;
+import dev.tcgshop.advancement.CardAdvancements;
+import dev.masterball.api.card.CardInfo;
+import dev.masterball.api.card.Rarity;
+import dev.tcgshop.collection.CollectionService;
+import dev.tcgshop.compat.CobblemonBattles;
+import dev.tcgshop.economy.CobbleDollarsBridge;
+import dev.tcgshop.network.DealOpenPayload;
+import dev.tcgshop.network.DealAnswerPayload;
+import dev.tcgshop.EconomyConfig;
+import dev.tcgshop.pricing.PriceService;
+import dev.tcgshop.shop.BoosterBox;
+import dev.tcgshop.shop.DecorBlocks;
+import dev.tcgshop.shop.GuardUpgrades;
+import dev.tcgshop.shop.SecurityLedger;
+import dev.tcgshop.shop.ShopDisplayBlock;
+import dev.tcgshop.shop.ShopDisplayBlockEntity;
+import dev.tcgshop.shop.ShopServer;
+import dev.tcgshop.shop.ShopZones;
+import dev.tcgshop.shop.TcgBlocks;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Shop customer. Walks in from outside, goes around the displays, looks at the products and decides based on the
+ * price versus the market, their personality and the reputation. If they buy, they take the product (carry it in hand),
+ * go pay at the cash register and leave with it. On leaving they write a review (1-5 stars) and, if they left
+ * happy, may come back another day as a regular customer.
+ *
+ * Types:
+ *  · REGULAR   buys if the price is reasonable.
+ *  · PICKY     fussy: only buys below market and complains if it's expensive.
+ *  · WHALE     wealthy collector: pays up to almost double for rare things.
+ *  · THIEF     thief: steals a product and runs. With a guard, always caught; without a guard flees like a
+ *              Scalper (you can chase it, hit it or challenge it to a Pokémon battle to recover the stolen item).
+ *  · HAGGLER   haggler: offers to buy something above or below your price.
+ *  · SELLER    seller: wants to sell you a card, a pack or a box, and tells you why.
+ *  · TRADER    collector who wants to trade one of their cards for one from your displays.
+ * Those who want a deal show a "!" above their head: right-click to see it.
+ */
+public class CustomerEntity extends PathfinderMob implements TcgNpc, CobblemonBattles.Fighter {
+    public enum Type { REGULAR, PICKY, WHALE, THIEF, HAGGLER, SELLER, TRADER }
+
+    /** 0.9.5: SIT_GO (goes to a free chair), SIT (sitting for a while) and LOOK (stops to look at furniture or a plush). */
+    private enum State { ENTER, GO, BROWSE, CHECKOUT, WAIT_DEAL, LEAVE, FLEE, SIT_GO, SIT, LOOK }
+
+    private static final String[] THIEF_POOL = {"purrloin", "nickit", "sneasel", "murkrow", "zorua", "meowth", "sableye", "impidimp", "poochyena"};
+
+    private static final EntityDataAccessor<String> TITLE = SynchedEntityData.defineId(CustomerEntity.class, EntityDataSerializers.STRING);
+    private static final EntityDataAccessor<Integer> SKIN = SynchedEntityData.defineId(CustomerEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> EMOTE = SynchedEntityData.defineId(CustomerEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> TYPE = SynchedEntityData.defineId(CustomerEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> WANTS = SynchedEntityData.defineId(CustomerEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> SMELLY = SynchedEntityData.defineId(CustomerEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> WAIT = SynchedEntityData.defineId(CustomerEntity.class, EntityDataSerializers.INT);
+    /** 0.9 events: role shown above an event visitor's head (language key; empty = the one for its type). */
+    private static final EntityDataAccessor<String> EV_ROLE = SynchedEntityData.defineId(CustomerEntity.class, EntityDataSerializers.STRING);
+    /** 1.0 beta 3: unique customer id (FixedCustomers, 0-9; -1 = an ordinary customer). Synced for the rainbow name. */
+    private static final EntityDataAccessor<Integer> FIXED = SynchedEntityData.defineId(CustomerEntity.class, EntityDataSerializers.INT);
+    /** 1.0 beta 3: thief tier (ThiefTiers, 0 = pickpocket ... 4 = heist boss). */
+    private static final EntityDataAccessor<Integer> TIER = SynchedEntityData.defineId(CustomerEntity.class, EntityDataSerializers.INT);
+
+    /** 1.0 beta 3: an extra item taken by a skilled thief, robber or heist crew (besides {@link #loot}), with where it was. */
+    private record Stolen(BlockPos pos, int slot, ItemStack stack) {}
+
+    /** Extra items carried by a tier 1+ thief (the first one is {@link #loot}). */
+    private final List<Stolen> haul = new ArrayList<>();
+    /** What this theft added to the shop's theft counter (given back as "recovered" if it is foiled). */
+    private int theftWeight = 1;
+    /** Times a skilled thief may still slip out of a guard's grip. */
+    private int slipsLeft;
+    /** Ticks until an armed thief swings its sword again. */
+    private int attackCd;
+    /** Hit by a player before striking: an armed thief strikes at once. */
+    private boolean provoked;
+    /** Armed theft outcome already reported (foiled / got away). */
+    private boolean outcomeSent;
+
+    private UUID zoneId;
+    /** 1.1: leaving because the shop closed: no review, no regular, no mood or reputation effect (not saved: the tick re-applies it). */
+    private boolean closedLeave;
+    private State state = State.ENTER;
+    private BlockPos target;
+    private int targetSlot = -1, timer, browsesLeft;
+    private boolean detected, entered, reviewed, returning;
+    /** Has already had a Pokémon duel with the guard (only one per escape). */
+    public boolean duelled;
+    private ItemStack loot = ItemStack.EMPTY;
+    private ItemStack dealItem = ItemStack.EMPTY, dealWant = ItemStack.EMPTY;
+    private int dealMode;
+    /** The client already received the deal close (CLOSED): leave() must not send it again. */
+    private boolean dealNotified = true;
+    private long dealPrice;
+    private int reasonKey;
+    // merchant selling you something: personality, motive and haggling
+    public static final int P_COLLECTOR = 0, P_BEGINNER = 1, P_EXPERT = 2, P_NEGOTIATOR = 3, P_DESPERATE = 4, P_CASUAL = 5;
+    public static final String[] PERSONAS = {"collector", "beginner", "expert", "negotiator", "desperate", "casual"};
+    private static final int[] PERSONA_W = {16, 18, 12, 18, 14, 22};
+    /** Sale motives (tcgshop.motive.<cat>.<n>): urgent cash, making a profit and others. */
+    public static final int MOTIVES_CASH = 40, MOTIVES_PROFIT = 35, MOTIVES_OTHER = 45;
+    /** Weight of each motive type by personality (cash, profit, other): it is almost always about money. */
+    private static final int[][] MOTIVE_W = {{25, 35, 40}, {35, 25, 40}, {25, 60, 15}, {20, 70, 10}, {85, 5, 10}, {40, 35, 25}};
+    private int persona = -1, patience, maxPatience, thinks, waitMax = 1;
+    private String motive = "";
+    private long floorPrice;
+    /** Haggling customer (buys something from you): the most they would pay (hidden from you). Rises with shop reputation. */
+    private long ceilPrice;
+    /**
+     * 1.0 tips: your asking price in a BUY deal (the display price, then your latest counteroffer). What the customer pays
+     * above it is a tip. 0 = unknown (no tip is counted).
+     */
+    private long askPrice;
+    /** 1.0 charisma: the customer's opening price of the current deal (to know if you haggled a better one). Not saved. */
+    private long openPrice;
+    /**
+     * 1.1: the opening offer was already good for you (a buyer offering at least your price, a seller asking below
+     * market). Haggling then makes them leave; the charm options (joke, compliment, story) are offered instead. Not saved.
+     */
+    private boolean generous;
+    /** 1.1: charm options used in this deal (bit per Charisma.CHARM_*) and how many attempts were made. Not saved. */
+    private int charmMask, charmCount;
+    /** 1.1: already went back for one more item because of a luxury statue (only once per visit). */
+    private boolean extraBuy;
+    /** 1.0: the biggest tip a customer leaves voluntarily at checkout (on top of the price). */
+    private static final long CHECKOUT_TIP_CAP = 25_000;
+    /** Haggling customer's lines when YOU sell to them (tcgshop.haggle.buy.<cat>.<n>, tools/gen_lang_haggle_rep.py). */
+    public static final java.util.Map<String, Integer> BUY_LINES = java.util.Map.ofEntries(
+            java.util.Map.entry("counter", 8), java.util.Map.entry("hold", 6), java.util.Map.entry("insulted", 6), java.util.Map.entry("walkaway", 6),
+            java.util.Map.entry("accept", 8), java.util.Map.entry("arg_good", 5), java.util.Map.entry("arg_bad", 5), java.util.Map.entry("rep_good", 6),
+            java.util.Map.entry("rep_bad", 5), java.util.Map.entry("think_raise", 5), java.util.Map.entry("think_same", 5), java.util.Map.entry("final_no", 5));
+    /** Outcome of a closed deal (goes in the patience field of the CLOSED DealOpenPayload; price = final price). */
+    public static final int OUT_UNKNOWN = 0, OUT_DEAL = 1, OUT_WALK = 2, OUT_REJECT = 3, OUT_TIMEOUT = 4;
+    private Vec3 exit, spot;
+    /** Purchase pending payment at the register. */
+    private ItemStack bought = ItemStack.EMPTY;
+    private long payPrice;
+    private BlockPos register;
+    /** Mood for the final review (starts at 3 stars). */
+    private int mood = 3;
+    private String reviewKey = "browse";
+    /** 1.1: already saw (and complained about) a dropping in this visit. */
+    private boolean sawPoop;
+    // Scalper-style escape
+    private int fleePhaseTicks, lostTicks;
+    private boolean admiring;
+    // ---- 0.9 random events
+    /** Event visitor (null = normal customer). Not saved: on reload it leaves like the rest. */
+    @Nullable
+    private dev.tcgshop.events.VisitorSpec visitor;
+    /** When it appeared (world.getTime()), for the review memory. -1 = loaded from disk. */
+    private long arrivedAt = -1;
+    /** Purchases left for a visitor who buys several things. */
+    private int visitorBuys = 1;
+    // ---- 0.9.5 seats and furniture (ShopSeats)
+    /** Reserved seat (heading to it or seated). */
+    @Nullable
+    private dev.tcgshop.shop.ShopSeats.Seat sitSeat;
+    @Nullable
+    private Vec3 sitStand;
+    /** Already tried to sit this visit (only once); sits after paying; has bought something. */
+    private boolean sitTried, sitBuyer, boughtAny, browsedOnce;
+    private long sitSince;
+    /** Consecutive checks with the chair occupied (on the way / seated): a passing bump doesn't make it give up. */
+    private int sitBlocked, sitShared;
+    /** Already tried another chair after losing its own (once per visit). */
+    private boolean sitRetried;
+    /** Furniture or plush it stopped to look at. */
+    @Nullable
+    private BlockPos lookPos;
+    private boolean lookPlush, lookArrived;
+    private int furnLooks;
+
+    public CustomerEntity(EntityType<? extends PathfinderMob> type, Level world) {
+        super(type, world);
+        if (getNavigation() instanceof net.minecraft.world.entity.ai.navigation.GroundPathNavigation nav) {
+            nav.setCanOpenDoors(true); // they open the shop's wooden doors
+            nav.setCanPassDoors(true);
+        }
+    }
+
+    /** Register queue tickets (first come, first paid). */
+    private static final java.util.concurrent.atomic.AtomicLong QUEUE_TICKETS = new java.util.concurrent.atomic.AtomicLong();
+    private long queueTicket;
+    private int serviceTicks;
+    private boolean askedForService;
+    /** Door it enters through (and leaves through); null if the shop has no doors. */
+    @Nullable
+    private BlockPos entryDoor;
+    @Nullable
+    private Vec3 entryOutside;
+
+    public static AttributeSupplier.Builder createAttributes() {
+        return Mob.createMobAttributes().add(Attributes.MAX_HEALTH, 16.0).add(Attributes.MOVEMENT_SPEED, 0.27)
+                .add(Attributes.FOLLOW_RANGE, 96.0)
+                .add(Attributes.ATTACK_DAMAGE, 3.0); // 1.0 beta 3: armed thieves (ThiefTiers) fight with it
+    }
+
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(TITLE, "");
+        builder.define(SKIN, 0);
+        builder.define(EMOTE, 0);
+        builder.define(TYPE, 0);
+        builder.define(WANTS, false);
+        builder.define(SMELLY, false);
+        builder.define(WAIT, -1);
+        builder.define(EV_ROLE, "");
+        builder.define(FIXED, -1);
+        builder.define(TIER, 0);
+    }
+
+    @Override
+    protected void registerGoals() {
+        goalSelector.addGoal(0, new FloatGoal(this));
+        goalSelector.addGoal(1, new net.minecraft.world.entity.ai.goal.OpenDoorGoal(this, true)); // opens and closes the door when passing
+        goalSelector.addGoal(7, new LookAtPlayerGoal(this, Player.class, 6f));
+        goalSelector.addGoal(8, new RandomLookAroundGoal(this));
+    }
+
+    public Type type() { return Type.values()[Math.floorMod(entityData.get(TYPE), Type.values().length)]; }
+
+    @Override public String roleKey() {
+        String ev = entityData.get(EV_ROLE);
+        if (!ev.isEmpty()) return ev;
+        return returning ? "tcgshop.role.regular_back" : "tcgshop.role." + type().name().toLowerCase(java.util.Locale.ROOT);
+    }
+    @Override public String npcTitle() { return entityData.get(TITLE); }
+    @Override public int npcSkin() { return entityData.get(SKIN); }
+    @Override public int emote() { return entityData.get(EMOTE); }
+    @Override public boolean wantsAttention() { return entityData.get(WANTS); }
+
+    private void emote(int e) { entityData.set(EMOTE, e); }
+
+    public boolean isSmelly() { return entityData.get(SMELLY); }
+
+    /** You sprayed deodorant on them: they stop smelling bad. */
+    public void sprayed(Player by) {
+        if (!isSmelly()) return;
+        entityData.set(SMELLY, false);
+        if (level() instanceof ServerLevel sw) sw.sendParticles(ParticleTypes.HAPPY_VILLAGER, getX(), getY() + 1.6, getZ(), 8, 0.3, 0.4, 0.3, 0);
+        NpcLines.sayNear(this, "spray_thanks");
+        if (by instanceof ServerPlayer sp) CardAdvancements.grant(sp, "spray_customer");
+    }
+
+    public boolean isFleeingThief() { return type() == Type.THIEF && state == State.FLEE && !loot.isEmpty(); }
+    public boolean isDetected() { return detected; }
+
+    /** 1.0 beta 3: unique customer id (0-9) or -1. */
+    public int fixedId() { return entityData.get(FIXED); }
+
+    /** 1.0 beta 3: thief tier (ThiefTiers; 0 for anyone who isn't a thief). */
+    public int thiefTier() { return type() == Type.THIEF ? ThiefTiers.clamp(entityData.get(TIER)) : 0; }
+
+    /** An armed robber or heist boss (ThiefTiers 3-4). */
+    /** 1.1: the shop this customer belongs to. */
+    public UUID zoneId() { return zoneId; }
+
+    public boolean isArmedThief() { return type() == Type.THIEF && ThiefTiers.armed(thiefTier()); }
+
+    /** An armed thief that has struck (or been provoked) and now fights its way out. */
+    public boolean isArmedAndHostile() { return isArmedThief() && state == State.FLEE; }
+
+    /** Speaks a line of its own if it is a unique customer with that category; otherwise the generic NpcLines one. */
+    private void sayOwn(String fixedCat, @Nullable String genericCat, Object... args) {
+        int f = fixedId();
+        if (FixedCustomers.has(f, fixedCat)) NpcLines.speak(this, FixedCustomers.line(random, f, fixedCat, args));
+        else if (genericCat != null) NpcLines.sayNear(this, genericCat);
+    }
+
+    private void setThiefTier(int tier) {
+        tier = ThiefTiers.clamp(tier);
+        entityData.set(TIER, tier);
+        slipsLeft = ThiefTiers.slips(tier);
+        ThiefTiers.equip(this, tier);
+        if (tier > 0 && fixedId() < 0 && entityData.get(EV_ROLE).isEmpty()) entityData.set(EV_ROLE, ThiefTiers.roleKey(tier));
+    }
+
+    /** Makes this customer unique customer `id`: fixed name, skin and title, its own mood and habits. */
+    private void applyFixed(ServerLevel world, int id) {
+        FixedCustomers.Def d = FixedCustomers.def(id);
+        entityData.set(FIXED, id);
+        // skin "fixed_<id>" through the shared skin mechanism (NpcIdentity fixed flag); the role "fixed" + raw id is the fallback
+        int skin = NpcIdentity.fixedSkin(FixedCustomers.skinId(id));
+        entityData.set(SKIN, skin >= 0 ? skin : id);
+        entityData.set(TITLE, "");
+        entityData.set(EV_ROLE, "tcgshop.role.fixed");
+        entityData.set(SMELLY, d.smelly());
+        setCustomName(Component.literal(d.name()));
+        returning = false;
+        mood += d.mood();
+        if (id == FixedCustomers.EXCELLENT) { // buys several of the priciest things
+            browsesLeft = 4 + random.nextInt(2);
+            visitorBuys = 2 + random.nextInt(2);
+        }
+        if (d.type() == Type.SELLER) prepareSellOffer(world, true); // Madame Noir: a rare card at a stiff price
+    }
+
+    // ------------------------------------------------------------------ spawning
+
+    public static CustomerEntity spawn(ServerLevel world, ShopZones.Zone z, Type type, Vec3 pos, Vec3 exit, @Nullable ShopZones.Regular regular) {
+        return spawn(world, z, type, pos, exit, regular, null, null);
+    }
+
+    public static CustomerEntity spawn(ServerLevel world, ShopZones.Zone z, Type type, Vec3 pos, Vec3 exit, @Nullable ShopZones.Regular regular,
+                                       @Nullable BlockPos door, @Nullable Vec3 doorOutside) {
+        return spawn(world, z, type, pos, exit, regular, door, doorOutside, null);
+    }
+
+    /** 0.9: with VisitorSpec = visitor of a random event (ShopLife.forceSpawnVisitor). */
+    public static CustomerEntity spawn(ServerLevel world, ShopZones.Zone z, Type type, Vec3 pos, Vec3 exit, @Nullable ShopZones.Regular regular,
+                                       @Nullable BlockPos door, @Nullable Vec3 doorOutside, @Nullable dev.tcgshop.events.VisitorSpec spec) {
+        return spawn(world, z, type, pos, exit, regular, door, doorOutside, spec, -1);
+    }
+
+    /**
+     * 1.0 beta 3: fixedId = one of the 10 unique customers (FixedCustomers; -1 = ordinary). Its type must be the unique
+     * customer's own (ShopLife passes FixedCustomers.def(id).type()). Thieves get their tier here (ThiefTiers.roll).
+     */
+    public static CustomerEntity spawn(ServerLevel world, ShopZones.Zone z, Type type, Vec3 pos, Vec3 exit, @Nullable ShopZones.Regular regular,
+                                       @Nullable BlockPos door, @Nullable Vec3 doorOutside, @Nullable dev.tcgshop.events.VisitorSpec spec, int fixedId) {
+        CustomerEntity c = TcgEntities.CUSTOMER.create(world);
+        if (c == null) return null;
+        c.arrivedAt = world.getGameTime();
+        c.mood += dev.tcgshop.events.EventManager.mods(z).moodStart;
+        c.zoneId = z.id;
+        c.entryDoor = door;
+        c.entryOutside = doorOutside;
+        c.entityData.set(TYPE, type.ordinal());
+        if (regular != null) {
+            c.returning = true;
+            c.entityData.set(SKIN, regular.skin());
+            c.entityData.set(TITLE, regular.title());
+            c.setCustomName(Component.literal(regular.name()));
+        } else {
+            c.entityData.set(SKIN, NpcIdentity.randomSkin(world.random));
+            float titleChance = switch (type) { case WHALE -> 0.8f; case PICKY, TRADER -> 0.45f; case THIEF -> 0.15f; default -> 0.3f; };
+            c.entityData.set(TITLE, NpcIdentity.randomTitle(world.random, titleChance));
+            c.setCustomName(Component.literal(NpcIdentity.randomName(world.random)));
+        }
+        c.setCustomNameVisible(true);
+        c.exit = exit;
+        c.browsesLeft = 1 + world.random.nextInt(type == Type.WHALE ? 4 : 3);
+        c.moveTo(pos.x, pos.y, pos.z, world.random.nextFloat() * 360, 0);
+        if (spec != null) {
+            c.visitor = spec;
+            c.mood += spec.moodStart;
+            if (spec.browses > 0) c.browsesLeft = spec.browses;
+            c.visitorBuys = Math.max(1, spec.purchases);
+            if (!spec.titleKey.isEmpty()) c.entityData.set(EV_ROLE, spec.titleKey);
+        }
+        if (type == Type.SELLER) c.prepareSellOffer(world);
+        if (type != Type.WHALE && spec == null && world.random.nextFloat() < 0.12f) c.entityData.set(SMELLY, true);
+        boolean fixed = spec == null && FixedCustomers.valid(fixedId) && FixedCustomers.def(fixedId).type() == type;
+        if (fixed) c.applyFixed(world, fixedId); // 1.0 beta 3: unique customer
+        int tier = 0;
+        if (type == Type.THIEF && spec == null) { // 1.0 beta 3: thief tier by the shop's popularity (the known thief is a pro)
+            tier = fixed && fixedId == FixedCustomers.THIEF ? ThiefTiers.PRO : ThiefTiers.roll(world, z);
+            c.setThiefTier(tier);
+        }
+        world.addFreshEntity(c);
+        if (ThiefTiers.armed(tier)) ThiefTiers.onArmedSpawn(world, z, c, tier);
+        dev.tcgshop.events.EventManager.onCustomerSpawn(world, z);
+        return c;
+    }
+
+    /** What it brings to sell you: almost always a card, sometimes a pack and very occasionally a box. */
+    private void prepareSellOffer(ServerLevel world) {
+        prepareSellOffer(world, false);
+    }
+
+    /** rare (1.0 beta 3, Madame Noir): always a card, the rarest of a dozen picks, and an expert's or negotiator's prices. */
+    private void prepareSellOffer(ServerLevel world, boolean rare) {
+        float r = random.nextFloat();
+        if (rare) {
+            dealItem = ItemStack.EMPTY;
+            List<Item> cards = allCards();
+            for (int tries = 0; tries < 12 && !cards.isEmpty(); tries++) {
+                ItemStack pick = new ItemStack(cards.get(random.nextInt(cards.size())));
+                if (dealItem.isEmpty() || Rarity.of(pick).tier > Rarity.of(dealItem).tier) dealItem = pick;
+            }
+            if (dealItem.isEmpty()) return;
+            r = 1f; // skips the pack / box branches below
+        }
+        if (r < 0.08f) {
+            List<String> sets = new ArrayList<>();
+            for (ResourceLocation id : BuiltInRegistries.ITEM.keySet())
+                if (CardInfo.NS.equals(id.getNamespace()) && id.getPath().contains("/sealed_") && !dev.tcgshop.shop.PackLock.locked(id)) sets.add(CardInfo.setId(id));
+            if (!sets.isEmpty()) dealItem = BoosterBox.of(sets.get(random.nextInt(sets.size())));
+        } else if (r < 0.3f) {
+            List<Item> sealed = new ArrayList<>();
+            for (ResourceLocation id : BuiltInRegistries.ITEM.keySet())
+                if (CardInfo.NS.equals(id.getNamespace()) && id.getPath().contains("/sealed_") && !dev.tcgshop.shop.PackLock.locked(id)) sealed.add(BuiltInRegistries.ITEM.get(id));
+            if (!sealed.isEmpty()) dealItem = new ItemStack(sealed.get(random.nextInt(sealed.size())));
+        }
+        if (dealItem.isEmpty()) {
+            List<Item> cards = allCards();
+            if (cards.isEmpty()) return;
+            ItemStack pick = new ItemStack(cards.get(random.nextInt(cards.size())));
+            for (int tries = 0; tries < 6 && Rarity.of(pick).tier == 0 && random.nextFloat() < 0.6f; tries++)
+                pick = new ItemStack(cards.get(random.nextInt(cards.size())));
+            dealItem = pick;
+        }
+        long market = Math.max(1, ShopServer.priceOf(dealItem, 1.0));
+        persona = rare ? (random.nextBoolean() ? P_EXPERT : P_NEGOTIATOR) : weighted(PERSONA_W);
+        int cat = weighted(MOTIVE_W[persona]);
+        motive = switch (cat) {
+            case 0 -> "cash." + random.nextInt(MOTIVES_CASH);
+            case 1 -> "profit." + random.nextInt(MOTIVES_PROFIT);
+            default -> "other." + random.nextInt(MOTIVES_OTHER);
+        };
+        // what it asks (relative to market) and the minimum it would accept (hidden from you)
+        double[] ask = {0.9, 1.3, 0.6, 1.1, 0.95, 1.25, 1.05, 1.35, 0.5, 0.85, 0.7, 1.05};
+        double a = ask[persona * 2] + random.nextDouble() * (ask[persona * 2 + 1] - ask[persona * 2]);
+        if (cat == 0) a -= 0.08; // needs the money now
+        else if (cat == 1) a += 0.08; // wants to make money, doesn't care whether it works out for you
+        // 1.0: never opens below the sell floor either (a desperate seller in a hurry could otherwise ask ~42 % of market)
+        dealPrice = Math.max(10, Math.max(sellFloor(market), Math.round(market * a)));
+        double[] fl = {0.85, 0.97, 0.7, 0.85, 0.85, 0.95, 0.72, 0.85, 0.6, 0.75, 0.75, 0.9};
+        double f = fl[persona * 2] + random.nextDouble() * (fl[persona * 2 + 1] - fl[persona * 2]);
+        floorPrice = Math.min(dealPrice, Math.max(sellFloor(market), Math.round(dealPrice * f)));
+        if (visitor != null && visitor.fairSeller) { // 0.9 events: collector who sells: never below market
+            dealPrice = Math.max(dealPrice, market);
+            floorPrice = Math.max(floorPrice, market);
+        }
+        int[] pat = {3, 4, 3, 5, 2, 3};
+        maxPatience = patience = Math.max(1, (int) Math.round((pat[persona] + random.nextInt(2)) * EconomyConfig.INSTANCE.merchantPatience * eventPatience(world)));
+        dealMode = DealOpenPayload.SELL;
+        reasonKey = 0;
+    }
+
+    /**
+     * 1.0: the lowest price a customer who SELLS to you ever asks or accepts (EconomyConfig.customerSellFloor of market,
+     * 45 % by default). Charisma, missions luck and haggling arguments are applied first and then clamped here, so
+     * buying from customers can never undercut the phone / Wholesaler quick-sell.
+     */
+    private static long sellFloor(long market) {
+        return Math.max(1, Math.round(Math.max(1, market) * EconomyConfig.INSTANCE.customerSellFloor));
+    }
+
+    private int weighted(int[] w) {
+        int sum = 0;
+        for (int x : w) sum += x;
+        int r = random.nextInt(Math.max(1, sum));
+        for (int i = 0; i < w.length; i++) if ((r -= w[i]) < 0) return i;
+        return w.length - 1;
+    }
+
+    private static List<Item> allCards() {
+        List<Item> cards = new ArrayList<>();
+        for (ResourceLocation id : BuiltInRegistries.ITEM.keySet()) if (CardInfo.isCard(id)) cards.add(BuiltInRegistries.ITEM.get(id));
+        return cards;
+    }
+
+    /** Collector: picks a card from your displays and offers one of theirs of similar value in exchange. */
+    private boolean prepareTrade(ServerLevel world, ShopZones.Zone z) {
+        List<BlockPos> poss = new ArrayList<>();
+        List<Integer> slots = new ArrayList<>();
+        forDisplays(world, z, (d, i) -> {
+            if (CardInfo.isCard(d.getItem(i))) { poss.add(d.getBlockPos()); slots.add(i); }
+        });
+        if (poss.isEmpty()) return false;
+        int k = random.nextInt(poss.size());
+        if (!(world.getBlockEntity(poss.get(k)) instanceof ShopDisplayBlockEntity be)) return false;
+        ItemStack want = be.getItem(slots.get(k)).copyWithCount(1);
+        long wantValue = ShopServer.priceOf(want, 1.0);
+        List<Item> cards = allCards();
+        ItemStack offer = ItemStack.EMPTY;
+        double bestDiff = Double.MAX_VALUE;
+        for (int tries = 0; tries < 80 && !cards.isEmpty(); tries++) {
+            ItemStack c = new ItemStack(cards.get(random.nextInt(cards.size())));
+            if (c.is(want.getItem())) continue;
+            double ratio = ShopServer.priceOf(c, 1.0) / (double) Math.max(1, wantValue);
+            double target = 0.75 + random.nextDouble() * 0.55; // sometimes it's worth it, sometimes not
+            double diff = Math.abs(ratio - target);
+            if (diff < bestDiff) { bestDiff = diff; offer = c; }
+        }
+        if (offer.isEmpty()) return false;
+        target = poss.get(k);
+        targetSlot = slots.get(k);
+        dealWant = want;
+        dealItem = offer;
+        dealPrice = ShopServer.priceOf(offer, 1.0);
+        dealMode = DealOpenPayload.TRADE;
+        return true;
+    }
+
+    // ------------------------------------------------------------------ behavior
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (level().isClientSide) return;
+        if (getVehicle() instanceof ShopSeatEntity seat) { // 0.9.5: seated, facing the way the chair faces
+            setYRot(seat.getYRot());
+            setYBodyRot(seat.getYRot());
+        }
+        if (tickCount % 5 != 0 || CobblemonBattles.isFighting(this) || dev.tcgshop.compat.NpcPokemonDuel.busy(this)) return;
+        ServerLevel world = (ServerLevel) level();
+        ShopZones.Zone z = zoneId == null ? null : ShopZones.get(world).byId(zoneId);
+        if (z == null) { discard(); return; }
+        // 1.1: the shop is closed: goes home now (also catches customers loaded from disk after the shop closed)
+        if (z.closed && !closedLeave && leaveForClosing()) return;
+        if (tickCount > 20 * 60 * 8 && state != State.FLEE && state != State.LEAVE) leave(world, z, null);
+        timer -= 5;
+        if (isSmelly() && tickCount % 20 == 0) {
+            world.sendParticles(new net.minecraft.core.particles.DustParticleOptions(new org.joml.Vector3f(0.45f, 0.62f, 0.2f), 1.2f),
+                    getX(), getY() + 1.9, getZ(), 3, 0.25, 0.3, 0.25, 0);
+            if (tickCount % 100 == 0 && z.contains(blockPosition())) { z.smell = Math.min(100, z.smell + 1); ShopZones.get(world).setDirty(); }
+        }
+        if (!entered && z.contains(blockPosition())) {
+            entered = true;
+            mood += dev.tcgshop.shop.Cleanliness.enterMood(dev.tcgshop.shop.Cleanliness.score(z)); // 1.1: a spotless shop pleases, a dirty one doesn't
+            dev.tcgshop.shop.ShopLife.onEntered(getUUID()); // 0.9: now inside -> releases the path reservation and the queue
+            Component evLine = visitor != null && visitor.linesCount > 0 && random.nextFloat() < 0.8f
+                    ? Component.translatable("tcgshop.evline." + visitor.lines + "." + random.nextInt(visitor.linesCount))
+                    : dev.tcgshop.events.EventManager.enterLine(z, random); // 0.9 events: they comment on what is happening
+            if (fixedId() >= 0) fixedArrives(world, z); // 1.0 beta 3: unique customer: greets you (by name if it knows you)
+            else if (evLine != null) NpcLines.speak(this, evLine);
+            else if (returning) NpcLines.sayNear(this, type() == Type.SELLER ? "seller_back" : "regular_back");
+            else if (cleanRemark(z)) { /* 1.1: cleanliness remark */ }
+            else if (shopRemark(world, z)) { /* 1.1: statue / decoration remark */ }
+            else if (!z.flags.isEmpty() && random.nextFloat() < 0.35f) commentOnShop(z);
+            else if (random.nextFloat() < 0.3f) NpcLines.sayNear(this, "greet");
+        }
+        // 1.1 (cleanliness update): stepping next to a dropping ruins the visit a bit (once per customer)
+        if (entered && !sawPoop && tickCount % 40 == 0 && type() != Type.THIEF && z.contains(blockPosition())) {
+            int dm = dev.tcgshop.shop.Cleanliness.poopNearby(this, z);
+            if (dm != 0) { sawPoop = true; mood += dm; reviewKey = "dirty"; }
+        }
+        if (attackCd > 0) attackCd -= 5;
+        // 1.0 beta 3: an armed thief hit before it struck goes loud right away
+        if (provoked && isArmedThief() && state != State.FLEE && state != State.LEAVE) { provoked = false; strikeNow(world, z); return; }
+        switch (state) {
+            case ENTER -> {
+                if (!entered) { // 0.9: capacity -> with the shop full it waits outside in the queue (ShopLife.queueGate)
+                    int gate = dev.tcgshop.shop.ShopLife.queueGate(this, world, z, entryDoor, entryOutside);
+                    if (gate == dev.tcgshop.shop.ShopLife.GATE_WAIT) return;
+                    if (gate == dev.tcgshop.shop.ShopLife.GATE_GIVE_UP) { mood -= dev.tcgshop.shop.ShopLife.FULL_MOOD_PENALTY; reviewKey = "shop_full"; leave(world, z, null); return; }
+                    // 0.9 events: gave up because an event blocks the door: no "full" review and no capacity penalty
+                    if (gate == dev.tcgshop.shop.ShopLife.GATE_BLOCKED_GIVE_UP) { leave(world, z, null); return; }
+                }
+                if (!entered && entryOutside != null && distanceToSqr(entryOutside) > 2.2 * 2.2) {
+                    // walks from afar to the shop door (navigation opens it when passing)
+                    if (getNavigation().isDone() || tickCount % 40 == 0) getNavigation().moveTo(entryOutside.x, entryOutside.y, entryOutside.z, 0.85);
+                    if (timer < -20 * 90) { entryOutside = null; } // stuck: let it get in however it can
+                    return;
+                }
+                if (type() == Type.SELLER) { goDeal(world, z, "seller_hello"); return; }
+                if (type() == Type.TRADER) {
+                    if (prepareTrade(world, z)) { goDeal(world, z, "trader_hello"); return; }
+                    entityData.set(TYPE, Type.REGULAR.ordinal()); // no cards it's interested in: browses like anyone else
+                }
+                // 0.9.5: between products, sometimes stops to look at a piece of furniture or a plush in the shop
+                if (entered && browsedOnce && furnLooks < 2 && type() != Type.THIEF && random.nextFloat() < 0.25f && startLook(world, z)) return;
+                if (!pickTarget(world, z)) {
+                    // 0.9.5: has looked at everything: sometimes sits on a chair for a while before leaving
+                    if (trySit(world, z, boughtAny)) return;
+                    leave(world, z, "nothing");
+                    return;
+                }
+                state = State.GO;
+                timer = 400;
+            }
+            case GO -> {
+                ShopDisplayBlockEntity be = targetDisplay(world);
+                if (be == null || be.getItem(targetSlot).isEmpty()) { state = State.ENTER; return; }
+                if (spot == null || distanceToSqr(spot) < 1.6 * 1.6 || distanceToSqr(target.getCenter()) < 2.4 * 2.4) {
+                    getNavigation().stop();
+                    state = State.BROWSE;
+                    timer = 50 + random.nextInt(70);
+                    emote(EMOTE_THINK);
+                } else if (getNavigation().isDone()) getNavigation().moveTo(spot.x, spot.y, spot.z, 0.9);
+                if (timer <= 0) state = State.ENTER;
+            }
+            case BROWSE -> {
+                lookAtTarget(world);
+                if (timer <= 0) decide(world, z);
+            }
+            case CHECKOUT -> checkoutTick(world, z);
+            case WAIT_DEAL -> {
+                ServerPlayer owner = world.getServer().getPlayerList().getPlayer(z.owner);
+                if (owner != null && owner.serverLevel() == world) {
+                    double d = distanceToSqr(owner);
+                    if (d > 3.5 * 3.5 && d < 32 * 32 && getNavigation().isDone()) getNavigation().moveTo(owner, 0.8);
+                    else if (d <= 3 * 3) getNavigation().stop();
+                    getLookControl().setLookAt(owner);
+                }
+                if (tickCount % 40 == 0) world.sendParticles(ParticleTypes.NOTE, getX(), getY() + 2.6, getZ(), 1, 0.1, 0.1, 0.1, 0);
+                entityData.set(WAIT, (int) Math.max(0, Math.min(1000, timer * 1000L / Math.max(1, waitMax))));
+                if (timer <= 0) {
+                    mood -= 1;
+                    reviewKey = "ignored";
+                    z.unattended++;
+                    ShopZones.get(world).setDirty();
+                    if (owner != null) closeDeal(owner, NpcLines.random(random, "deal_timeout"), OUT_TIMEOUT, 0);
+                    leave(world, z, "deal_timeout");
+                }
+            }
+            case FLEE -> fleeTick(world, z);
+            case SIT_GO -> sitGoTick(world, z);
+            case SIT -> sitTick(world, z);
+            case LOOK -> lookTick(world, z);
+            case LEAVE -> {
+                if (exit == null) exit = position();
+                if (!reviewed && !z.contains(blockPosition())) finishVisit(world, z);
+                // walks away from the shop: on reaching a point, keeps going farther
+                if (distanceToSqr(exit) < 2.5 * 2.5) {
+                    Vec3 away = position().subtract(z.core.getCenter()).multiply(1, 0, 1);
+                    if (away.lengthSqr() < 1e-3) away = new Vec3(random.nextDouble() - 0.5, 0, random.nextDouble() - 0.5);
+                    exit = position().add(away.normalize().scale(12));
+                    getNavigation().stop();
+                }
+                if (getNavigation().isDone()) getNavigation().moveTo(exit.x, exit.y, exit.z, 0.9);
+                // only despawns far from the shop and where no player can see it (or, if stuck, after 2 minutes)
+                double half = z.size() / 2.0 + 14;
+                net.minecraft.world.entity.player.Player near = world.getNearestPlayer(this, 48);
+                boolean unseen = near == null || distanceToSqr(near) > 40 * 40 || (distanceToSqr(near) > 20 * 20 && !near.hasLineOfSight(this));
+                boolean far = !z.contains(blockPosition()) && distanceToSqr(z.core.getCenter()) > half * half;
+                if ((far && unseen) || timer < -2400) {
+                    if (!reviewed) finishVisit(world, z);
+                    if (!unseen) world.sendParticles(ParticleTypes.POOF, getX(), getY() + 1, getZ(), 8, 0.3, 0.5, 0.3, 0.02);
+                    discard();
+                }
+            }
+        }
+    }
+
+    private void lookAtTarget(ServerLevel world) {
+        if (target == null) return;
+        BlockState s = world.getBlockState(target);
+        if (s.getBlock() instanceof ShopDisplayBlock b) {
+            Vec3 rel = dev.tcgshop.shop.DisplayKind.toWorld(s.getValue(ShopDisplayBlock.FACING),
+                    new Vec3(b.kind.slots[targetSlot].x(), b.kind.slots[targetSlot].y(), b.kind.slots[targetSlot].z()));
+            getLookControl().setLookAt(target.getX() + rel.x, target.getY() + rel.y, target.getZ() + rel.z);
+        } else getLookControl().setLookAt(target.getCenter());
+    }
+
+    @Nullable
+    private ShopDisplayBlockEntity targetDisplay(ServerLevel world) {
+        return target != null && targetSlot >= 0 && world.getBlockEntity(target) instanceof ShopDisplayBlockEntity be && targetSlot < be.getContainerSize() ? be : null;
+    }
+
+    private interface SlotVisitor { void visit(ShopDisplayBlockEntity d, int slot); }
+
+    private static void forDisplays(ServerLevel world, ShopZones.Zone z, SlotVisitor v) {
+        dev.tcgshop.events.Mods mods = dev.tcgshop.events.EventManager.mods(z);
+        int half = z.size() / 2;
+        int cx0 = (z.core.getX() - half) >> 4, cx1 = (z.core.getX() + half) >> 4, cz0 = (z.core.getZ() - half) >> 4, cz1 = (z.core.getZ() + half) >> 4;
+        for (int cx = cx0; cx <= cx1; cx++)
+            for (int cz = cz0; cz <= cz1; cz++) {
+                LevelChunk ch = world.getChunkSource().getChunkNow(cx, cz);
+                if (ch == null) continue;
+                for (BlockEntity be : ch.getBlockEntities().values()) {
+                    if (!(be instanceof ShopDisplayBlockEntity d) || d.isHome() || !z.contains(be.getBlockPos())) continue;
+                    // 0.9 events: displays or slots out of action (burned, broken, product on the floor...)
+                    for (int i = 0; i < d.getContainerSize(); i++) if (!d.getItem(i).isEmpty() && !mods.isDisplayDisabled(d.getBlockPos(), i)) v.visit(d, i);
+                }
+            }
+    }
+
+    /** Picks a displayed product (collectors and thieves prefer expensive items). */
+    private boolean pickTarget(ServerLevel world, ShopZones.Zone z) {
+        if (browsesLeft-- <= 0) return false;
+        List<BlockPos> cands = new ArrayList<>();
+        List<Integer> slots = new ArrayList<>();
+        forDisplays(world, z, (d, i) -> { cands.add(d.getBlockPos()); slots.add(i); });
+        if (cands.isEmpty()) return false;
+        int pick = random.nextInt(cands.size());
+        if (visitor != null && visitor.filter != null) { // 0.9 events: the visitor looks for something specific (a set, packs...)
+            List<Integer> fit = new ArrayList<>();
+            for (int i = 0; i < cands.size(); i++)
+                if (world.getBlockEntity(cands.get(i)) instanceof ShopDisplayBlockEntity d && dev.tcgshop.events.Mods.matchesFilter(visitor.filter, d.getItem(slots.get(i)), 1.0))
+                    fit.add(i);
+            if (!fit.isEmpty()) pick = fit.get(random.nextInt(fit.size()));
+        } else if (type() == Type.WHALE || type() == Type.THIEF) {
+            long best = -1;
+            for (int i = 0; i < cands.size(); i++) {
+                if (world.getBlockEntity(cands.get(i)) instanceof ShopDisplayBlockEntity d) {
+                    long p = d.price(slots.get(i));
+                    if (p > best && random.nextFloat() < 0.8f) { best = p; pick = i; }
+                }
+            }
+        }
+        target = cands.get(pick);
+        targetSlot = slots.get(pick);
+        BlockState s = world.getBlockState(target);
+        spot = s.getBlock() instanceof ShopDisplayBlock b ? b.kind.slotWorld(s.getValue(ShopDisplayBlock.FACING), target, targetSlot) : target.getCenter();
+        return true;
+    }
+
+    private void decide(ServerLevel world, ShopZones.Zone z) {
+        browsedOnce = true;
+        ShopDisplayBlockEntity be = targetDisplay(world);
+        if (be == null || be.getItem(targetSlot).isEmpty()) { state = State.ENTER; return; }
+        dev.tcgshop.events.Mods mods = dev.tcgshop.events.EventManager.mods(z);
+        if (mods.isDisplayDisabled(be.getBlockPos(), targetSlot)) { state = State.ENTER; return; } // 0.9: broke while it was on its way
+        ItemStack st = be.getItem(targetSlot);
+        long price = be.price(targetSlot), market = ShopServer.priceOf(st, 1.0);
+        double ratio = market <= 0 ? 1 : price / (double) market;
+        double rep = 0.6 + dev.tcgshop.shop.ShopLife.effectiveRep(z) / 125.0; // with repDelta and event light/decoration
+        // in a shop with a good reputation people pay more: the "perceived" price is the real one divided by (1 + accepted markup)
+        double prem = z.premiumFor(st);
+        double adj = ratio / Math.max(0.5, 1 + prem) * mods.perceivedMult;
+        if (type() == Type.THIEF) { steal(world, z, be); return; }
+        // Packs and boxes need someone at the till (cashier or you at the register), but they no longer complain right away:
+        // they join the queue and only protest if they run out of patience without anyone serving them.
+        if (type() == Type.HAGGLER) {
+            dealItem = st.copyWithCount(1);
+            persona = weighted(PERSONA_W);
+            dealPrice = Math.max(10, Math.round(market * (0.75 + random.nextDouble() * 0.5) * (1 + prem * 0.6) * mods.haggleMult));
+            // the most it would pay: based on its personality and the shop's reputation
+            double[] cl = {1.05, 1.25, 0.95, 1.05, 0.95, 1.1, 1.0, 1.2, 0.95, 1.15, 0.95, 1.15};
+            double cm = cl[persona * 2] + random.nextDouble() * (cl[persona * 2 + 1] - cl[persona * 2]);
+            cm = dev.tcgshop.shop.MarkupTolerance.ceilMult(cm, dev.tcgshop.shop.ShopLife.effectiveRep(z)); // 1.1: above market only with reputation
+            // 1.1: stingier at higher shop tiers (TierDifficulty; 1.0 up to Brick)
+            ceilPrice = Math.max(dealPrice, Math.round(market * cm * (1 + prem) * mods.haggleMult * dev.tcgshop.shop.TierDifficulty.haggleCeilMult(z)));
+            if (fixedId() == 6) dealPrice = Math.max(10, Math.round(dealPrice * 0.7)); // 1.0 beta 3: Chad opens with an insulting lowball
+            if (visitor != null && visitor.priceCap > 0) ceilPrice = Math.max(dealPrice, Math.min(ceilPrice, Math.round(market * Math.max(visitor.priceCap, 1.0))));
+            int[] pat = {3, 4, 3, 5, 2, 3};
+            maxPatience = patience = Math.max(1, (int) Math.round((pat[persona] + random.nextInt(2)) * EconomyConfig.INSTANCE.merchantPatience * mods.patienceMult));
+            thinks = 0;
+            dealMode = DealOpenPayload.BUY;
+            askPrice = Math.max(0, price); // 1.0: if its offer is above your price, the difference is a tip
+            goDeal(world, z, "haggle");
+            return;
+        }
+        // 1.1: customers of higher-tier shops are more demanding: the price they perceive for the buy decision is higher
+        // (TierDifficulty; 1.0 up to Brick). The floors (5 % regular, 10 % whale) are kept, so a shop never dies. Mood, reviews
+        // and complaints below still use the plain perceived price.
+        double adjBuy = adj * dev.tcgshop.shop.TierDifficulty.perceivedMult(z);
+        // 1.1: above market (after the reputation premium) the chance falls off fast; the more reputation, the gentler
+        // (MarkupTolerance). Wealthy customers are three times less sensitive. Measured on the real markup (adj, without the
+        // tier difficulty, which already tightens the curve above), so a high-tier shop selling at market still sells.
+        double markup = dev.tcgshop.shop.MarkupTolerance.buyMult(adj,dev.tcgshop.shop.ShopLife.effectiveRep(z), type() == Type.WHALE ? 3 : 1);
+        double p = switch (type()) {
+            case REGULAR -> Math.max(0.05, Math.min(0.9, 1.45 - adjBuy)) * rep * markup;
+            case PICKY -> adjBuy <= 0.92 ? 0.8 : 0;
+            case WHALE -> (adjBuy <= 1.9 ? 0.92 : 0.1) * markup;
+            default -> 0;
+        };
+        if (returning) p = Math.min(0.95, p + 0.15);
+        // 1.0 beta 3: unique customers. Don Aurelio buys almost anything (even a bit pricey); the friendly ones are easier
+        // (bounded by the perceived price, so an absurd price tag never pays off: he tips on top of what he pays)
+        if (fixedId() == FixedCustomers.EXCELLENT) p = adjBuy <= 2.5 ? Math.max(p, 0.9) : 0;
+        else if (fixedId() >= 0 && !FixedCustomers.def(fixedId()).nasty() && p > 0 && adjBuy <= 1.3) p = Math.min(0.95, p + 0.12);
+        // 1.0: luck from completed shop missions (up to +15 % with all of them)
+        if (p > 0 && p < 0.95) p = Math.min(0.95, p * (1 + dev.tcgshop.shop.ShopMissions.acceptBonus(z)));
+        // 1.1: a luxury statue (per tier of the best one) and a well-decorated shop make people buy a little more
+        if (p > 0 && p < 0.95)
+            p = Math.min(0.95, p * (1 + dev.tcgshop.shop.DecorScore.zoneStatue(z) * EconomyConfig.INSTANCE.statueBuyBonusPerTier
+                    + 0.12 * dev.tcgshop.shop.DecorScore.zonePct(z) / 100.0));
+        // 0.9 events: desire to buy (modifiers) and visitors: price cap over market and "just looking"
+        p *= mods.buyMultFor(st, ratio);
+        if (visitor != null) {
+            p *= visitor.buyMult;
+            if (visitor.noBuy) p = 0;
+            else if (visitor.priceCap > 0 && ratio > visitor.priceCap) {
+                p = 0;
+                if (random.nextFloat() < 0.5f) NpcLines.sayNear(this, "expensive");
+            }
+        }
+        // 1.1 (cleanliness update): smell, grime and droppings together weigh much more than the old smell penalty
+        int clean = dev.tcgshop.shop.Cleanliness.score(z);
+        double cleanMult = dev.tcgshop.shop.Cleanliness.buyMult(clean);
+        if (cleanMult >= 1) {
+            if (p > 0 && p < 0.95) p = Math.min(0.95, p * cleanMult);
+        } else {
+            p *= cleanMult;
+            if (clean < 60 && random.nextFloat() < 0.35f) {
+                boolean stinks = z.smell >= 40;
+                NpcLines.sayNear(this, stinks ? "smell_complain" : "dirty_complain");
+                mood -= 1;
+                reviewKey = stinks ? "smell" : "dirty";
+            }
+        }
+        if (random.nextDouble() < p) {
+            // takes the product and goes to pay at the register
+            bought = be.removeItem(targetSlot, 1);
+            payPrice = price;
+            if (bought.isEmpty()) { state = State.ENTER; return; }
+            setItemSlot(EquipmentSlot.MAINHAND, bought.copy());
+            setDropChance(EquipmentSlot.MAINHAND, 0f);
+            emote(EMOTE_LOVE);
+            mood += adj <= 0.9 ? 3 : adj <= 1.0 ? 2 : 1;
+            reviewKey = adj <= 0.9 ? "bargain" : adj <= 1.15 ? "fair" : "pricey";
+            // pays above market and happily, because the shop is worth it
+            boolean overpay = prem > 0.01 && ratio > 1.03 && adj <= 1.15;
+            if (type() == Type.WHALE) {
+                mood += 1;
+                z.whales++;
+                ServerPlayer owner = world.getServer().getPlayerList().getPlayer(z.owner);
+                if (owner != null) CardAdvancements.grant(owner, "whale_customer");
+            }
+            if (fixedId() >= 0) sayOwn("buy", null); // 1.0 beta 3: its own line
+            else NpcLines.sayNear(this, overpay && random.nextFloat() < 0.7f ? "overpay_happy" : type() == Type.WHALE ? "whale" : "buy");
+            playSound(SoundEvents.VILLAGER_YES, 0.8f, 1.1f);
+            register = nearestRegister(world, z);
+            if (register == null) {
+                if (ShopServer.needsCashier(bought) && !ShopServer.cashierOnDuty(world, z)) { // without a register there's nobody to take payment
+                    returnBought(world);
+                    NpcLines.sayNear(this, "no_cashier");
+                    z.complaints++;
+                    mood -= 2;
+                    reviewKey = "no_cashier";
+                    leave(world, z, null);
+                } else pay(world, z);
+            } else joinQueue();
+            return;
+        }
+        emote(adj > 1.15 ? EMOTE_ANGRY : EMOTE_THINK);
+        if (adj > 1.15) {
+            z.complaints++;
+            mood -= 1;
+            reviewKey = "expensive";
+            if (fixedId() >= 0) sayOwn(FixedCustomers.has(fixedId(), "complain") ? "complain" : "nobuy", null);
+            else NpcLines.sayNear(this, "expensive");
+        } else if (fixedId() >= 0) {
+            if (random.nextFloat() < 0.6f) sayOwn(FixedCustomers.has(fixedId(), "complain") && random.nextBoolean() ? "complain" : "nobuy", null);
+        } else if (random.nextFloat() < 0.4f) NpcLines.sayNear(this, "nobuy");
+        ShopZones.get(world).setDirty();
+        state = State.ENTER;
+    }
+
+    // ------------------------------------------------------------------ register queue
+
+    /** Joins the register queue: takes a ticket and starts counting down its patience. */
+    private void joinQueue() {
+        state = State.CHECKOUT;
+        queueTicket = QUEUE_TICKETS.incrementAndGet();
+        serviceTicks = 0;
+        askedForService = false;
+        timer = waitMax = (int) Math.max(200, 20 * EconomyConfig.INSTANCE.customerWaitSeconds * eventPatience(level()));
+        entityData.set(WAIT, 1000);
+    }
+
+    /** 0.9 events: this customer's patience (shop and visitor modifiers). */
+    private double eventPatience(Level w) {
+        double m = visitor != null ? visitor.patienceMult : 1.0;
+        if (w instanceof ServerLevel sw && zoneId != null) {
+            ShopZones.Zone z = ShopZones.get(sw).byId(zoneId);
+            if (z != null) m *= dev.tcgshop.events.EventManager.mods(z).patienceMult;
+        }
+        return Math.max(0.3, Math.min(2.0, m));
+    }
+
+    /** How many are ahead at the same register. */
+    private int queueIndex(ServerLevel world, ShopZones.Zone z) {
+        final BlockPos reg = register;
+        return world.getEntitiesOfClass(CustomerEntity.class, z.box().inflate(8),
+                c -> c != this && c.isAlive() && c.state == State.CHECKOUT && reg.equals(c.register) && c.queueTicket < queueTicket).size();
+    }
+
+    /**
+     * In the queue: goes to its spot (behind the one in front), waits facing the register and, when it's its turn and it's at the
+     * counter, gets charged (faster with a cashier and its Speed upgrade). Everyone has a patience bar: if it runs out, it puts
+     * the product back and leaves without buying. 1.1: the spots come from RegisterSpots (customer side, floor level), and a
+     * cashier may also walk up and serve it where it stands (EmployeeEntity, serveByStaff).
+     */
+    private void checkoutTick(ServerLevel world, ShopZones.Zone z) {
+        if (register == null || !world.getBlockState(register).is(TcgBlocks.CASH_REGISTER)) { pay(world, z); return; }
+        int idx = queueIndex(world, z);
+        BlockPos spotPos = dev.tcgshop.shop.RegisterSpots.queueSpot(world, register, idx);
+        double dx = spotPos.getX() + 0.5 - getX(), dz = spotPos.getZ() + 0.5 - getZ();
+        boolean there = dx * dx + dz * dz < 0.7 * 0.7;
+        if (!there) {
+            // 1.1: path all the way onto the spot (accuracy 0). The default moveTo stops one block short, so the first in
+            // line often waited just outside the "at the counter" distance and was never rung up.
+            if (getNavigation().isDone() || tickCount % 20 == 0) {
+                net.minecraft.world.level.pathfinder.Path path = getNavigation().createPath(spotPos, 0);
+                if (path != null) getNavigation().moveTo(path, 0.75);
+                else getNavigation().moveTo(spotPos.getX() + 0.5, spotPos.getY(), spotPos.getZ() + 0.5, 0.75);
+            }
+        } else {
+            getNavigation().stop();
+            getLookControl().setLookAt(register.getCenter());
+        }
+        boolean staffed = ShopServer.cashierOnDuty(world, z);
+        boolean needsStaff = ShopServer.needsCashier(bought);
+        double rx = register.getX() + 0.5 - getX(), rz = register.getZ() + 0.5 - getZ();
+        queuePos = idx;
+        atCounter = idx == 0 && (dx * dx + dz * dz < 1.5 * 1.5 || rx * rx + rz * rz < 2.4 * 2.4);
+        if (atCounter) {
+            if (needsStaff && !staffed) {
+                serviceTicks = 0; // waits for someone to come to the register (you or a cashier)
+                if (!askedForService) {
+                    askedForService = true;
+                    NpcLines.sayNear(this, "wait_register");
+                    notifyOwner(world, z, Component.translatable("tcgshop.customer.waiting_register", getDisplayName()).withStyle(ChatFormatting.YELLOW));
+                }
+            } else {
+                serviceTicks += 5;
+                double need = (staffed ? 40 * cashierSpeed(world, z) : 70) * dev.tcgshop.events.EventManager.mods(z).serviceMult;
+                if (serviceTicks >= Math.round(need)) { pay(world, z); return; }
+            }
+        } else serviceTicks = 0;
+        entityData.set(WAIT, (int) Math.max(0, Math.min(1000, timer * 1000L / Math.max(1, waitMax))));
+        if (timer <= 0) leaveQueue(world, z, needsStaff && !staffed);
+    }
+
+    /** 1.1: service time multiplier of the shop's cashiers (Speed upgrade); 1 when only the owner is at the register. */
+    private static double cashierSpeed(ServerLevel world, ShopZones.Zone z) {
+        if (!(z.cashier || z.cashier2) || !ShopServer.isDayShift(world)) return 1.0;
+        return dev.tcgshop.shop.CashierUpgrades.serviceMult(dev.tcgshop.shop.CashierUpgrades.levels(world.getServer(), z.id));
+    }
+
+    /** 1.1: last spot in the register queue (0 = first) and whether it is standing at the counter (not saved). */
+    private int queuePos;
+    private boolean atCounter;
+    /** 1.1: game time the owner last opened or answered this customer's deal (a cashier never steps in right after). */
+    private long ownerTalkedAt = -10_000;
+
+    /** 1.1: in the register queue but not (yet) at the counter: a cashier may walk up and serve it where it stands. */
+    public boolean awaitingCashier() {
+        return state == State.CHECKOUT && !bought.isEmpty() && register != null && !atCounter;
+    }
+
+    /** 1.1: in the register queue with something to pay (at the counter or not). */
+    public boolean inCheckout() { return state == State.CHECKOUT && !bought.isEmpty(); }
+
+    /** Spot in the register queue (0 = first). */
+    public int queuePos() { return queuePos; }
+
+    /** Ticks of patience left (lower = more urgent). */
+    public int patienceLeft() { return timer; }
+
+    /** 1.1: a cashier rings it up where it stands (it walked up to it). */
+    public boolean serveByStaff(EmployeeEntity cashier) {
+        if (state != State.CHECKOUT || bought.isEmpty() || !(level() instanceof ServerLevel world)) return false;
+        ShopZones.Zone z = zoneId == null ? null : ShopZones.get(world).byId(zoneId);
+        if (z == null || !z.id.equals(cashier.zoneId())) return false;
+        int[] lv = dev.tcgshop.shop.CashierUpgrades.levels(world.getServer(), z.id);
+        if (timer > waitMax / 2 || random.nextDouble() < dev.tcgshop.shop.CashierUpgrades.moodChance(lv)) mood += 1; // served without a long wait
+        if ("queue_slow".equals(reviewKey) || "no_cashier".equals(reviewKey)) reviewKey = "fair";
+        world.playSound(null, blockPosition(), SoundEvents.NOTE_BLOCK_BELL.value(), SoundSource.NEUTRAL, 0.7f, 1.6f);
+        pay(world, z);
+        return true;
+    }
+
+    /** 1.1: a haggler waiting for the owner's answer (BUY deal) that a cashier with the haggle upgrade may close. */
+    public boolean waitingHaggle() {
+        if (state != State.WAIT_DEAL || type() != Type.HAGGLER || dealMode != DealOpenPayload.BUY || dealItem.isEmpty() || persona < 0) return false;
+        long now = level().getGameTime();
+        return now - ownerTalkedAt > 20 * 20 && waitMax - timer > 20 * 12; // the owner isn't dealing with it and it has waited 12 s
+    }
+
+    /**
+     * 1.1: a cashier with the "handles hagglers" upgrade closes this haggler's deal at a fair result: halfway between its
+     * opening offer and the most it would pay (never below its offer, never above that ceiling, never more than the tip
+     * cap above your price). Returns whether it sold.
+     */
+    public boolean closeByCashier(EmployeeEntity cashier) {
+        if (!waitingHaggle() || !(level() instanceof ServerLevel world)) return false;
+        ShopZones.Zone z = zoneId == null ? null : ShopZones.get(world).byId(zoneId);
+        if (z == null || z.closed || !z.id.equals(cashier.zoneId())) return false;
+        ShopDisplayBlockEntity be = targetDisplay(world);
+        if (be == null || !ItemStack.isSameItemSameComponents(be.getItem(targetSlot), dealItem)) return false;
+        long ceil = Math.max(dealPrice, ceilPrice);
+        long price = Math.max(dealPrice, Math.min(ceil, Math.round(dealPrice + (ceil - dealPrice) * 0.5)));
+        long tip = askPrice > 0 && price > askPrice ? price - askPrice : 0;
+        long capped = dev.tcgshop.shop.TipLedger.cap(tip);
+        if (capped < tip) { price -= tip - capped; tip = capped; }
+        ItemStack sold = be.getItem(targetSlot).copyWithCount(1);
+        dev.tcgshop.events.EventManager.saleTipBudget = Math.max(0, dev.tcgshop.shop.TipLedger.cap(Long.MAX_VALUE) - tip);
+        try {
+            ShopServer.sellToNpc(world, z, be, targetSlot, price);
+        } finally {
+            dev.tcgshop.events.EventManager.saleTipBudget = Long.MAX_VALUE;
+        }
+        setItemSlot(EquipmentSlot.MAINHAND, sold);
+        setDropChance(EquipmentSlot.MAINHAND, 0f);
+        if (tip > 0) {
+            dealTipped = true;
+            dev.tcgshop.shop.TipLedger.record(world.getServer(), z.owner, tip, world.getDayTime() / 24000);
+        }
+        z.dealsAccepted++;
+        mood += 1;
+        reviewKey = "deal_yes";
+        ShopZones.get(world).setDirty();
+        cashier.announce(Component.translatable("tcgshop.cashier.haggle." + random.nextInt(4), getDisplayName(), PriceService.format(price)));
+        NpcLines.speak(this, buyLine("accept"));
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(z.owner);
+        if (owner != null) {
+            owner.displayClientMessage(Component.translatable("tcgshop.cashup.haggle_closed", cashier.getDisplayName(), getDisplayName(), sold.getDisplayName(),
+                    Component.literal(PriceService.format(price)).withStyle(ChatFormatting.GOLD)).withStyle(ChatFormatting.GREEN), false);
+            if (!dealNotified) closeDeal(owner, Component.translatable("tcgshop.cashup.haggle_closed_window", cashier.getDisplayName()), OUT_DEAL, price);
+        }
+        dealNotified = true;
+        dealItem = ItemStack.EMPTY;
+        leave(world, z, null);
+        ShopServer.syncZones(world.getServer());
+        return true;
+    }
+
+    /** The owner charges them by hand (right-click a customer in the queue). */
+    public boolean serveByOwner(ServerPlayer owner) {
+        if (state != State.CHECKOUT || bought.isEmpty()) return false;
+        ServerLevel world = owner.serverLevel();
+        ShopZones.Zone z = ShopZones.get(world).byId(zoneId);
+        if (z == null || !z.owner.equals(owner.getUUID())) return false;
+        mood += timer > waitMax / 2 ? 1 : 0; // served quickly: a bit happier
+        if ("queue_slow".equals(reviewKey) || "no_cashier".equals(reviewKey)) reviewKey = "fair";
+        owner.level().playSound(null, blockPosition(), SoundEvents.NOTE_BLOCK_BELL.value(), SoundSource.NEUTRAL, 0.7f, 1.6f);
+        pay(world, z);
+        return true;
+    }
+
+    /** Gets tired of waiting: returns the product and leaves. */
+    private void leaveQueue(ServerLevel world, ShopZones.Zone z, boolean nobody) {
+        returnBought(world);
+        NpcLines.sayNear(this, nobody ? "no_cashier" : "queue_leave");
+        mood -= 2;
+        reviewKey = nobody ? "no_cashier" : "queue_slow";
+        z.unattended++;
+        if (nobody) z.complaints++;
+        ShopZones.get(world).setDirty();
+        register = null;
+        leave(world, z, null);
+    }
+
+    /** Puts the product it was going to buy back in its slot (or another free one on the same display; if none, on the floor). */
+    /** 0.9 events (Jigglypuff...): the customer leaves, returning what it was carrying, with the event's review. */
+    public boolean leaveForEvent(String key) {
+        if (!(level() instanceof ServerLevel world) || type() == Type.THIEF || visitor != null) return false;
+        if (state == State.LEAVE || state == State.FLEE || state == State.WAIT_DEAL) return false;
+        ShopZones.Zone z = zoneId == null ? null : ShopZones.get(world).byId(zoneId);
+        if (z == null) return false;
+        returnBought(world);
+        register = null;
+        mood -= 1;
+        if (key != null && (reviewKey == null || !java.util.Set.of("murder", "hit", "infamy", "shop_full").contains(reviewKey))) reviewKey = key;
+        leave(world, z, null);
+        return true;
+    }
+
+    /**
+     * 1.1: the shop closed: leaves right away, returning whatever it held to the display, closing an open deal window, and
+     * standing up if seated, with no review, regular sign-up, mood or reputation effect (like an event-blocked door).
+     * Event visitors leave too. Thieves who already stole (fleeing, or carrying loot) are left alone. Returns whether it applies.
+     */
+    public boolean leaveForClosing() {
+        if (!(level() instanceof ServerLevel world)) return false;
+        if (state == State.FLEE || (type() == Type.THIEF && !loot.isEmpty())) return false;
+        ShopZones.Zone z = zoneId == null ? null : ShopZones.get(world).byId(zoneId);
+        if (z == null) return false;
+        closedLeave = true;
+        if (state == State.LEAVE) return true; // already on its way out: it just won't review
+        returnBought(world);
+        register = null;
+        dealItem = ItemStack.EMPTY;
+        leave(world, z, null);
+        return true;
+    }
+
+    private void returnBought(ServerLevel world) {
+        if (bought.isEmpty()) return;
+        ShopDisplayBlockEntity be = targetDisplay(world);
+        boolean placed = false;
+        if (be != null) {
+            if (be.getItem(targetSlot).isEmpty()) { be.setItem(targetSlot, bought); placed = true; }
+            else for (int i = 0; i < be.getContainerSize() && !placed; i++)
+                if (be.getItem(i).isEmpty()) { be.setItem(i, bought); placed = true; }
+        }
+        if (!placed) spawnAtLocation(bought);
+        bought = ItemStack.EMPTY;
+        setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+    }
+
+    @Nullable
+    private BlockPos nearestRegister(ServerLevel world, ShopZones.Zone z) {
+        int half = z.size() / 2;
+        for (BlockPos p : BlockPos.withinManhattan(blockPosition(), half + 2, 4, half + 2)) {
+            if (z.contains(p) && world.getBlockState(p).is(TcgBlocks.CASH_REGISTER)) return p.immutable();
+        }
+        return null;
+    }
+
+    /** Pays for what it's holding: the money goes into the shop's register. */
+    private void pay(ServerLevel world, ShopZones.Zone z) {
+        if (z.closed) { leaveForClosing(); return; } // 1.1: no sales while closed (returns the goods)
+        if (bought.isEmpty()) { leave(world, z, null); return; }
+        dev.tcgshop.events.EventManager.saleTipBudget = dev.tcgshop.shop.TipLedger.cap(Long.MAX_VALUE);
+        dev.tcgshop.events.EventManager.lastPerkTip = 0;
+        long earned;
+        try {
+            earned = ShopServer.payFromNpc(world, z, bought, payPrice, register != null ? register : blockPosition());
+        } finally {
+            dev.tcgshop.events.EventManager.saleTipBudget = Long.MAX_VALUE;
+        }
+        // 1.1: one customer never tips more than the cap in total (the event "tip" perk of this sale counts toward it)
+        long tip = Math.max(0, Math.min(rollCheckoutTip(world, z), dev.tcgshop.shop.TipLedger.cap(Long.MAX_VALUE) - dev.tcgshop.events.EventManager.lastPerkTip));
+        if (tip > 0) { // 1.0: pays more than your price: the difference is a tip (into the same till)
+            z.balance += tip;
+            z.revenue += tip;
+            dev.tcgshop.shop.TipLedger.record(world.getServer(), z.owner, tip, world.getDayTime() / 24000);
+            ShopZones.get(world).setDirty();
+            if (FixedCustomers.has(fixedId(), "tip")) { // 1.0 beta 3: Don Aurelio / Nana Rosa tip with their own words
+                NpcLines.speak(this, FixedCustomers.line(random, fixedId(), "tip", PriceService.format(tip)));
+                ServerPlayer o = world.getServer().getPlayerList().getPlayer(z.owner);
+                if (o != null && fixedId() == FixedCustomers.EXCELLENT) CardAdvancements.grant(o, "aurelio_tip");
+            } else NpcLines.speak(this, NpcLines.random(random, "tip_checkout", PriceService.format(tip)));
+            world.playSound(null, blockPosition(), SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.NEUTRAL, 0.6f, 1.6f);
+            notifyOwner(world, z, Component.translatable("tcgshop.customer.bought_tip", getDisplayName(), bought.getDisplayName(),
+                    Component.literal(PriceService.format(earned)).withStyle(ChatFormatting.GOLD), Component.literal(PriceService.format(tip)).withStyle(ChatFormatting.YELLOW)));
+        } else {
+            if (register != null && random.nextFloat() < 0.5f) NpcLines.sayNear(this, "checkout");
+            notifyOwner(world, z, Component.translatable("tcgshop.customer.bought", getDisplayName(), bought.getDisplayName(),
+                    Component.literal(PriceService.format(earned)).withStyle(ChatFormatting.GOLD)));
+        }
+        bought = ItemStack.EMPTY;
+        register = null;
+        boughtAny = true;
+        ShopServer.syncZones(world.getServer());
+        // 1.1: a luxury statue in the shop: now and then the buyer is in the mood for one more thing
+        int statue = dev.tcgshop.shop.DecorScore.zoneStatue(z);
+        if (statue > 0 && !extraBuy && visitor == null && fixedId() < 0 && type() != Type.THIEF
+                && random.nextDouble() < EconomyConfig.INSTANCE.statueExtraBuyChance + 0.03 * statue) {
+            extraBuy = true;
+            browsesLeft = Math.max(browsesLeft, 1);
+            setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+            entityData.set(WAIT, -1);
+            NpcLines.sayNear(this, "statue_more");
+            state = State.ENTER;
+            return;
+        }
+        // 0.9: the event visitor keeps buying (1.0 beta 3: so does Don Aurelio)
+        if ((visitor != null || fixedId() == FixedCustomers.EXCELLENT) && --visitorBuys > 0 && browsesLeft > 0) {
+            setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+            entityData.set(WAIT, -1);
+            state = State.ENTER;
+            return;
+        }
+        if (trySit(world, z, true)) return; // 0.9.5: sometimes sits down to admire its purchase before leaving
+        leave(world, z, null);
+    }
+
+    /**
+     * 1.0 tips: a customer happy with the price (bargain or fair) sometimes pays a bit more than your asking price.
+     * More likely in a well-reputed shop, for regulars and for whales (who also tip more). Returns 0 = no tip.
+     */
+    /** True when the haggled price of the current purchase already included a tip (then no checkout tip). Not saved. */
+    private boolean dealTipped;
+
+    private long rollCheckoutTip(ServerLevel world, ShopZones.Zone z) {
+        if (dealTipped) { dealTipped = false; return 0; }
+        if (payPrice <= 0 || type() == Type.THIEF) return 0;
+        // 1.0 beta 3: Don Aurelio always tips big (15-30 %, up to 50,000); Nana Rosa often leaves a little something
+        if (fixedId() == FixedCustomers.EXCELLENT) return dev.tcgshop.shop.TipLedger.cap(Math.max(1, Math.min(50_000, Math.round(payPrice * (0.15 + random.nextDouble() * 0.15)))));
+        if (fixedId() == 2 && random.nextFloat() < 0.6f) return dev.tcgshop.shop.TipLedger.cap(Math.max(1, Math.min(CHECKOUT_TIP_CAP, Math.round(payPrice * (0.05 + random.nextDouble() * 0.07)))));
+        boolean bargain = "bargain".equals(reviewKey);
+        if (!bargain && !"fair".equals(reviewKey)) return 0;
+        int rep = Math.max(0, Math.min(100, dev.tcgshop.shop.ShopLife.effectiveRep(z)));
+        double chance = 0.04 + 0.06 * rep / 100.0 + (bargain ? 0.04 : 0) + (returning ? 0.04 : 0) + (type() == Type.WHALE ? 0.05 : 0)
+                + dev.tcgshop.shop.TipLedger.chanceBonusAt(z); // 1.0: luck of THIS shop, not the owner's best one
+        if ((z.cashier || z.cashier2) && ShopServer.isDayShift(world)) // 1.1: careful cashiers (Accuracy upgrade)
+            chance += dev.tcgshop.shop.CashierUpgrades.tipBonus(dev.tcgshop.shop.CashierUpgrades.levels(world.getServer(), z.id));
+        if (random.nextDouble() >= chance) return 0;
+        double pct = type() == Type.WHALE ? 0.10 + random.nextDouble() * 0.15 : 0.05 + random.nextDouble() * 0.10;
+        return dev.tcgshop.shop.TipLedger.cap(Math.max(1, Math.min(CHECKOUT_TIP_CAP, Math.round(payPrice * pct))));
+    }
+
+    /** 1.0 tips: in a BUY deal, what the customer currently offers above your asking price. */
+    private long currentTip() {
+        return dealMode == DealOpenPayload.BUY && askPrice > 0 && dealPrice > askPrice ? dev.tcgshop.shop.TipLedger.cap(dealPrice - askPrice) : 0;
+    }
+
+    /** Your asking price as sent to the deal window (only BUY deals have one). */
+    private long askForPayload() {
+        return dealMode == DealOpenPayload.BUY ? askPrice : 0;
+    }
+
+    /**
+     * Takes the product. 1.0 beta 3: by tier (ThiefTiers) a skilled thief also takes 1-2 more items, an armed robber up
+     * to 8 of the priciest ones at sword point and a heist crew boss empties EVERY display of the shop.
+     */
+    private void steal(ServerLevel world, ShopZones.Zone z, ShopDisplayBlockEntity be) {
+        int tier = thiefTier();
+        boolean armed = ThiefTiers.armed(tier);
+        loot = be.removeItem(targetSlot, 1);
+        if (loot.isEmpty()) { state = State.ENTER; return; }
+        haul.clear();
+        if (ThiefTiers.maxItems(tier) > 1) grabMore(world, z, ThiefTiers.maxItems(tier) - 1, tier);
+        int items = 1 + haul.size();
+        long value = ShopServer.priceOf(loot, 1.0) * Math.max(1, loot.getCount());
+        for (Stolen s : haul) value += ShopServer.priceOf(s.stack(), 1.0) * Math.max(1, s.stack().getCount());
+        // armed thieves keep the sword in the main hand and the loot in the other one
+        EquipmentSlot hand = armed ? EquipmentSlot.OFFHAND : EquipmentSlot.MAINHAND;
+        setItemSlot(hand, loot.copy());
+        setDropChance(hand, 0f);
+        theftWeight = ThiefTiers.incidentWeight(tier, items);
+        z.stolen += theftWeight;
+        ShopZones.get(world).setDirty();
+        state = State.FLEE;
+        fleePhaseTicks = 60;
+        admiring = false;
+        lostTicks = 0;
+        setPersistenceRequired();
+        emote(armed ? EMOTE_ANGRY : EMOTE_MONEY);
+        EmployeeEntity guardE = guardOf(world, z);
+        boolean guard = guardE != null;
+        for (BlockPos p : BlockPos.withinManhattan(blockPosition(), 12, 3, 12)) {
+            if (world.getBlockState(p).is(TcgBlocks.THEFT_DETECTOR)) {
+                DecorBlocks.TheftDetectorBlock.trigger(world, p);
+                detected = true;
+                break;
+            }
+        }
+        // the guard sees every pickpocket; skilled thieves may slip by unless its detection is upgraded
+        if (guard && random.nextDouble() < GuardUpgrades.spotChance(GuardUpgrades.levels(world.getServer(), z.id), tier)) detected = true;
+        if (armed) detected = true; // a robbery is anything but quiet
+        if (detected) {
+            dev.tcgshop.shop.ShopSeats.alarm(z.id, world.getGameTime()); // 0.9.5: with the alarm, those seated stand up
+            addEffect(new MobEffectInstance(MobEffects.GLOWING, 20 * (armed ? 120 : 40), 0, false, false));
+            if (!armed) addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 20 * 30, guard && tier == 0 ? 1 : 0, false, false));
+        }
+        // a crew carrying the whole shop is slow: you and your guards can catch up
+        if (tier == ThiefTiers.HEIST) addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 20 * 90, 0, false, false));
+        if (armed) {
+            NpcLines.speak(this, Component.translatable("tcgshop." + (tier == ThiefTiers.HEIST ? "heist" : "robbery") + ".shout." + random.nextInt(ROBBERY_LINES)));
+            ThiefTiers.onStrike(world, z, this, tier, items, value);
+            // everyone else runs for the door
+            for (CustomerEntity c : world.getEntitiesOfClass(CustomerEntity.class, z.box().inflate(4), c -> c != this && c.isAlive() && c.type() != Type.THIEF))
+                c.leaveForEvent("ev_theft");
+            return;
+        }
+        if (fixedId() == FixedCustomers.THIEF) sayOwn("steal", null);
+        Component what = haul.isEmpty() ? loot.getDisplayName() : Component.translatable("tcgshop.thief.loot_more", loot.getDisplayName(), haul.size());
+        notifyOwner(world, z, Component.translatable(detected ? "tcgshop.thief.alarm" : "tcgshop.thief.stole", getDisplayName(), what)
+                .withStyle(ChatFormatting.RED));
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(z.owner);
+        if (owner != null && !guard) owner.displayClientMessage(Component.translatable(CobblemonBattles.available() ? "tcgshop.thief.chase_hint_battle" : "tcgshop.thief.chase_hint")
+                .withStyle(ChatFormatting.YELLOW), false);
+        else if (owner != null && !detected && tier > 0) // a skilled thief the guard didn't notice
+            owner.displayClientMessage(Component.translatable("tcgshop.thief.unseen", z.guardName).withStyle(ChatFormatting.GOLD), false);
+    }
+
+    /** Shouts of an armed robber / heist crew when it strikes (tcgshop.robbery|heist.shout.<n>). */
+    private static final int ROBBERY_LINES = 4;
+
+    /**
+     * Takes up to `extra` more items from the shop's displays: the priciest ones for pros and robbers, random ones for
+     * shoplifters, and every last one (whole stacks) for a heist.
+     */
+    private void grabMore(ServerLevel world, ShopZones.Zone z, int extra, int tier) {
+        record Cand(ShopDisplayBlockEntity d, int slot, long price) {}
+        List<Cand> cands = new ArrayList<>();
+        forDisplays(world, z, (d, i) -> cands.add(new Cand(d, i, ShopServer.priceOf(d.getItem(i), 1.0))));
+        if (cands.isEmpty()) return;
+        if (tier == ThiefTiers.SHOPLIFTER) java.util.Collections.shuffle(cands, new java.util.Random(random.nextLong()));
+        else cands.sort((a, b) -> Long.compare(b.price(), a.price()));
+        boolean all = tier == ThiefTiers.HEIST;
+        for (Cand c : cands) {
+            if (!all && haul.size() >= extra) break;
+            ItemStack st = c.d().getItem(c.slot());
+            if (st.isEmpty()) continue;
+            ItemStack took = c.d().removeItem(c.slot(), all ? st.getCount() : 1);
+            if (!took.isEmpty()) haul.add(new Stolen(c.d().getBlockPos().immutable(), c.slot(), took));
+        }
+    }
+
+    @Nullable
+    private EmployeeEntity guardOf(ServerLevel world, ShopZones.Zone z) {
+        if (!z.guard) return null;
+        List<EmployeeEntity> g = world.getEntitiesOfClass(EmployeeEntity.class, z.box().inflate(48), e -> e.isAlive() && e.isGuard() && z.id.equals(e.zoneId()));
+        return g.isEmpty() ? null : g.get(0);
+    }
+
+    /**
+     * Thief escape. A pickpocket with a guard around is always caught; skilled thieves (tier 1-2) escape if they get out
+     * of the guard's detection radius; without a guard they all flee like a Scalper until you catch them or move away.
+     * Armed thieves fight their way out (armedFleeTick).
+     */
+    private void fleeTick(ServerLevel world, ShopZones.Zone z) {
+        if (isArmedThief()) { armedFleeTick(world, z); return; }
+        EmployeeEntity guard = guardOf(world, z);
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(z.owner);
+        double escape = Math.pow(z.size() / 2.0 + 8, 2);
+        int tier = thiefTier();
+        if (guard != null) {
+            if (getNavigation().isDone() || tickCount % 20 == 0) {
+                Vec3 from = tier > 0 && distanceToSqr(guard) < 24 * 24 ? guard.position() : z.core.getCenter();
+                Vec3 away = position().subtract(from).multiply(1, 0, 1);
+                if (away.lengthSqr() < 1e-3) away = new Vec3(random.nextDouble() - 0.5, 0, random.nextDouble() - 0.5);
+                away = away.normalize().scale(14);
+                getNavigation().moveTo(getX() + away.x, getY(), getZ() + away.z, tier > 0 ? 1.15 : 1.0);
+            }
+            if (distanceToSqr(z.core.getCenter()) > escape) {
+                // a pickpocket: the guard radios it in and it's detained anyway
+                if (tier == 0) { detain(world, z, guard); return; }
+                // a skilled thief only gets away once it is out of the guard's sight
+                int r = GuardUpgrades.radius(world.getServer(), z.id);
+                lostTicks = distanceToSqr(guard) > (double) r * r ? lostTicks + 5 : 0;
+                if (lostTicks > 100) escapeWithLoot(world, z);
+            }
+            return;
+        }
+        fleePhaseTicks -= 5;
+        if (fleePhaseTicks <= 0) {
+            admiring = !admiring;
+            if (admiring) {
+                fleePhaseTicks = (50 + random.nextInt(30)) / (tier + 1); // skilled thieves barely stop to look
+                emote(1 + random.nextInt(2));
+                playSound(SoundEvents.PIGLIN_ADMIRING_ITEM, 1f, 1.2f);
+            } else {
+                fleePhaseTicks = 60 + random.nextInt(50);
+                emote(EMOTE_NONE);
+            }
+        }
+        if (admiring) {
+            getNavigation().stop();
+            setXRot(45f);
+            if (tickCount % 20 == 0) world.sendParticles(ParticleTypes.HAPPY_VILLAGER, getX(), getY() + 2.2, getZ(), 2, 0.2, 0.1, 0.2, 0);
+        } else if (getNavigation().isDone() || tickCount % 20 == 0) {
+            Vec3 from = owner != null && owner.distanceToSqr(this) < 40 * 40 ? owner.position() : z.core.getCenter();
+            Vec3 away = position().subtract(from).normalize().scale(12);
+            getNavigation().moveTo(getX() + away.x, getY(), getZ() + away.z, detected ? 1.15 : 1.35);
+        }
+        lostTicks = (owner == null || owner.serverLevel() != world || distanceToSqr(owner) > 64 * 64) ? lostTicks + 5 : 0;
+        if (lostTicks > 600) escapeWithLoot(world, z);
+    }
+
+    /**
+     * 1.0 beta 3: an armed robber / heist boss on the way out. It fights whoever comes close (the shop's guards, the
+     * owner, anyone who hit it) and otherwise runs. It gets away once it is far from the shop with nobody on its heels
+     * for 10 seconds (or the owner left / is far away for good).
+     */
+    private void armedFleeTick(ServerLevel world, ShopZones.Zone z) {
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(z.owner);
+        net.minecraft.world.entity.LivingEntity foe = pickFoe(world, z, owner);
+        if (foe != null) {
+            if (getNavigation().isDone() || tickCount % 10 == 0) getNavigation().moveTo(foe, 1.25);
+            getLookControl().setLookAt(foe);
+            if (attackCd <= 0 && distanceToSqr(foe) < 2.4 * 2.4) {
+                swing(InteractionHand.MAIN_HAND);
+                doHurtTarget(foe);
+                attackCd = ThiefTiers.attackCooldown(thiefTier());
+                if (!foe.isAlive()) {
+                    NpcLines.speak(this, Component.translatable("tcgshop.robbery.kill." + random.nextInt(ROBBERY_LINES)));
+                    if (foe instanceof ServerPlayer p && owner != null && p == owner)
+                        owner.displayClientMessage(Component.translatable("tcgshop.robbery.owner_down", getDisplayName()).withStyle(ChatFormatting.DARK_RED), false);
+                }
+            }
+        } else if (getNavigation().isDone() || tickCount % 20 == 0) {
+            Vec3 from = owner != null && owner.serverLevel() == world && owner.distanceToSqr(this) < 40 * 40 ? owner.position() : z.core.getCenter();
+            Vec3 away = position().subtract(from).multiply(1, 0, 1);
+            if (away.lengthSqr() < 1e-3) away = new Vec3(random.nextDouble() - 0.5, 0, random.nextDouble() - 0.5);
+            away = away.normalize().scale(14);
+            getNavigation().moveTo(getX() + away.x, getY(), getZ() + away.z, 1.1);
+        }
+        if (tickCount % 60 == 0 && foe != null && random.nextFloat() < 0.35f)
+            NpcLines.speak(this, Component.translatable("tcgshop.robbery.threat." + random.nextInt(ROBBERY_LINES)));
+        double far = z.size() / 2.0 + 40;
+        boolean away = distanceToSqr(z.core.getCenter()) > far * far;
+        boolean chased = foe != null || (owner != null && owner.serverLevel() == world && owner.isAlive() && distanceToSqr(owner) < 20 * 20)
+                || !world.getEntitiesOfClass(EmployeeEntity.class, getBoundingBox().inflate(20), e -> e.isAlive() && e.isGuard() && z.id.equals(e.zoneId())).isEmpty();
+        boolean ownerGone = owner == null || owner.serverLevel() != world || distanceToSqr(owner) > 96 * 96;
+        lostTicks = (away && !chased) || ownerGone ? lostTicks + 5 : 0;
+        if (lostTicks > 200) escapeWithLoot(world, z);
+    }
+
+    /** Who an armed thief fights: the closest guard of the shop, the owner or whoever hit it, if close enough. */
+    @Nullable
+    private net.minecraft.world.entity.LivingEntity pickFoe(ServerLevel world, ShopZones.Zone z, @Nullable ServerPlayer owner) {
+        net.minecraft.world.entity.LivingEntity best = null;
+        double bd = 6.5 * 6.5;
+        for (EmployeeEntity g : world.getEntitiesOfClass(EmployeeEntity.class, getBoundingBox().inflate(7), e -> e.isAlive() && e.isGuard() && z.id.equals(e.zoneId()))) {
+            double d = distanceToSqr(g);
+            if (d < bd) { bd = d; best = g; }
+        }
+        if (owner != null && owner.serverLevel() == world && fightable(owner) && distanceToSqr(owner) < bd) { bd = distanceToSqr(owner); best = owner; }
+        if (getLastHurtByMob() instanceof Player p && p != best && fightable(p) && distanceToSqr(p) < Math.max(bd, 10 * 10)) best = p;
+        return best;
+    }
+
+    private static boolean fightable(Player p) {
+        return p.isAlive() && !p.isCreative() && !p.isSpectator();
+    }
+
+    /** An armed thief hit before it struck goes loud: grabs what is at hand (if close to a display) and fights its way out. */
+    private void strikeNow(ServerLevel world, ShopZones.Zone z) {
+        getNavigation().stop();
+        entityData.set(WANTS, false);
+        entityData.set(WAIT, -1);
+        standUp(world);
+        ShopDisplayBlockEntity be = targetDisplay(world);
+        if (be == null || be.getItem(targetSlot).isEmpty()) {
+            browsesLeft = Math.max(1, browsesLeft);
+            if (pickTarget(world, z)) be = targetDisplay(world);
+        }
+        if (be != null && !be.getItem(targetSlot).isEmpty() && distanceToSqr(target.getCenter()) < 8 * 8) {
+            steal(world, z, be);
+            return;
+        }
+        state = State.FLEE; // nothing within reach: just fights its way out empty-handed
+        detected = true;
+        setPersistenceRequired();
+        emote(EMOTE_ANGRY);
+        NpcLines.speak(this, Component.translatable("tcgshop.robbery.threat." + random.nextInt(ROBBERY_LINES)));
+    }
+
+    /** Got away: whatever it carried is lost (the shop's theft counter keeps it). */
+    private void escapeWithLoot(ServerLevel world, ShopZones.Zone z) {
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(z.owner);
+        int items = loot.isEmpty() ? 0 : 1 + haul.size();
+        long value = carriedValue();
+        if (fixedId() == FixedCustomers.THIEF) sayOwn("escape", null);
+        else if (isArmedThief()) NpcLines.speak(this, Component.translatable("tcgshop.robbery.escape." + random.nextInt(ROBBERY_LINES)));
+        else NpcLines.sayNear(this, "thief_escape");
+        if (isArmedThief()) {
+            if (!outcomeSent && items > 0) ThiefTiers.onOutcome(world, z, this, thiefTier(), false, items, value, null);
+            outcomeSent = true;
+        } else if (owner != null && items > 0) {
+            Component what = haul.isEmpty() ? loot.getDisplayName() : Component.translatable("tcgshop.thief.loot_more", loot.getDisplayName(), haul.size());
+            owner.displayClientMessage(Component.translatable("tcgshop.thief.escaped", getDisplayName(), what).withStyle(ChatFormatting.RED), false);
+        }
+        loot = ItemStack.EMPTY;
+        haul.clear();
+        discard();
+    }
+
+    /**
+     * A guard grabs this thief (1.0 beta 3). Pickpockets are detained; skilled thieves may wriggle free (fewer times
+     * against an upgraded guard); armed thieves cannot be detained at all, only defeated. true = detained.
+     */
+    public boolean tryDetain(ServerLevel world, ShopZones.Zone z, EmployeeEntity guard) {
+        if (loot.isEmpty() || isArmedThief()) return false;
+        int tier = thiefTier();
+        if (slipsLeft > 0 && random.nextDouble() < GuardUpgrades.slipChance(GuardUpgrades.levels(world.getServer(), z.id), tier)) {
+            slipsLeft--;
+            addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 20 * 4, 1, false, false));
+            removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
+            NpcLines.speak(this, Component.translatable("tcgshop.thief.slip." + random.nextInt(ROBBERY_LINES)));
+            guard.announce(Component.translatable("tcgshop.thief.slipped_guard." + random.nextInt(ROBBERY_LINES), getDisplayName()));
+            world.sendParticles(ParticleTypes.CLOUD, getX(), getY() + 0.8, getZ(), 8, 0.3, 0.4, 0.3, 0.02);
+            return false;
+        }
+        detain(world, z, guard);
+        return true;
+    }
+
+    /** Detained: the product goes back to its display (or is credited to the register). guard may be null (caught by the owner). */
+    public void detain(ServerLevel world, ShopZones.Zone z, @Nullable EmployeeEntity guard) {
+        if (loot.isEmpty()) return;
+        returnLoot(world, z);
+        z.detained++;
+        ShopZones.get(world).setDirty();
+        if (guard != null) guard.announce(Component.translatable("tcgshop.thief.caught", getDisplayName(), Component.translatable("tcgshop.thief.loot_back")));
+        if (fixedId() == FixedCustomers.THIEF) sayOwn("caught", null);
+        else NpcLines.sayNear(this, "thief_caught");
+        world.sendParticles(ParticleTypes.ANGRY_VILLAGER, getX(), getY() + 1.8, getZ(), 6, 0.3, 0.3, 0.3, 0);
+        playSound(SoundEvents.VILLAGER_HURT, 1f, 0.8f);
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(z.owner);
+        if (owner != null) {
+            CardAdvancements.grant(owner, "catch_thief");
+            if (z.detained >= 10) CardAdvancements.grant(owner, "catch_thief_10");
+            if (fixedId() == FixedCustomers.THIEF) CardAdvancements.grant(owner, "catch_vinnie");
+        }
+        discard();
+    }
+
+    /**
+     * Gives back everything it carried: each item to its slot (or a free slot of the same display); the first item, if its
+     * slot is taken, is credited to the register as before; the rest drop on the floor where the thief is.
+     */
+    private void returnLoot(ServerLevel world, ShopZones.Zone z) {
+        if (loot.isEmpty()) return;
+        ShopDisplayBlockEntity be = targetDisplay(world);
+        if (be != null && be.getItem(targetSlot).isEmpty()) be.setItem(targetSlot, loot);
+        else z.balance += ShopServer.priceOf(loot, 1.0); // the slot is no longer free: its value is credited to the register
+        for (Stolen s : haul) {
+            boolean placed = false;
+            if (world.getBlockEntity(s.pos()) instanceof ShopDisplayBlockEntity d && z.contains(s.pos())) {
+                if (s.slot() < d.getContainerSize() && d.getItem(s.slot()).isEmpty()) { d.setItem(s.slot(), s.stack()); placed = true; }
+                else for (int i = 0; i < d.getContainerSize() && !placed; i++)
+                    if (d.getItem(i).isEmpty()) { d.setItem(i, s.stack()); placed = true; }
+            }
+            if (!placed) spawnAtLocation(s.stack());
+        }
+        haul.clear();
+        z.recovered += theftWeight;
+        loot = ItemStack.EMPTY;
+        setItemSlot(isArmedThief() ? EquipmentSlot.OFFHAND : EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+        ShopZones.get(world).setDirty();
+    }
+
+    /** Value and count of everything it carries (for the armed theft reports). */
+    private long carriedValue() {
+        long v = loot.isEmpty() ? 0 : ShopServer.priceOf(loot, 1.0) * Math.max(1, loot.getCount());
+        for (Stolen s : haul) v += ShopServer.priceOf(s.stack(), 1.0) * Math.max(1, s.stack().getCount());
+        return v;
+    }
+
+    /** 1.0 beta 3: a unique customer walks in: greets (by name if it remembers the owner) and is remembered; a sharp guard may recognize the known thief. */
+    private void fixedArrives(ServerLevel world, ShopZones.Zone z) {
+        int id = fixedId();
+        net.minecraft.server.MinecraftServer server = world.getServer();
+        SecurityLedger.Memory m = SecurityLedger.memory(server, id, z.owner);
+        ServerPlayer owner = server.getPlayerList().getPlayer(z.owner);
+        String ownerName = owner != null ? owner.getName().getString() : z.ownerName;
+        boolean known = m.visits > 0;
+        NpcLines.speak(this, known ? FixedCustomers.line(random, id, "back", ownerName) : FixedCustomers.line(random, id, "hello"));
+        m.visits++;
+        m.lastDay = world.getDayTime() / 24000;
+        SecurityLedger.dirty(server);
+        if (owner != null) {
+            owner.displayClientMessage(Component.translatable(known ? "tcgshop.fixed.arrived_back" : "tcgshop.fixed.arrived", FixedCustomers.rainbow(getName().getString()), m.visits)
+                    .withStyle(ChatFormatting.LIGHT_PURPLE), false);
+            CardAdvancements.grant(owner, "meet_fixed");
+            boolean all = true;
+            for (int i = 0; i < FixedCustomers.COUNT && all; i++) all = SecurityLedger.met(server, i, z.owner);
+            if (all) CardAdvancements.grant(owner, "meet_all_fixed");
+        }
+        if (id == FixedCustomers.THIEF) {
+            EmployeeEntity g = guardOf(world, z);
+            int d = GuardUpgrades.level(server, z.id, GuardUpgrades.Stat.DETECTION);
+            if (g != null && (d >= 3 || (d == 2 && random.nextBoolean()))) { // "I know you, Vinnie": he gives up and leaves
+                g.announce(Component.translatable("tcgshop.fixed.guard_spot." + random.nextInt(FixedCustomers.GUARD_SPOT_LINES), getDisplayName()));
+                NpcLines.speak(this, FixedCustomers.line(random, id, "spotted"));
+                emote(EMOTE_ANGRY);
+                if (owner != null) owner.displayClientMessage(Component.translatable("tcgshop.fixed.thief_spotted", z.guardName, getDisplayName()).withStyle(ChatFormatting.GREEN), false);
+                leave(world, z, null);
+            }
+        }
+    }
+
+    private void goDeal(ServerLevel world, ShopZones.Zone z, String line) {
+        if (dealItem.isEmpty()) { leave(world, z, null); return; }
+        state = State.WAIT_DEAL;
+        dealNotified = false;
+        openPrice = dealPrice; // 1.0 charisma: haggling below / above this counts as a haggle won
+        generous = isGenerous(dealMode, persona, dealPrice, askPrice, ShopServer.priceOf(dealItem, 1.0), visitor != null && visitor.fairSeller);
+        charmMask = 0;
+        charmCount = 0;
+        timer = waitMax = (int) Math.max(200, 20 * EconomyConfig.INSTANCE.customerWaitSeconds * eventPatience(world));
+        entityData.set(WAIT, 1000);
+        emote(EMOTE_NONE);
+        entityData.set(WANTS, true);
+        long tip = currentTip();
+        if (tip > 0) NpcLines.speak(this, NpcLines.random(random, "tip_offer", PriceService.format(tip))); // 1.0: offers above your price
+        else if (FixedCustomers.has(fixedId(), "deal")) sayOwn("deal", null); // 1.0 beta 3: unique customer's own pitch
+        else NpcLines.sayNear(this, line);
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(z.owner);
+        if (owner != null && owner.distanceToSqr(this) < 64 * 64)
+            owner.displayClientMessage(Component.translatable("tcgshop.deal.waiting", getDisplayName()).withStyle(ChatFormatting.YELLOW), true);
+    }
+
+    private void leave(ServerLevel world, ShopZones.Zone z, String line) {
+        dev.tcgshop.shop.ShopLife.forget(getUUID()); // 0.9: out of the door queue and path reservations
+        standUp(world); // 0.9.5: if it was seated (or going to sit), it stands up and releases the chair
+        // if it leaves mid-deal without closing it (item gone, gets tired, gets scared...), notify the window
+        if (state == State.WAIT_DEAL && !dealNotified && z != null) {
+            ServerPlayer owner = world.getServer().getPlayerList().getPlayer(z.owner);
+            if (owner != null) closeDeal(owner, Component.translatable("tcgshop.deal.gone"), OUT_UNKNOWN, 0);
+            dealNotified = true;
+        }
+        if (line != null && random.nextFloat() < 0.5f) NpcLines.sayNear(this, line);
+        entityData.set(WANTS, false);
+        entityData.set(WAIT, -1);
+        int stars = stars();
+        emote(stars >= 4 ? EMOTE_LOVE : stars <= 2 ? EMOTE_ANGRY : EMOTE_NONE);
+        state = State.LEAVE;
+        timer = 0;
+        getNavigation().stop();
+    }
+
+    /** Review stars: the 5th requires a very happy customer (mood >= fiveStarMood; starts at 3). */
+    private int stars() {
+        if (mood >= Math.max(5, EconomyConfig.INSTANCE.fiveStarMood)) return 5;
+        return Math.max(1, Math.min(4, mood));
+    }
+
+    /** Comments on something it noticed about the shop (roof, light, nearby monsters, animals, prices...) and is slightly affected by it. */
+    /** 1.1 (cleanliness update): a remark on entering a filthy or a spotless shop (sometimes). */
+    private boolean cleanRemark(ShopZones.Zone z) {
+        int clean = dev.tcgshop.shop.Cleanliness.score(z);
+        if (clean < 50 && random.nextFloat() < 0.5f) {
+            NpcLines.sayNear(this, z.smell >= 40 ? "smell_complain" : "dirty_complain");
+            return true;
+        }
+        if (clean >= 95 && random.nextFloat() < 0.12f) {
+            NpcLines.sayNear(this, "clean_praise");
+            return true;
+        }
+        return false;
+    }
+
+    private void commentOnShop(ShopZones.Zone z) {
+        List<String> f = new ArrayList<>(z.flags);
+        String k = f.get(random.nextInt(f.size()));
+        NpcLines.sayNear(this, "comment_" + k);
+        switch (k) {
+            case "hostile", "infamy" -> { mood -= 1; reviewKey = k.equals("hostile") ? "unsafe" : "infamy"; }
+            case "no_roof", "no_walls", "dark", "empty" -> { if (random.nextBoolean()) { mood -= 1; reviewKey = "env_" + k; } }
+            case "cozy", "bright", "pokemon", "pets", "cheap" -> { if (random.nextFloat() < 0.4f) { mood += 1; reviewKey = "env_" + k; } }
+            default -> {}
+        }
+    }
+
+    @Override
+    public int waitPermille() { return entityData.get(WAIT); }
+
+    /** Saw you kill someone: gets scared and leaves with the worst review. */
+    public void witnessMurder() {
+        if (!(level() instanceof ServerLevel world) || type() == Type.THIEF) return;
+        ShopZones.Zone z = zoneId == null ? null : ShopZones.get(world).byId(zoneId);
+        if (z == null || state == State.FLEE) return;
+        NpcLines.sayNear(this, "murder_witness");
+        mood = 1;
+        reviewKey = "murder";
+        dealItem = ItemStack.EMPTY;
+        leave(world, z, null);
+        getNavigation().stop();
+    }
+
+    /** On leaving the shop: writes its review and, if it left happy, signs up as a regular customer. */
+    private void finishVisit(ServerLevel world, ShopZones.Zone z) {
+        reviewed = true;
+        if (type() == Type.THIEF || closedLeave) return; // 1.1: sent home by the closing: leaves no trace
+        // 0.9 events: the review remembers what happened in the shop while it was there (or that it was fixed quickly)
+        dev.tcgshop.events.EventManager.ReviewOutcome ro = dev.tcgshop.events.EventManager.reviewFor(z, arrivedAt, world.getGameTime(), reviewKey, random);
+        if (ro.key() != null) reviewKey = ro.key();
+        mood += ro.mood();
+        if (visitor != null) {
+            dev.tcgshop.events.EventManager.VisitorResult vr = dev.tcgshop.events.EventManager.visitorFinished(world, z, this, visitor, stars());
+            if (vr.key() != null) reviewKey = vr.key();
+            if (vr.stars() > 0) mood = vr.stars() >= 5 ? Math.max(5, EconomyConfig.INSTANCE.fiveStarMood) : vr.stars();
+        }
+        int stars = stars();
+        long day = world.getDayTime() / 24000;
+        z.addReview(getName().getString(), stars, reviewKey, day);
+        dev.tcgshop.shop.Cleanliness.onVisit(z, random); // 1.1: foot traffic leaves grime
+        // 1.0 beta 3: unique customers come back on their own (never as an ordinary "regular") and always say goodbye
+        if (fixedId() >= 0) sayOwn(stars >= 3 ? "bye_happy" : "bye_sad", null);
+        else {
+            if (stars >= 4) z.remember(getName().getString(), npcSkin(), npcTitle());
+            if (random.nextFloat() < 0.35f) NpcLines.sayNear(this, stars >= 4 ? "leave_happy" : stars <= 2 ? "leave_sad" : "nothing");
+        }
+        ShopZones.get(world).setDirty();
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(z.owner);
+        if (owner != null && owner.distanceToSqr(this) < 96 * 96)
+            owner.displayClientMessage(Component.translatable("tcgshop.review.left", getDisplayName(), "★".repeat(stars) + "☆".repeat(5 - stars),
+                    Component.translatable(new ShopZones.Review(getName().getString(), stars, reviewKey, day).textKey())).withStyle(stars >= 4 ? ChatFormatting.GREEN : stars <= 2 ? ChatFormatting.RED : ChatFormatting.GRAY), true);
+    }
+
+    private void notifyOwner(ServerLevel world, ShopZones.Zone z, Component msg) {
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(z.owner);
+        if (owner != null && owner.distanceToSqr(this) < 96 * 96) owner.displayClientMessage(msg, true);
+    }
+
+    // ------------------------------------------------------------------ interaction, deals and battle
+
+    @Override
+    protected InteractionResult mobInteract(Player player, InteractionHand hand) {
+        if (hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
+        if (!(player instanceof ServerPlayer sp) || level().isClientSide) return InteractionResult.sidedSuccess(level().isClientSide);
+        ShopZones.Zone z = ShopZones.get(sp.serverLevel()).byId(zoneId);
+        if (visitor != null && z != null && dev.tcgshop.events.EventManager.onVisitorInteract(sp, z, this, visitor)) return InteractionResult.SUCCESS;
+        if (isArmedThief()) { // 1.0 beta 3: no talking (nor Pokémon battles) with an armed robber
+            NpcLines.speak(this, Component.translatable("tcgshop.robbery.threat." + random.nextInt(ROBBERY_LINES)));
+            return InteractionResult.SUCCESS;
+        }
+        if (type() == Type.THIEF && state == State.FLEE && !loot.isEmpty()) {
+            if (CobblemonBattles.available() && CobblemonBattles.challenge(sp, this)) {
+                NpcLines.sayNear(this, "thief_battle");
+                CardAdvancements.grant(sp, "battle_thief");
+            } else NpcLines.say(this, sp, "thief_talk");
+            return InteractionResult.SUCCESS;
+        }
+        if (state == State.CHECKOUT && z != null && z.owner.equals(sp.getUUID()) && serveByOwner(sp)) return InteractionResult.SUCCESS;
+        if (state == State.WAIT_DEAL && z != null && z.owner.equals(sp.getUUID()) && !dealItem.isEmpty()) {
+            ownerTalkedAt = level().getGameTime(); // 1.1: the owner is dealing with it (cashiers keep out)
+            long market = ShopServer.priceOf(dealItem, 1.0);
+            Component line = switch (dealMode) {
+                case DealOpenPayload.SELL -> motive.isEmpty() ? Component.translatable("tcgshop.npc.reason." + reasonKey) : Component.translatable("tcgshop.motive." + motive, dealItem.getHoverName());
+                case DealOpenPayload.TRADE -> NpcLines.random(random, "trader_hello");
+                default -> currentTip() > 0 ? NpcLines.random(random, "tip_offer", PriceService.format(currentTip())) // 1.0: tip on top of your price
+                        : NpcLines.random(random, "haggle_offer");
+            };
+            long wantMarket = dealWant.isEmpty() ? 0 : ShopServer.priceOf(dealWant, 1.0);
+            if (Net.INSTANCE.canSend(sp, DealOpenPayload.ID))
+                Net.INSTANCE.send(sp, new DealOpenPayload(getId(), getDisplayName(), line, dealItem, dealPrice, market, dealMode, dealWant, wantMarket,
+                        dealMode == DealOpenPayload.SELL || dealMode == DealOpenPayload.BUY ? persona : -1, patience, maxPatience, askForPayload(), dealFlags(sp),
+                        dealOdds(sp)));
+        } else if (state == State.SIT) {
+            NpcLines.speak(this, dev.tcgshop.shop.ShopSeats.talkLine(random)); // 0.9.5: seated, resting
+        } else if (fixedId() >= 0) {
+            sayOwn("talk", null); // 1.0 beta 3: unique customer's own small talk
+        } else {
+            NpcLines.say(this, sp, switch (type()) { case PICKY -> "picky"; case WHALE -> "whale_talk"; case THIEF -> "thief_talk"; default -> "greet"; });
+        }
+        return InteractionResult.SUCCESS;
+    }
+
+    /** Owner's answer to a deal. */
+    public void answerDeal(ServerPlayer owner, boolean accept) {
+        respond(owner, accept ? DealAnswerPayload.ACCEPT : DealAnswerPayload.REJECT_POLITE, 0);
+    }
+
+    /** Owner's answer: accept, reject or haggle (only with someone selling you something). */
+    public void respond(ServerPlayer owner, int action, long counter) {
+        ServerLevel world = owner.serverLevel();
+        ShopZones.Zone z = ShopZones.get(world).byId(zoneId);
+        if (state != State.WAIT_DEAL || z == null || !z.owner.equals(owner.getUUID()) || dealItem.isEmpty()) {
+            // the deal no longer exists (it left, the item was sold...): close the window instead of leaving it waiting
+            sendClosed(owner, Component.translatable("tcgshop.deal.gone"), OUT_UNKNOWN, 0);
+            return;
+        }
+        if (z.closed) { leaveForClosing(); return; } // 1.1: the shop closed meanwhile: the deal window closes as it leaves
+        ownerTalkedAt = world.getGameTime();
+        switch (action) {
+            case DealAnswerPayload.ACCEPT -> { acceptDeal(owner); return; }
+            case DealAnswerPayload.REJECT_POLITE, DealAnswerPayload.REJECT_RUDE -> { rejectDeal(owner, world, z, action == DealAnswerPayload.REJECT_RUDE); return; }
+            default -> {}
+        }
+        if (persona < 0 || (dealMode != DealOpenPayload.SELL && dealMode != DealOpenPayload.BUY)) {
+            updateDeal(owner, NpcLines.random(random, "haggle_offer")); // action not valid here: resend the deal so the window isn't left waiting
+            return;
+        }
+        timer = Math.min(waitMax, timer + 20 * 10); // while you talk, it waits a bit longer
+        // 1.1: charm options (joke, compliment, story, small talk), greed punishment and "Persuade"
+        if (action == DealAnswerPayload.JOKE || action == DealAnswerPayload.COMPLIMENT || action == DealAnswerPayload.STORY) {
+            charm(owner, world, z, action - DealAnswerPayload.JOKE);
+            return;
+        }
+        if (action == DealAnswerPayload.SMALLTALK) { charm(owner, world, z, dev.tcgshop.shop.Charisma.CHARM_SMALLTALK); return; }
+        if (generous && isGreedy(dealMode, action, counter, dealPrice)) { greedyLeave(owner, world, z); return; }
+        if (action == DealAnswerPayload.PERSUADE) action = persuadeArg(owner, z, Math.max(1, counter));
+        if (dealMode == DealOpenPayload.BUY) {
+            if (action == DealAnswerPayload.INTEREST) thinkBuy(owner, world, z);
+            else negotiateBuy(owner, world, z, action, counter);
+            return;
+        }
+        if (action == DealAnswerPayload.INTEREST) { think(owner, world, z); return; }
+        negotiate(owner, world, z, action, counter);
+    }
+
+    private String pk() { return PERSONAS[Math.max(0, Math.min(PERSONAS.length - 1, persona))]; }
+
+    // ------------------------------------------------------------------ 1.1 generous customers: greed and charm
+
+    /**
+     * 1.1: is the opening offer already good for you? A buyer (BUY) offering at least your asking price, or a seller
+     * (SELL) asking at most 95 % of market (never a "fair seller" event visitor). Only customers with a personality.
+     */
+    public static boolean isGenerous(int mode, int persona, long offer, long ask, long market, boolean fairSeller) {
+        if (persona < 0) return false;
+        if (mode == DealOpenPayload.BUY) return ask > 0 && offer >= ask;
+        return mode == DealOpenPayload.SELL && !fairSeller && market > 0 && offer <= Math.round(market * 0.95);
+    }
+
+    /**
+     * 1.1: does this answer try to squeeze a generous customer (ask for more / offer less than they already give)?
+     * "Let me think" (INTEREST) always is: with a generous customer it only exists to make them improve the offer.
+     */
+    public static boolean isGreedy(int mode, int action, long counter, long dealPrice) {
+        if (action == DealAnswerPayload.INTEREST) return mode == DealOpenPayload.BUY || mode == DealOpenPayload.SELL;
+        boolean haggle = action == DealAnswerPayload.COUNTER || action == DealAnswerPayload.ARG_MARKET || action == DealAnswerPayload.ARG_ELSEWHERE
+                || action == DealAnswerPayload.ARG_BROKE || action == DealAnswerPayload.ARG_MAX || action == DealAnswerPayload.PERSUADE;
+        if (!haggle) return false;
+        return mode == DealOpenPayload.BUY ? counter > dealPrice : mode == DealOpenPayload.SELL && counter < dealPrice;
+    }
+
+    /** 1.1: flags of the deal window (generous, charm options used, attempts left). */
+    private int dealFlags(ServerPlayer owner) {
+        if (!generous) return 0;
+        int lvl = dev.tcgshop.shop.Charisma.level(owner.server, owner.getUUID());
+        return DealOpenPayload.flags(true, charmMask, dev.tcgshop.shop.Charisma.charmsPerDeal(lvl) - charmCount);
+    }
+
+    /** 1.1: the server's real success chances for the deal window (charm options with mood, Persuade); 0 = none. */
+    private long dealOdds(ServerPlayer owner) {
+        if (persona < 0 || (dealMode != DealOpenPayload.SELL && dealMode != DealOpenPayload.BUY)) return 0;
+        int lvl = dev.tcgshop.shop.Charisma.level(owner.server, owner.getUUID());
+        double[] c = new double[DealOpenPayload.ODDS_PERSUADE + 1];
+        for (int k = 0; k < dev.tcgshop.shop.Charisma.CHARM_COUNT; k++) c[k] = dev.tcgshop.shop.Charisma.charmChanceNow(k, lvl, persona, mood);
+        c[DealOpenPayload.ODDS_PERSUADE] = dev.tcgshop.shop.Charisma.persuadeChance(lvl);
+        return DealOpenPayload.odds(c);
+    }
+
+    /** 1.1: you tried to squeeze a customer who was already generous: offended, they leave (2-star mood). */
+    private void greedyLeave(ServerPlayer owner, ServerLevel world, ShopZones.Zone z) {
+        mood = Math.min(mood, 2);
+        reviewKey = "deal_greedy";
+        emote(EMOTE_ANGRY);
+        Component line = NpcLines.random(random, "greedy_leave");
+        NpcLines.speak(this, line);
+        closeDeal(owner, line, OUT_WALK, 0);
+        ShopZones.get(world).setDirty();
+        leave(world, z, null);
+    }
+
+    /**
+     * 1.1: a charm option with a generous customer (joke, compliment, story or small talk; each once, Charisma.charmsPerDeal
+     * attempts). Success (Charisma.charmChance: charisma level, personality, mood) raises a buyer's tip (by a share of your
+     * asking price: joke 8-14 %, compliment 3-6 %, story 5-10 %, small talk 2-4 %, more with charisma; never past the tip cap) or lowers a
+     * seller's price by half of that, cheers them up and gives a little charisma XP. A failed joke takes back part of the
+     * tip, a boring story costs patience (never down to 0: a generous customer does not walk out over a bad joke).
+     */
+    private void charm(ServerPlayer owner, ServerLevel world, ShopZones.Zone z, int kind) {
+        int lvl = dev.tcgshop.shop.Charisma.level(world.getServer(), owner.getUUID());
+        if (!generous || kind < 0 || kind >= dev.tcgshop.shop.Charisma.CHARM_COUNT || (charmMask & 1 << kind) != 0
+                || charmCount >= dev.tcgshop.shop.Charisma.charmsPerDeal(lvl)) {
+            updateDeal(owner, NpcLines.random(random, "charm_enough"));
+            return;
+        }
+        String key = dev.tcgshop.shop.Charisma.CHARM_KEYS[kind];
+        boolean ok = charmRoll(kind, lvl);
+        if (ok) dev.tcgshop.shop.Charisma.addXp(world.getServer(), owner.getUUID(), 2);
+        Component said = NpcLines.random(random, "owner_" + key);
+        Component reaction = NpcLines.random(random, "charm_" + key + (ok ? "_good" : "_bad"));
+        net.minecraft.network.chat.MutableComponent line = Component.translatable("tcgshop.charm.exchange", said, reaction);
+        long tip = currentTip();
+        if (ok && tip > 0) line.append(" ").append(Component.translatable("tcgshop.charm.tip_now", PriceService.format(tip)));
+        world.playSound(null, blockPosition(), ok ? SoundEvents.VILLAGER_CELEBRATE : SoundEvents.VILLAGER_NO, SoundSource.NEUTRAL, 0.6f, ok ? 1.3f : 0.9f);
+        NpcLines.speak(this, reaction);
+        ShopZones.get(world).setDirty();
+        updateDeal(owner, line);
+    }
+
+    /** 1.1: rolls a charm attempt and applies its effect on the price, mood and patience. Returns whether it worked. */
+    private boolean charmRoll(int kind, int lvl) {
+        charmMask |= 1 << kind;
+        charmCount++;
+        double chance = dev.tcgshop.shop.Charisma.charmChanceNow(kind, lvl, persona, mood); // the same chance the window shows
+        boolean ok = random.nextDouble() < chance;
+        double lv = (Math.max(1, lvl) - 1) / (double) (dev.tcgshop.shop.Charisma.MAX_LEVEL - 1);
+        double[] lo = {0.08, 0.03, 0.05, 0.02}, hi = {0.14, 0.06, 0.10, 0.04}; // small talk: safest, smallest gain
+        double pct = (lo[kind] + random.nextDouble() * (hi[kind] - lo[kind])) * (1 + 0.5 * lv);
+        long market = Math.max(1, ShopServer.priceOf(dealItem, 1.0));
+        if (ok) {
+            mood += 1;
+            if (dealMode == DealOpenPayload.BUY) {
+                long extra = Math.max(1, Math.round(Math.max(1, askPrice) * pct));
+                long maxPrice = Math.max(dealPrice, askPrice + dev.tcgshop.shop.TipLedger.cap(Long.MAX_VALUE));
+                dealPrice = Math.min(maxPrice, dealPrice + extra);
+            } else if (dealMode == DealOpenPayload.SELL) {
+                long low = Math.max(sellFloor(market), Math.round(floorPrice * 0.9));
+                dealPrice = Math.max(Math.min(dealPrice, low), Math.round(dealPrice * (1 - pct / 2)));
+            }
+        } else {
+            mood -= 1;
+            if (kind == dev.tcgshop.shop.Charisma.CHARM_JOKE && dealMode == DealOpenPayload.BUY && dealPrice > askPrice)
+                dealPrice = Math.max(askPrice, dealPrice - Math.round(Math.max(1, askPrice) * pct / 2));
+            if (kind == dev.tcgshop.shop.Charisma.CHARM_STORY) patience = Math.max(1, patience - 1);
+        }
+        return ok;
+    }
+
+    /**
+     * 1.1 "Persuade": charisma picks an argument for your counteroffer. With probability Charisma.persuadeChance it is
+     * the one that works best on this personality; otherwise a random one (which may backfire).
+     */
+    private int persuadeArg(ServerPlayer owner, ShopZones.Zone z, long counter) {
+        int[] args = {DealAnswerPayload.ARG_MARKET, DealAnswerPayload.ARG_ELSEWHERE, DealAnswerPayload.ARG_BROKE};
+        int lvl = dev.tcgshop.shop.Charisma.level(owner.server, owner.getUUID());
+        if (random.nextDouble() >= dev.tcgshop.shop.Charisma.persuadeChance(lvl)) return args[random.nextInt(args.length)];
+        int pi = Math.max(0, Math.min(PERSONAS.length - 1, persona));
+        long market = Math.max(1, ShopServer.priceOf(dealItem, 1.0));
+        double[] mods = new double[3];
+        if (dealMode == DealOpenPayload.SELL) { // you buy: the lowest multiplier on its minimum wins
+            mods[0] = counter >= market * 0.8 ? new double[]{0.97, 0.98, 0.95, 0.97, 0.98, 0.98}[pi] : 1.05;
+            mods[1] = new double[]{1.0, 0.92, 1.06, 1.03, 0.9, 0.96}[pi];
+            mods[2] = new double[]{0.97, 0.95, 1.02, 1.04, 1.0, 0.95}[pi];
+            int best = 0;
+            for (int i = 1; i < 3; i++) if (mods[i] < mods[best]) best = i;
+            return args[best];
+        }
+        double prem = z.premiumFor(dealItem); // you sell: the highest multiplier on its maximum wins
+        mods[0] = counter <= market * (1.1 + Math.max(0, prem)) ? new double[]{1.04, 1.03, 1.05, 1.02, 1.03, 1.03}[pi] : 0.95;
+        mods[1] = new double[]{1.06, 1.08, 0.96, 0.98, 1.04, 1.02}[pi];
+        mods[2] = prem > 0.02 ? 1 + prem * 0.5 : prem < 0 ? 0.94 : 0.99;
+        int best = 0;
+        for (int i = 1; i < 3; i++) if (mods[i] > mods[best]) best = i;
+        return args[best];
+    }
+
+    /**
+     * 1.1: on entering, now and then a remark about the shop's luxury statue (or, very rarely, that it has none and they
+     * would buy more with one) or its decoration. Returns whether it said something.
+     */
+    private boolean shopRemark(ServerLevel world, ShopZones.Zone z) {
+        if (type() == Type.THIEF || fixedId() >= 0) return false;
+        int statue = dev.tcgshop.shop.DecorScore.zoneStatue(z);
+        if (statue == 0 && z.tier >= dev.tcgshop.shop.ShopTier.WOOD.rank() && random.nextDouble() < EconomyConfig.INSTANCE.statueMissingRemarkChance) {
+            NpcLines.sayNear(this, "statue_missing");
+            notifyOwner(world, z, Component.translatable("tcgshop.statue.hint").withStyle(ChatFormatting.LIGHT_PURPLE));
+            return true;
+        }
+        if (statue > 0 && random.nextFloat() < 0.08f) {
+            NpcLines.sayNear(this, "statue_love");
+            mood += 1;
+            return true;
+        }
+        if (random.nextFloat() < 0.06f) {
+            int dp = dev.tcgshop.shop.DecorScore.zonePct(z);
+            if (dp < 15) { NpcLines.sayNear(this, "comment_decor_low"); return true; }
+            if (dp >= 60) { NpcLines.sayNear(this, "comment_decor_high"); mood += 1; return true; }
+        }
+        return false;
+    }
+
+    /** Selftest only: one charm attempt (no owner needed); returns whether it worked. */
+    public boolean debugCharm(int kind, int lvl) {
+        return charmRoll(kind, lvl);
+    }
+
+    /** Selftest only: the deal's current price. */
+    public long debugDealPrice() { return dealPrice; }
+
+    /** Selftest only: is the current deal generous? */
+    public boolean debugGenerous() { return generous; }
+
+    private void rejectDeal(ServerPlayer owner, ServerLevel world, ShopZones.Zone z, boolean rude) {
+        EconomyConfig c = EconomyConfig.INSTANCE;
+        double neg = rude ? c.rejectNegativeChanceRude : c.rejectNegativeChancePolite;
+        double[] pm = {1.2, 1.0, 0.8, 0.6, 1.3, 0.8};
+        if (persona >= 0) neg *= pm[persona];
+        long day = world.getDayTime() / 24000;
+        if (z.rejectDay != day) { z.rejectDay = day; z.rejectPenalties = 0; }
+        // a neutral review is the norm; a negative one is possible but with a daily cap (no disproportionate penalties)
+        boolean bad = z.rejectPenalties < c.maxRejectPenaltiesPerDay && random.nextDouble() < Math.min(1, neg);
+        if (bad) {
+            z.rejectPenalties++;
+            mood = rude ? 1 : 2;
+            reviewKey = rude ? "deal_rude" : "deal_no_bad";
+            emote(EMOTE_ANGRY);
+        } else {
+            mood = 3;
+            reviewKey = "deal_no_neutral";
+        }
+        Component line = NpcLines.random(random, rude ? "neg_rude" : bad ? "neg_reject_bad" : "neg_reject_ok");
+        NpcLines.speak(this, line);
+        closeDeal(owner, line, OUT_REJECT, 0);
+        ShopZones.get(world).setDirty();
+        leave(world, z, null);
+    }
+
+    private void negotiate(ServerPlayer owner, ServerLevel world, ShopZones.Zone z, int action, long counter) {
+        long market = Math.max(1, ShopServer.priceOf(dealItem, 1.0));
+        counter = Math.max(1, counter);
+        if (counter >= dealPrice) { acceptDeal(owner); return; }
+        int pi = Math.max(0, persona);
+        double mod = 1;
+        net.minecraft.network.chat.MutableComponent say = Component.empty();
+        switch (action) {
+            case DealAnswerPayload.ARG_MARKET -> {
+                boolean fair = counter >= market * 0.8;
+                mod = fair ? new double[]{0.97, 0.98, 0.95, 0.97, 0.98, 0.98}[pi] : 1.05;
+                say.append(NpcLines.random(random, fair ? "neg_arg_market_good" : "neg_arg_market_bad")).append(" ");
+            }
+            case DealAnswerPayload.ARG_ELSEWHERE -> {
+                mod = new double[]{1.0, 0.92, 1.06, 1.03, 0.9, 0.96}[pi];
+                say.append(NpcLines.random(random, mod < 1 ? "neg_arg_elsewhere_good" : "neg_arg_elsewhere_bad")).append(" ");
+            }
+            case DealAnswerPayload.ARG_BROKE -> {
+                mod = new double[]{0.97, 0.95, 1.02, 1.04, 1.0, 0.95}[pi];
+                say.append(NpcLines.random(random, mod < 1 ? "neg_arg_broke_good" : "neg_arg_broke_bad")).append(" ");
+            }
+            default -> {}
+        }
+        // 1.0 charisma: a charismatic owner gets a lower minimum, more concessions and fewer offended sellers
+        double hb = dev.tcgshop.shop.Charisma.haggleBonus(world.getServer(), owner.getUUID());
+        long base = Math.round(floorPrice * mod);
+        long eff = Math.round(base * (1 - 0.4 * hb));
+        boolean fairSeller = visitor != null && visitor.fairSeller;
+        if (fairSeller) eff = Math.max(eff, Math.min(base, market)); // 0.9 events: charisma never pushes a fair seller below market
+        // 1.0: charisma and the "elsewhere"/"broke" arguments never take the minimum below the sell floor (45 % of market)
+        long minSell = sellFloor(market);
+        eff = Math.max(eff, minSell);
+        if (counter < floorPrice * 0.6 * (1 - 0.5 * hb)) { // ridiculous offer: takes offense
+            patience -= 2;
+            mood -= 1;
+            say.append(NpcLines.random(random, "neg_insulted_" + pk()));
+            if (patience <= 0) { walkAway(owner, world, z, say); return; }
+            updateDeal(owner, say);
+            return;
+        }
+        boolean last = action == DealAnswerPayload.ARG_MAX;
+        // 1.0 missions luck: an offer just short of the seller's limit (within 8 %) is sometimes accepted anyway
+        // (never below the sell floor, nor is the desperate seller's last-chance yes)
+        boolean lucky = counter >= eff * 0.92 && counter >= minSell && !(fairSeller && counter < market) && random.nextDouble() < dev.tcgshop.shop.ShopMissions.acceptBonus(z);
+        if (counter >= eff || lucky || (last && persona == P_DESPERATE && counter >= Math.max(minSell, floorPrice * 0.92) && random.nextBoolean())) {
+            dealPrice = counter;
+            acceptDeal(owner);
+            return;
+        }
+        if (last) { walkAway(owner, world, z, say.append(NpcLines.random(random, "neg_final_no"))); return; }
+        patience--;
+        if (patience <= 0) { walkAway(owner, world, z, say.append(NpcLines.random(random, "neg_walkaway_" + pk()))); return; }
+        double[] conc = {0.3, 0.5, 0.25, 0.35, 0.6, 0.45};
+        double cc = Math.min(0.85, conc[pi] * (1 + 1.6 * hb));
+        long next = Math.max(eff, Math.round(dealPrice - (dealPrice - counter) * cc));
+        if (next >= dealPrice) say.append(NpcLines.random(random, "neg_hold_" + pk(), PriceService.format(dealPrice)));
+        else {
+            dealPrice = next;
+            say.append(NpcLines.random(random, "neg_counter_" + pk(), PriceService.format(dealPrice)));
+        }
+        updateDeal(owner, say);
+    }
+
+    private net.minecraft.network.chat.MutableComponent buyLine(String cat, Object... args) {
+        return Component.translatable("tcgshop.haggle.buy." + cat + "." + random.nextInt(BUY_LINES.getOrDefault(cat, 1)), args);
+    }
+
+    /**
+     * Haggling with a customer who wants to BUY something from you: you ask for more and they go up (or not) to their maximum, which depends on
+     * their personality and the shop's reputation. Arguments: the market, "you won't find it anywhere else" and
+     * the shop's reputation (works much better the more reputation you have).
+     */
+    private void negotiateBuy(ServerPlayer owner, ServerLevel world, ShopZones.Zone z, int action, long counter) {
+        long market = Math.max(1, ShopServer.priceOf(dealItem, 1.0));
+        counter = Math.max(1, counter);
+        // you ask for what it offers (or less): done. The asking price is NOT lowered here, so a counter below its offer
+        // (only possible from a modified client) cannot inflate the recorded tip
+        if (counter <= dealPrice) { acceptDeal(owner); return; }
+        askPrice = counter; // 1.0: your new asking price (whatever it pays above this is a tip)
+        int pi = Math.max(0, Math.min(PERSONAS.length - 1, persona));
+        double prem = z.premiumFor(dealItem);
+        double mod = 1;
+        net.minecraft.network.chat.MutableComponent say = Component.empty();
+        switch (action) {
+            case DealAnswerPayload.ARG_MARKET -> {
+                boolean fair = counter <= market * (1.1 + Math.max(0, prem));
+                mod = fair ? new double[]{1.04, 1.03, 1.05, 1.02, 1.03, 1.03}[pi] : 0.95;
+                say.append(buyLine(fair ? "arg_good" : "arg_bad")).append(" ");
+            }
+            case DealAnswerPayload.ARG_ELSEWHERE -> {
+                mod = new double[]{1.06, 1.08, 0.96, 0.98, 1.04, 1.02}[pi];
+                say.append(buyLine(mod > 1 ? "arg_good" : "arg_bad")).append(" ");
+            }
+            case DealAnswerPayload.ARG_BROKE -> { // when selling: "here you pay for the shop's quality"
+                mod = prem > 0.02 ? 1 + prem * 0.5 : prem < 0 ? 0.94 : 0.99;
+                say.append(buyLine(mod > 1 ? "rep_good" : "rep_bad")).append(" ");
+            }
+            default -> {}
+        }
+        // 1.0 charisma: a charismatic owner gets a higher maximum, more concessions and fewer offended buyers
+        double hb = dev.tcgshop.shop.Charisma.haggleBonus(world.getServer(), owner.getUUID());
+        long base = Math.round(ceilPrice * mod);
+        long eff = Math.round(base * (1 + 0.4 * hb));
+        if (visitor != null && visitor.priceCap > 0) // 0.9 events: charisma never pushes a capped visitor past its cap
+            eff = Math.max(base, Math.min(eff, Math.round(market * Math.max(visitor.priceCap, 1.0))));
+        if (counter > ceilPrice * 1.6 * (1 + 0.5 * hb) + 5) { // you ask for an outrageous amount: takes offense
+            patience -= 2;
+            mood -= 1;
+            say.append(buyLine("insulted"));
+            if (patience <= 0) { walkAway(owner, world, z, say); return; }
+            updateDeal(owner, say);
+            return;
+        }
+        boolean last = action == DealAnswerPayload.ARG_MAX;
+        // 1.0 missions luck: a price just above the buyer's limit (within 8 %) is sometimes accepted anyway
+        boolean lucky = counter <= eff * 1.08 && !(visitor != null && visitor.priceCap > 0) && random.nextDouble() < dev.tcgshop.shop.ShopMissions.acceptBonus(z);
+        if (counter <= eff || lucky || (last && counter <= eff * 1.05 && random.nextBoolean())) {
+            dealPrice = counter;
+            acceptDeal(owner);
+            return;
+        }
+        if (last) { walkAway(owner, world, z, say.append(buyLine("final_no"))); return; }
+        patience--;
+        if (patience <= 0) { walkAway(owner, world, z, say.append(buyLine("walkaway"))); return; }
+        double[] conc = {0.45, 0.5, 0.3, 0.25, 0.6, 0.45};
+        double cc = Math.min(0.85, conc[pi] * (1 + 1.6 * hb));
+        long next = Math.min(eff, Math.round(dealPrice + (counter - dealPrice) * cc));
+        if (next <= dealPrice) say.append(buyLine("hold", PriceService.format(dealPrice)));
+        else {
+            dealPrice = next;
+            say.append(buyLine("counter", PriceService.format(dealPrice)));
+        }
+        updateDeal(owner, say);
+    }
+
+    /** "Let me think about it" with a customer buying from you: sometimes goes up a bit; if you push too much it gets tired. */
+    private void thinkBuy(ServerPlayer owner, ServerLevel world, ShopZones.Zone z) {
+        thinks++;
+        if (thinks > 2) patience--;
+        if (patience <= 0) { walkAway(owner, world, z, buyLine("walkaway")); return; }
+        double[] raise = {0.35, 0.45, 0.2, 0.25, 0.6, 0.4};
+        double hb = dev.tcgshop.shop.Charisma.haggleBonus(world.getServer(), owner.getUUID()); // 1.0: charisma, more likely to go up
+        if (random.nextDouble() < Math.min(0.9, raise[Math.max(0, Math.min(5, persona))] * (1 + hb)) && dealPrice < ceilPrice) {
+            dealPrice = Math.min(ceilPrice, Math.round(dealPrice * (1.03 + random.nextDouble() * 0.05)));
+            long tip = currentTip(); // 1.0: now above your asking price: it says the extra is a tip
+            updateDeal(owner, tip > 0 ? NpcLines.random(random, "tip_offer", PriceService.format(tip)) : buyLine("think_raise", PriceService.format(dealPrice)));
+        } else updateDeal(owner, buyLine("think_same"));
+    }
+
+    /** "I'm interested, let me think about it": sometimes goes down a bit; if you push too much it gets tired. */
+    private void think(ServerPlayer owner, ServerLevel world, ShopZones.Zone z) {
+        thinks++;
+        if (thinks > 2) patience--;
+        if (patience <= 0) { walkAway(owner, world, z, NpcLines.random(random, "neg_walkaway_" + pk()).copy()); return; }
+        double[] lower = {0.25, 0.5, 0.2, 0.35, 0.7, 0.45};
+        double hb = dev.tcgshop.shop.Charisma.haggleBonus(world.getServer(), owner.getUUID()); // 1.0: charisma, more likely to go down
+        long low = Math.max(floorPrice, sellFloor(ShopServer.priceOf(dealItem, 1.0))); // 1.0: never below the sell floor
+        if (random.nextDouble() < Math.min(0.9, lower[Math.max(0, persona)] * (1 + hb)) && dealPrice > low) {
+            dealPrice = Math.max(low, Math.round(dealPrice * (0.92 + random.nextDouble() * 0.05)));
+            updateDeal(owner, NpcLines.random(random, "neg_think_lower", PriceService.format(dealPrice)));
+        } else updateDeal(owner, NpcLines.random(random, "neg_think_same").copy());
+    }
+
+    /** Leaves without a deal because you can't agree (not a rejection from you: neutral review). */
+    private void walkAway(ServerPlayer owner, ServerLevel world, ShopZones.Zone z, Component line) {
+        mood = Math.min(mood, 3);
+        reviewKey = "deal_walk";
+        NpcLines.speak(this, line);
+        closeDeal(owner, line, OUT_WALK, 0);
+        leave(world, z, null);
+    }
+
+    private void updateDeal(ServerPlayer owner, Component line) {
+        if (!Net.INSTANCE.canSend(owner, DealOpenPayload.ID)) return;
+        long market = ShopServer.priceOf(dealItem, 1.0);
+        Net.INSTANCE.send(owner, new DealOpenPayload(getId(), getDisplayName(), line, dealItem, dealPrice, market, dealMode, dealWant,
+                dealWant.isEmpty() ? 0 : ShopServer.priceOf(dealWant, 1.0), persona, patience, maxPatience, askForPayload(), dealFlags(owner),
+                dealOdds(owner)));
+    }
+
+    /** Closes the deal window on the client showing the last line. */
+    private void closeDeal(ServerPlayer owner, Component line, int outcome, long finalPrice) {
+        dealNotified = true;
+        sendClosed(owner, line, outcome, finalPrice);
+    }
+
+    /** Sends the close to a player without marking the deal as closed (e.g. to someone answering a deal that isn't theirs). */
+    private void sendClosed(ServerPlayer owner, Component line, int outcome, long finalPrice) {
+        if (!Net.INSTANCE.canSend(owner, DealOpenPayload.ID)) return;
+        // in a closed deal, patience carries the outcome (OUT_*) and price the final price, so the window can show it
+        // ask: your asking price, so the window can show the tip included in the final price (BUY deals only)
+        Net.INSTANCE.send(owner, new DealOpenPayload(getId(), getDisplayName(), line, ItemStack.EMPTY, finalPrice, 0, DealOpenPayload.CLOSED,
+                ItemStack.EMPTY, 0, persona, outcome, maxPatience, outcome == OUT_DEAL ? askForPayload() : 0, 0, 0));
+    }
+
+    private void acceptDeal(ServerPlayer owner) {
+        ServerLevel world = owner.serverLevel();
+        ShopZones.Zone z = ShopZones.get(world).byId(zoneId);
+        if (state != State.WAIT_DEAL || z == null || !z.owner.equals(owner.getUUID()) || dealItem.isEmpty()) return;
+        long market = ShopServer.priceOf(dealItem, 1.0);
+        long tip = currentTip(); // 1.0: BUY deal above your asking price
+        switch (dealMode) {
+            case DealOpenPayload.SELL -> { // you buy from it
+                // 1.0: the market went up during the deal and the agreed price fell under the sell floor: the seller
+                // raises it to the floor and asks again instead of selling below it (no path beats the quick-sell)
+                long minSell = sellFloor(market);
+                if (dealPrice < minSell) {
+                    dealPrice = minSell;
+                    floorPrice = Math.max(floorPrice, minSell);
+                    updateDeal(owner, NpcLines.random(random, "neg_hold_" + pk(), PriceService.format(dealPrice)));
+                    return;
+                }
+                if (!CobbleDollarsBridge.tryCharge(owner, dealPrice)) {
+                    owner.displayClientMessage(Component.translatable("tcgshop.shop.no_money", PriceService.format(dealPrice)).withStyle(ChatFormatting.RED), true);
+                    updateDeal(owner, NpcLines.random(random, "neg_no_money"));
+                    return;
+                }
+                give(owner, dealItem.copy());
+                ShopZones.get(world).addCost(owner.getUUID(), dealPrice);
+                if (dealPrice < market) CardAdvancements.grant(owner, "deal_bargain");
+            }
+            case DealOpenPayload.TRADE -> { // you trade your displayed card for theirs
+                ShopDisplayBlockEntity be = targetDisplay(world);
+                if (be == null || !ItemStack.isSameItemSameComponents(be.getItem(targetSlot), dealWant)) {
+                    owner.displayClientMessage(Component.translatable("tcgshop.deal.gone").withStyle(ChatFormatting.GRAY), true);
+                    closeDeal(owner, Component.translatable("tcgshop.deal.gone"), OUT_UNKNOWN, 0);
+                    leave(world, z, null);
+                    return;
+                }
+                ItemStack got = be.removeItem(targetSlot, 1);
+                give(owner, dealItem.copy());
+                setItemSlot(EquipmentSlot.MAINHAND, got);
+                setDropChance(EquipmentSlot.MAINHAND, 0f);
+                CardAdvancements.grant(owner, "npc_trade");
+            }
+            default -> { // you sell your product at the price it offers
+                ShopDisplayBlockEntity be = targetDisplay(world);
+                if (be == null || !ItemStack.isSameItemSameComponents(be.getItem(targetSlot), dealItem)) {
+                    owner.displayClientMessage(Component.translatable("tcgshop.deal.gone").withStyle(ChatFormatting.GRAY), true);
+                    closeDeal(owner, Component.translatable("tcgshop.deal.gone"), OUT_UNKNOWN, 0);
+                    leave(world, z, null);
+                    return;
+                }
+                ItemStack sold = be.getItem(targetSlot).copyWithCount(1);
+                // 1.1: the tip inside the price never goes over the cap (currentTip is already capped)
+                if (askPrice > 0 && dealPrice > askPrice + tip) dealPrice = askPrice + tip;
+                dev.tcgshop.events.EventManager.saleTipBudget = Math.max(0, dev.tcgshop.shop.TipLedger.cap(Long.MAX_VALUE) - tip);
+                try {
+                    ShopServer.sellToNpc(world, z, be, targetSlot, dealPrice);
+                } finally {
+                    dev.tcgshop.events.EventManager.saleTipBudget = Long.MAX_VALUE;
+                }
+                setItemSlot(EquipmentSlot.MAINHAND, sold);
+                setDropChance(EquipmentSlot.MAINHAND, 0f);
+                if (dealPrice > market) CardAdvancements.grant(owner, "deal_above_market");
+                if (tip > 0) { // the tip is already inside dealPrice (paid into the till): only recorded and announced
+                    dealTipped = true; // no second, voluntary tip at checkout for this purchase
+                    dev.tcgshop.shop.TipLedger.record(world.getServer(), owner.getUUID(), tip, world.getDayTime() / 24000);
+                    owner.displayClientMessage(Component.translatable("tcgshop.tip.received", getDisplayName(),
+                            Component.literal(PriceService.format(tip)).withStyle(ChatFormatting.GOLD)).withStyle(ChatFormatting.YELLOW), false);
+                }
+            }
+        }
+        z.dealsAccepted++;
+        // 1.0 charisma: every closed deal gives XP, more if you haggled a better price than the customer's opening one
+        // (not with a generous customer: their price only moves through charm, which already gave its own XP)
+        boolean won = !generous && openPrice > 0 && (dealMode == DealOpenPayload.SELL ? dealPrice < openPrice : dealMode == DealOpenPayload.BUY && dealPrice > openPrice);
+        dev.tcgshop.shop.Charisma.onDeal(world.getServer(), owner.getUUID(), won);
+        mood += 2;
+        reviewKey = "deal_yes";
+        ShopZones.get(world).setDirty();
+        CardAdvancements.grant(owner, "first_deal");
+        Component done;
+        if (persona >= 0 && dealMode == DealOpenPayload.SELL) done = NpcLines.random(random, "neg_accept_" + pk());
+        else if (persona >= 0 && dealMode == DealOpenPayload.BUY && tip > 0)
+            done = NpcLines.random(random, "tip_accept", PriceService.format(tip)); // 1.0: pays above your price: says it's a tip
+        else if (persona >= 0 && dealMode == DealOpenPayload.BUY)
+            // pays you above market and happily thanks to the shop's reputation
+            done = dealPrice > market * 1.02 && z.premiumFor(dealItem) > 0.01 && random.nextFloat() < 0.75f
+                    ? NpcLines.random(random, "overpay_happy") : buyLine("accept");
+        else done = NpcLines.random(random, "deal_accepted");
+        NpcLines.speak(this, done);
+        closeDeal(owner, done, OUT_DEAL, dealPrice);
+        dealItem = ItemStack.EMPTY;
+        leave(world, z, null);
+        ShopServer.syncZones(world.getServer());
+    }
+
+    private static void give(ServerPlayer owner, ItemStack st) {
+        dev.tcgshop.advancement.CardAdvancements.noteObtained(owner, st); // 1.1: an NPC gift counts for the set reward
+        if (CardInfo.isCard(st) && CollectionService.store(owner, List.of(st.copy()))) return;
+        owner.getInventory().placeItemBackInInventory(st);
+    }
+
+    @Override
+    public String[] battlePool() { return THIEF_POOL; }
+
+    @Override
+    public void onBattleEnd(ServerPlayer player, boolean playerWon) {
+        if (!(level() instanceof ServerLevel world)) return;
+        if (playerWon) {
+            CardAdvancements.grant(player, "battle_win");
+            hurt(world.damageSources().playerAttack(player), 1000f);
+        } else {
+            ShopZones.Zone z = ShopZones.get(world).byId(zoneId);
+            if (z != null) { // 1.0 beta 3: same path as any escape (lines, extra items, reports)
+                ShopZones.get(world).setDirty();
+                if (!z.owner.equals(player.getUUID()) && !loot.isEmpty())
+                    player.displayClientMessage(Component.translatable("tcgshop.thief.escaped", getDisplayName(), loot.getDisplayName()).withStyle(ChatFormatting.RED), false);
+                escapeWithLoot(world, z);
+                return;
+            }
+            NpcLines.sayNear(this, "thief_escape");
+            player.displayClientMessage(Component.translatable("tcgshop.thief.escaped", getDisplayName(), loot.getDisplayName()).withStyle(ChatFormatting.RED), false);
+            discard();
+        }
+    }
+
+    /** Normal customers can't be hit (they complain); thieves can. */
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        // 0.9.5: if something hits it (player, creature, arrow...) while seated or going to sit, it jumps up and leaves
+        if (level() instanceof ServerLevel sw && (state == State.SIT || state == State.SIT_GO) && amount > 0
+                && (source.getEntity() != null || source.getDirectEntity() != null)) {
+            ShopZones.Zone z = zoneId == null ? null : ShopZones.get(sw).byId(zoneId);
+            if (state == State.SIT) emote(EMOTE_ANGRY);
+            standUp(sw);
+            if (z != null) leave(sw, z, null);
+        }
+        // 1.0 beta 3: an armed thief hit by a player before it struck goes loud (strikes and fights back)
+        if (type() == Type.THIEF && isArmedThief() && state != State.FLEE && source.getEntity() instanceof Player) provoked = true;
+        if (type() != Type.THIEF && source.getEntity() instanceof Player p && !p.isCreative()) {
+            if (!level().isClientSide && tickCount % 2 == 0) {
+                NpcLines.sayNear(this, "ouch");
+                mood -= 2;
+                reviewKey = "hit";
+            }
+            return false;
+        }
+        return super.hurt(source, amount);
+    }
+
+    @Override
+    public void die(DamageSource source) {
+        super.die(source);
+        if (!(level() instanceof ServerLevel world) || loot.isEmpty()) return;
+        ShopZones.Zone z = zoneId == null ? null : ShopZones.get(world).byId(zoneId);
+        if (z != null) {
+            // 1.0 beta 3: killed before escaping: everything it carried goes back (or drops); armed thefts are reported as foiled
+            int items = 1 + haul.size();
+            long value = carriedValue();
+            boolean armed = isArmedThief();
+            int tier = thiefTier();
+            returnLoot(world, z);
+            z.detained++;
+            ServerPlayer owner = world.getServer().getPlayerList().getPlayer(z.owner);
+            if (owner != null) {
+                if (!armed) owner.displayClientMessage(Component.translatable("tcgshop.thief.recovered", getDisplayName()).withStyle(ChatFormatting.GREEN), false);
+                CardAdvancements.grant(owner, "catch_thief");
+                if (z.detained >= 10) CardAdvancements.grant(owner, "catch_thief_10");
+                if (fixedId() == FixedCustomers.THIEF) CardAdvancements.grant(owner, "catch_vinnie");
+            }
+            if (armed && !outcomeSent) {
+                outcomeSent = true;
+                ThiefTiers.onOutcome(world, z, this, tier, true, items, value, source.getEntity() instanceof ServerPlayer k ? k : null);
+            }
+        } else {
+            spawnAtLocation(loot);
+            for (Stolen s : haul) spawnAtLocation(s.stack());
+            haul.clear();
+        }
+        loot = ItemStack.EMPTY;
+    }
+
+    @Override
+    public boolean removeWhenFarAway(double distanceSquared) { return false; }
+
+    /** 0.9: on despawning or dying, frees its spot in the door queue and its path reservation. */
+    @Override
+    public void remove(net.minecraft.world.entity.Entity.RemovalReason reason) {
+        if (!level().isClientSide) {
+            dev.tcgshop.shop.ShopLife.forget(getUUID());
+            // 0.9.5: releases the chair and removes the invisible seat (no orphaned seats are ever left)
+            dev.tcgshop.shop.ShopSeats.release(getUUID());
+            if (getVehicle() instanceof ShopSeatEntity seat) {
+                stopRiding();
+                seat.discard();
+            }
+        }
+        super.remove(reason);
+    }
+
+    // ------------------------------------------------------------------ 0.9.5 seats and furniture
+
+    /**
+     * Tries to sit for a while (once per visit, by chance): looks for a free, reachable chair in the shop,
+     * reserves it and heads to it. false = doesn't sit (carries on as usual).
+     */
+    private boolean trySit(ServerLevel world, ShopZones.Zone z, boolean buyer) {
+        if (sitTried || !entered || type() == Type.THIEF || !dev.tcgshop.shop.ShopSeats.enabled()) return false;
+        if (random.nextDouble() >= (buyer ? dev.tcgshop.shop.ShopSeats.buyerSitChance() : dev.tcgshop.shop.ShopSeats.sitChance())) return false;
+        sitTried = true;
+        if (hostileNear(world, z)) return false; // with a monster nearby nobody sits (they'd stand up right away)
+        dev.tcgshop.shop.ShopSeats.Pick pick = dev.tcgshop.shop.ShopSeats.pickSeat(world, z, this);
+        if (pick == null) return false;
+        sitSeat = pick.seat();
+        sitStand = pick.stand();
+        sitBuyer = buyer;
+        sitBlocked = 0;
+        entityData.set(WANTS, false);
+        entityData.set(WAIT, -1);
+        emote(EMOTE_NONE);
+        state = State.SIT_GO;
+        timer = 20 * 20; // if it doesn't get there in 20 s, it forgets the chair
+        getNavigation().moveTo(sitStand.x, sitStand.y, sitStand.z, 0.8);
+        return true;
+    }
+
+    /**
+     * On the way to the chair: sits down on reaching it. If it's broken or someone else reserves it, tries another chair (once) or leaves;
+     * if someone is just passing over it (a pet, another customer...), waits a bit before giving up.
+     */
+    private void sitGoTick(ServerLevel world, ShopZones.Zone z) {
+        if (sitSeat == null || sitStand == null || !dev.tcgshop.shop.ShopSeats.stillSeat(world, sitSeat.pos())
+                || dev.tcgshop.shop.ShopSeats.reservedByOther(world, sitSeat.pos(), getUUID())) {
+            sitGiveUp(world, z);
+            return;
+        }
+        boolean free = dev.tcgshop.shop.ShopSeats.isFree(world, sitSeat.pos(), this);
+        if (tickCount % 5 == 0) sitBlocked = free ? 0 : sitBlocked + 1;
+        if (sitBlocked >= 6) { sitGiveUp(world, z); return; } // ~1.5 s occupied in a row: it's someone else's
+        Vec3 c = sitSeat.pos().getCenter();
+        double dx = c.x - getX(), dz = c.z - getZ();
+        if (free && dx * dx + dz * dz < 1.45 * 1.45 && Math.abs(getY() - sitSeat.pos().getY()) < 1.2) { sitDown(world, z); return; }
+        if (getNavigation().isDone() || tickCount % 40 == 0) getNavigation().moveTo(sitStand.x, sitStand.y, sitStand.z, 0.8);
+        if (timer <= 0) leave(world, z, null);
+    }
+
+    /** Lost its chair on the way: tries another free one only once; if there's none, leaves. */
+    private void sitGiveUp(ServerLevel world, ShopZones.Zone z) {
+        dev.tcgshop.shop.ShopSeats.release(getUUID());
+        if (!sitRetried && !hostileNear(world, z)) {
+            sitRetried = true;
+            dev.tcgshop.shop.ShopSeats.Pick pick = dev.tcgshop.shop.ShopSeats.pickSeat(world, z, this);
+            if (pick != null) {
+                sitSeat = pick.seat();
+                sitStand = pick.stand();
+                sitBlocked = 0;
+                timer = Math.max(timer, 20 * 12);
+                getNavigation().moveTo(sitStand.x, sitStand.y, sitStand.z, 0.8);
+                return;
+            }
+        }
+        leave(world, z, null);
+    }
+
+    private void sitDown(ServerLevel world, ShopZones.Zone z) {
+        getNavigation().stop();
+        ShopSeatEntity seat = ShopSeatEntity.spawn(world, sitSeat.pos(), sitSeat.seatY(), sitSeat.yaw(), sitStand);
+        if (!startRiding(seat, true)) {
+            seat.discard();
+            leave(world, z, null);
+            return;
+        }
+        state = State.SIT;
+        sitSince = world.getGameTime();
+        sitShared = 0;
+        timer = 20 * (10 + random.nextInt(31)); // 10-40 s
+        emote(sitBuyer ? EMOTE_LOVE : EMOTE_NONE);
+        if (random.nextFloat() < 0.65f) NpcLines.speak(this, dev.tcgshop.shop.ShopSeats.sitLine(random, sitBuyer));
+        // resting comfortably in a cozy shop leaves a good memory (a little)
+        if (!sitBuyer && "browse".equals(reviewKey) && random.nextFloat() < 0.3f) reviewKey = "env_cozy";
+        if (!sitBuyer && mood < 4 && random.nextFloat() < 0.2f) mood++;
+    }
+
+    /** Seated: rests looking at the shop; stands up when done, on an alarm, a fleeing thief or a nearby monster. */
+    private void sitTick(ServerLevel world, ShopZones.Zone z) {
+        if (!(getVehicle() instanceof ShopSeatEntity)) { leave(world, z, null); return; } // its chair was taken away
+        getNavigation().stop();
+        if (tickCount % 20 == 0 && sitDanger(world, z)) {
+            emote(EMOTE_ANGRY);
+            if (random.nextFloat() < 0.6f) NpcLines.speak(this, dev.tcgshop.shop.ShopSeats.startledLine(random));
+            leave(world, z, null);
+            return;
+        }
+        // someone else sat on the same chair (a player, the CobbleFurnies seat...): gives up the spot
+        if (tickCount % 20 == 0 && sitSeat != null) {
+            sitShared = dev.tcgshop.shop.ShopSeats.isFree(world, sitSeat.pos(), this) ? 0 : sitShared + 1;
+            if (sitShared >= 2) {
+                if (random.nextFloat() < 0.6f) NpcLines.speak(this, dev.tcgshop.shop.ShopSeats.standLine(random));
+                leave(world, z, null);
+                return;
+            }
+        }
+        if (timer <= 0) {
+            if (random.nextFloat() < 0.45f) NpcLines.speak(this, dev.tcgshop.shop.ShopSeats.standLine(random));
+            leave(world, z, null);
+        }
+    }
+
+    private boolean sitDanger(ServerLevel world, ShopZones.Zone z) {
+        if (dev.tcgshop.shop.ShopSeats.alarmSince(z.id, sitSince)) return true;
+        if (!world.getEntitiesOfClass(CustomerEntity.class, z.box().inflate(4), CustomerEntity::isFleeingThief).isEmpty()) return true;
+        return hostileNear(world, z);
+    }
+
+    /**
+     * A scary monster nearby? Only counts if it's inside the shop or in sight (one on the other side of the wall
+     * isn't scary), and a scalper only if it's going after someone.
+     */
+    private boolean hostileNear(ServerLevel world, ShopZones.Zone z) {
+        return !world.getEntitiesOfClass(net.minecraft.world.entity.monster.Monster.class, getBoundingBox().inflate(7), e -> e.isAlive()
+                && (!(e instanceof ScalperEntity) || e.getTarget() != null)
+                && (z.contains(e.blockPosition()) || hasLineOfSight(e))).isEmpty();
+    }
+
+    /** Stands up (if seated) and releases the reserved chair. */
+    private void standUp(ServerLevel world) {
+        if (getVehicle() instanceof ShopSeatEntity seat) {
+            Vec3 st = seat.standPos();
+            stopRiding();
+            seat.discard();
+            if (st != null) teleportTo(st.x, st.y, st.z);
+        }
+        dev.tcgshop.shop.ShopSeats.release(getUUID());
+        sitSeat = null;
+        sitStand = null;
+    }
+
+    /** Stops to look at a nearby piece of furniture (CobbleFurnies, Cozyhome...) or plush. */
+    private boolean startLook(ServerLevel world, ShopZones.Zone z) {
+        furnLooks++;
+        BlockPos p = dev.tcgshop.shop.ShopSeats.randomDecorNear(world, z, blockPosition(), 12, random);
+        if (p == null) return false;
+        lookPos = p;
+        lookPlush = dev.tcgshop.shop.ShopSeats.isPlushAt(world, p);
+        lookArrived = false;
+        state = State.LOOK;
+        timer = 20 * 8; // time to get there
+        getNavigation().moveTo(p.getX() + 0.5, p.getY(), p.getZ() + 0.5, 0.8);
+        return true;
+    }
+
+    private void lookTick(ServerLevel world, ShopZones.Zone z) {
+        if (lookPos == null || world.getBlockState(lookPos).isAir()) { state = State.ENTER; return; }
+        Vec3 c = lookPos.getCenter();
+        double dx = c.x - getX(), dz = c.z - getZ(), d2 = dx * dx + dz * dz;
+        if (!lookArrived) {
+            if (d2 < 2.4 * 2.4 || (getNavigation().isDone() && d2 < 4.5 * 4.5)) {
+                lookArrived = true;
+                getNavigation().stop();
+                timer = 50 + random.nextInt(70); // 2.5-6 s looking at it
+                emote(lookPlush ? EMOTE_LOVE : EMOTE_THINK);
+                if (random.nextFloat() < 0.5f) NpcLines.speak(this, dev.tcgshop.shop.ShopSeats.lookLine(random, lookPlush));
+                if (lookPlush) world.sendParticles(ParticleTypes.HEART, c.x, c.y + 0.6, c.z, 2, 0.2, 0.15, 0.2, 0);
+            } else {
+                if (getNavigation().isDone() || tickCount % 40 == 0) getNavigation().moveTo(c.x, lookPos.getY(), c.z, 0.8);
+                if (timer <= 0) { state = State.ENTER; emote(EMOTE_NONE); } // can't get there: keeps browsing products
+                return;
+            }
+        }
+        getLookControl().setLookAt(c.x, c.y, c.z);
+        if (timer <= 0) {
+            emote(EMOTE_NONE);
+            lookPos = null;
+            state = State.ENTER;
+        }
+    }
+
+    /**
+     * Seated on an invisible seat: the feet sit right at seat height (without the vanilla mount offset).
+     * On the server the seat is a ShopSeatEntity; the client only sees a vanilla armor stand, so there it's recognized by
+     * its synced flags (marker + invisible + no gravity). A shop customer only rides those.
+     */
+    @Override
+    public Vec3 getVehicleAttachmentPoint(net.minecraft.world.entity.Entity vehicle) {
+        if (vehicle instanceof ShopSeatEntity || (vehicle instanceof net.minecraft.world.entity.decoration.ArmorStand a
+                && a.isMarker() && a.isInvisible() && a.isNoGravity()))
+            return vehicle.getPassengerRidingPosition(this).subtract(vehicle.position());
+        return super.getVehicleAttachmentPoint(vehicle);
+    }
+
+    /** The seat isn't saved: when seated, the customer is saved alone (as if standing next to it). */
+    @Override
+    public boolean save(CompoundTag nbt) {
+        if (getVehicle() instanceof ShopSeatEntity) return saveAsPassenger(nbt);
+        return super.save(nbt);
+    }
+
+    /** 0.9 events: its door is blocked and another is open: enters through that one (ShopLife.queueGate). */
+    public void redirectDoor(BlockPos door, Vec3 outside) {
+        entryDoor = door;
+        entryOutside = outside;
+        getNavigation().stop();
+    }
+
+    // ------------------------------------------------------------------ selftest hooks (StaffSelfTest)
+
+    /** Selftest only: turns this customer into a thief of `tier` already fleeing with `stolen` (no Pokémon duel). */
+    public void debugFleeingThief(ShopZones.Zone z, ItemStack stolen, int tier) {
+        zoneId = z.id;
+        entityData.set(TYPE, Type.THIEF.ordinal());
+        entityData.set(TIER, ThiefTiers.clamp(tier));
+        loot = stolen.copy();
+        state = State.FLEE;
+        fleePhaseTicks = 60;
+        entered = true;
+        detected = true;
+        duelled = true;
+        slipsLeft = 0;
+        setPersistenceRequired();
+    }
+
+    /** Selftest only: a customer already in the register queue holding `item` (paid price `price`). */
+    public void debugCheckout(ShopZones.Zone z, ItemStack item, long price, BlockPos reg) {
+        zoneId = z.id;
+        entityData.set(TYPE, Type.REGULAR.ordinal());
+        entered = true;
+        bought = item.copy();
+        payPrice = price;
+        reviewKey = "fair";
+        joinQueue();
+        register = reg;
+        setPersistenceRequired();
+    }
+
+    /** Selftest only: a haggler that has been waiting a while for the owner's answer on `item` (display slot), offering `offer`. */
+    public void debugHaggler(ShopZones.Zone z, BlockPos display, int slot, ItemStack item, long offer, long ceil, long ask) {
+        zoneId = z.id;
+        entityData.set(TYPE, Type.HAGGLER.ordinal());
+        entered = true;
+        target = display;
+        targetSlot = slot;
+        dealItem = item.copyWithCount(1);
+        dealMode = DealOpenPayload.BUY;
+        persona = 0;
+        dealPrice = offer;
+        openPrice = offer;
+        ceilPrice = ceil;
+        askPrice = ask;
+        generous = isGenerous(DealOpenPayload.BUY, 0, offer, ask, ShopServer.priceOf(dealItem, 1.0), false);
+        charmMask = 0;
+        charmCount = 0;
+        mood = 3;
+        patience = maxPatience = 4;
+        state = State.WAIT_DEAL;
+        dealNotified = true;
+        waitMax = 20 * 60;
+        timer = waitMax - 20 * 20;
+        setPersistenceRequired();
+    }
+
+    /** Selftest only: a short description of what it is doing (for failure messages). */
+    public String debugState() {
+        return state + " queue=" + queuePos + " counter=" + atCounter + " timer=" + timer + " service=" + serviceTicks + " at=" + blockPosition().toShortString()
+                + " reg=" + (register == null ? "-" : register.toShortString()) + " bought=" + !bought.isEmpty() + " removed=" + isRemoved();
+    }
+
+    /** Selftest only: still waiting for a deal answer? */
+    public boolean debugWaitingDeal() { return state == State.WAIT_DEAL; }
+
+    /** Selftest only: is it still waiting in the register queue? */
+    public boolean debugInQueue() { return state == State.CHECKOUT && !bought.isEmpty(); }
+
+    @Override
+    public void addAdditionalSaveData(CompoundTag nbt) {
+        super.addAdditionalSaveData(nbt);
+        if (zoneId != null) nbt.putUUID("Zone", zoneId);
+        if (!loot.isEmpty()) nbt.put("Loot", loot.save(registryAccess()));
+        if (!bought.isEmpty()) nbt.put("Bought", bought.save(registryAccess()));
+        nbt.putLong("PayPrice", payPrice);
+        nbt.putInt("Type", entityData.get(TYPE));
+        // 1.0 beta 3: unique customer, thief tier and extra loot (new keys; older saves simply lack them)
+        if (fixedId() >= 0) nbt.putInt("FixedId", fixedId());
+        if (entityData.get(TIER) > 0) nbt.putInt("ThiefTier", entityData.get(TIER));
+        nbt.putInt("NpcSkin", npcSkin());
+        nbt.putString("NpcTitle", npcTitle());
+        if (!entityData.get(EV_ROLE).isEmpty() && visitor == null) nbt.putString("NpcRole", entityData.get(EV_ROLE));
+        if (!haul.isEmpty()) {
+            net.minecraft.nbt.ListTag hl = new net.minecraft.nbt.ListTag();
+            for (Stolen s : haul) {
+                CompoundTag c = new CompoundTag();
+                c.putLong("Pos", s.pos().asLong());
+                c.putInt("Slot", s.slot());
+                c.put("Item", s.stack().save(registryAccess()));
+                hl.add(c);
+            }
+            nbt.put("Haul", hl);
+        }
+        if (target != null) nbt.putLong("LootPos", target.asLong());
+        nbt.putInt("LootSlot", targetSlot);
+        nbt.putInt("TheftWeight", theftWeight);
+        nbt.putInt("Slips", slipsLeft);
+        nbt.putBoolean("Detected", detected);
+        // 0.9.5: when seated it's saved at the chair's position: on load it appears standing next to it
+        if (getVehicle() instanceof ShopSeatEntity seat && seat.standPos() != null) {
+            Vec3 st = seat.standPos();
+            nbt.putDouble("SitStandX", st.x);
+            nbt.putDouble("SitStandY", st.y);
+            nbt.putDouble("SitStandZ", st.z);
+        }
+    }
+
+    @Override
+    public void readAdditionalSaveData(CompoundTag nbt) {
+        super.readAdditionalSaveData(nbt);
+        if (nbt.hasUUID("Zone")) zoneId = nbt.getUUID("Zone");
+        entityData.set(TYPE, nbt.getInt("Type"));
+        loot = nbt.contains("Loot") ? ItemStack.parse(registryAccess(), nbt.get("Loot")).orElse(ItemStack.EMPTY) : ItemStack.EMPTY;
+        bought = nbt.contains("Bought") ? ItemStack.parse(registryAccess(), nbt.get("Bought")).orElse(ItemStack.EMPTY) : ItemStack.EMPTY;
+        payPrice = nbt.getLong("PayPrice");
+        // 1.0 beta 3 (gear and health are restored by vanilla with the equipment and attributes)
+        entityData.set(FIXED, nbt.contains("FixedId") ? nbt.getInt("FixedId") : -1);
+        entityData.set(TIER, nbt.getInt("ThiefTier"));
+        if (nbt.contains("NpcSkin")) entityData.set(SKIN, nbt.getInt("NpcSkin"));
+        if (nbt.contains("NpcTitle")) entityData.set(TITLE, nbt.getString("NpcTitle"));
+        if (nbt.contains("NpcRole")) entityData.set(EV_ROLE, nbt.getString("NpcRole"));
+        haul.clear();
+        net.minecraft.nbt.ListTag hl = nbt.getList("Haul", net.minecraft.nbt.Tag.TAG_COMPOUND);
+        for (int i = 0; i < hl.size(); i++) {
+            CompoundTag c = hl.getCompound(i);
+            ItemStack st = ItemStack.parse(registryAccess(), c.get("Item")).orElse(ItemStack.EMPTY);
+            if (!st.isEmpty()) haul.add(new Stolen(BlockPos.of(c.getLong("Pos")), c.getInt("Slot"), st));
+        }
+        if (nbt.contains("LootPos")) target = BlockPos.of(nbt.getLong("LootPos"));
+        if (nbt.contains("LootSlot")) targetSlot = nbt.getInt("LootSlot");
+        theftWeight = nbt.contains("TheftWeight") ? Math.max(1, nbt.getInt("TheftWeight")) : 1;
+        slipsLeft = nbt.getInt("Slips");
+        detected = nbt.getBoolean("Detected");
+        if (nbt.contains("SitStandY")) setPos(nbt.getDouble("SitStandX"), nbt.getDouble("SitStandY"), nbt.getDouble("SitStandZ"));
+        exit = null; // on reload: walks away from wherever it is
+        reviewed = true;
+        dev.tcgshop.shop.ShopLife.forget(getUUID()); // 0.9: whatever it had left in the door queue is no longer valid
+        // on reload: the thief keeps fleeing with its loot; whoever was going to pay pays; the rest leave
+        if (!loot.isEmpty()) { state = State.FLEE; fleePhaseTicks = 40; }
+        else if (!bought.isEmpty()) { joinQueue(); register = null; } // no register: will pay on recalculation (pay)
+        else state = State.LEAVE;
+    }
+}

@@ -10,7 +10,7 @@ on top of these models, so the coordinates below must match it:
   * fortune wheel: wheel centre (8, 16.5, 4.9) px, radius 7.4 px, in front of the back board face at z = 5;
   * blackjack table: felt top at y = 13 px.
 
-Usage: python tools/gen_casino_assets.py  (only writes new files under src/main/resources)
+Usage: python tools/gen_casino_assets.py  (only writes new files under common/src/main/resources)
 """
 import importlib.util
 import json

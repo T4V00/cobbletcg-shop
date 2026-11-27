@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """NPC skin generator (1.0): 64x64 player-format skins with BOTH layers painted.
 
-Writes src/main/resources/assets/tcgshop/textures/entity/npc/:
+Writes common/src/main/resources/assets/tcgshop/textures/entity/npc/:
   <role>_<f|m>_<n>.png   procedural skins per role and sex (f = slim 3px arms, m = wide 4px arms)
   fixed_<n>.png          the 10 fixed unique customers (hand-designed, see FIXED below)
   backpack_<n>.png       32x32 textures of the 3D backpack drawn by TcgNpcRenderer
@@ -23,7 +23,7 @@ import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "src/main/resources/assets/tcgshop/textures/entity/npc"
+OUT = ROOT / "common/src/main/resources/assets/tcgshop/textures/entity/npc"
 
 T = (0, 0, 0, 0)
 
@@ -38,6 +38,8 @@ COUNTS = {
     "furniture_seller": 8,
     "trader": 10,
     "scalper": 10,
+    "mayor": 6,      # 1.1: the Mayor (taxes)
+    "engineer": 8,   # 1.1: the CREATive Engineer
 }
 BACKPACK_COLORS = 8
 
@@ -1312,9 +1314,113 @@ def scalper(n, female):
     return s
 
 
+def mayor(n, female):
+    """1.1: the Mayor. Dark three-piece suit, white shirt and tie, a diagonal sash with a golden medallion of office,
+    sometimes a top hat or gold-rimmed glasses. Original design, generic shapes only."""
+    rng = random.Random(f"mayor-{n}-{female}")
+    s = Skin(female, rng)
+    look = base_look(rng, female, n * 5 + 1, age=rng.choice(("adult", "old", "old")))
+    if not female:
+        look["facial"] = rng.choice(("mustache", "mustache", "beard", None))
+        if look["hair_style"] in ("mohawk", "spiky", "afro", "buzz"):
+            look["hair_style"] = "side_part"
+    else:
+        look["hair_style"] = rng.choice(("bun", "bob", "short", "ponytail"))
+    look["smile"] = True
+    paint_head(s, look)
+    suit = rng.choice((hexc("1F2A44"), hexc("2A2A30"), hexc("3A1F2A"), hexc("1E3326"), hexc("33302A"), hexc("2C2440")))
+    sash = rng.choice((hexc("B0262E"), hexc("1E5AA8"), hexc("2E7D32"), hexc("7B1FA2")))
+    top_base(s, look, "long", WHITE)
+    tie(s, shade(sash, -20))
+    bottom(s, look, "chinos", shade(suit, -6), BLACK, "dress")
+    outer(s, look, "blazer", suit, shade(suit, -25))
+    # waistcoat buttons
+    for y in (6, 8):
+        s.put("body", "over", "front", 3, y, GOLD)
+    # sash over the right shoulder down to the left hip (front), and its back half
+    for y in range(12):
+        x = 7 - (y * 7) // 11
+        s.put("body", "over", "front", x, y, sash, 2)
+        if 0 <= x - 1:
+            s.put("body", "over", "front", x - 1, y, shade(sash, -18), 2)
+        bx = (y * 7) // 11
+        s.put("body", "over", "back", bx, y, sash, 2)
+    s.fill("body", "over", "top", sash, 2, x0=6, x1=7)
+    # medallion of office on a golden chain
+    chain(s, GOLD)
+    s.put("body", "over", "front", 3, 3, hexc("FFE58A"))
+    s.put("body", "over", "front", 4, 3, GOLD)
+    s.put("body", "over", "front", 3, 4, GOLD)
+    s.put("body", "over", "front", 4, 4, hexc("C9962A"))
+    if n % 2 == 0:
+        top_hat(s, BLACK if n % 4 == 0 else shade(suit, -15), sash)
+    if n % 3 == 1:
+        glasses(s, GOLD)
+    gloves(s, WHITE) if n % 3 == 2 else watch(s, GOLD)
+    return s
+
+
+def hard_hat(s, c):
+    """Work helmet: a dome on the hat layer with a ridge and a brim all around."""
+    s.fill("head", "over", "top", c, 2)
+    for f in SIDES:
+        s.fill("head", "over", f, c, 2, y0=0, y1=1)
+        s.fill("head", "over", f, shade(c, -28), 1, y0=2, y1=2)
+    s.fill("head", "over", "top", shade(c, 22), 0, x0=3, x1=4)
+    s.put("head", "over", "front", 3, 0, shade(c, 30))
+    s.put("head", "over", "front", 4, 0, shade(c, 30))
+
+
+def work_goggles(s, frame, lens):
+    """Round goggles pushed up on the forehead, with the strap around the head."""
+    for f in ("right", "left", "back"):
+        s.fill("head", "over", f, hexc("3A2A1E"), 1, y0=3, y1=3)
+    for x in (1, 2, 5, 6):
+        s.put("head", "over", "front", x, 3, lens)
+    for x in (0, 3, 4, 7):
+        s.put("head", "over", "front", x, 3, frame)
+    for x in (1, 2, 5, 6):
+        s.put("head", "over", "front", x, 2, frame)
+
+
+def engineer(n, female):
+    """1.1: the CREATive Engineer. Work shirt, brass-orange overalls with rivets, tool belt with a wrench, a work helmet
+    or a cap, round goggles, thick gloves and boots. Brass/steel palette of our own; no Create art."""
+    rng = random.Random(f"engineer-{n}-{female}")
+    s = Skin(female, rng)
+    look = base_look(rng, female, n * 7 + 2, age=rng.choice(("young", "adult", "adult", "old")))
+    paint_head(s, look)
+    shirt = rng.choice((hexc("4A5A6A"), hexc("5A6E7E"), hexc("6B5A4A"), hexc("3A4A3A")))
+    top_base(s, look, "long" if n % 3 else "tee", shirt, shade(shirt, -30))
+    overalls = rng.choice((hexc("C8862A"), hexc("B5762A"), hexc("8A6A3A"), hexc("3A7A7A")))
+    bottom(s, look, "cargo", shade(overalls, -10), hexc("4A3020"), "boots")
+    s.fill("body", "base", "front", overalls, 2, x0=1, x1=6, y0=4, y1=11)
+    s.fill("body", "base", "back", overalls, 2, y0=6, y1=11)
+    for x in (1, 6):
+        s.fill("body", "base", "front", overalls, 2, x0=x, x1=x, y0=0, y1=3)
+        s.fill("body", "base", "back", overalls, 2, x0=x, x1=x, y0=0, y1=5)
+        s.put("body", "base", "front", x, 4, hexc("E0C070"))  # brass rivets
+    s.fill("body", "base", "front", shade(overalls, -20), 0, x0=3, x1=4, y0=5, y1=6)  # bib pocket
+    # tool belt with a wrench and a gear badge
+    s.rows("body", "over", 10, 11, hexc("5A3A20"), 2)
+    s.put("body", "over", "front", 1, 9, SILVER)
+    s.put("body", "over", "front", 1, 8, SILVER)
+    s.put("body", "over", "front", 6, 10, hexc("E0C070"))
+    s.put("body", "over", "front", 5, 2, hexc("E0C070"))
+    s.put("body", "over", "front", 4, 2, shade(hexc("E0C070"), -25))
+    gloves(s, hexc("6B4A2A"))
+    if n % 3 != 2:
+        hard_hat(s, rng.choice((hexc("F2B233"), hexc("E8732A"), hexc("E8E8E8"))))
+    else:
+        cap(s, shade(overalls, -25), logo=hexc("E0C070"))
+    work_goggles(s, hexc("C9962A"), hexc("F0A040") if n % 2 else hexc("8AD0E0"))
+    return s
+
+
 ROLE_PAINTERS = {
     "customer": customer, "cashier": cashier, "guard": guard, "wholesaler": wholesaler, "beggar": beggar,
     "black_market": black_market, "furniture_seller": furniture_seller, "trader": trader, "scalper": scalper,
+    "mayor": mayor, "engineer": engineer,
 }
 
 

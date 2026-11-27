@@ -1,0 +1,35 @@
+// Shared by the loader projects (apply from: rootProject.file('gradle/graal-bundle.gradle')).
+// GraalVM 24.1.1 is NOT shipped as nested mods / jar-in-jar: the loader would put it alongside other mods' GraalVM
+// (Cobblemon 1.8 ships 22.3 unrelocated) and they clash. It ships as plain resources in graal/ (graal/<artifact>.jar +
+// graal/index.txt) and PtcgEngine loads it in an isolated class loader.
+configurations { graalBundle }
+
+dependencies {
+    for (String m : rootProject.graalModules) {
+        compileOnly("${m}:${rootProject.graalVersion}") { transitive = false }
+        graalBundle("${m}:${rootProject.graalVersion}") { transitive = false }
+    }
+}
+
+def graalOut = layout.buildDirectory.dir('graal-bundle')
+tasks.register('bundleGraal') {
+    inputs.files configurations.graalBundle
+    outputs.dir graalOut
+    doLast {
+        def dir = graalOut.get().dir('graal').asFile
+        project.delete(dir)
+        dir.mkdirs()
+        def names = []
+        configurations.graalBundle.resolvedConfiguration.resolvedArtifacts.each { a ->
+            def name = "${a.moduleVersion.id.name}-${a.moduleVersion.id.version}.jar"
+            java.nio.file.Files.copy(a.file.toPath(), new File(dir, name).toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            names << name
+        }
+        new File(dir, 'index.txt').text = names.sort().join(System.lineSeparator()) + System.lineSeparator()
+    }
+}
+
+processResources {
+    dependsOn 'bundleGraal'
+    from(graalOut)
+}

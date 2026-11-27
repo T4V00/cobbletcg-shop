@@ -9,7 +9,7 @@ import json
 import os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LANG = os.path.join(ROOT, "src", "main", "resources", "assets", "tcgshop", "lang")
+LANG = os.path.join(ROOT, "common", "src", "main", "resources", "assets", "tcgshop", "lang")
 
 # Each bubble <= ~90 letters (typed at 1.6 letters/tick and lasting 4.5-6 s).
 KEYS = {

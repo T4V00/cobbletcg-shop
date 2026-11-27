@@ -1,0 +1,144 @@
+{
+ "parent": "minecraft:block/block",
+ "textures": {
+  "body": "tcgshop:block/wall_freshener",
+  "noz": "tcgshop:block/wall_freshener_nozzle",
+  "particle": "tcgshop:block/wall_freshener"
+ },
+ "elements": [
+  {
+   "from": [
+    5,
+    4,
+    12.5
+   ],
+   "to": [
+    11,
+    13,
+    16
+   ],
+   "faces": {
+    "north": {
+     "texture": "#body",
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ]
+    },
+    "south": {
+     "texture": "#body"
+    },
+    "east": {
+     "texture": "#body"
+    },
+    "west": {
+     "texture": "#body"
+    },
+    "up": {
+     "texture": "#body"
+    },
+    "down": {
+     "texture": "#body"
+    }
+   }
+  },
+  {
+   "from": [
+    7,
+    13,
+    13
+   ],
+   "to": [
+    9,
+    14,
+    15
+   ],
+   "faces": {
+    "north": {
+     "texture": "#noz"
+    },
+    "south": {
+     "texture": "#noz"
+    },
+    "east": {
+     "texture": "#noz"
+    },
+    "west": {
+     "texture": "#noz"
+    },
+    "up": {
+     "texture": "#noz"
+    },
+    "down": {
+     "texture": "#noz"
+    }
+   }
+  },
+  {
+   "from": [
+    7.25,
+    11.5,
+    12
+   ],
+   "to": [
+    8.75,
+    12.5,
+    12.5
+   ],
+   "faces": {
+    "north": {
+     "texture": "#noz"
+    },
+    "south": {
+     "texture": "#noz"
+    },
+    "east": {
+     "texture": "#noz"
+    },
+    "west": {
+     "texture": "#noz"
+    },
+    "up": {
+     "texture": "#noz"
+    },
+    "down": {
+     "texture": "#noz"
+    }
+   }
+  },
+  {
+   "from": [
+    4.5,
+    3.5,
+    15.5
+   ],
+   "to": [
+    11.5,
+    4,
+    16
+   ],
+   "faces": {
+    "north": {
+     "texture": "#noz"
+    },
+    "south": {
+     "texture": "#noz"
+    },
+    "east": {
+     "texture": "#noz"
+    },
+    "west": {
+     "texture": "#noz"
+    },
+    "up": {
+     "texture": "#noz"
+    },
+    "down": {
+     "texture": "#noz"
+    }
+   }
+  }
+ ]
+}

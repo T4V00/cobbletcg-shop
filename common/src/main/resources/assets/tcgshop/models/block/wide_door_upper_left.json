@@ -1,0 +1,54 @@
+{
+ "parent": "minecraft:block/block",
+ "textures": {
+  "face": "tcgshop:block/wide_door_upper_left",
+  "edge": "tcgshop:block/wide_door_roll",
+  "particle": "tcgshop:block/wide_door_upper_left"
+ },
+ "elements": [
+  {
+   "from": [
+    0,
+    0,
+    13
+   ],
+   "to": [
+    16,
+    16,
+    16
+   ],
+   "faces": {
+    "north": {
+     "texture": "#face",
+     "uv": [
+      16,
+      0,
+      0,
+      16
+     ]
+    },
+    "south": {
+     "texture": "#face",
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ]
+    },
+    "east": {
+     "texture": "#edge"
+    },
+    "west": {
+     "texture": "#edge"
+    },
+    "up": {
+     "texture": "#edge"
+    },
+    "down": {
+     "texture": "#edge"
+    }
+   }
+  }
+ ]
+}

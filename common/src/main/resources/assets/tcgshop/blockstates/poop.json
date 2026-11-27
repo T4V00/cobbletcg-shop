@@ -1,0 +1,40 @@
+{
+ "variants": {
+  "big=false": [
+   {
+    "model": "tcgshop:block/poop",
+    "y": 0
+   },
+   {
+    "model": "tcgshop:block/poop",
+    "y": 90
+   },
+   {
+    "model": "tcgshop:block/poop",
+    "y": 180
+   },
+   {
+    "model": "tcgshop:block/poop",
+    "y": 270
+   }
+  ],
+  "big=true": [
+   {
+    "model": "tcgshop:block/poop_big",
+    "y": 0
+   },
+   {
+    "model": "tcgshop:block/poop_big",
+    "y": 90
+   },
+   {
+    "model": "tcgshop:block/poop_big",
+    "y": 180
+   },
+   {
+    "model": "tcgshop:block/poop_big",
+    "y": 270
+   }
+  ]
+ }
+}

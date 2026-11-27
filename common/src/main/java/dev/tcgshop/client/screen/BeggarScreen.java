@@ -1,0 +1,83 @@
+package dev.tcgshop.client.screen;
+
+import dev.masterball.api.platform.Platform;
+import dev.masterball.api.platform.ClientPlatform;
+import dev.tcgshop.client.binder.Ui;
+import dev.tcgshop.network.UiPayloads;
+import dev.tcgshop.pricing.PriceService;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import java.util.ArrayList;
+import java.util.List;
+
+/** Card beggar: give them coins, give them the card in your hand, say no or chase them off. */
+public class BeggarScreen extends Screen {
+    private final int id;
+    private final String name;
+    private final boolean hasCard;
+    private final List<int[]> rects = new ArrayList<>();
+    private final List<String> actions = new ArrayList<>();
+
+    public BeggarScreen(CompoundTag d) {
+        super(Component.translatable("tcgshop.beggar.title"));
+        id = d.getInt("id");
+        name = d.getString("name");
+        hasCard = d.getBoolean("card");
+    }
+
+    @Override
+    public boolean isPauseScreen() { return false; }
+
+    @Override
+    public void render(GuiGraphics ctx, int mx, int my, float delta) {
+        rects.clear();
+        actions.clear();
+        int w = 260, h = 172, x = (width - w) / 2, y = (height - h) / 2;
+        ctx.fill(x + 3, y + 4, x + w + 3, y + h + 4, 0x66000000);
+        Ui.roundGradient(ctx, x, y, w, h, 0xF02A2620, 0xF0161410);
+        Ui.roundGradient(ctx, x, y, w, 22, 0xFF7A6A52, 0xFF4A4038);
+        Draw.scaledCentered(ctx, Component.translatable("tcgshop.beggar.title").withStyle(ChatFormatting.BOLD), x + w / 2f, y + 7, 1f, 0xFFFFFFFF);
+        ctx.drawString(font, Component.literal(name).withStyle(ChatFormatting.YELLOW), x + 10, y + 28, 0xFFFFFFFF);
+        int ty = y + 40;
+        for (var l : font.split(Component.translatable("tcgshop.beggar.ask").withStyle(ChatFormatting.ITALIC), w - 20)) {
+            ctx.drawString(font, l, x + 10, ty, 0xFFDDD6C8);
+            ty += 10;
+        }
+        int by = y + h - 92, bw = (w - 28) / 3;
+        btn(ctx, x + 10, by, bw, 16, Component.literal(PriceService.format(50)), 0xFF5A7A3A, "give_50", mx, my);
+        btn(ctx, x + 14 + bw, by, bw, 16, Component.literal(PriceService.format(250)), 0xFF4A8A3A, "give_250", mx, my);
+        btn(ctx, x + 18 + bw * 2, by, bw, 16, Component.literal(PriceService.format(1000)), 0xFF3A9A4A, "give_1000", mx, my);
+        by += 20;
+        if (hasCard) btn(ctx, x + 10, by, w - 20, 16, Component.translatable("tcgshop.beggar.give_card"), 0xFF3A6FD8, "give_card", mx, my);
+        else Ui.text(ctx, Component.translatable("tcgshop.beggar.hold_card"), x, by + 4, w, 10, 0xFF8A8478, false);
+        by += 24;
+        int bw2 = (w - 24) / 2;
+        btn(ctx, x + 10, by, bw2, 16, Component.translatable("tcgshop.beggar.polite"), 0xFF4A4A58, "polite", mx, my);
+        btn(ctx, x + 14 + bw2, by, bw2, 16, Component.translatable("tcgshop.beggar.rude"), 0xFF8A1F1F, "rude", mx, my);
+        Ui.text(ctx, Component.translatable("tcgshop.beggar.hint"), x, y + h - 14, w, 10, 0xFF8A8478, false);
+    }
+
+    private void btn(GuiGraphics ctx, int x, int y, int w, int h, Component label, int color, String action, int mx, int my) {
+        Ui.button(ctx, x, y, w, h, label, mx, my, true, color);
+        rects.add(new int[]{x, y, w, h});
+        actions.add(action);
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        for (int i = 0; i < rects.size(); i++) {
+            int[] r = rects.get(i);
+            if (!Ui.in(mouseX, mouseY, r[0], r[1], r[2], r[3])) continue;
+            CompoundTag d = new CompoundTag();
+            d.putInt("id", id);
+            d.putString("action", actions.get(i));
+            ClientPlatform.INSTANCE.send(new UiPayloads.Act("beggar", d));
+            onClose();
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+}

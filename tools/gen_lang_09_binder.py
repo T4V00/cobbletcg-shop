@@ -5,7 +5,7 @@ Usage: python tools/gen_lang_09_binder.py"""
 import json
 from pathlib import Path
 
-LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
+LANG = Path(__file__).resolve().parent.parent / "common/src/main/resources/assets/tcgshop/lang"
 
 # key -> (Spanish, English)
 KEYS = {

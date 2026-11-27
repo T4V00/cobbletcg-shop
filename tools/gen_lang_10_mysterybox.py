@@ -5,7 +5,7 @@ Usage: python tools/gen_lang_10_mysterybox.py  (updates/inserts the keys in es_e
 import json
 from pathlib import Path
 
-LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
+LANG = Path(__file__).resolve().parent.parent / "common/src/main/resources/assets/tcgshop/lang"
 
 T = {
     # ------------------------------------------------------------------ tooltip (tip1 changed: the box is now for the player)

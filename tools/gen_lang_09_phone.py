@@ -5,7 +5,7 @@ import os
 from collections import OrderedDict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-LANG = os.path.join(HERE, "..", "src", "main", "resources", "assets", "tcgshop", "lang")
+LANG = os.path.join(HERE, "..", "common", "src", "main", "resources", "assets", "tcgshop", "lang")
 
 KEYS = {
     # app and settings

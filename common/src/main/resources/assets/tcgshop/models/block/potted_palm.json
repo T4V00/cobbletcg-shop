@@ -1,0 +1,187 @@
+{
+ "parent": "minecraft:block/block",
+ "textures": {
+  "pot": "tcgshop:block/decor_terracotta",
+  "soil": "tcgshop:block/decor_soil",
+  "trunk": "tcgshop:block/decor_trunk",
+  "leaves": "tcgshop:block/decor_palm_leaves",
+  "particle": "tcgshop:block/decor_terracotta"
+ },
+ "elements": [
+  {
+   "from": [
+    4,
+    0,
+    4
+   ],
+   "to": [
+    12,
+    6,
+    12
+   ],
+   "faces": {
+    "north": {
+     "texture": "#pot"
+    },
+    "south": {
+     "texture": "#pot"
+    },
+    "east": {
+     "texture": "#pot"
+    },
+    "west": {
+     "texture": "#pot"
+    },
+    "up": {
+     "texture": "#soil"
+    },
+    "down": {
+     "texture": "#pot"
+    }
+   }
+  },
+  {
+   "from": [
+    3.5,
+    5,
+    3.5
+   ],
+   "to": [
+    12.5,
+    7,
+    12.5
+   ],
+   "faces": {
+    "north": {
+     "texture": "#pot"
+    },
+    "south": {
+     "texture": "#pot"
+    },
+    "east": {
+     "texture": "#pot"
+    },
+    "west": {
+     "texture": "#pot"
+    },
+    "up": {
+     "texture": "#soil"
+    },
+    "down": {
+     "texture": "#pot"
+    }
+   }
+  },
+  {
+   "from": [
+    7,
+    7,
+    7
+   ],
+   "to": [
+    9,
+    12,
+    9
+   ],
+   "faces": {
+    "north": {
+     "texture": "#trunk"
+    },
+    "south": {
+     "texture": "#trunk"
+    },
+    "east": {
+     "texture": "#trunk"
+    },
+    "west": {
+     "texture": "#trunk"
+    },
+    "up": {
+     "texture": "#trunk"
+    },
+    "down": {
+     "texture": "#trunk"
+    }
+   }
+  },
+  {
+   "from": [
+    1,
+    12,
+    1
+   ],
+   "to": [
+    15,
+    12.01,
+    15
+   ],
+   "faces": {
+    "up": {
+     "texture": "#leaves"
+    },
+    "down": {
+     "texture": "#leaves"
+    }
+   }
+  },
+  {
+   "from": [
+    1,
+    9,
+    7.99
+   ],
+   "to": [
+    15,
+    16,
+    8.01
+   ],
+   "faces": {
+    "north": {
+     "texture": "#leaves"
+    },
+    "south": {
+     "texture": "#leaves"
+    }
+   },
+   "rotation": {
+    "origin": [
+     8,
+     12,
+     8
+    ],
+    "axis": "y",
+    "angle": 45
+   }
+  },
+  {
+   "from": [
+    1,
+    9,
+    7.99
+   ],
+   "to": [
+    15,
+    16,
+    8.01
+   ],
+   "faces": {
+    "north": {
+     "texture": "#leaves"
+    },
+    "south": {
+     "texture": "#leaves"
+    }
+   },
+   "rotation": {
+    "origin": [
+     8,
+     12,
+     8
+    ],
+    "axis": "y",
+    "angle": -45
+   }
+  }
+ ],
+ "ambientocclusion": false
+}

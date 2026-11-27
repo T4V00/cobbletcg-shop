@@ -7,7 +7,7 @@ The number of variants of each line.<cat> / msg.<cat> must match CollectorTheft.
 import json
 from pathlib import Path
 
-LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
+LANG = Path(__file__).resolve().parent.parent / "common/src/main/resources/assets/tcgshop/lang"
 
 P = "tcgshop.collector_theft."
 

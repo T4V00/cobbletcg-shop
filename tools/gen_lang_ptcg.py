@@ -12,8 +12,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 I18N = ROOT.parent / "vendor/twinleafgg/ptcg-play/src/assets/i18n"
-LANG = ROOT / "src/main/resources/assets/tcgshop/lang"
-PTCG = ROOT / "src/main/resources/assets/tcgshop/ptcg"
+LANG = ROOT / "common/src/main/resources/assets/tcgshop/lang"
+PTCG = ROOT / "common/src/main/resources/assets/tcgshop/ptcg"
 
 LICENSE = """MasterBall Traders Co. includes the Pokémon TCG game engine from twinleaf.gg (https://github.com/twinleafgg/twinleafgg),
 based on ryuu-play (https://github.com/keeshii/ryuu-play), both released under the MIT license, and texts from its client.
@@ -51,7 +51,7 @@ def main():
         (LANG / dst).write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
         print(dst, len(tl.get("GAME_MESSAGES", {})), "messages,", len(tl.get("GAME_LOGS", {})), "logs")
     PTCG.mkdir(parents=True, exist_ok=True)
-    shutil.copy(ROOT / "src/main/resources/data/tcgshop/tcgshop_ptcg/cards.json", PTCG / "cards.json")
+    shutil.copy(ROOT / "common/src/main/resources/data/tcgshop/tcgshop_ptcg/cards.json", PTCG / "cards.json")
     (PTCG / "LICENSE-twinleaf.txt").write_text(LICENSE, encoding="utf-8")
     print("card map and license copied")
 

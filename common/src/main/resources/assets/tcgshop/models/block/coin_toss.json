@@ -1,0 +1,287 @@
+{
+ "parent": "minecraft:block/block",
+ "textures": {
+  "body": "tcgshop:block/casino_podium",
+  "gold": "tcgshop:block/casino_gold_trim",
+  "chrome": "tcgshop:block/casino_chrome",
+  "plate": "tcgshop:block/casino_coin_plate",
+  "base": "tcgshop:block/casino_dark_body",
+  "velvet": "tcgshop:block/casino_velvet",
+  "particle": "tcgshop:block/casino_podium"
+ },
+ "elements": [
+  {
+   "from": [
+    2,
+    0,
+    2
+   ],
+   "to": [
+    14,
+    1.5,
+    14
+   ],
+   "faces": {
+    "north": {
+     "texture": "#base"
+    },
+    "south": {
+     "texture": "#base"
+    },
+    "east": {
+     "texture": "#base"
+    },
+    "west": {
+     "texture": "#base"
+    },
+    "up": {
+     "texture": "#base"
+    },
+    "down": {
+     "texture": "#base"
+    }
+   }
+  },
+  {
+   "from": [
+    2.5,
+    1.5,
+    2.5
+   ],
+   "to": [
+    13.5,
+    2,
+    13.5
+   ],
+   "faces": {
+    "north": {
+     "texture": "#gold"
+    },
+    "south": {
+     "texture": "#gold"
+    },
+    "east": {
+     "texture": "#gold"
+    },
+    "west": {
+     "texture": "#gold"
+    },
+    "up": {
+     "texture": "#gold"
+    },
+    "down": {
+     "texture": "#gold"
+    }
+   }
+  },
+  {
+   "from": [
+    3.5,
+    2,
+    3.5
+   ],
+   "to": [
+    12.5,
+    10.5,
+    12.5
+   ],
+   "faces": {
+    "north": {
+     "texture": "#body"
+    },
+    "south": {
+     "texture": "#body"
+    },
+    "east": {
+     "texture": "#body"
+    },
+    "west": {
+     "texture": "#body"
+    },
+    "up": {
+     "texture": "#body"
+    },
+    "down": {
+     "texture": "#body"
+    }
+   }
+  },
+  {
+   "from": [
+    3.3,
+    5,
+    3.3
+   ],
+   "to": [
+    12.7,
+    5.6,
+    12.7
+   ],
+   "faces": {
+    "north": {
+     "texture": "#gold"
+    },
+    "south": {
+     "texture": "#gold"
+    },
+    "east": {
+     "texture": "#gold"
+    },
+    "west": {
+     "texture": "#gold"
+    },
+    "up": {
+     "texture": "#gold"
+    },
+    "down": {
+     "texture": "#gold"
+    }
+   }
+  },
+  {
+   "from": [
+    3.3,
+    8.4,
+    3.3
+   ],
+   "to": [
+    12.7,
+    9,
+    12.7
+   ],
+   "faces": {
+    "north": {
+     "texture": "#gold"
+    },
+    "south": {
+     "texture": "#gold"
+    },
+    "east": {
+     "texture": "#gold"
+    },
+    "west": {
+     "texture": "#gold"
+    },
+    "up": {
+     "texture": "#gold"
+    },
+    "down": {
+     "texture": "#gold"
+    }
+   }
+  },
+  {
+   "from": [
+    2.8,
+    10.5,
+    2.8
+   ],
+   "to": [
+    13.2,
+    12,
+    13.2
+   ],
+   "faces": {
+    "north": {
+     "texture": "#chrome"
+    },
+    "south": {
+     "texture": "#chrome"
+    },
+    "east": {
+     "texture": "#chrome"
+    },
+    "west": {
+     "texture": "#chrome"
+    },
+    "up": {
+     "texture": "#chrome"
+    },
+    "down": {
+     "texture": "#chrome"
+    }
+   }
+  },
+  {
+   "from": [
+    1.5,
+    12,
+    1.5
+   ],
+   "to": [
+    14.5,
+    13.2,
+    14.5
+   ],
+   "faces": {
+    "north": {
+     "texture": "#velvet"
+    },
+    "south": {
+     "texture": "#velvet"
+    },
+    "east": {
+     "texture": "#velvet"
+    },
+    "west": {
+     "texture": "#velvet"
+    },
+    "up": {
+     "texture": "#velvet"
+    },
+    "down": {
+     "texture": "#velvet"
+    }
+   }
+  },
+  {
+   "from": [
+    2.2,
+    13.2,
+    2.2
+   ],
+   "to": [
+    13.8,
+    14,
+    13.8
+   ],
+   "faces": {
+    "north": {
+     "texture": "#gold"
+    },
+    "south": {
+     "texture": "#gold"
+    },
+    "east": {
+     "texture": "#gold"
+    },
+    "west": {
+     "texture": "#gold"
+    },
+    "up": {
+     "texture": "#plate"
+    },
+    "down": {
+     "texture": "#gold"
+    }
+   }
+  },
+  {
+   "from": [
+    5,
+    6.2,
+    3.2
+   ],
+   "to": [
+    11,
+    8,
+    3.5
+   ],
+   "faces": {
+    "north": {
+     "texture": "#gold"
+    }
+   }
+  }
+ ]
+}

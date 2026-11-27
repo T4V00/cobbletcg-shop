@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "tcgshop",
+  "version": "${version}",
+  "name": "MasterBall Traders Co.",
+  "description": "PTCG Shop Simulator & PvP. Run your own Pokemon TCG card shop, open packs with animations, trade with NPCs and players, grade cards, play the real TCG and climb the league. Prices in CobbleDollars. Cards come from MasterBall Traders API.",
+  "authors": [
+    "destr"
+  ],
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "dev.tcgshop.fabric.TcgShopFabric"
+    ],
+    "client": [
+      "dev.tcgshop.fabric.TcgShopClientFabric"
+    ]
+  },
+  "mixins": [
+    "tcgshop.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*",
+    "masterball": ">=0.3.0"
+  },
+  "recommends": {
+    "cobbledollars": "*",
+    "cobblemon": "*",
+    "pokeblocks": "*"
+  }
+}

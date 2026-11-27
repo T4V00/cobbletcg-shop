@@ -5,7 +5,7 @@ The NPC lines are in npc_lines_living.py (added by gen_npc_lines.py)."""
 import json
 from pathlib import Path
 
-LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
+LANG = Path(__file__).resolve().parent.parent / "common/src/main/resources/assets/tcgshop/lang"
 
 ES = {
     "block.tcgshop.card_wall": "Muro de cartas gradadas",

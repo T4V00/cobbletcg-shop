@@ -2,6 +2,7 @@
 build/
 .gradle/
 run/
+run-neoforge/
 out/
 *.class
 release/*.jar
@@ -10,7 +11,7 @@ release/*.jar
 engine/node_modules/
 
 # logros corregidos de CobbleTCG: son archivos de otro autor, no se publican
-src/main/resources/data/cobbletcg/
+common/src/main/resources/data/cobbletcg/
 
 # IDE
 .idea/

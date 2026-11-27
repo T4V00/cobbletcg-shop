@@ -4,7 +4,7 @@ import json
 import importlib.util
 from pathlib import Path
 
-A = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop"
+A = Path(__file__).resolve().parent.parent / "common/src/main/resources/assets/tcgshop"
 spec = importlib.util.spec_from_file_location("gt", Path(__file__).resolve().parent / "gen_textures.py")
 gt = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gt)

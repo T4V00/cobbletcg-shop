@@ -11,7 +11,7 @@ Process:
      "<CODE> <number>  <name> [suffix]"  e.g. "PAL 269  Iono SIR".
   2. For each code downloads products and prices from its TCGplayer group(s) (SET_GROUPS table).
   3. Matches by number + name, with several fallbacks (name only, normalized name, promos).
-  4. Writes src/main/resources/data/tcgshop/tcgshop_prices/cards.json
+  4. Writes common/src/main/resources/data/tcgshop/tcgshop_prices/cards.json
 
 Output format:
   { "source": "...", "generated": "YYYY-MM-DD",
@@ -34,7 +34,7 @@ import urllib.request
 from pathlib import Path
 
 BASE = "https://tcgcsv.com/tcgplayer/3"  # category 3 = Pokémon
-OUT = Path(__file__).resolve().parent.parent / "src/main/resources/data/tcgshop/tcgshop_prices/cards.json"
+OUT = Path(__file__).resolve().parent.parent / "common/src/main/resources/data/tcgshop/tcgshop_prices/cards.json"
 UA = {"User-Agent": "tcgshop-price-tool/1.0"}
 
 # cobbletcg set code -> TCGplayer groups (verified against https://tcgcsv.com/tcgplayer/3/groups).
@@ -99,9 +99,9 @@ def clean_name(name):
 
 
 API = Path(__file__).resolve().parent.parent.parent / "masterball-api"
-API_CATALOG = API / "src/main/resources/data/masterball/cards/catalog.json"
-API_LANG = API / "src/main/resources/assets/masterball/lang/en_us.json"
-API_RARITY = API / "src/main/resources/data/masterball/rarity/cards.json"
+API_CATALOG = API / "common/src/main/resources/data/masterball/cards/catalog.json"
+API_LANG = API / "common/src/main/resources/assets/masterball/lang/en_us.json"
+API_RARITY = API / "common/src/main/resources/data/masterball/rarity/cards.json"
 
 
 def catalog_sets():

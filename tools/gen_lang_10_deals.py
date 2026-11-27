@@ -8,7 +8,7 @@ Usage: python tools/gen_lang_10_deals.py  (updates/inserts the keys in es_es.jso
 import json
 from pathlib import Path
 
-LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
+LANG = Path(__file__).resolve().parent.parent / "common/src/main/resources/assets/tcgshop/lang"
 
 # ---------------------------------------------------------------- NPC lines (es, en)
 TIP_OFFER = [  # haggling customer offering above your asking price (speech bubble and deal window)

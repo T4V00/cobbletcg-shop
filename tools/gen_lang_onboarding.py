@@ -10,7 +10,7 @@ import json
 import os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LANG = os.path.join(ROOT, "src", "main", "resources", "assets", "tcgshop", "lang")
+LANG = os.path.join(ROOT, "common", "src", "main", "resources", "assets", "tcgshop", "lang")
 
 KEYS = {
     # --- welcome packs

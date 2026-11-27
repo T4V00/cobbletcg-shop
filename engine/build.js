@@ -1,5 +1,5 @@
 // Bundles bridge.ts + the twinleaf.gg engine into a single file for GraalJS.
-// Usage: node build.js   ->  ../src/main/resources/assets/tcgshop/ptcg/engine.js
+// Usage: node build.js   ->  ../common/src/main/resources/assets/tcgshop/ptcg/engine.js
 const esbuild = require('esbuild');
 const path = require('path');
 
@@ -11,7 +11,7 @@ const nodeOnly = ['fs', 'path', 'child_process', 'crypto', 'os', 'util', 'events
 esbuild.build({
   entryPoints: [path.join(__dirname, 'bridge.ts')],
   bundle: true,
-  outfile: path.join(__dirname, '..', 'src', 'main', 'resources', 'assets', 'tcgshop', 'ptcg', 'engine.js'),
+  outfile: path.join(__dirname, '..', 'common', 'src', 'main', 'resources', 'assets', 'tcgshop', 'ptcg', 'engine.js'),
   format: 'iife',
   platform: 'neutral',
   target: 'es2020',

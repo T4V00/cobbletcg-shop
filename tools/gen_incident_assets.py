@@ -6,7 +6,7 @@ block/item models, blockstate, #tcgshop:fix/* tags, recipes and the tcgshop:even
 Standard library only (PNG with zlib + struct). Fixed seed: idempotent.
 
 Usage:  python -I -X utf8 tools/gen_incident_assets.py
-Writes only inside src/main/resources.
+Writes only inside common/src/main/resources.
 """
 import json
 import random

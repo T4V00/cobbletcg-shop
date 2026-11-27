@@ -3,7 +3,7 @@ expensive set lock, vanilla Wholesaler and bad reputation for killing NPCs. %s i
 import json
 from pathlib import Path
 
-LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
+LANG = Path(__file__).resolve().parent.parent / "common/src/main/resources/assets/tcgshop/lang"
 
 # ---------------------------------------------------------------- selling reasons (120)
 # urgent money / liquidity (40)

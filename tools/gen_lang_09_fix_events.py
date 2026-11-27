@@ -8,7 +8,7 @@ import json
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-LANG = os.path.join(HERE, "..", "src", "main", "resources", "assets", "tcgshop", "lang")
+LANG = os.path.join(HERE, "..", "common", "src", "main", "resources", "assets", "tcgshop", "lang")
 
 ES = {
     # history of the phone's Events tab: cancelled event (e.g. an incident whose fix disappeared)

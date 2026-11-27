@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const file = path.join(__dirname, '..', 'src', 'main', 'resources', 'assets', 'tcgshop', 'ptcg', 'engine.js');
+const file = path.join(__dirname, '..', 'common', 'src', 'main', 'resources', 'assets', 'tcgshop', 'ptcg', 'engine.js');
 const ctx = { console };
 ctx.globalThis = ctx;
 vm.createContext(ctx);

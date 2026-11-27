@@ -6,8 +6,8 @@ import re
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-LANG = HERE.parent / "src/main/resources/assets/tcgshop/lang"
-JAVA = HERE.parent / "src/main/java/dev/tcgshop/entity/NpcLines.java"
+LANG = HERE.parent / "common/src/main/resources/assets/tcgshop/lang"
+JAVA = HERE.parent / "common/src/main/java/dev/tcgshop/entity/NpcLines.java"
 
 L = {}
 
@@ -734,7 +734,8 @@ def _lang_lines(cat):
     return out
 
 
-for _mod in ("npc_lines_v3_a", "npc_lines_v3_b", "npc_lines_v3_c", "npc_lines_v3_d"):
+for _mod in ("npc_lines_v3_a", "npc_lines_v3_b", "npc_lines_v3_c", "npc_lines_v3_d",
+             "npc_lines_v4_a", "npc_lines_v4_b", "npc_lines_v4_c", "npc_lines_v4_d", "npc_lines_v4_e", "npc_lines_v4_f"):
     try:
         _extra = __import__(_mod).EXTRA
     except ModuleNotFoundError:

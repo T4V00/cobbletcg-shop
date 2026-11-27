@@ -4,7 +4,7 @@ import struct
 import zlib
 from pathlib import Path
 
-OUT = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/textures/item"
+OUT = Path(__file__).resolve().parent.parent / "common/src/main/resources/assets/tcgshop/textures/item"
 
 
 def png(path, pixels):

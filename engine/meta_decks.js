@@ -9,11 +9,11 @@ const root = path.join(__dirname, '..');
 const ctx = { console };
 ctx.globalThis = ctx;
 vm.createContext(ctx);
-vm.runInContext(fs.readFileSync(path.join(root, 'src/main/resources/assets/tcgshop/ptcg/engine.js'), 'utf8'), ctx, { filename: 'engine.js' });
+vm.runInContext(fs.readFileSync(path.join(root, 'common/src/main/resources/assets/tcgshop/ptcg/engine.js'), 'utf8'), ctx, { filename: 'engine.js' });
 const P = ctx.PTCG;
 P.init();
 const cards = JSON.parse(P.cardsJson());
-const mapped = new Set(Object.values(JSON.parse(fs.readFileSync(path.join(root, 'src/main/resources/assets/tcgshop/ptcg/cards.json'), 'utf8'))));
+const mapped = new Set(Object.values(JSON.parse(fs.readFileSync(path.join(root, 'common/src/main/resources/assets/tcgshop/ptcg/cards.json'), 'utf8'))));
 const MODERN = ['MEG', 'PFL', 'ASC', 'BLK', 'WHT', 'DRI', 'JTG', 'PRE', 'SSP', 'SCR', 'SFA', 'TWM', 'TEF', 'PAF', 'PAR', 'MEW', 'OBF', 'PAL', 'SVI', 'SVP', 'SVE', 'MEE', 'CRZ', 'SIT', 'LOR', 'PGO', 'ASR', 'BRS', 'FST'];
 const byName = {};
 for (const c of cards) (byName[c.n.toLowerCase()] = byName[c.n.toLowerCase()] || []).push(c);
@@ -108,6 +108,6 @@ for (let k = 0; k < out.length; k++) {
   P.dispose('m' + k);
 }
 fs.writeFileSync(path.join(__dirname, 'meta_decks.json'), JSON.stringify(out, null, 1));
-fs.mkdirSync(path.join(root, 'src/main/resources/data/tcgshop'), { recursive: true });
-fs.writeFileSync(path.join(root, 'src/main/resources/data/tcgshop/ptcg_meta_decks.json'), JSON.stringify(out));
+fs.mkdirSync(path.join(root, 'common/src/main/resources/data/tcgshop'), { recursive: true });
+fs.writeFileSync(path.join(root, 'common/src/main/resources/data/tcgshop/ptcg_meta_decks.json'), JSON.stringify(out));
 console.log('meta decks:', out.length);

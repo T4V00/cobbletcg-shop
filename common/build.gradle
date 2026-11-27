@@ -1,0 +1,45 @@
+// Shared code: compiled against plain Minecraft (NeoForm, Mojang names) so it can't use any loader API by mistake.
+// The loader projects compile these same sources into their own jars.
+plugins { id 'net.neoforged.moddev' }
+
+base { archivesName = "${rootProject.archives_base_name}-common" }
+
+neoForge {
+    neoFormVersion = rootProject.neo_form_version
+    parchment {
+        minecraftVersion = rootProject.parchment_minecraft
+        mappingsVersion = rootProject.parchment_version
+    }
+    // members the shared code needs that vanilla keeps private (Fabric API widens the same ones)
+    accessTransformers.from(file('src/main/resources/META-INF/accesstransformer.cfg'))
+}
+
+repositories {
+    maven { name = 'Sponge'; url = 'https://repo.spongepowered.org/repository/maven-public/' }
+}
+
+dependencies {
+    compileOnly 'org.spongepowered:mixin:0.8.5'
+    compileOnly 'io.github.llamalad7:mixinextras-common:0.3.5'
+    compileOnly files(rootProject.apiCommonJar)
+    for (String m : rootProject.graalModules) compileOnly("${m}:${rootProject.graalVersion}") { transitive = false }
+}
+
+// --- GraalJS TCG engine test bench (not part of the mod)
+sourceSets { bench { java { srcDir 'src/bench/java' } } }
+dependencies {
+    benchImplementation "org.graalvm.polyglot:polyglot:${rootProject.graalVersion}"
+    benchImplementation "org.graalvm.polyglot:js-community:${rootProject.graalVersion}"
+}
+tasks.register('ptcgBench', JavaExec) {
+    classpath = sourceSets.bench.runtimeClasspath
+    mainClass = 'PtcgBench'
+    args file('src/main/resources/assets/tcgshop/ptcg/engine.js').absolutePath, (project.findProperty('steps') ?: '40')
+    jvmArgs '-Xmx3G'
+}
+tasks.register('ptcgDeps') {
+    doLast {
+        sourceSets.bench.runtimeClasspath.files.findAll { it.name.endsWith('.jar') && !it.path.contains('minecraft') && !it.path.contains('fabric') }
+                .each { println "${it.name} ${(it.length() / 1024 / 1024).round(1)}MB" }
+    }
+}

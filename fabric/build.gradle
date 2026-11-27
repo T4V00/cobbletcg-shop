@@ -1,0 +1,59 @@
+plugins { id 'fabric-loom' }
+
+// The Fabric jar keeps the old name: masterball-traders-<version>.jar
+base { archivesName = rootProject.archives_base_name }
+
+def commonDir = project(':common').file('src/main')
+sourceSets.main {
+    java.srcDir("${commonDir}/java")
+    resources.srcDir("${commonDir}/resources")
+}
+
+// Path to the CurseForge instance (to copy the jar when the build finishes)
+def instanceDir = rootProject.file('../..')
+// The instance where the game is played (installToInstance copies here): Cobbleverse 1.8.0 if it exists, otherwise this one.
+// Can be changed with -PtargetInstance="path".
+def playDir = project.hasProperty('targetInstance') ? file(project.targetInstance)
+        : (rootProject.file('../../../COBBLEVERSE - Pokemon Adventure [Cobblemon] (1)').isDirectory() ? rootProject.file('../../../COBBLEVERSE - Pokemon Adventure [Cobblemon] (1)') : instanceDir)
+
+dependencies {
+    minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+    // Mojang official names (+ Parchment parameter names): the same names NeoForge uses, so the code can be shared
+    mappings loom.layered {
+        officialMojangMappings()
+        parchment("org.parchmentmc.data:parchment-${rootProject.parchment_minecraft}:${rootProject.parchment_version}@zip")
+    }
+    modImplementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_version}"
+    modImplementation files(rootProject.apiFabricJar)
+}
+
+// GraalVM bundled as jar resources (graal/), shared with the NeoForge project
+apply from: rootProject.file('gradle/graal-bundle.gradle')
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') { expand 'version': project.version }
+}
+
+// ./gradlew installToInstance  -> builds and copies the jar (and the API's) to the instance's mods folder
+tasks.register('installToInstance', Copy) {
+    dependsOn remapJar
+    doFirst {
+        // previous builds of this mod and of the API (otherwise Fabric sees two mods with the same id)
+        delete fileTree("${playDir}/mods") { include 'masterball-traders-*.jar', 'cobbletcg-shop-*.jar' }
+        if (file("${playDir}/mods").listFiles().any { it.name.startsWith('cobbletcg-') && !it.name.startsWith('cobbletcg-shop') })
+            logger.warn('WARNING: ScalperTCG (cobbletcg-*.jar) is still in mods/ and is incompatible with MasterBall Traders API: remove it.')
+    }
+    from remapJar.archiveFile
+    from rootProject.apiFabricJar
+    into "${playDir}/mods"
+}
+
+// dev runs use the shared ../run folder (world, configs, selftest output)
+loom {
+    runs {
+        server { runDir = '../run' }
+        client { runDir = '../run' }
+    }
+}

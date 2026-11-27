@@ -1,0 +1,196 @@
+{
+ "variants": {
+  "facing=north,half=lower,open=false,part=left": {
+   "model": "tcgshop:block/wide_door_lower_left",
+   "y": 0
+  },
+  "facing=north,half=lower,open=true,part=left": {
+   "model": "tcgshop:block/wide_door_open_lower",
+   "y": 0
+  },
+  "facing=north,half=upper,open=false,part=left": {
+   "model": "tcgshop:block/wide_door_upper_left",
+   "y": 0
+  },
+  "facing=north,half=upper,open=true,part=left": {
+   "model": "tcgshop:block/wide_door_open_upper",
+   "y": 0
+  },
+  "facing=north,half=lower,open=false,part=center": {
+   "model": "tcgshop:block/wide_door_lower_center",
+   "y": 0
+  },
+  "facing=north,half=lower,open=true,part=center": {
+   "model": "tcgshop:block/wide_door_open_lower",
+   "y": 0
+  },
+  "facing=north,half=upper,open=false,part=center": {
+   "model": "tcgshop:block/wide_door_upper_center",
+   "y": 0
+  },
+  "facing=north,half=upper,open=true,part=center": {
+   "model": "tcgshop:block/wide_door_open_upper",
+   "y": 0
+  },
+  "facing=north,half=lower,open=false,part=right": {
+   "model": "tcgshop:block/wide_door_lower_right",
+   "y": 0
+  },
+  "facing=north,half=lower,open=true,part=right": {
+   "model": "tcgshop:block/wide_door_open_lower",
+   "y": 0
+  },
+  "facing=north,half=upper,open=false,part=right": {
+   "model": "tcgshop:block/wide_door_upper_right",
+   "y": 0
+  },
+  "facing=north,half=upper,open=true,part=right": {
+   "model": "tcgshop:block/wide_door_open_upper",
+   "y": 0
+  },
+  "facing=east,half=lower,open=false,part=left": {
+   "model": "tcgshop:block/wide_door_lower_left",
+   "y": 90
+  },
+  "facing=east,half=lower,open=true,part=left": {
+   "model": "tcgshop:block/wide_door_open_lower",
+   "y": 90
+  },
+  "facing=east,half=upper,open=false,part=left": {
+   "model": "tcgshop:block/wide_door_upper_left",
+   "y": 90
+  },
+  "facing=east,half=upper,open=true,part=left": {
+   "model": "tcgshop:block/wide_door_open_upper",
+   "y": 90
+  },
+  "facing=east,half=lower,open=false,part=center": {
+   "model": "tcgshop:block/wide_door_lower_center",
+   "y": 90
+  },
+  "facing=east,half=lower,open=true,part=center": {
+   "model": "tcgshop:block/wide_door_open_lower",
+   "y": 90
+  },
+  "facing=east,half=upper,open=false,part=center": {
+   "model": "tcgshop:block/wide_door_upper_center",
+   "y": 90
+  },
+  "facing=east,half=upper,open=true,part=center": {
+   "model": "tcgshop:block/wide_door_open_upper",
+   "y": 90
+  },
+  "facing=east,half=lower,open=false,part=right": {
+   "model": "tcgshop:block/wide_door_lower_right",
+   "y": 90
+  },
+  "facing=east,half=lower,open=true,part=right": {
+   "model": "tcgshop:block/wide_door_open_lower",
+   "y": 90
+  },
+  "facing=east,half=upper,open=false,part=right": {
+   "model": "tcgshop:block/wide_door_upper_right",
+   "y": 90
+  },
+  "facing=east,half=upper,open=true,part=right": {
+   "model": "tcgshop:block/wide_door_open_upper",
+   "y": 90
+  },
+  "facing=south,half=lower,open=false,part=left": {
+   "model": "tcgshop:block/wide_door_lower_left",
+   "y": 180
+  },
+  "facing=south,half=lower,open=true,part=left": {
+   "model": "tcgshop:block/wide_door_open_lower",
+   "y": 180
+  },
+  "facing=south,half=upper,open=false,part=left": {
+   "model": "tcgshop:block/wide_door_upper_left",
+   "y": 180
+  },
+  "facing=south,half=upper,open=true,part=left": {
+   "model": "tcgshop:block/wide_door_open_upper",
+   "y": 180
+  },
+  "facing=south,half=lower,open=false,part=center": {
+   "model": "tcgshop:block/wide_door_lower_center",
+   "y": 180
+  },
+  "facing=south,half=lower,open=true,part=center": {
+   "model": "tcgshop:block/wide_door_open_lower",
+   "y": 180
+  },
+  "facing=south,half=upper,open=false,part=center": {
+   "model": "tcgshop:block/wide_door_upper_center",
+   "y": 180
+  },
+  "facing=south,half=upper,open=true,part=center": {
+   "model": "tcgshop:block/wide_door_open_upper",
+   "y": 180
+  },
+  "facing=south,half=lower,open=false,part=right": {
+   "model": "tcgshop:block/wide_door_lower_right",
+   "y": 180
+  },
+  "facing=south,half=lower,open=true,part=right": {
+   "model": "tcgshop:block/wide_door_open_lower",
+   "y": 180
+  },
+  "facing=south,half=upper,open=false,part=right": {
+   "model": "tcgshop:block/wide_door_upper_right",
+   "y": 180
+  },
+  "facing=south,half=upper,open=true,part=right": {
+   "model": "tcgshop:block/wide_door_open_upper",
+   "y": 180
+  },
+  "facing=west,half=lower,open=false,part=left": {
+   "model": "tcgshop:block/wide_door_lower_left",
+   "y": 270
+  },
+  "facing=west,half=lower,open=true,part=left": {
+   "model": "tcgshop:block/wide_door_open_lower",
+   "y": 270
+  },
+  "facing=west,half=upper,open=false,part=left": {
+   "model": "tcgshop:block/wide_door_upper_left",
+   "y": 270
+  },
+  "facing=west,half=upper,open=true,part=left": {
+   "model": "tcgshop:block/wide_door_open_upper",
+   "y": 270
+  },
+  "facing=west,half=lower,open=false,part=center": {
+   "model": "tcgshop:block/wide_door_lower_center",
+   "y": 270
+  },
+  "facing=west,half=lower,open=true,part=center": {
+   "model": "tcgshop:block/wide_door_open_lower",
+   "y": 270
+  },
+  "facing=west,half=upper,open=false,part=center": {
+   "model": "tcgshop:block/wide_door_upper_center",
+   "y": 270
+  },
+  "facing=west,half=upper,open=true,part=center": {
+   "model": "tcgshop:block/wide_door_open_upper",
+   "y": 270
+  },
+  "facing=west,half=lower,open=false,part=right": {
+   "model": "tcgshop:block/wide_door_lower_right",
+   "y": 270
+  },
+  "facing=west,half=lower,open=true,part=right": {
+   "model": "tcgshop:block/wide_door_open_lower",
+   "y": 270
+  },
+  "facing=west,half=upper,open=false,part=right": {
+   "model": "tcgshop:block/wide_door_upper_right",
+   "y": 270
+  },
+  "facing=west,half=upper,open=true,part=right": {
+   "model": "tcgshop:block/wide_door_open_upper",
+   "y": 270
+  }
+ }
+}

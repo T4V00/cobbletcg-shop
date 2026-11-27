@@ -7,7 +7,7 @@ Updates/inserts the keys in es_es.json and en_us.json (deletes nothing).
 import json
 import os
 
-ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "main", "resources", "assets", "tcgshop", "lang")
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "common", "src", "main", "resources", "assets", "tcgshop", "lang")
 
 KEYS = {
     "tcgshop.furn.err_phone": ("Necesitas el Teléfono TCG en el inventario.", "You need the TCG Phone in your inventory."),

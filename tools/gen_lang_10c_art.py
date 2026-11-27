@@ -6,7 +6,7 @@ Usage: python tools/gen_lang_10c_art.py  (updates/inserts the keys in es_es.json
 import json
 from pathlib import Path
 
-LANG = Path(__file__).resolve().parent.parent / "src/main/resources/assets/tcgshop/lang"
+LANG = Path(__file__).resolve().parent.parent / "common/src/main/resources/assets/tcgshop/lang"
 
 T = {
     # ------------------------------------------------------------------ key and screen
