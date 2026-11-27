@@ -2,7 +2,7 @@
 
 **PTCG Shop Simulator & PvP**
 
-A Pokémon TCG shop simulator for Cobblemon worlds (Fabric, Minecraft 1.21.1). The cards come from **MasterBall Traders API** (11,700+ physical cards from 68 sets; TCG Pocket cards are not included).
+A Pokémon TCG shop simulator for Cobblemon worlds (Fabric and NeoForge, Minecraft 1.21.1). The cards come from **MasterBall Traders API** (11,700+ physical cards from 68 sets; TCG Pocket cards are not included).
 Run your own Pokémon TCG card shop, open packs with animations, trade with NPCs and players, grade cards, play the real TCG and climb a ranked league. All prices are in CobbleDollars.
 
 > Started as an add-on for ScalperTCG (by SorEscopeta). Since 0.2.0 it no longer needs it: its saved cards are converted automatically. Thanks to SorEscopeta for the original mod.
@@ -20,10 +20,10 @@ Run your own Pokémon TCG card shop, open packs with animations, trade with NPCs
 
 | | Dependency | Why |
 |---|---|---|
-| **Required** | MasterBall Traders API 0.1.0+ | Cards, packs, rarities, print variants and card images (downloaded automatically on first launch). |
+| **Required** | MasterBall Traders API 0.3.0+ (same loader) | Cards, packs, rarities, print variants and card images (downloaded automatically on first launch). |
 | **Incompatible** | ScalperTCG | Replaced by the API. Remove it: its cards in your worlds are converted, and its placed albums are emptied into barrels. |
 | **Required** | CobbleDollars | The whole economy (buying, selling, wages, rewards) uses CobbleDollars. |
-| **Required** | Fabric API, Fabric Loader 0.18.4+, Java 21 | |
+| **Required** | Fabric: Fabric API + Fabric Loader 0.18.4+ · NeoForge: NeoForge 21.1+ · Java 21 | |
 | Recommended | Cobblemon 1.7+ | Pokémon battles against thieves and Scalpers, the black-market dealer, Pokémon titles. |
 | Optional | Pokeblocks | Pokédolls as decoration and stock. |
 
@@ -31,8 +31,8 @@ Install the mods on the server and on every client. The resource packs are only 
 
 ## Installation
 
-1. Create a Fabric 1.21.1 profile (Fabric Loader 0.18.4+).
-2. Put Fabric API, MasterBall Traders API, CobbleDollars, MasterBall Traders Co. (and ideally Cobblemon) in `mods/`.
+1. Create a Fabric 1.21.1 profile (Fabric Loader 0.18.4+) or a NeoForge 1.21.1 profile (NeoForge 21.1+).
+2. Put MasterBall Traders API (same loader), Fabric API (Fabric only), CobbleDollars, MasterBall Traders Co. (and ideally Cobblemon) in `mods/`.
 3. Start the game once: the card images download on the title screen (or point `imageFolder` in `config/masterball-api.json` to a folder of images).
 4. Start the game. The config files are created the first time it runs (see below).
 
@@ -119,6 +119,12 @@ The file contains a `_help` section with short explanations. Missing values are 
 | `gradingBaseFees` | `[2500, 6000, 15000]` | Fixed cost per card (economy, standard, express). |
 | `gradingValuePct` | `[0.03, 0.06, 0.10]` | Plus this fraction of the card's value. |
 
+**Set completion**
+
+| Setting | Default | What it does |
+|---|---|---|
+| `setCompleteMoney` / `setCompleteMasterBalls` | `500000` / `1` | Reward the first time every card of a set is in your General Binder. Only cards you got from the game yourself count (pack pulls and NPC gifts), so a set passed from player to player pays once, not on every account. Money that could not be paid (CobbleDollars missing) is kept and paid later. `0` = none. |
+
 **Loot and locked sets**
 
 | Setting | Default | What it does |
@@ -181,6 +187,16 @@ saves/<world>/datapacks/my_prices/data/tcgshop/tcgshop_prices/cards.json
 - `rarity_median_usd`: estimate for cards without their own price, by rarity (`"*"` = every set).
 
 ---
+
+### 1.1: phone, items and systems
+
+- **Ranking app** (phone): climb past 100 fictional shop owners up to Don Cobbledome, owner of the Cobbledale Cobbledome (100 trillion). Your capital = wallet + registers + the value of your shops + the market value of the stock on your displays and of the cards in your General Binders − what you owe the Wholesaler.
+- **Diamond loan**: $1,000,000 from the Wholesaler once you own a Diamond shop (checked again when you accept the offer).
+- **Box-Opening Gloves** (sold only, very expensive): right-click a booster box to open all its packs at once (or up to 16 boxes) straight into your **General Binder**; without one you just get the sealed packs. One chat announcement for the best pull of the whole opening.
+- **Binders never drop on death**: General and Personal Binders stay with you (inventory, Accessories slot, cursor or crafting grid) and come back to the same slot when you respawn. If another mod cancels the death, they are handed back at once.
+- **Binder screen**: the 3 sets closest to completion and the set reward are always shown under the set list.
+- **Shelf markup**: the owner's shop menu raises or lowers every price of a fixture at once (+5% to +100%, −10%, −25%, or back to market).
+- **New tables**: Lucky Seven dice table and Double or Nothing coin toss. Events happen more often (35%/day, up to 2).
 
 ## Commands
 

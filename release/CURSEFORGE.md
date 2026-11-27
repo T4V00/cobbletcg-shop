@@ -2,13 +2,15 @@
 
 **PTCG Shop Simulator & PvP**
 
-### 🎉 Version 1.0 is here!
+### 🎉 Version 1.1: now on Fabric and NeoForge!
 
 Open your own Pokémon card shop in Minecraft. Rip packs, chase hits, price your stock, haggle with customers, survive thieves and become the best TCG store in the server.
 
 **MasterBall Traders Co.** is a Pokémon TCG shop simulator for Cobblemon worlds. Its cards come from **MasterBall Traders API** (11,700+ physical cards from 68 sets). Around that collection it builds a full trading-card economy: real market prices, a living shop full of NPC customers, pack openings that feel like the real thing, binders, grading, a phone full of apps, a casino, and real Pokémon TCG matches with a ranked league.
 
 > ✅ **Compatible with COBBLEVERSE 1.8.0** (Cobblemon 1.8.4, Fabric, Minecraft 1.21.1). Just drop MasterBall Traders Co. and MasterBall Traders API into the modpack's `mods` folder.
+>
+> 🆕 **NeoForge 1.21.1 is supported since 1.1.** Download the file for your loader (Fabric or NeoForge) of both mods.
 
 ---
 
@@ -102,10 +104,10 @@ And many fixes: cards stuck in your hand, displays that refused cards, the manag
 
 | | Mod | Notes |
 |---|---|---|
-| **Required** | MasterBall Traders API 0.2.1+ | Cards, packs, rarities and card art (separate CurseForge project). |
+| **Required** | MasterBall Traders API 0.3.0+ (same loader) | Cards, packs, rarities and card art (separate CurseForge project). |
 | **Required** | [CobbleDollars](https://www.curseforge.com/minecraft/mc-mods/cobbledollars) | Everything is bought and sold in CobbleDollars. |
-| **Required** | Fabric API | |
-| **Required** | Fabric Loader 0.18.4+ · Minecraft 1.21.1 · Java 21 | |
+| **Required** | Fabric: Fabric API + Fabric Loader 0.18.4+ · NeoForge: NeoForge 21.1+ | |
+| **Required** | Minecraft 1.21.1 · Java 21 | |
 | Recommended | [Cobblemon](https://www.curseforge.com/minecraft/mc-mods/cobblemon) | Pokémon battles, event Pokémon, mansion residents, the black-market dealer. |
 | Optional | CobbleFurnies, Lucky's Cozyhome | Chairs for customers and play tables; furniture in the mansion and abandoned shops. |
 | Optional | Pokeblocks | Pokédolls as shop decoration and stock. |
@@ -115,8 +117,8 @@ And many fixes: cards stuck in your hand, displays that refused cards, the manag
 
 ## How to install
 
-1. Install Minecraft **1.21.1** with **Fabric Loader** (0.18.4 or newer). The CurseForge app does this for you with a Fabric profile.
-2. Add **Fabric API**, **MasterBall Traders API**, **CobbleDollars** and **MasterBall Traders Co.** to your `mods` folder. Cobblemon is strongly recommended.
+1. Install Minecraft **1.21.1** with **Fabric Loader** (0.18.4 or newer) or **NeoForge** (21.1 or newer). The CurseForge app does this for you with a Fabric or NeoForge profile.
+2. Add **MasterBall Traders API**, **CobbleDollars** and **MasterBall Traders Co.** (the files for your loader) to your `mods` folder, plus **Fabric API** on Fabric. Cobblemon is strongly recommended.
 3. Create or open a world. You start with 5 packs and a binder.
 4. Buy a **TCG Phone** from the Mysterious Wholesaler, a travelling merchant who shows up near players every now and then.
 5. Press **Y** for the mod options (official art download, card art and more).

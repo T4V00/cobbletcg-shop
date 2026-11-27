@@ -2,7 +2,7 @@
 
 ### The Pokémon TCG card library behind **MasterBall Traders Co.**
 
-> ✅ **Compatible with COBBLEVERSE 1.8.0** (Cobblemon 1.8.4, Fabric, Minecraft 1.21.1).
+> ✅ **Compatible with COBBLEVERSE 1.8.0** (Cobblemon 1.8.4, Fabric, Minecraft 1.21.1). **NeoForge 1.21.1 is supported since 0.3.0**: pick the file for your loader.
 
 This is a **library mod**. On its own it only adds the card and pack items. Install it together with **[MasterBall Traders Co.](https://www.curseforge.com/minecraft/mc-mods/masterball-traders-co)**, the Pokémon TCG shop simulator that requires it.
 
@@ -26,7 +26,7 @@ Your own images also work: the API reads `PNGS POKEMOMN` in the game directory o
 
 | | Mod |
 |---|---|
-| **Required** | Fabric API · Fabric Loader 0.16+ · Minecraft 1.21.1 · Java 21 |
+| **Required** | Fabric: Fabric API · Fabric Loader 0.16+ — or NeoForge 21.1+ · Minecraft 1.21.1 · Java 21 |
 
 Source code and issues: [GitHub](https://github.com/T4V00/cobbletcg-shop)
 
