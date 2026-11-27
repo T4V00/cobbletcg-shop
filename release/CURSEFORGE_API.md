@@ -8,6 +8,17 @@ This is a **library mod**. On its own it only adds the card and pack items. Inst
 
 ---
 
+## Downloads (0.3.0)
+
+| Loader | File |
+|---|---|
+| **Fabric** 1.21.1 | [MasterBall Traders API 0.3.0 (Fabric)](https://www.curseforge.com/minecraft/mc-mods/masterball-traders-api/files/9852898) |
+| **NeoForge** 1.21.1 | [MasterBall Traders API 0.3.0 (NeoForge)](https://www.curseforge.com/minecraft/mc-mods/masterball-traders-api/files/9852919) |
+
+Pair it with [MasterBall Traders Co. 1.1.0 (Fabric)](https://www.curseforge.com/minecraft/mc-mods/masterball-traders-co/files/9852949) or [MasterBall Traders Co. 1.1.0 (NeoForge)](https://www.curseforge.com/minecraft/mc-mods/masterball-traders-co/files/9853007). Source: [GitHub T4V00/masterball-api](https://github.com/T4V00/masterball-api).
+
+---
+
 ## What it provides
 
 - **11,767 cards and 272 sealed packs from 68 sets**, from Base Set (1999) to the 2026 sets. Only physically sold TCG products are included; there are no TCG Pocket cards.

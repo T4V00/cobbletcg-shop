@@ -14,6 +14,32 @@ Open your own Pokémon card shop in Minecraft. Rip packs, chase hits, price your
 
 ---
 
+## Downloads (1.1.0)
+
+| Loader | MasterBall Traders Co. | MasterBall Traders API |
+|---|---|---|
+| **Fabric** 1.21.1 | [MasterBall Traders Co. 1.1.0 (Fabric)](https://www.curseforge.com/minecraft/mc-mods/masterball-traders-co/files/9852949) | [API 0.3.0 (Fabric)](https://www.curseforge.com/minecraft/mc-mods/masterball-traders-api/files/9852898) |
+| **NeoForge** 1.21.1 | [MasterBall Traders Co. 1.1.0 (NeoForge)](https://www.curseforge.com/minecraft/mc-mods/masterball-traders-co/files/9853007) | [API 0.3.0 (NeoForge)](https://www.curseforge.com/minecraft/mc-mods/masterball-traders-api/files/9852919) |
+
+Both mods are needed, for the same loader. Source code and all jars: [GitHub release v1.1.0](https://github.com/T4V00/cobbletcg-shop/releases/tag/v1.1.0) · API source: [T4V00/masterball-api](https://github.com/T4V00/masterball-api).
+
+## 1.1: what's new
+
+- **NeoForge support.** Same features on Fabric and NeoForge, built from one code base.
+- **Open / closed shop**, and **breaking your shop block keeps all progress** (money, stats, staff, reviews).
+- **Staff:** cashiers walk up to customers, cashier upgrades (including one that handles hagglers), **up to 3 guards**, a clearer Upgrades tab.
+- **Register:** withdraw by percentage with confirmation, and deposit money. Tips are capped at $50,000.
+- **Customers:** a simpler haggling window, charm options (joke, compliment, story) that depend on Charisma, markup tolerance tied to reputation, 200+ Latin American names and 1,000+ new lines.
+- **Cleanliness and decoration** matter much more: droppings to mop, graffiti to clean, a decoration bar, statues that boost sales, a 3-block-wide shutter and ten new decor objects.
+- **New NPCs:** the **Mayor** collects taxes from Iron tier (refuse and face his Cobblemon team), robbed collectors fight back, the **CREATive Engineer** sells Create items, and Scalpers walk into shops.
+- **Phone:** Grade 10 prices, a **Ranking app** to beat Don Cobbledome, owner of the Cobbledale Cobbledome, a $1,000,000 loan at Diamond tier, and calling the Furniture Seller.
+- **Items and systems:** Box-Opening Gloves, binders that never drop on death, set-completion rewards, shelf markup, new gambling tables, sound effects and more frequent events.
+- **Harder packs and grades:** much rarer hits and high grades, so a booster box only rarely pays for itself.
+
+Full list in each file's changelog.
+
+---
+
 ## 1.0 — the biggest update yet
 
 **Thank you!** This mod started as a small idea and grew into a full shop simulator thanks to everyone who downloaded it, played it and left feedback. 1.0 is the result. If you enjoy it, a comment means a lot, and if something feels off, please tell us: **every comment, bug report and idea is read** and helps shape the next updates.

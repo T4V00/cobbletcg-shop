@@ -12,7 +12,14 @@ Run your own Pokémon TCG card shop, open packs with animations, trade with NPCs
 > **AI disclosure:** this mod was made with the help of **Claude** (Anthropic). AI was heavily involved in the development process, including code, procedurally generated textures, texts and balancing. The project was directed, play-tested and curated by a human.
 
 
-**Download:** [CurseForge](https://www.curseforge.com/minecraft/mc-mods/masterball-traders-co) (beta) · **Issues and suggestions:** [GitHub Issues](https://github.com/T4V00/cobbletcg-shop/issues)
+**Download** (each loader has its own CurseForge projects; install the mod and the API for the same loader):
+
+| Loader | MasterBall Traders Co. | MasterBall Traders API |
+|---|---|---|
+| Fabric 1.21.1 | [CurseForge](https://www.curseforge.com/minecraft/mc-mods/masterball-traders-co) | [CurseForge](https://www.curseforge.com/minecraft/mc-mods/masterball-traders-api) |
+| NeoForge 1.21.1 | [CurseForge](https://www.curseforge.com/minecraft/mc-mods/masterball-traders-co-neoforge) | [CurseForge](https://www.curseforge.com/minecraft/mc-mods/masterball-traders-api-neoforge) |
+
+All jars are also on the [GitHub releases](https://github.com/T4V00/cobbletcg-shop/releases). **Issues and suggestions:** [GitHub Issues](https://github.com/T4V00/cobbletcg-shop/issues)
 
 ---
 
